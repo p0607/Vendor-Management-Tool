@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/Vendor-Management-Tool/static/css/main.72b7ec74.css",
+    "main.js": "/Vendor-Management-Tool/static/js/main.e9626826.js",
+    "static/js/52.0aa0570c.chunk.js": "/Vendor-Management-Tool/static/js/52.0aa0570c.chunk.js",
+    "static/js/82.da31f934.chunk.js": "/Vendor-Management-Tool/static/js/82.da31f934.chunk.js",
+    "static/js/790.4b8e00ba.chunk.js": "/Vendor-Management-Tool/static/js/790.4b8e00ba.chunk.js",
+    "static/js/206.bf51703e.chunk.js": "/Vendor-Management-Tool/static/js/206.bf51703e.chunk.js",
+    "index.html": "/Vendor-Management-Tool/index.html"
+  },
+  "entrypoints": [
+    "static/css/main.72b7ec74.css",
+    "static/js/main.e9626826.js"
+  ]
+}
