@@ -8,7 +8,7 @@ const cors_1 = __importDefault(require("cors"));
 const body_parser_1 = __importDefault(require("body-parser"));
 const pg_1 = require("pg");
 const app = (0, express_1.default)();
-const PORT = 3001;
+const PORT = 5001;
 // PostgreSQL connection pool
 const pool = new pg_1.Pool({
     user: 'postgres',
