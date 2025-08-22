@@ -1,0 +1,199 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  background-color: #002542;
+  color: white;
+  background-size: cover;
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  font-family: 'Montserrat', sans-serif;
+  color: white;
+}
+
+/* Header Styles */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 3rem;
+  background-color: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+
+.logo img {
+  height: 120px;
+  max-width: 140px;
+  width: auto;
+}
+
+
+.back-btn button {
+  padding: 0.6rem 1.2rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #4a5568;
+  transition: all 0.2s ease;
+}
+
+.back-btn button:hover {
+  background-color: #e9ecef;
+  border-color: #d0d0d0;
+}
+
+/* Main Content Container */
+.signup-container {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+  margin-top: 20px;
+}
+
+/* Form Styles */
+.signup-form {
+  width: 100%;
+  max-width: 480px;
+  padding: 2.5rem;
+  background-color: rgba(255,255,255,0.08);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.signup-form h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: white;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: white !important;
+  font-size: 0.95rem;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background-color: rgba(255,255,255,0.15);
+  box-sizing: border-box; /* Added for proper width calculation */
+  color: white;
+}
+
+.form-control::placeholder {
+  color: #e0e0e0;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.16);
+  background-color: rgba(255,255,255,0.25);
+  color: white;
+}
+
+select.form-control {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1em;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 1rem;
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 0.5rem;
+}
+
+.submit-btn:hover {
+  background-color: #3182ce;
+}
+
+.error-message {
+  color: #e53e3e;
+  background-color: #fff5f5;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  border: 1px solid #fed7d7;
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 2rem;
+  color: #718096;
+  font-size: 0.95rem;
+}
+
+.form-footer a {
+  color: #4299e1;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.form-footer a:hover {
+  color: #3182ce;
+  text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .header {
+    padding: 1rem;
+  }
+  
+  .signup-form {
+    padding: 1.5rem;
+  }
+  
+  .signup-form h2 {
+    font-size: 1.5rem;
+  }
+}
+
+.signup-logo-top-left {
+  position: absolute;
+  top: 24px;
+  left: 32px;
+  z-index: 20;
+}
+
+.signup-logo-top-left img {
+  height: 60px;
+  max-width: 120px;
+  width: auto;
+}

@@ -1,0 +1,34 @@
+.vendor-chart-container {
+    width: 100%;
+    margin: 1rem 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5rem;
+    background: white;
+  }
+  
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  
+  .sort-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #002542;
+    color: rgb(2, 2, 2);
+    border: 1px solid #001a2e;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+  }
+  
+  .sort-button:hover {
+    background: #000407;
+  }

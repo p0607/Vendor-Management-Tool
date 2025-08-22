@@ -1,0 +1,648 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+body, html {
+  font-family: 'Montserrat', sans-serif;
+  background-color: white;
+  color: black;
+}
+
+* {
+  font-family: 'Montserrat', sans-serif;
+  color: black;
+}
+
+.header {
+  background-color: white;
+  color: black;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.auth-buttons-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 1rem;
+  z-index: 10;
+}
+
+.auth-button {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: black;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+.logo {
+  position: absolute;
+  top: 24px;
+  left: 32px;
+  z-index: 20;
+}
+
+.logo img {
+  height: 60px;
+  max-width: 120px;
+  width: auto;
+}
+
+.auth-button:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Action Dropdown Styles */
+.action-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.action-button {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 180px;
+  margin-top: 4px;
+}
+
+.dropdown-item {
+  padding: 12px 16px;
+  color: black;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item a {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.routing-header-bar {
+  position: relative;
+}
+
+.routing-table-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Remove or override .navigate-button styles if needed */
+.navigate-button {
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+  .table-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: auto;
+    overflow-x: auto;
+  }
+  
+
+.routing-table-container {
+    width: 100%;
+    overflow-x: hidden;
+    margin: 1.5rem 0;
+    border-radius: 8px;
+    margin-top: 2.5rem;
+  }
+  
+  /* Main Table Styles */
+  .routing-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 0.9rem;
+    background-color: white;
+    color: black;
+    font-family: 'Montserrat', sans-serif;
+    table-layout: fixed;
+  }
+  
+  /* Table Header */
+  .routing-table thead {
+    background-color: #f5f5f5;
+    color: black;
+    position: sticky;
+    top: 0;
+    border: 2px solid #e0e0e0;
+  }
+  .field-name{
+    background-color: #f5f5f5 !important;
+    color: black !important;
+    padding: 5px 10px;
+    text-align: left;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.7rem;
+    text-align: center;
+    }
+
+    .expanded-fields-table tr,
+.expanded-fields-table td {
+  background-color: white !important;
+  color: black !important;
+  font-family: 'Montserrat', sans-serif;
+  padding: 5px 5px;
+  text-align: left;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
+  text-align: center;
+  height: 0.5rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 0;
+}
+
+
+  .routing-table th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.8rem;
+    border-bottom: 2px solid #e0e0e0;
+    border-right: 1px solid #e0e0e0;
+    text-align: center;
+  }
+  
+  .routing-table th:last-child {
+    border-right: 2px solid #e0e0e0;
+  }
+  
+  /* Table Body */
+  .routing-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    border-right: 1px solid #e0e0e0;
+    vertical-align: middle;
+    text-align: center;
+  }
+  
+  .routing-table td:last-child {
+    border-right: 2px solid #e0e0e0;
+  }
+  
+  .routing-table tbody tr {
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  .routing-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9 !important;
+  }
+  
+  .routing-table tbody tr:hover {
+    background-color: #f0f0f0 !important;
+    color: black !important;
+    transition: background-color 0.2s ease;
+  }
+  
+  /* Cell Content Styling */
+  .routing-table td.number {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+  }
+  
+  .routing-table td.centered {
+    text-align: center;
+  }
+  
+  .routing-table td.truncate {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Status Indicators */
+  .status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  
+  .status-active {
+    background-color: #d1fae5;
+    color: #065f46;
+  }
+  
+  .status-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+  
+  .status-inactive {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+  
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .routing-table {
+      font-size: 1rem;
+    }
+    
+    .routing-table th, 
+    .routing-table td {
+      padding: 10px 12px;
+      vertical-align: middle;
+      
+    }
+  }
+  
+  /* Scrollbar Styling (for browsers that support it) */
+  .table-container::-webkit-scrollbar {
+    height: 6px;
+  }
+  
+  .table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  .table-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+  }
+  
+  .table-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+
+.search-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 3rem 0 2.5rem 0;
+  padding: 0 1rem;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .search-controls, .filter-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+}
+
+.results-count{
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 18px;
+    font-style: bold;
+    margin-right: 100rem;
+    margin-top: 2rem;
+    margin-bottom: 1.5rem;
+  }
+ /* Add these styles to your existing CSS */
+.action-button {
+  background-color: #808080;
+  color: black;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.action-button:hover {
+  background-color: #a0a0a0;
+}
+
+/* Edit button in table header */
+.edit-data-button {
+  background-color: #808080 !important;
+  color: white !important;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.edit-data-button:hover {
+  background-color: #a0a0a0 !important;
+}
+
+.edit-pen-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-left: 8px;
+  font-size: 9px;
+  color: #666;
+}
+
+.edit-pen-button:hover {
+  color: #333;
+}
+
+.edit-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-input {
+  padding: 4px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  flex-grow: 1;
+}
+
+.save-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.save-button:hover {
+  background-color: #45a049;
+}
+
+.cancel-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.cancel-button:hover {
+  background-color: #d32f2f;
+}
+
+.cell-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-input {
+  padding: 5px;
+  margin: 0 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.clear-button {
+  background-color: #156d96;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.clear-button:hover {
+  background-color: #104e70;
+}
+
+.expand-button {
+  background-color: #156d96;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: block;
+  margin: 0 auto;
+}
+
+.expand-button:hover {
+  background-color: #104e70;
+}
+
+.expanded-row {
+  background-color: white !important;
+}
+
+.expanded-content {
+  background-color: white !important;
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.expanded-fields-table {
+  width: 100%;
+  background-color: white !important;
+  table-layout: fixed;
+  word-wrap: break-word;
+}
+
+.expanded-fields-table tr,
+.expanded-fields-table td {
+  background-color: white !important;
+  color: black !important;
+  font-family: 'Montserrat', sans-serif;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.field-name {
+  background-color: #f5f5f5 !important;
+  color: black !important;
+  font-weight: 600;
+  padding: 8px 12px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
+}
+
+.field-value {
+  background-color: white !important;
+  color: black !important;
+  padding: 8px 12px;
+}
+
+/* Override global white color for input fields */
+input, .date-input {
+  color: black !important;
+  background-color: white !important;
+}
+
+.search-box input {
+  color: black !important;
+  background-color: white !important;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.filter-group input {
+  color: black !important;
+  background-color: white !important;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.date-input {
+  color: black !important;
+  background-color: white !important;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+/* Action Dropdown Styles */
+.action-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.action-button {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.action-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: white;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 200px;
+  margin-top: 4px;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: black;
+  text-align: left;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 4px 4px;
+}
+
+/* Close dropdown when clicking outside */
+.action-dropdown-container:focus-within .action-dropdown {
+  display: block;
+}
+
+/* Responsive adjustments for dropdown */
+@media (max-width: 768px) {
+  .action-dropdown {
+    right: -50px;
+    min-width: 180px;
+  }
+  
+  .auth-buttons-container {
+    gap: 0.5rem;
+  }
+  
+  .auth-button {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+  }
+}

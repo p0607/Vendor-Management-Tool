@@ -1,0 +1,103 @@
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 900px) {
+  .dashboardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Override Ant Design tab content background */
+:global(.ant-tabs-content) {
+  background-color: white !important;
+}
+
+:global(.ant-tabs-tabpane) {
+  background-color: white !important;
+}
+
+:global(.ant-card) {
+  background-color: white !important;
+  border-color: #e0e0e0 !important;
+}
+
+:global(.ant-card-head) {
+  background-color: #f5f5f5 !important;
+  border-bottom-color: #e0e0e0 !important;
+}
+
+:global(.ant-card-head-title) {
+  color: #000000 !important;
+}
+
+:global(.ant-tabs-tab) {
+  color: #000000 !important;
+}
+
+:global(.ant-tabs-tab-active) {
+  color: #000000 !important;
+}
+
+:global(.ant-tabs-tab:hover) {
+  color: #000000 !important;
+}
+
+:global(.ant-tabs-ink-bar) {
+  background-color: #1890ff !important;
+}
+
+/* Pivot Table Styles */
+.pivot-table-container {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.pivot-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  color: black;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+}
+
+.pivot-table th,
+.pivot-table td {
+  padding: 12px 8px;
+  text-align: left;
+  border: 1px solid #e0e0e0;
+}
+
+.pivot-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: black;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.pivot-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.pivot-table tbody tr:hover {
+  background-color: #f0f0f0;
+}
+
+.pivot-table .grand-total {
+  background-color: #e8f4fd !important;
+  font-weight: 600;
+}
+
+.pivot-table .grand-total td {
+  border-top: 2px solid #1890ff;
+}
+
+.pivot-table .grand-total:hover {
+  background-color: #d1e7fd !important;
+}

@@ -1,0 +1,130 @@
+.routing-table thead{
+    background-color: #f5f5f5;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* Header styling */
+.routing-table th.data-header {
+    padding: 12px 8px;
+    text-align: center;
+    font-weight: bold;
+    color: #000000;
+    border: 1px solid #000000;
+    background-color: #f5f5f5;
+    min-width: 150px;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.routing-table th.edit-header {
+    padding: 12px 8px;
+    text-align: center;
+    font-weight: bold;
+    color: #000000;
+    border: 1px solid #000000;
+    background-color: #f5f5f5;
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+}
+
+/* Edit column styling */
+.routing-table td.edit-column {
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+    text-align: center;
+    padding: 8px 4px;
+    border: 1px solid #000000;
+    background-color: white;
+    vertical-align: middle;
+}
+
+/* Action button styling */
+.routing-table .action-button {
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    background-color: #808080;
+    color: black;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    display: inline-block;
+    text-align: center;
+    width: 100%;
+    max-width: 70px;
+}
+
+.routing-table .action-button:hover {
+    background-color: #a0a0a0;
+}
+
+/* Edit data button styling */
+.routing-table .edit-data-button {
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    background-color: #808080 !important;
+    color: white !important;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    display: inline-block;
+    text-align: center;
+    width: 100%;
+    max-width: 70px;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.routing-table .edit-data-button:hover {
+    background-color: #a0a0a0 !important;
+}
+
+/* Expand button styling */
+.routing-table .expand-button {
+    padding: 4px 6px;
+    font-size: 12px;
+    font-weight: bold;
+    background-color: #f5f5f5;
+    color: black;
+    border: 1px solid #000000;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.routing-table .expand-button:hover {
+    background-color: #e0e0e0;
+}
+
+/* Data cells styling */
+.routing-table td {
+    padding: 8px 12px;
+    text-align: center;
+    border: 1px solid #000000;
+    vertical-align: middle;
+    background-color: white;
+    color: #000000;
+    font-size: 12px;
+}
+
+/* Table overall styling */
+.routing-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}

@@ -1,0 +1,452 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
+body, html {
+  font-family: 'Montserrat', sans-serif;
+  background-color: white;
+  color: black;
+}
+
+* {
+  font-family: 'Montserrat', sans-serif;
+  color: black;
+}
+
+.homepage {
+  background-color: white;
+  color: black;
+  min-height: 100vh;
+}
+
+.routing-header-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 1rem 1rem 0 1rem;
+  box-sizing: border-box;
+}
+
+.logo {
+  position: absolute;
+  top: 24px;
+  left: 32px;
+  z-index: 20;
+}
+
+.logo img {
+  height: 60px;
+  max-width: 120px;
+  width: auto;
+}
+
+.auth-buttons-container {
+  position: absolute;
+  top: 10px;
+  right: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 10;
+  flex-wrap: wrap;
+  max-width: 50%;
+  justify-content: flex-end;
+}
+
+.auth-button {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: black;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.auth-button:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Action Dropdown Styles */
+.action-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 180px;
+  backdrop-filter: blur(10px);
+}
+
+.dropdown-item {
+  padding: 10px 15px;
+  cursor: pointer;
+  color: black;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  transition: background-color 0.2s ease;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item:active {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 1200px) {
+  .auth-buttons-container {
+    max-width: 60%;
+    gap: 0.4rem;
+  }
+  
+  .auth-button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .routing-header-bar {
+    padding: 0.5rem 0.5rem 0 0.5rem;
+  }
+  
+  .logo img {
+    height: 35px;
+    max-width: 70px;
+  }
+  
+  .auth-buttons-container {
+    right: 0.5rem;
+    max-width: 70%;
+    gap: 0.3rem;
+  }
+  
+  .auth-button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .auth-buttons-container {
+    max-width: 80%;
+    gap: 0.2rem;
+  }
+  
+  .auth-button {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.7rem;
+  }
+}
+
+/* Override global white color for input fields */
+input, .date-input, .filter-select {
+  color: black !important;
+  background-color: white !important;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+/* Ensure all select dropdown options have black text */
+.filter-select option,
+select option {
+  color: black !important;
+  background-color: white !important;
+}
+
+/* Ensure all select elements have black text */
+select,
+.filter-select {
+  color: black !important;
+  background-color: white !important;
+}
+
+/* Ensure date picker dropdowns have black text */
+.react-datepicker__input-container input,
+.react-datepicker__input-container input:focus,
+.react-datepicker__input-container input:hover {
+  color: black !important;
+  background-color: white !important;
+}
+
+/* Date picker dropdown options */
+.react-datepicker__day,
+.react-datepicker__day-name,
+.react-datepicker__month-text,
+.react-datepicker__quarter-text,
+.react-datepicker__year-text {
+  color: black !important;
+}
+
+/* Date picker dropdown container */
+.react-datepicker {
+  color: black !important;
+  background-color: white !important;
+}
+
+.filter-controls {
+  margin-top: 6rem;
+  margin-bottom: 20px;
+  padding: 0 2rem;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.filter-group label {
+  font-weight: bold;
+  white-space: nowrap;
+  color: black;
+}
+
+.active-filter {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: black;
+  border-radius: 5px;
+  padding: 8px 15px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-bottom: 20px;
+  width: fit-content;
+  margin: 0 2rem 20px 2rem;
+}
+
+.clear-filter {
+  background: #156d96;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.clear-filter:hover {
+  background-color: #104e70;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin: 2rem;
+  width: calc(100% - 4rem);
+  max-width: 100%;
+}
+
+.summary-card {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  min-height: 150px;
+}
+
+.summary-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.summary-card h3 {
+  color: black;
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+}
+
+.card-value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: black;
+  margin-bottom: 5px;
+}
+
+.card-label {
+  color: rgba(0, 0, 0, 0.8);
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+}
+
+.card-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.dashboard-table-container {
+  overflow-x: auto;
+  display: flex;
+  gap: 2rem;
+  height: 100%;
+  margin: 2rem;
+  width: calc(100% - 4rem);
+  max-width: 100%;
+}
+
+.pie-chart-container {
+  flex: 0 0 50%;
+  order: 1;
+}
+
+.chart-container {
+  flex: 0 0 50%;
+  order: 2;
+}
+
+.pivot-table-container {
+  display: flex;
+  justify-content: left;
+  align-items: left;
+  gap: 10px;
+  font-size: 1.0rem;
+  font-weight: bold;
+  color: black;
+  top: 30px;
+  margin: 2rem;
+  width: calc(100% - 4rem);
+  max-width: 100%;
+}
+
+.pivot-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: medium;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.pivot-table th {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: white;
+  padding: 12px 15px;
+  text-align: center;
+}
+
+.pivot-table td {
+  color: black;
+  padding: 12px 15px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.grand-total {
+  font-weight: bold;
+  background-color: rgba(0, 0, 0, 0.1);
+  color: black;
+}
+
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: black;
+  width: 100%;
+}
+
+.chart-container {
+  top: auto;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+.chart-container h3 {
+  font-size: 1.2rem;
+  margin-top: 0;
+  color: black;
+  text-align: center;
+}
+
+.vendor-chart-container {
+  width: 100%;
+  margin: 20px 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure chart takes full space */
+.vendor-chart-container > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 768px) {
+  .summary-cards {
+    grid-template-columns: 1fr;
+    margin: 1rem;
+    width: calc(100% - 2rem);
+  }
+  
+  .dashboard-table-container {
+    margin: 1rem;
+    width: calc(100% - 2rem);
+    flex-direction: column;
+  }
+  
+  .pivot-table-container {
+    margin: 1rem;
+    width: calc(100% - 2rem);
+  }
+  
+  .pivot-table {
+    font-size: 0.9rem;
+  }
+  
+  .pivot-table th, 
+  .pivot-table td {
+    padding: 8px 10px;
+  }
+}
+
+

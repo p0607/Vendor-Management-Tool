@@ -1,0 +1,264 @@
+.add-routing-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .add-routing-container h2 {
+    color: #000000;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .error-message {
+    color: #d32f2f;
+    background-color: #fde8e8;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .routing-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .field-group {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+  }
+  
+  .field-group h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #000000;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+    padding-bottom: 8px;
+  }
+  
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+  }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .form-group label {
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #000000 !important;
+    font-size: 0.9rem;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 8px 10px;
+    border: 1px solid #004a7a;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: #ffffff;
+    color: #000000;
+  }
+  
+  .form-group input.wide-input {
+    min-width: 100%;
+  }
+  
+  .form-group input[type="date"] {
+    padding: 7px 10px;
+  }
+  
+  .form-group input[type="number"] {
+    text-align: right;
+  }
+  
+.form-actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+  }
+
+   .submit-btn,
+.export-btn,
+.cancel-btn,
+.form-actions button,
+.po-summary-content .export-btn,
+.po-summary-content .cancel-btn {
+  min-width: 140px;
+
+/* Action Dropdown Styles */
+.action-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+.action-button {
+  position: relative;
+}
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: #00345a;
+  border: 1px solid #004a7a;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 180px;
+  margin-top: 4px;
+}
+.dropdown-item {
+  padding: 12px 16px;
+  color: white;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+  border-bottom: 1px solid #004a7a;
+}
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+.dropdown-item:hover {
+  background-color: #004a7a;
+}
+  padding: 12px 0;         /* Same vertical padding for equal height */
+  border-radius: 20px;     /* Consistent rounded corners */
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  background: #0f6394;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+  box-sizing: border-box;
+  height: 44px;            /* Fixed height for all buttons */
+  line-height: 1.2;
+  margin-right: 0;         /* Remove extra margin if any */
+}
+  .form-actions button {
+  width: auto !important;
+  min-width: 140px;
+}
+.po-summary-content .export-btn,
+.po-summary-content .cancel-btn {
+  min-width: 140px;
+  padding: 10px 0;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  margin-right: 12px;
+}
+
+  .cancel-btn:hover {
+    background-color: #d32f2f;
+  }
+  
+  
+
+  .po-summary-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.po-summary-content {
+  background: #002542;
+  padding: 2rem 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(31,38,135,0.18);
+  min-width: 350px;
+  color: #ffffff;
+}
+.po-summary-content table {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+.po-summary-content td {
+  padding: 0.4rem 0.7rem;
+}
+.export-btn, .submit-btn, .cancel-btn{
+  background: #2091d3;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  padding: 0.5rem 1.2rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.export-btn:hover {
+  background: #174ea6;
+}
+
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  background-color: #f9f9f9;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+  border-radius: 4px;
+}
+
+.dropdown-content button {
+  color: #333;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.dropdown-content button:hover {
+  background-color: #f1f1f1;
+}
+
+.dropdown:hover .dropdown-content {
+  display: block;
+}
+
+.dropdown-toggle {
+  background-color: #2091d3;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-left: 10px;
+}
+
+.dropdown-toggle:hover {
+  background-color: #1a7bb9;
+}
+
+/* Keep all your existing styles below */
+/* ... */

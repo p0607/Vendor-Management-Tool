@@ -1,0 +1,194 @@
+.add-hrms-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  background-color: white;
+  color: #000000;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.hrms-form-card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background-color: white !important;
+  color: #000000 !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  border-radius: 6px;
+}
+
+.ant-divider {
+  margin-top: 16px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  color: #000000 !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  border-width: 1px;
+  font-size: 16px;
+}
+
+.ant-form-item-label label {
+  font-weight: 500;
+  color: #000000 !important;
+}
+
+.ant-btn {
+  min-width: 120px;
+}
+
+/* Override Ant Design styles for white background and black text */
+.ant-card {
+  background-color: white !important;
+  color: #000000 !important;
+}
+
+.ant-card-body {
+  background-color: white !important;
+  color: #000000 !important;
+  padding: 16px;
+}
+
+.ant-form-item-label > label {
+  color: #000000 !important;
+  font-weight: 600;
+}
+
+.ant-divider-inner-text {
+  color: #000000 !important;
+}
+
+.ant-input {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #004a7a !important;
+}
+
+.ant-picker {
+  background-color: #ffffff !important;
+  border: 1px solid #004a7a !important;
+}
+
+.ant-picker-input > input {
+  color: #000000 !important;
+}
+
+.ant-select-selector {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #004a7a !important;
+}
+
+.ant-select-selection-item {
+  color: #000000 !important;
+}
+
+/* Additional styles for dropdown and date inputs */
+.ant-select-dropdown {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.ant-select-item {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
+.ant-select-item-option-selected {
+  background-color: #e6f7ff !important;
+  color: #000000 !important;
+}
+
+.ant-select-item-option-active {
+  background-color: #f5f5f5 !important;
+  color: #000000 !important;
+}
+
+.ant-picker-dropdown {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.ant-picker-panel {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.ant-picker-header {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.ant-picker-content {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+.ant-picker-cell {
+  color: #000000 !important;
+}
+
+.ant-picker-cell-inner {
+  color: #000000 !important;
+}
+
+.ant-picker-cell:hover .ant-picker-cell-inner {
+  background-color: #f5f5f5 !important;
+  color: #000000 !important;
+}
+
+.ant-picker-cell-selected .ant-picker-cell-inner {
+  background-color: #1890ff !important;
+  color: #ffffff !important;
+}
+
+/* Ensure input text is black */
+.ant-input::placeholder {
+  color: #999999 !important;
+}
+
+.ant-select-selection-placeholder {
+  color: #999999 !important;
+}
+
+.ant-picker-input > input::placeholder {
+  color: #999999 !important;
+}
+
+/* Form field groups styling */
+.ant-row {
+  background-color: #002542 !important;
+  margin-bottom: 8px;
+}
+
+.ant-col {
+  background-color: #002542 !important;
+  padding: 4px;
+}
+
+/* Button styling */
+.ant-btn-primary {
+  background-color: #004a7a !important;
+  border-color: #004a7a !important;
+  color: #ffffff !important;
+}
+
+.ant-btn-primary:hover {
+  background-color: #00345a !important;
+  border-color: #00345a !important;
+}
+
+.ant-btn-default {
+  background-color: #00345a !important;
+  border-color: #004a7a !important;
+  color: #ffffff !important;
+}
+
+.ant-btn-default:hover {
+  background-color: #002542 !important;
+  border-color: #00345a !important;
+}
+
+/* Form sections styling */
+.ant-form-item {
+  margin-bottom: 8px;
+  background-color: #002542 !important;
+}

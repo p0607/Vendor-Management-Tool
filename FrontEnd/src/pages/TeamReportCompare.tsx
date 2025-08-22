@@ -1,0 +1,1709 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Select, Button, Dropdown, Tabs } from "antd";
+import { PlusOutlined, CloseOutlined, DownOutlined } from "@ant-design/icons";
+import * as am5 from "@amcharts/amcharts5";
+import * as am5xy from "@amcharts/amcharts5/xy";
+import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
+import styles from './TeamReportDashboard.module.css';
+import axios from "axios";
+import TargetTrackingChart from './TargetTrackingChart';
+import { formatValueForTable } from '../utils/formatUtils';
+import apiClient from '../config/api';
+
+const { Option } = Select;
+
+interface ReportData {
+  business_unit: string;
+  particulars: string;
+  amount: number | string;
+  month: string;
+}
+
+interface PeriodChange {
+  fromPeriod: string;
+  toPeriod: string;
+  absoluteChange: number;
+  percentageChange: number;
+  isPositive: boolean;
+}
+
+interface CombinedPeriod {
+  periods: string[];
+  label: string;
+  totalAmount: number;
+}
+
+interface GrowthAnalysis {
+  parameter: string;
+  periodValues: {
+    period: string | null;
+    amount: number;
+  }[];
+  changes: PeriodChange[];
+}
+
+type CompareType = "year" | "quarter" | "month";
+
+const TeamReportCompare: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  
+  const lobOptions = [
+    "BPO | HTD", "Canada", "Captive", "Egg", "Japan", 
+    "MS", "SI", "Singapore", "USA"
+  ];
+
+  // State declarations
+  const [user, setUser] = useState<any>({});
+  const [isBUHead, setIsBUHead] = useState(false);
+  const [allowedLobs, setAllowedLobs] = useState<string[]>(lobOptions);
+  const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string | null>(null);
+  const [compareType, setCompareType] = useState<CompareType>("year");
+  const [comparisonValues, setComparisonValues] = useState<(string | null)[]>([null, null]); // [firstValue, secondValue, ...]
+  const [combinedPeriods, setCombinedPeriods] = useState<CombinedPeriod[]>([]);
+  const [showCombinedModal, setShowCombinedModal] = useState<number | null>(null);
+  const [selectedPeriodsForCombination, setSelectedPeriodsForCombination] = useState<string[]>([]);
+  const [data, setData] = useState<ReportData[]>([]);
+  const [availableOptions, setAvailableOptions] = useState<string[]>([]);
+  const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>('bar');
+  const [availableParameters, setAvailableParameters] = useState<string[]>([]);
+  const [comparisonData, setComparisonData] = useState<{period: string, amount: number}[]>([]);
+  const [growthAnalysis, setGrowthAnalysis] = useState<GrowthAnalysis[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('chart');
+  const [showGrowthAnalysis, setShowGrowthAnalysis] = useState<boolean>(false);
+
+  // Simplified date parser for ISO format (YYYY-MM-DD)
+  const parseDate = (dateStr: string): Date => {
+    return new Date(dateStr);
+  };
+
+  // Helper function to get fiscal quarter info
+  const getFiscalQuarter = (date: Date) => {
+    if (isNaN(date.getTime())) {
+      return { label: "Invalid Date", quarter: 0, year: 0 };
+    }
+    
+    const monthNum = date.getMonth(); // 0-11 (Jan-Dec)
+    const year = date.getFullYear();
+    
+    let quarter, quarterRange;
+    if (monthNum >= 3 && monthNum <= 5) { // April (3)-June (5)
+      quarter = 1;
+      quarterRange = "Apr-Jun";
+    } else if (monthNum >= 6 && monthNum <= 8) { // July (6)-Sept (8)
+      quarter = 2;
+      quarterRange = "Jul-Sep";
+    } else if (monthNum >= 9 && monthNum <= 11) { // Oct (9)-Dec (11)
+      quarter = 3;
+      quarterRange = "Oct-Dec";
+    } else { // Jan (0)-Mar (2)
+      quarter = 4;
+      quarterRange = "Jan-Mar";
+    }
+    
+    return {
+      label: `Q${quarter}(${quarterRange}) ${year}`,
+      quarter,
+      year
+    };
+  };
+
+  // Handle adding a new comparison period
+  const handleAddComparison = () => {
+    if (comparisonValues.length < 5) {
+      setComparisonValues([...comparisonValues, null]);
+    }
+  };
+
+  // Handle removing a comparison period
+  const handleRemoveComparison = (index: number) => {
+    if (comparisonValues.length > 1) {
+      const newValues = [...comparisonValues];
+      newValues.splice(index, 1);
+      setComparisonValues(newValues);
+      
+      // Also remove the corresponding combined period if it exists
+      const newCombinedPeriods = [...combinedPeriods];
+      newCombinedPeriods.splice(index, 1);
+      setCombinedPeriods(newCombinedPeriods);
+    }
+  };
+
+  // Handle changing a comparison period value
+  const handleComparisonChange = (index: number, value: string | null) => {
+    const newValues = [...comparisonValues];
+    newValues[index] = value;
+    setComparisonValues(newValues);
+  };
+
+  // Handle opening combined period modal
+  const handleOpenCombinedModal = (index: number) => {
+    setShowCombinedModal(index);
+    setSelectedPeriodsForCombination([]);
+  };
+
+  // Handle creating combined period
+  const handleCreateCombinedPeriod = (index: number) => {
+    if (selectedPeriodsForCombination.length === 0) return;
+    
+    const combinedPeriod: CombinedPeriod = {
+      periods: selectedPeriodsForCombination,
+      label: selectedPeriodsForCombination.join(' + '),
+      totalAmount: 0 // Will be calculated later
+    };
+    
+    const newCombinedPeriods = [...combinedPeriods];
+    newCombinedPeriods[index] = combinedPeriod;
+    setCombinedPeriods(newCombinedPeriods);
+    
+    // Update comparison values to use the combined period
+    const newValues = [...comparisonValues];
+    newValues[index] = combinedPeriod.label;
+    setComparisonValues(newValues);
+    
+    setShowCombinedModal(null);
+    setSelectedPeriodsForCombination([]);
+  };
+
+  // Handle removing combined period
+  const handleRemoveCombinedPeriod = (index: number) => {
+    const newCombinedPeriods = [...combinedPeriods];
+    newCombinedPeriods[index] = undefined as any;
+    setCombinedPeriods(newCombinedPeriods);
+    
+    // Clear the comparison value
+    const newValues = [...comparisonValues];
+    newValues[index] = null;
+    setComparisonValues(newValues);
+  };
+
+  // Check if a period is combined
+  const isCombinedPeriod = (index: number) => {
+    return combinedPeriods[index] !== undefined;
+  };
+
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser && storedUser !== "undefined") {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        const userIsBUHead = parsedUser?.designation === 'BU HEAD';
+        setIsBUHead(userIsBUHead);
+        
+        setAllowedLobs(
+          userIsBUHead && parsedUser.business_unit
+            ? [parsedUser.business_unit]
+            : lobOptions
+        );
+
+        const buFromURL = queryParams.get('business_unit');
+        if (buFromURL) {
+          setSelectedBusinessUnit(buFromURL);
+        } else if (userIsBUHead && parsedUser.business_unit) {
+          setSelectedBusinessUnit(parsedUser.business_unit);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse user data:", error);
+    }
+  }, []);
+
+  // Extract available parameters from data and add calculated metrics
+  useEffect(() => {
+    if (data.length === 0) return;
+    const baseParameters = Array.from(new Set(data.map(item => item.particulars)));
+    
+    // Add calculated metrics
+    const calculatedParameters = [
+      ...baseParameters,
+      'Net Margin %',
+      'Growth Margin %'
+    ];
+    
+    setAvailableParameters(calculatedParameters);
+  }, [data]);
+
+  useEffect(() => {
+    if (data.length === 0) return;
+
+    const periodMap = new Map<string, Date>();
+
+    // Collect unique periods with their dates
+    data.forEach(item => {
+      const date = parseDate(item.month);
+      if (isNaN(date.getTime())) return;
+
+      let periodLabel = "";
+      switch (compareType) {
+        case "year":
+          periodLabel = date.getFullYear().toString();
+          break;
+        case "month":
+          periodLabel = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+          break;
+        case "quarter":
+          periodLabel = getFiscalQuarter(date).label;
+          break;
+      }
+
+      // Only add if we haven't seen this label yet
+      if (!periodMap.has(periodLabel)) {
+        periodMap.set(periodLabel, date);
+      }
+    });
+
+    // Sort periods by date descending
+    const sortedPeriods = Array.from(periodMap.entries())
+      .sort((a, b) => b[1].getTime() - a[1].getTime())
+      .map(entry => entry[0]);
+
+    setAvailableOptions(sortedPeriods);
+  }, [data, compareType]);
+
+  // Fetch data with business unit filter
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const params: any = {};
+        if (selectedBusinessUnit) {
+          params.business_unit = selectedBusinessUnit;
+        }
+        if (isBUHead && user.business_unit) {
+          params.business_unit = user.business_unit;
+        }
+        
+        const res = await apiClient.get("/team-report", { params });
+        
+        // Convert amounts to numbers and handle formatting
+        const convertedData = res.data.map((item: any) => {
+          let amountValue: number;
+          
+          if (typeof item.amount === 'string') {
+            // Remove commas and convert to float
+            amountValue = parseFloat(item.amount.replace(/,/g, ''));
+          } else if (typeof item.amount === 'number') {
+            amountValue = item.amount;
+          } else {
+            amountValue = 0;
+          }
+          
+          return {
+            ...item,
+            amount: isNaN(amountValue) ? 0 : amountValue
+          };
+        });
+        
+        setData(convertedData);
+      } catch (error: any) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [selectedBusinessUnit, isBUHead, user?.business_unit]);
+
+  // Helper function to get base parameter value - moved to component level
+  const getBaseParameterValue = useCallback((periodValue: string | null, index: number, parameter: string): number => {
+    if (!periodValue) return 0;
+    
+    // Check if this is a combined period
+    const combinedPeriod = combinedPeriods[index];
+    if (combinedPeriod && combinedPeriod.label === periodValue) {
+      // Calculate total for combined periods
+      return combinedPeriod.periods.reduce((total, period) => {
+        return total + data
+          .filter(item => {
+            if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+              return false;
+            }
+            if (item.particulars !== parameter) {
+              return false;
+            }
+            
+            const date = parseDate(item.month);
+            if (isNaN(date.getTime())) return false;
+            
+            let itemValue = "";
+            switch (compareType) {
+              case "year":
+                itemValue = date.getFullYear().toString();
+                break;
+              case "month":
+                itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+                break;
+              case "quarter":
+                itemValue = getFiscalQuarter(date).label;
+                break;
+              default:
+                return false;
+            }
+            
+            return itemValue === period;
+          })
+          .reduce((sum, item) => {
+            const amount = typeof item.amount === 'number' ? item.amount : 0;
+            return sum + amount;
+          }, 0);
+      }, 0);
+    }
+    
+    // Single period calculation
+    return data
+      .filter(item => {
+        if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+          return false;
+        }
+        if (item.particulars !== parameter) {
+          return false;
+        }
+        
+        const date = parseDate(item.month);
+        if (isNaN(date.getTime())) return false;
+        
+        let itemValue = "";
+        switch (compareType) {
+          case "year":
+            itemValue = date.getFullYear().toString();
+            break;
+          case "month":
+            itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+            break;
+          case "quarter":
+            itemValue = getFiscalQuarter(date).label;
+            break;
+          default:
+            return false;
+        }
+        
+        return itemValue === periodValue;
+      })
+      .reduce((sum, item) => {
+        const amount = typeof item.amount === 'number' ? item.amount : 0;
+        return sum + amount;
+      }, 0);
+  }, [data, selectedBusinessUnit, compareType, combinedPeriods]);
+
+  // Calculate comparison data when selections change
+  useEffect(() => {
+    if (selectedParameters.length === 0 || comparisonValues.every(v => !v)) return;
+
+    const getPeriodAmountForParameter = (periodValue: string | null, index: number, parameter: string): number => {
+      if (!periodValue) return 0;
+      
+      // Handle calculated metrics
+      if (parameter === 'Net Margin %' || parameter === 'Growth Margin %') {
+        const revenue = getBaseParameterValue(periodValue, index, 'Revenue');
+        
+        if (revenue === 0) return 0;
+        
+        if (parameter === 'Net Margin %') {
+          const netMargin = getBaseParameterValue(periodValue, index, 'Net Margin');
+          return (netMargin / revenue) * 100;
+        } else if (parameter === 'Growth Margin %') {
+          const gpm = getBaseParameterValue(periodValue, index, 'GPM');
+          return (gpm / revenue) * 100;
+        }
+      }
+      
+      // For regular parameters, use the base function
+      return getBaseParameterValue(periodValue, index, parameter);
+    };
+    
+    // Create data structure for multiple parameters
+    const periods = comparisonValues.filter(Boolean);
+    const newComparisonData = periods.map((periodValue, index) => {
+      const dataPoint: any = { period: periodValue as string };
+      
+      // Add amount for each parameter
+      selectedParameters.forEach(parameter => {
+        dataPoint[parameter] = getPeriodAmountForParameter(periodValue, index, parameter);
+      });
+      
+      return dataPoint;
+    });
+
+    setComparisonData(newComparisonData);
+  }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedParameters, combinedPeriods]);
+
+  // Calculate growth analysis when selections change
+  useEffect(() => {
+    if (comparisonValues.filter(Boolean).length < 2) {
+      setGrowthAnalysis([]);
+      return;
+    }
+
+    const calculateGrowth = (): GrowthAnalysis[] => {
+      return availableParameters.map(param => {
+        const periodAmounts = comparisonValues.map((periodValue, index) => {
+          if (!periodValue) return null;
+          
+          // Handle calculated metrics
+          if (param === 'Net Margin %' || param === 'Growth Margin %') {
+            const revenue = getBaseParameterValue(periodValue, index, 'Revenue');
+            
+            if (revenue === 0) return 0;
+            
+            if (param === 'Net Margin %') {
+              const netMargin = getBaseParameterValue(periodValue, index, 'Net Margin');
+              return (netMargin / revenue) * 100;
+            } else if (param === 'Growth Margin %') {
+              const gpm = getBaseParameterValue(periodValue, index, 'GPM');
+              return (gpm / revenue) * 100;
+            }
+          }
+          
+          // Check if this is a combined period
+          const combinedPeriod = combinedPeriods[index];
+          if (combinedPeriod && combinedPeriod.label === periodValue) {
+            // Calculate total for combined periods
+            return combinedPeriod.periods.reduce((total, period) => {
+              return total + data
+                .filter(item => {
+                  if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+                  if (item.particulars !== param) return false;
+                  
+                  const date = parseDate(item.month);
+                  if (isNaN(date.getTime())) return false;
+                  
+                  let itemValue = "";
+                  switch (compareType) {
+                    case "year": itemValue = date.getFullYear().toString(); break;
+                    case "month": itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`; break;
+                    case "quarter": itemValue = getFiscalQuarter(date).label; break;
+                    default: return false;
+                  }
+                  
+                  return itemValue === period;
+                })
+                .reduce((sum, item) => sum + (typeof item.amount === 'number' ? item.amount : 0), 0);
+            }, 0);
+          }
+          
+          // Single period calculation
+          return data
+            .filter(item => {
+              if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+              if (item.particulars !== param) return false;
+              
+              const date = parseDate(item.month);
+              if (isNaN(date.getTime())) return false;
+              
+              let itemValue = "";
+              switch (compareType) {
+                case "year": itemValue = date.getFullYear().toString(); break;
+                case "month": itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`; break;
+                case "quarter": itemValue = getFiscalQuarter(date).label; break;
+                default: return false;
+              }
+              
+              return itemValue === periodValue;
+            })
+            .reduce((sum, item) => sum + (typeof item.amount === 'number' ? item.amount : 0), 0);
+        }).filter(amount => amount !== null);
+
+        // Calculate changes between consecutive periods
+        const changes: PeriodChange[] = [];
+        for (let i = 1; i < periodAmounts.length; i++) {
+          const firstAmount = periodAmounts[i-1] || 0;
+          const secondAmount = periodAmounts[i] || 0;
+          const absoluteChange = secondAmount - firstAmount;
+          const percentageChange = firstAmount !== 0 
+            ? (absoluteChange / Math.abs(firstAmount)) * 100 
+            : secondAmount !== 0 ? Infinity : 0;
+
+          changes.push({
+            fromPeriod: comparisonValues[i-1] as string,
+            toPeriod: comparisonValues[i] as string,
+            absoluteChange,
+            percentageChange,
+            isPositive: absoluteChange >= 0
+          });
+        }
+
+        return {
+          parameter: param,
+          periodValues: comparisonValues.map((period, i) => ({
+            period,
+            amount: periodAmounts[i] || 0
+          })),
+          changes
+        };
+      }).filter(item => item.periodValues.length > 0);
+    };
+
+    setGrowthAnalysis(calculateGrowth());
+  }, [comparisonValues, data, compareType, selectedBusinessUnit, availableParameters, combinedPeriods]);
+
+  // Render comparison chart
+  useEffect(() => {
+    if (comparisonData.length === 0 || selectedParameters.length === 0) return;
+    
+    // Add a small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      // Check if the element exists before creating the chart
+      const chartElement = document.getElementById("comparisonChart");
+      if (!chartElement) {
+        console.warn("Chart element not found, retrying in next render cycle");
+        return;
+      }
+      
+      // Cleanup existing chart
+      am5.array.each(am5.registry.rootElements, (root) => {
+        if (root.dom.id === "comparisonChart") root.dispose();
+      });
+
+      const root = am5.Root.new("comparisonChart");
+      root.setThemes([am5themes_Animated.new(root)]);
+
+      const chart = root.container.children.push(
+        am5xy.XYChart.new(root, {
+          panX: false,
+          panY: false,
+          wheelX: "none",
+          wheelY: "none",
+          cursor: am5xy.XYCursor.new(root, {}),
+          background: am5.Rectangle.new(root, { fill: am5.color(0xffffff) })
+        })
+      );
+
+      // Create axes
+      const xAxis = chart.xAxes.push(
+        am5xy.CategoryAxis.new(root, {
+          categoryField: "period",
+          renderer: am5xy.AxisRendererX.new(root, {}),
+          tooltip: am5.Tooltip.new(root, {})
+        })
+      );
+      xAxis.get("renderer").labels.template.setAll({
+        fill: am5.color(0x000000)
+      });
+
+      const yAxis = chart.yAxes.push(
+        am5xy.ValueAxis.new(root, {
+          renderer: am5xy.AxisRendererY.new(root, {}),
+          tooltip: am5.Tooltip.new(root, {})
+        })
+      );
+      yAxis.get("renderer").labels.template.setAll({
+        fill: am5.color(0x000000)
+      });
+
+      // Define colors for different parameters
+      const colors = [
+        am5.color(0x677935), // Green
+        am5.color(0x1890ff), // Blue
+        am5.color(0xff4d4f), // Red
+        am5.color(0xfaad14), // Yellow
+        am5.color(0x722ed1), // Purple
+        am5.color(0x13c2c2), // Cyan
+        am5.color(0xeb2f96), // Magenta
+        am5.color(0x52c41a), // Lime
+      ];
+
+      // Helper function to get format for parameter
+      const getParameterFormat = (param: string) => {
+        if (param === 'Net Margin %' || param === 'Growth Margin %') {
+          return {
+            prefix: '',
+            suffix: '%',
+            format: '#,##0.00'
+          };
+        }
+        if (param === 'HC') {
+          return {
+            prefix: '',
+            suffix: '',
+            format: '#,##0'
+          };
+        }
+        return {
+          prefix: '₹',
+          suffix: '',
+          format: '#,##0.00'
+        };
+      };
+
+      // Add series based on chart type
+      if (chartType === 'bar' || chartType === 'combo') {
+        selectedParameters.forEach((parameter, index) => {
+          const format = getParameterFormat(parameter);
+          const series = chart.series.push(
+            am5xy.ColumnSeries.new(root, {
+              name: parameter,
+              xAxis: xAxis,
+              yAxis: yAxis,
+              valueYField: parameter,
+              categoryXField: "period",
+              tooltip: am5.Tooltip.new(root, {
+                pointerOrientation: "horizontal",
+                labelText: `{categoryX} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+                autoTextColor: false,
+                labelHTML: `
+                  <div style="
+                    text-align: left; 
+                    padding: 8px 12px; 
+                    background: #ffffff; 
+                    color: #333333; 
+                    border-radius: 6px; 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-size: 12px;
+                    line-height: 1.4;
+                    min-width: 120px;
+                  ">
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
+                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${parameter}</div>
+                    <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
+                  </div>
+                `
+              })
+            })
+          );
+
+          // Configure column appearance
+          series.columns.template.setAll({
+            width: am5.percent(60 / selectedParameters.length), // Adjust width based on number of parameters
+            strokeOpacity: 0,
+            cornerRadiusTL: 5,
+            cornerRadiusTR: 5,
+            tooltipY: 0,
+            tooltipText: `{categoryX} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+            fill: colors[index % colors.length]
+          });
+
+          // Add hover state
+          series.columns.template.states.create("hover", {
+            fill: colors[index % colors.length],
+            stroke: colors[index % colors.length]
+          });
+
+          // Add animation
+          series.appear(1000, 100 * index);
+        });
+      }
+      
+      if (chartType === 'line' || chartType === 'combo') {
+        selectedParameters.forEach((parameter, index) => {
+          const format = getParameterFormat(parameter);
+          const lineSeries = chart.series.push(
+            am5xy.LineSeries.new(root, {
+              name: parameter,
+              xAxis: xAxis,
+              yAxis: yAxis,
+              valueYField: parameter,
+              categoryXField: "period",
+              tooltip: am5.Tooltip.new(root, {
+                pointerOrientation: "horizontal",
+                labelText: `{categoryX} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+                autoTextColor: false,
+                labelHTML: `
+                  <div style="
+                    text-align: left; 
+                    padding: 8px 12px; 
+                    background: #ffffff; 
+                    color: #333333; 
+                    border-radius: 6px; 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-size: 12px;
+                    line-height: 1.4;
+                    min-width: 120px;
+                  ">
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
+                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${parameter}</div>
+                    <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
+                  </div>
+                `
+              })
+            })
+          );
+
+          // Configure line appearance
+          lineSeries.strokes.template.setAll({
+            strokeWidth: 3,
+            stroke: colors[index % colors.length]
+          });
+
+          // Add bullets
+          lineSeries.bullets.push(() => {
+            return am5.Bullet.new(root, {
+              sprite: am5.Circle.new(root, {
+                radius: 5,
+                fill: colors[index % colors.length],
+                stroke: am5.color(0xffffff),
+                strokeWidth: 2
+              })
+            });
+          });
+
+          // Add hover state
+          lineSeries.strokes.template.states.create("hover", {
+            strokeWidth: 4,
+            stroke: colors[index % colors.length]
+          });
+
+          // Add animation
+          lineSeries.appear(1000, 100 * index);
+        });
+      }
+
+      // Add chart animation
+      chart.appear(1000, 100);
+
+      // Set data for all series
+      xAxis.data.setAll(comparisonData);
+      chart.series.values.forEach(series => {
+        series.data.setAll(comparisonData);
+      });
+    }, 100); // 100ms delay
+
+    return () => {
+      clearTimeout(timer);
+      am5.array.each(am5.registry.rootElements, (root) => {
+        if (root.dom.id === "comparisonChart") root.dispose();
+      });
+    };
+  }, [comparisonData, selectedParameters, chartType]);
+
+  return (
+    <div style={{ padding: 32, backgroundColor: '#ffffff', minHeight: '100vh', color: '#000000' }}>
+      <style>
+        {`
+          .ant-select-selection-placeholder {
+            color: #000000 !important;
+          }
+          .ant-select-selection-item {
+            color: #000000 !important;
+          }
+          .ant-select-arrow {
+            color: #000000 !important;
+          }
+          .ant-select-selector {
+            background-color: #ffffff !important;
+            border-color: #004a7a !important;
+          }
+          .ant-select-selector .ant-select-selection-item {
+            color: #000000 !important;
+          }
+          .ant-select-selector .ant-select-selection-placeholder {
+            color: #000000 !important;
+          }
+          .ant-select-dropdown {
+            background-color: #ffffff !important;
+          }
+          .ant-select-dropdown * {
+            color: #000000 !important;
+          }
+          .ant-select-item {
+            color: #000000 !important;
+            background-color: #ffffff !important;
+          }
+          .ant-select-item * {
+            color: #000000 !important;
+          }
+          .ant-select-item-option-selected {
+            background-color: #e6f7ff !important;
+            color: #000000 !important;
+          }
+          .ant-select-item-option-selected * {
+            color: #000000 !important;
+          }
+          .ant-select-item-option-active {
+            background-color: #f5f5f5 !important;
+            color: #000000 !important;
+          }
+          .ant-select-item-option-active * {
+            color: #000000 !important;
+          }
+          .ant-select-item-option-content {
+            color: #000000 !important;
+          }
+          .ant-select-dropdown .ant-select-item-option {
+            color: #000000 !important;
+          }
+          .ant-select-dropdown .ant-select-item-option * {
+            color: #000000 !important;
+          }
+          .ant-btn-dashed {
+            color: #000000 !important;
+            border-color: #004a7a !important;
+            background-color: #ffffff !important;
+          }
+          .ant-btn-dashed:hover {
+            color: #000000 !important;
+            border-color: #00345a !important;
+            background-color: #f5f5f5 !important;
+          }
+          .ant-btn-dashed:focus {
+            color: #000000 !important;
+            border-color: #004a7a !important;
+            background-color: #ffffff !important;
+          }
+          .ant-btn-dashed * {
+            color: #000000 !important;
+          }
+          .ant-btn-dashed span {
+            color: #000000 !important;
+          }
+          .ant-btn-dashed .anticon {
+            color: #000000 !important;
+          }
+                    .ant-btn-dashed .anticon-plus {
+            color: #000000 !important;
+          }
+          .ant-tabs-tab {
+            color: #000000 !important;
+            background-color: #ffffff !important;
+          }
+          .ant-tabs-tab-active {
+            color: #000000 !important;
+            background-color: #ffffff !important;
+          }
+          .ant-tabs-tab:hover {
+            color: #000000 !important;
+          }
+          .ant-tabs-content {
+            background-color: #ffffff !important;
+          }
+          .ant-tabs-tabpane {
+            background-color: #ffffff !important;
+          }
+          .ant-tabs-ink-bar {
+            background-color: #1890ff !important;
+          }
+        `}
+      </style>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ color: '#000000' }}>Team Report Comparison</h1>
+        <Button className="ant-btn" onClick={() => navigate(-1)}>
+          Back
+        </Button>
+      </div>
+
+      <div style={{ margin: "24px 0" }}>
+  <div style={{ 
+    display: "flex", 
+    gap: 16,
+    alignItems: "center",
+    flexWrap: "wrap"
+  }}>
+    {/* Business Unit Filter */}
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ color: '#000000' }}>Business Unit:</label>
+      <Select
+        value={selectedBusinessUnit || ''}
+        onChange={(value) => setSelectedBusinessUnit(value || null)}
+        style={{ width: 200, marginLeft: 8 }}
+        disabled={isBUHead}
+        allowClear={!isBUHead}
+      >
+        <Option value="">All Business Units</Option>
+        {allowedLobs.map((bu: string) => (
+          <Option key={bu} value={bu}>{bu}</Option>
+        ))}
+      </Select>
+    </div>
+    
+    {/* Parameter Selector */}
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ color: '#000000' }}>Compare Parameters:</label>
+      <Select
+        mode="multiple"
+        value={selectedParameters}
+        onChange={(value) => setSelectedParameters(value)}
+        style={{ width: 300, marginLeft: 8 }}
+        placeholder="Select parameters to compare"
+        loading={isLoading}
+        allowClear
+      >
+        {availableParameters.map((param: string) => (
+          <Option key={param} value={param}>{param}</Option>
+        ))}
+      </Select>
+    </div>
+
+    {/* Chart Type Selector */}
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ color: '#000000' }}>Chart Type:</label>
+      <Select
+        value={chartType}
+        onChange={(value: 'bar' | 'line' | 'combo') => setChartType(value)}
+        style={{ width: 120, marginLeft: 8 }}
+      >
+        <Option value="bar">Bar Chart</Option>
+        <Option value="line">Line Chart</Option>
+        <Option value="combo">Combo Chart</Option>
+      </Select>
+    </div>
+
+    {/* Compare Type Selector */}
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ color: '#000000' }}>Compare by:</label>
+      <Select
+        value={compareType}
+        onChange={(value: CompareType) => {
+          setCompareType(value);
+          setComparisonValues([null, null]);
+        }}
+        style={{ width: 120, marginLeft: 8 }}
+        disabled={isLoading}
+      >
+        <Option value="year">Year</Option>
+        <Option value="quarter">Quarter</Option>
+        <Option value="month">Month</Option>
+      </Select>
+    </div>
+  </div>
+
+       
+         {/* Period Selectors */}
+  <div style={{ marginBottom: 24 }}>
+    <label style={{ color: '#000000' }}>Comparison Periods ({compareType}):</label>
+    <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+      {comparisonValues.map((value, index) => (
+        <div key={index} style={{ display: 'flex', alignItems: 'center', minWidth: 280, width: '280px' }}>
+          <Select
+            value={value}
+            onChange={(val) => handleComparisonChange(index, val)}
+            style={{ width: '100%' }}
+            placeholder={`Select ${index === 0 ? 'baseline' : 'compare'} ${compareType}`}
+            loading={isLoading}
+          >
+            {availableOptions.map((option: string) => (
+              <Option key={option} value={option}>{option}</Option>
+            ))}
+          </Select>
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'combine',
+                  label: 'Combine Periods',
+                  icon: <PlusOutlined />,
+                  onClick: () => handleOpenCombinedModal(index)
+                },
+                {
+                  key: 'remove',
+                  label: 'Remove Period',
+                  icon: <CloseOutlined />,
+                  danger: true,
+                  onClick: () => handleRemoveComparison(index)
+                }
+              ]
+            }}
+            trigger={['click']}
+          >
+            <Button 
+              type="text" 
+              icon={<DownOutlined />}
+              style={{ marginLeft: 4, padding: '2px 6px', height: '24px', minWidth: '16px' }}
+              title="Period actions"
+            />
+          </Dropdown>
+        </div>
+      ))}
+      {comparisonValues.length < 5 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Button
+            type="dashed"
+            icon={<PlusOutlined />}
+            onClick={handleAddComparison}
+            style={{ height: 32, padding: '4px 8px' }}
+          >
+            Add
+          </Button>
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'add-combine',
+                  label: 'Add & Combine',
+                  icon: <PlusOutlined />,
+                  onClick: () => {
+                    handleAddComparison();
+                    setTimeout(() => {
+                      handleOpenCombinedModal(comparisonValues.length);
+                    }, 100);
+                  }
+                },
+                {
+                  key: 'remove-last',
+                  label: 'Remove Last',
+                  icon: <CloseOutlined />,
+                  danger: true,
+                  disabled: comparisonValues.length <= 1,
+                  onClick: () => {
+                    if (comparisonValues.length > 1) {
+                      handleRemoveComparison(comparisonValues.length - 1);
+                    }
+                  }
+                }
+              ]
+            }}
+            trigger={['click']}
+          >
+            <Button 
+              type="text" 
+              icon={<DownOutlined />}
+              style={{ height: 32, padding: '4px 6px', minWidth: '16px' }}
+              title="More actions"
+            />
+          </Dropdown>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#000000' }}>Loading data...</div>
+      ) : selectedParameters.length > 0 && comparisonValues.some(v => v) ? (
+        comparisonData.length > 0 ? (
+          <>
+            <div style={{ width: "100%", height: "500px" }}>
+              <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Comparison</h3>
+              <div id="comparisonChart" style={{ width: "100%", height: "100%" }} />
+            </div>
+
+            {/* Growth Analysis Dashboard */}
+            {comparisonValues.filter(Boolean).length >= 2 && growthAnalysis.length > 0 && (
+              <div style={{ marginTop: 40 }}>
+                <h2 style={{ color: '#000000' }}>Growth Analysis Report</h2>
+<p style={{ marginBottom: 16, color: '#000000' }}>
+  Comparing {comparisonValues.filter(Boolean).join(' vs ')} for {selectedBusinessUnit || "All Business Units"}
+</p>
+
+<div style={{
+  border: '1px solid #d9d9d9',
+  borderRadius: 4,
+  overflow: 'hidden',
+  backgroundColor: '#ffffff'
+}}>
+  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <thead>
+      <tr style={{ backgroundColor: '#f5f5f5' }}>
+        <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000' }}>Parameter</th>
+        {comparisonValues.filter(Boolean).map((period, i) => (
+          <th key={i} style={{ padding: '12px 16px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000' }}>
+            {period}
+          </th>
+        ))}
+        <th style={{ padding: '12px 16px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000' }}>Absolute Change</th>
+        <th style={{ padding: '12px 16px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000' }}>Growth %</th>
+      </tr>
+    </thead>
+    <tbody>
+      {growthAnalysis.map((item, index) => {
+        // Calculate growth between first and last period for each parameter
+        const firstPeriodAmount = item.periodValues[0]?.amount || 0;
+        const lastPeriodAmount = item.periodValues[item.periodValues.length - 1]?.amount || 0;
+        const absoluteChange = lastPeriodAmount - firstPeriodAmount;
+        const growthPercentage = firstPeriodAmount !== 0 
+          ? ((absoluteChange) / Math.abs(firstPeriodAmount)) * 100 
+          : lastPeriodAmount !== 0 ? Infinity : 0;
+        const isPositive = absoluteChange >= 0;
+
+        return (
+          <tr key={item.parameter} style={{ 
+            backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9f9f9',
+            borderBottom: '1px solid #d9d9d9',
+            color: '#000000'
+          }}>
+            <td style={{ padding: '12px 16px', fontWeight: 500, color: '#000000' }}>{item.parameter}</td>
+            {item.periodValues.filter(pv => pv.period).map((pv, i) => {
+              return (
+                <td key={i} style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>
+                  {formatValueForTable(pv.amount, item.parameter)}
+                </td>
+              );
+            })}
+            <td style={{ 
+              padding: '12px 16px', 
+              textAlign: 'right',
+              color: isPositive ? '#4ade80' : '#f87171'
+            }}>
+              {isPositive ? '+' : ''}
+              {formatValueForTable(absoluteChange, item.parameter)}
+            </td>
+            <td style={{ 
+              padding: '12px 16px', 
+              textAlign: 'right',
+              color: isPositive ? '#4ade80' : '#f87171',
+              fontWeight: 600
+            }}>
+              {isPositive ? '+' : ''}
+              {growthPercentage === Infinity ? '∞' : growthPercentage.toFixed(2)}%
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
+
+                {/* Summary Cards */}
+<div style={{ 
+  display: 'grid', 
+  gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', // Increased min width
+  gap: 16,
+  marginTop: 24
+}}>
+  <div style={{
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 16,
+    boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
+    minWidth: '380px', // Added min-width
+    border: '1px solid #d9d9d9'
+  }}>
+    <h3 style={{ marginTop: 0, color: '#000000' }}>Top Growth</h3>
+    {growthAnalysis
+      .flatMap(item => 
+        item.changes
+          .filter(change => change.isPositive)
+          .map(change => ({
+            ...change,
+            parameter: item.parameter // Include parameter name
+          }))
+      )
+      .sort((a, b) => b.percentageChange - a.percentageChange)
+      .slice(0, 3)
+      .map((change, i) => (
+        <div key={i} style={{ marginBottom: 8 }}>
+                      <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <div style={{ fontWeight: 500, color: '#000000' }}>{change.parameter}</div>
+                <div style={{ fontSize: 12, color: '#666666' }}>
+                  {change.fromPeriod} → {change.toPeriod}
+                </div>
+              </div>
+              <span style={{ 
+                color: '#4ade80', 
+                fontWeight: 600,
+                fontSize: 14
+              }}>
+                +{change.percentageChange.toFixed(2)}%
+              </span>
+            </div>
+        </div>
+      ))}
+  </div>
+
+  <div style={{
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 16,
+    boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
+    minWidth: '380px', // Added min-width
+    border: '1px solid #d9d9d9'
+  }}>
+    <h3 style={{ marginTop: 0, color: '#000000' }}>Top Decline</h3>
+    {growthAnalysis
+      .flatMap(item => 
+        item.changes
+          .filter(change => !change.isPositive)
+          .map(change => ({
+            ...change,
+            parameter: item.parameter // Include parameter name
+          }))
+      )
+      .sort((a, b) => a.percentageChange - b.percentageChange)
+      .slice(0, 3)
+      .map((change, i) => (
+        <div key={i} style={{ marginBottom: 8 }}>
+                      <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <div style={{ fontWeight: 500, color: '#000000' }}>{change.parameter}</div>
+                <div style={{ fontSize: 12, color: '#666666' }}>
+                  {change.fromPeriod} → {change.toPeriod}
+                </div>
+              </div>
+              <span style={{ 
+                color: '#f87171', 
+                fontWeight: 600,
+                fontSize: 14
+              }}>
+                {change.percentageChange.toFixed(2)}%
+              </span>
+            </div>
+        </div>
+      ))}
+  </div>
+
+  <div style={{
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 16,
+    boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
+    minWidth: '380px', // Added min-width
+    border: '1px solid #d9d9d9'
+  }}>
+    <h3 style={{ marginTop: 0, color: '#000000' }}>Summary</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ color: '#000000' }}>Parameters Increased:</span>
+        <span style={{ fontWeight: 500, color: '#000000' }}>
+          {growthAnalysis
+            .flatMap(item => item.changes)
+            .filter(change => change.isPositive).length}
+        </span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ color: '#000000' }}>Parameters Decreased:</span>
+        <span style={{ fontWeight: 500, color: '#000000' }}>
+          {growthAnalysis
+            .flatMap(item => item.changes)
+            .filter(change => !change.isPositive).length}
+        </span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ color: '#000000' }}>Highest Growth:</span>
+        <span style={{ fontWeight: 500, color: '#000000' }}>
+          {growthAnalysis.length > 0 
+            ? `${Math.max(...growthAnalysis.flatMap(item => 
+                item.changes.map(c => c.percentageChange))).toFixed(2)}%`
+            : '-'}
+        </span>
+      </div>
+  </div>
+</div>
+
+<div style={{
+  backgroundColor: '#ffffff',
+  borderRadius: 8,
+  padding: 16,
+  boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
+  marginTop: 16,
+  width: '100%',
+  border: '1px solid #d9d9d9'
+}}>
+  <h3 style={{ marginTop: 0, borderBottom: '1px solid #d9d9d9', paddingBottom: 8, color: '#000000' }}>
+    Efficiency Dashboard
+  </h3>
+  
+  {(() => {
+    // Get required metrics for all periods
+    const allPeriods = comparisonValues.filter(Boolean);
+    if (allPeriods.length < 2) {
+      return <div style={{ color: '#000000', padding: 16, textAlign: 'center' }}>
+        Select at least 2 periods to compare efficiency metrics
+      </div>;
+    }
+
+    const metrics = allPeriods.map(period => {
+      const periodData = growthAnalysis
+        .map(item => ({
+          parameter: item.parameter,
+          amount: item.periodValues.find(pv => pv.period === period)?.amount || 0
+        }));
+
+      return {
+        period,
+        hc: periodData.find(i => i.parameter === "HC")?.amount || 0,
+        teamCost: periodData.find(i => i.parameter === "Team Cost")?.amount || 0,
+        revenue: periodData.find(i => i.parameter === "Revenue")?.amount || 0,
+        gpm: periodData.find(i => i.parameter === "GPM")?.amount || 0,
+        netMargin: periodData.find(i => i.parameter === "Net Margin")?.amount || 0
+      };
+    });
+
+    const baseline = metrics[0];
+    
+    // Key efficiency metrics to track
+    const metricDefinitions = [
+      {
+        name: "Cost Efficiency",
+        calculate: (m: typeof metrics[0]) => m.teamCost / (m.netMargin || 1),
+        ideal: 'decrease',
+        unit: '₹'
+      },
+      {
+        name: "Revenue per HC",
+        calculate: (m: typeof metrics[0]) => m.revenue / (m.hc || 1),
+        ideal: 'increase',
+        unit: '₹'
+      },
+      {
+        name: "Margin per ₹ Team Cost",
+        calculate: (m: typeof metrics[0]) => m.netMargin / (m.teamCost || 1),
+        ideal: 'increase',
+        unit: '₹'
+      },
+      {
+        name: "Team Cost % of Revenue",
+        calculate: (m: typeof metrics[0]) => (m.teamCost / (m.revenue || 1)) * 100,
+        ideal: 'decrease',
+        unit: '%'
+      },
+      {
+        name: "Net Margin %",
+        calculate: (m: typeof metrics[0]) => (m.netMargin / (m.revenue || 1)) * 100,
+        ideal: 'increase',
+        unit: '%'
+      }
+    ];
+
+    return (
+      <div>
+       {/* Summary Trend Cards */}
+<div style={{ 
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',  // Increased from 220px to 280px
+  gap: 16,  // Increased gap from 12px to 16px
+  marginBottom: 24  // Increased margin from 20px to 24px
+}}>
+  {metricDefinitions.map((metric, i) => {
+    const currentValue = metric.calculate(metrics[metrics.length - 1]);
+    const baselineValue = metric.calculate(baseline);
+    const change = currentValue - baselineValue;
+    const percentageChange = baselineValue !== 0 ? (change / Math.abs(baselineValue)) * 100 : 0;
+    const isPositive = metric.ideal === 'increase' ? change >= 0 : change <= 0;
+    
+    return (
+      <div key={i} style={{
+        backgroundColor: '#ffffff',
+        borderRadius: 8,  // Increased from 6px
+        padding: 16,  // Increased from 12px
+        borderLeft: `4px solid ${isPositive ? '#4ade80' : '#f87171'}`,
+        minHeight: '100px',  // Added fixed height
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        border: '1px solid #d9d9d9'
+      }}>
+        <div style={{ 
+          fontWeight: 600, 
+          fontSize: 16,
+          marginBottom: 8,  // Added margin
+          color: '#000000'
+        }}>
+          {metric.name}
+        </div>
+        <div style={{ 
+          fontSize: 20,  // Increased from 18px
+          fontWeight: 700,
+          margin: '8px 0',  // Increased margin
+          color: '#000000'
+        }}>
+          {metric.name === "Revenue per HC" 
+            ? `${currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}₹`
+            : `${currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${metric.unit}`
+          }
+        </div>
+        <div style={{ 
+          fontSize: 14,  // Increased from 13px
+          color: isPositive ? '#4ade80' : '#f87171',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10
+        }}>
+          <span style={{ fontSize: 16 }}>
+            {isPositive ? '↑' : '↓'}
+          </span>
+          <span style={{ color: '#000000' }}>
+            {Math.abs(percentageChange).toFixed(2)}% vs baseline
+          </span>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
+        {/* Detailed Comparison Table */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f5f5f5' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left', color: '#000000' }}>Metric</th>
+                {metrics.map((m, i) => (
+                  <th key={i} style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>
+                    {m.period}
+                    {i === 0 && <div style={{ fontSize: 12, fontWeight: 400, color: '#000000' }}>(Baseline)</div>}
+                  </th>
+                ))}
+                <th style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>Change vs Baseline</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>Trend</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metricDefinitions.map((metric, i) => (
+                <tr key={i} style={{ 
+                  borderBottom: '1px solid #d9d9d9',
+                  backgroundColor: i % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                  color: '#000000'
+                }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 500, color: '#000000' }}>{metric.name}</td>
+                  
+                  {metrics.map((m, j) => {
+                    const value = metric.calculate(m);
+                    const baselineValue = metric.calculate(baseline);
+                    const change = value - baselineValue;
+                    const isPositive = metric.ideal === 'increase' ? change >= 0 : change <= 0;
+                    
+                    return (
+                      <td key={j} style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>
+                        <div style={{ color: '#000000' }}>
+                          {metric.name === "Revenue per HC" 
+                            ? `${value.toFixed(2)}₹`
+                            : `${value.toFixed(2)}${metric.unit}`
+                          }
+                        </div>
+                        {j > 0 && (
+                          <div style={{ 
+                            fontSize: 12,
+                            color: isPositive ? '#4ade80' : '#f87171'
+                          }}>
+                            {isPositive ? '+' : ''}
+                            {metric.name === "Revenue per HC" 
+                              ? `${change.toFixed(2)}₹`
+                              : `${change.toFixed(2)}${metric.unit}`
+                            }
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                  
+                  <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                    {(() => {
+                      const current = metric.calculate(metrics[metrics.length - 1]);
+                      const baselineValue = metric.calculate(baseline);
+                      const change = current - baselineValue;
+                      const pctChange = baselineValue !== 0 ? (change / Math.abs(baselineValue)) * 100 : 0;
+                      const isPositive = metric.ideal === 'increase' ? change >= 0 : change <= 0;
+                      
+                      return (
+                        <div style={{ color: isPositive ? '#4ade80' : '#f87171' }}>
+                          {isPositive ? '+' : ''}
+                          {metric.name === "Revenue per HC" 
+                            ? `${change.toFixed(2)}₹`
+                            : `${change.toFixed(2)}${metric.unit}`
+                          } ({pctChange.toFixed(2)}%)
+                        </div>
+                      );
+                    })()}
+                  </td>
+                  
+                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                    {(() => {
+                      const values = metrics.map(m => metric.calculate(m));
+                      const isImproving = values.every((val, idx, arr) => 
+                        idx === 0 || 
+                        (metric.ideal === 'increase' ? val >= arr[idx-1] : val <= arr[idx-1])
+                      );
+                      
+                      return (
+                        <div style={{ 
+                          color: isImproving ? '#4ade80' : '#f87171',
+                          fontWeight: 600
+                        }}>
+                          {isImproving ? 'Consistent Improvement' : 'Fluctuating'}
+                        </div>
+                      );
+                    })()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Period-to-Period Changes */}
+        <h4 style={{ margin: '24px 0 12px 0', color: '#000000' }}>
+          Period-to-Period Changes
+        </h4>
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+          gap: 16
+        }}>
+          {metrics.slice(1).map((metric, i) => {
+            const prevMetric = metrics[i];
+            return (
+              <div key={i} style={{
+                backgroundColor: '#ffffff',
+                borderRadius: 6,
+                padding: 16,
+                border: '1px solid #d9d9d9'
+              }}>
+                <h4 style={{ marginTop: 0, borderBottom: '1px solid #d9d9d9', paddingBottom: 8, color: '#000000' }}>
+                  {prevMetric.period} → {metric.period}
+                </h4>
+                <div style={{ display: 'grid', gap: 12 }}>
+                  {metricDefinitions.map((def, j) => {
+                    const current = def.calculate(metric);
+                    const previous = def.calculate(prevMetric);
+                    const change = current - previous;
+                    const pctChange = previous !== 0 ? (change / Math.abs(previous)) * 100 : 0;
+                    const isPositive = def.ideal === 'increase' ? change >= 0 : change <= 0;
+                    
+                    return (
+                      <div key={j} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#000000' }}>{def.name}:</span>
+                        <span style={{ 
+                          fontWeight: 600,
+                          color: isPositive ? '#4ade80' : '#f87171'
+                        }}>
+                          {isPositive ? '+' : ''}
+                          {def.name === "Revenue per HC" 
+                            ? `${change.toFixed(2)}₹`
+                            : `${change.toFixed(2)}${def.unit}`
+                          } ({pctChange.toFixed(2)}%)
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+                    })}
+        </div>
+      </div>
+    );
+  })()}
+</div>
+</div>
+            )}
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', padding: 40, color: '#000000' }}>
+            No data available for the selected filters
+          </div>
+        )
+      ) : null}
+
+      {/* Target Tracking Chart - Always visible */}
+      <TargetTrackingChart
+        selectedBusinessUnit={selectedBusinessUnit}
+        selectedPeriod={comparisonValues[0]}
+        compareType={compareType}
+        actualData={comparisonData.map(item => ({
+          revenue: item.amount,
+          netMargin: item.amount * 0.15, // Assuming 15% net margin for demo
+          period: item.period
+        }))}
+      />
+
+      {/* Combined Period Modal */}
+      {showCombinedModal !== null && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            padding: 24,
+            borderRadius: 8,
+            minWidth: 400,
+            maxWidth: 600,
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: 16, color: '#000000' }}>
+              Combine Periods for Comparison {showCombinedModal + 1}
+            </h3>
+            <p style={{ marginBottom: 16, color: '#666666' }}>
+              Select multiple periods to combine them into a single comparison period.
+            </p>
+            
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 8, color: '#000000' }}>
+                Available Periods:
+              </label>
+              <div style={{ 
+                border: '1px solid #d9d9d9', 
+                borderRadius: 4, 
+                padding: 8, 
+                maxHeight: 200, 
+                overflow: 'auto',
+                backgroundColor: '#f9f9f9'
+              }}>
+                {availableOptions.map((option) => (
+                  <div 
+                    key={option}
+                    style={{
+                      padding: 8,
+                      margin: 4,
+                      backgroundColor: selectedPeriodsForCombination.includes(option) ? '#e6f7ff' : '#ffffff',
+                      border: selectedPeriodsForCombination.includes(option) ? '1px solid #1890ff' : '1px solid #d9d9d9',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      color: '#000000'
+                    }}
+                    onClick={() => {
+                      if (selectedPeriodsForCombination.includes(option)) {
+                        setSelectedPeriodsForCombination(selectedPeriodsForCombination.filter(p => p !== option));
+                      } else {
+                        setSelectedPeriodsForCombination([...selectedPeriodsForCombination, option]);
+                      }
+                    }}
+                  >
+                    {option}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {selectedPeriodsForCombination.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 8, color: '#000000' }}>
+                  Selected Periods:
+                </label>
+                <div style={{ 
+                  padding: 8, 
+                  backgroundColor: '#f0f8ff', 
+                  borderRadius: 4,
+                  border: '1px solid #d9d9d9'
+                }}>
+                  {selectedPeriodsForCombination.join(' + ')}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <Button 
+                onClick={() => {
+                  setShowCombinedModal(null);
+                  setSelectedPeriodsForCombination([]);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="primary"
+                onClick={() => handleCreateCombinedPeriod(showCombinedModal)}
+                disabled={selectedPeriodsForCombination.length === 0}
+              >
+                Create Combined Period
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TeamReportCompare;
