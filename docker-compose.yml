@@ -77,7 +77,7 @@ services:
   # Frontend React App
   frontend:
     build:
-      context: ./Vendor_Management_FrontEnd
+      context: ./FrontEnd
       dockerfile: Dockerfile
     container_name: vendor-management-frontend
     environment:
