@@ -83,10 +83,10 @@ app.set('trust proxy',1);
 // CORS configuration
 const corsOptions = {
   origin: isProduction 
-    ? [process.env.FRONTEND_URL || 'https://yourdomain.com']
+    ? [process.env.FRONTEND_URL || 'http://40.67.147.19', 'http://localhost:3000']
     : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   credentials: true,
   optionsSuccessStatus: 200
 };
