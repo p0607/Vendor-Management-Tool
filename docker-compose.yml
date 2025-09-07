@@ -54,7 +54,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-Postgres0607@}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://40.67.147.19}
     ports:
       - "5001:5001"
     volumes:
@@ -81,7 +81,7 @@ services:
       dockerfile: Dockerfile
     container_name: vendor-management-frontend
     environment:
-      - REACT_APP_API_URL=http://localhost:5001
+      - REACT_APP_API_URL=http://40.67.147.19
     ports:
       - "3000:80"
     networks:

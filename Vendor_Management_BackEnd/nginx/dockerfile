@@ -1,0 +1,3 @@
+FROM nginx:stable-alpine as builder
+RUN rm -r /etc/nginx/conf.d/
+COPY nginx/conf/api_gateway.conf /etc/nginx/conf.d/api_gateway.conf

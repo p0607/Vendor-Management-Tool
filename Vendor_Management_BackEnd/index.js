@@ -34,9 +34,9 @@ const logger = winston.createLogger({
   transports: [
     new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
     new winston.transports.File({ filename: 'logs/combined.log' }),
-    ...(isProduction ? [] : [new winston.transports.Console({
-      format: winston.format.simple()
-    })])
+    new winston.transports.Console({
+    format: winston.format.simple()
+})
   ]
 });
 
@@ -74,10 +74,11 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use('/api/', limiter);
+// app.use('/api/', limiter);
 
 // Compression middleware
 app.use(compression());
+app.set('trust proxy',1);
 
 // CORS configuration
 const corsOptions = {
@@ -106,14 +107,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Database configuration
 const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || 'postgres',
   database: process.env.DB_NAME || 'Vendor_Management',
   password: process.env.DB_PASSWORD || 'Postgres0607@',
   port: process.env.DB_PORT || 5432,
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
   connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
-  ssl: isProduction ? { rejectUnauthorized: false } : false
+  ssl: false
 });
 
 // Database connection event handlers
@@ -245,7 +246,7 @@ const executeQuery = async (query, params = []) => {
 };
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
@@ -319,7 +320,7 @@ app.post('/api/login', async (req, res, next) => {
     }
 
     const user = result.rows[0];
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = (password === user.password);
     
     if (!isPasswordValid) {
       logger.warn('Failed login attempt', { username: name, ip: req.ip });
