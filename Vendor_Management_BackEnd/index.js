@@ -279,10 +279,9 @@ app.post('/api/signup',
         });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 12);
       const result = await executeQuery(
         'INSERT INTO users (name, designation, email, phone_number, password, business_unit) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email',
-        [name, designation, email, phone_number, hashedPassword, business_unit]
+        [name, designation, email, phone_number, password, business_unit]
       );
       
       logger.info('User created successfully', { userId: result.rows[0].id, email });
