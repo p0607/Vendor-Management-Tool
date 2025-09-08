@@ -463,10 +463,6 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
       return value;
     };
     
-    // Get the next Sl.No value
-    const slNoResult = await executeQuery('SELECT COALESCE(MAX("Sl.No"), 0) + 1 as next_sl_no FROM "Alchemy_Routing"');
-    const nextSlNo = slNoResult.rows[0].next_sl_no;
-    
     const result = await executeQuery(
       `INSERT INTO "Alchemy_Routing" (
         "Sl.No", "Costing Date", "IBM / KYNDRYL", "Requestor", "Department SPOC",
@@ -485,7 +481,7 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44
       ) RETURNING *`,
       [
-        nextSlNo, validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
+        routingData['Sl.No'], validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
         routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
         routingData['Training / Services Details'] || null, routingData['Description'] || null,
         routingData['IBM / KYNDRYL PO No'] || null, routingData['IBM / KYNDRYL PO Date'] || null,
@@ -660,13 +656,9 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44
       )`;
       
-      for (let i = 0; i < data.length; i++) {
-        const routingData = data[i];
-        const slNoResult = await client.query('SELECT COALESCE(MAX("Sl.No"), 0) + 1 as next_sl_no FROM "Alchemy_Routing"');
-        const nextSlNo = slNoResult.rows[0].next_sl_no;
-        
+      for (const routingData of data) {
         await client.query(insertQuery, [
-          nextSlNo, validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
+          routingData['Sl.No'], validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
           routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
           routingData['Training / Services Details'] || null, routingData['Description'] || null,
           routingData['IBM / KYNDRYL PO No'] || null, routingData['IBM / KYNDRYL PO Date'] || null,
