@@ -462,6 +462,17 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
       }
       return value;
     };
+
+    const validateNumericField = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') {
+        return null;
+      }
+      // If it's a string that's not a valid number, return null
+      if (typeof value === 'string' && isNaN(parseFloat(value))) {
+        return null;
+      }
+      return parseFloat(value);
+    };
     
     const result = await executeQuery(
       `INSERT INTO "Alchemy_Routing" (
@@ -485,16 +496,16 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
         routingData['Training / Services Details'] || null, routingData['Description'] || null,
         routingData['IBM / KYNDRYL PO No'] || null, validateDateField(routingData['IBM / KYNDRYL PO Date']),
-        routingData['IBM / KYNDRYL PO Value'] || null, routingData['Integration %'] || null,
-        routingData['Integrator Charges (Margin)'] || null, routingData['Alchemy Billing Value'] || null,
-        routingData['Funding cost'] || null, routingData['Net Margin'] || null, routingData['Billing Month'] || null,
+        validateNumericField(routingData['IBM / KYNDRYL PO Value']), validateNumericField(routingData['Integration %']),
+        validateNumericField(routingData['Integrator Charges (Margin)']), validateNumericField(routingData['Alchemy Billing Value']),
+        validateNumericField(routingData['Funding cost']), validateNumericField(routingData['Net Margin']), routingData['Billing Month'] || null,
         routingData["Payment Day's"] || null, routingData['Vendor Details'] || null, routingData['Vendor SPOC'] || null,
         routingData['Vendor SPOC Contact No'] || null, routingData['Vendor SPOC E-mail ID'] || null,
         validateDateField(routingData['Training Dates']), routingData['Vendor Inv. No.'] || null, validateDateField(routingData['Vendor Inv. Date']),
-        routingData['Vendor Inv. Amount'] || null, routingData['GST @ 18%'] || null, routingData['Total Invoice'] || null,
-        routingData['Vendor Amount After TDS 10%'] || null, routingData['Net Payment to Vendor'] || null,
+        validateNumericField(routingData['Vendor Inv. Amount']), validateNumericField(routingData['GST @ 18%']), validateNumericField(routingData['Total Invoice']),
+        validateNumericField(routingData['Vendor Amount After TDS 10%']), validateNumericField(routingData['Net Payment to Vendor']),
         validateDateField(routingData['Payment Due Date']), routingData['Alchemy Techsol Invoive No'] || null,
-        validateDateField(routingData['Alchemy Techsol Invoice Date']), routingData['Alchemy Techsol Invoice Amount'] || null,
+        validateDateField(routingData['Alchemy Techsol Invoice Date']), validateNumericField(routingData['Alchemy Techsol Invoice Amount']),
         validateDateField(routingData['Payment Expected Date (IBM)']), routingData['Cheque Issued Name'] || null,
         validateDateField(routingData['Cheque Date']), routingData['Cheque No'] || null, routingData['REMARK'] || null,
         routingData['domain'] || null, routingData['Vendor_PO_No'] || null, validateDateField(routingData['Vendor_PO_Date']),
@@ -634,6 +645,17 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
       return value;
     };
 
+    const validateNumericField = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') {
+        return null;
+      }
+      // If it's a string that's not a valid number, return null
+      if (typeof value === 'string' && isNaN(parseFloat(value))) {
+        return null;
+      }
+      return parseFloat(value);
+    };
+    
     // Use transaction for bulk insert
     const client = await pool.connect();
     try {
@@ -662,16 +684,16 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
           routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
           routingData['Training / Services Details'] || null, routingData['Description'] || null,
           routingData['IBM / KYNDRYL PO No'] || null, validateDateField(routingData['IBM / KYNDRYL PO Date']),
-          routingData['IBM / KYNDRYL PO Value'] || null, routingData['Integration %'] || null,
-          routingData['Integrator Charges (Margin)'] || null, routingData['Alchemy Billing Value'] || null,
-          routingData['Funding cost'] || null, routingData['Net Margin'] || null, routingData['Billing Month'] || null,
+          validateNumericField(routingData['IBM / KYNDRYL PO Value']), validateNumericField(routingData['Integration %']),
+          validateNumericField(routingData['Integrator Charges (Margin)']), validateNumericField(routingData['Alchemy Billing Value']),
+          validateNumericField(routingData['Funding cost']), validateNumericField(routingData['Net Margin']), routingData['Billing Month'] || null,
           routingData["Payment Day's"] || null, routingData['Vendor Details'] || null, routingData['Vendor SPOC'] || null,
           routingData['Vendor SPOC Contact No'] || null, routingData['Vendor SPOC E-mail ID'] || null,
           validateDateField(routingData['Training Dates']), routingData['Vendor Inv. No.'] || null, validateDateField(routingData['Vendor Inv. Date']),
-          routingData['Vendor Inv. Amount'] || null, routingData['GST @ 18%'] || null, routingData['Total Invoice'] || null,
-          routingData['Vendor Amount After TDS 10%'] || null, routingData['Net Payment to Vendor'] || null,
+          validateNumericField(routingData['Vendor Inv. Amount']), validateNumericField(routingData['GST @ 18%']), validateNumericField(routingData['Total Invoice']),
+          validateNumericField(routingData['Vendor Amount After TDS 10%']), validateNumericField(routingData['Net Payment to Vendor']),
           validateDateField(routingData['Payment Due Date']), routingData['Alchemy Techsol Invoive No'] || null,
-          validateDateField(routingData['Alchemy Techsol Invoice Date']), routingData['Alchemy Techsol Invoice Amount'] || null,
+          validateDateField(routingData['Alchemy Techsol Invoice Date']), validateNumericField(routingData['Alchemy Techsol Invoice Amount']),
           validateDateField(routingData['Payment Expected Date (IBM)']), routingData['Cheque Issued Name'] || null,
           validateDateField(routingData['Cheque Date']), routingData['Cheque No'] || null, routingData['REMARK'] || null,
           routingData['domain'] || null, routingData['Vendor_PO_No'] || null, validateDateField(routingData['Vendor_PO_Date']),
