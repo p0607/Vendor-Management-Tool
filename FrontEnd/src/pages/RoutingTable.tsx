@@ -1253,7 +1253,7 @@ const filteredData = useMemo(() => {
     ) : (
       <div className="cell-content">
         {field === 'Costing Date'
-          ? formatDateOnly(item[field])
+          ? (item[field] ? formatDateOnly(item[field]) : 'No Date')
           : item[field] || 'N/A'}
         {editingMode && (
           <button

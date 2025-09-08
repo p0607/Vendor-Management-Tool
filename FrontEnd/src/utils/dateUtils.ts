@@ -38,6 +38,9 @@ export const formatDateForDisplay = (dateStr: string | null | undefined): string
  * @returns Formatted date string in DD-MM-YYYY format
  */
 export const formatDateOnly = (dateStr: string | null | undefined): string => {
+  if (!dateStr || dateStr === 'null' || dateStr === 'undefined') {
+    return 'No Date';
+  }
   return formatDateToDDMMYYYY(dateStr);
 };
 

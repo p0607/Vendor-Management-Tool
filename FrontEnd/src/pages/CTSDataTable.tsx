@@ -588,7 +588,7 @@ const exportToExcel = () => {
             <label>Service Month Range:</label>
             <DatePicker
               selected={bookingMonthStart}
-              onChange={date => setBookingMonthStart(date)}
+              onChange={(date: Date | null) => setBookingMonthStart(date)}
               dateFormat="MMM-yyyy"
               showMonthYearPicker
               placeholderText="Start month"
@@ -598,7 +598,7 @@ const exportToExcel = () => {
             <span>to</span>
             <DatePicker
               selected={bookingMonthEnd}
-              onChange={date => setBookingMonthEnd(date)}
+              onChange={(date: Date | null) => setBookingMonthEnd(date)}
               dateFormat="MMM-yyyy"
               showMonthYearPicker
               placeholderText="End month"
@@ -664,7 +664,7 @@ const exportToExcel = () => {
                       ) : (
       <div className="cell-content">
         {field === 'service_month'
-          ? formatDateOnly(item[field])
+          ? (item[field] ? formatDateOnly(item[field]) : 'No Date')
           : item[field] || 'N/A'}
         {editingMode && (
           <button

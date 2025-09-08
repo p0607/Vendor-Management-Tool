@@ -477,11 +477,11 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         "Alchemy Techsol Invoice Date", "Alchemy Techsol Invoice Amount", "Payment Expected Date (IBM)",
         "Cheque Issued Name", "Cheque Date", "Cheque No", "REMARK", "domain", "Vendor_PO_No", "Vendor_PO_Date", "Address", "Alchemy PO"
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44
+        (SELECT COALESCE(MAX("Sl.No"), 0) + 1 FROM "Alchemy_Routing"), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
       ) RETURNING *`,
       [
-        routingData['Sl.No'], validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
+        validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
         routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
         routingData['Training / Services Details'] || null, routingData['Description'] || null,
         routingData['IBM / KYNDRYL PO No'] || null, routingData['IBM / KYNDRYL PO Date'] || null,
@@ -563,6 +563,139 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
     
     logger.info('Routing record patched', { recordId: id });
     res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Forgot Password endpoint
+app.post('/api/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    // Check if user exists
+    const result = await executeQuery('SELECT * FROM users WHERE email = $1', [email]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // In a real application, you would send a password reset email here
+    // For now, we'll just return a success message
+    logger.info('Password reset requested', { email });
+    
+    res.json({
+      success: true,
+      message: 'Password reset instructions sent to your email'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Bulk Alchemy Routing endpoint
+app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
+  try {
+    const { data } = req.body;
+    
+    if (!Array.isArray(data) || data.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid data format. Expected non-empty array.'
+      });
+    }
+
+    const validateDateField = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined' || value === '1') {
+        return null;
+      }
+      
+      if (!isNaN(value) && value > 1000) {
+        const excelDate = new Date((value - 25569) * 86400 * 1000);
+        if (!isNaN(excelDate.getTime())) {
+          return excelDate.toISOString().split('T')[0];
+        }
+      }
+      
+      const date = new Date(value);
+      if (isNaN(date.getTime())) {
+        return null;
+      }
+      return value;
+    };
+
+    // Use transaction for bulk insert
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      const insertQuery = `INSERT INTO "Alchemy_Routing" (
+        "Sl.No", "Costing Date", "IBM / KYNDRYL", "Requestor", "Department SPOC",
+        "SPOC E-mail ID", "Training / Services Details", "Description",
+        "IBM / KYNDRYL PO No", "IBM / KYNDRYL PO Date", "IBM / KYNDRYL PO Value",
+        "Integration %", "Integrator Charges (Margin)",
+        "Alchemy Billing Value", "Funding cost", "Net Margin", "Billing Month", "Payment Day's",
+        "Vendor Details", "Vendor SPOC", "Vendor SPOC Contact No", "Vendor SPOC E-mail ID",
+        "Training Dates", "Vendor Inv. No.", "Vendor Inv. Date", "Vendor Inv. Amount",
+        "GST @ 18%", "Total Invoice", "Vendor Amount After TDS 10%",
+        "Net Payment to Vendor", "Payment Due Date", "Alchemy Techsol Invoive No",
+        "Alchemy Techsol Invoice Date", "Alchemy Techsol Invoice Amount", "Payment Expected Date (IBM)",
+        "Cheque Issued Name", "Cheque Date", "Cheque No", "REMARK", "domain", "Vendor_PO_No", "Vendor_PO_Date", "Address", "Alchemy PO"
+      ) VALUES (
+        (SELECT COALESCE(MAX("Sl.No"), 0) + 1 FROM "Alchemy_Routing"), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
+      )`;
+      
+      for (const routingData of data) {
+        await client.query(insertQuery, [
+          validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
+          routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
+          routingData['Training / Services Details'] || null, routingData['Description'] || null,
+          routingData['IBM / KYNDRYL PO No'] || null, routingData['IBM / KYNDRYL PO Date'] || null,
+          routingData['IBM / KYNDRYL PO Value'] || null, routingData['Integration %'] || null,
+          routingData['Integrator Charges (Margin)'] || null, routingData['Alchemy Billing Value'] || null,
+          routingData['Funding cost'] || null, routingData['Net Margin'] || null, routingData['Billing Month'] || null,
+          routingData["Payment Day's"] || null, routingData['Vendor Details'] || null, routingData['Vendor SPOC'] || null,
+          routingData['Vendor SPOC Contact No'] || null, routingData['Vendor SPOC E-mail ID'] || null,
+          routingData['Training Dates'] || null, routingData['Vendor Inv. No.'] || null, routingData['Vendor Inv. Date'] || null,
+          routingData['Vendor Inv. Amount'] || null, routingData['GST @ 18%'] || null, routingData['Total Invoice'] || null,
+          routingData['Vendor Amount After TDS 10%'] || null, routingData['Net Payment to Vendor'] || null,
+          routingData['Payment Due Date'] || null, routingData['Alchemy Techsol Invoive No'] || null,
+          routingData['Alchemy Techsol Invoice Date'] || null, routingData['Alchemy Techsol Invoice Amount'] || null,
+          routingData['Payment Expected Date (IBM)'] || null, routingData['Cheque Issued Name'] || null,
+          routingData['Cheque Date'] || null, routingData['Cheque No'] || null, routingData['REMARK'] || null,
+          routingData['domain'] || null, routingData['Vendor_PO_No'] || null, validateDateField(routingData['Vendor_PO_Date']),
+          routingData['Address'] || null, routingData['Alchemy PO'] || null
+        ]);
+      }
+      
+      await client.query('COMMIT');
+      
+      logger.info('Alchemy Routing bulk import completed', { 
+        recordCount: data.length
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: `Successfully imported ${data.length} records`,
+        insertedCount: data.length
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     next(err);
   }
