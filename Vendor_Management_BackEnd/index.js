@@ -463,6 +463,10 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
       return value;
     };
     
+    // Get the next Sl.No value
+    const slNoResult = await executeQuery('SELECT COALESCE(MAX("Sl.No"), 0) + 1 as next_sl_no FROM "Alchemy_Routing"');
+    const nextSlNo = slNoResult.rows[0].next_sl_no;
+    
     const result = await executeQuery(
       `INSERT INTO "Alchemy_Routing" (
         "Sl.No", "Costing Date", "IBM / KYNDRYL", "Requestor", "Department SPOC",
@@ -477,11 +481,11 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         "Alchemy Techsol Invoice Date", "Alchemy Techsol Invoice Amount", "Payment Expected Date (IBM)",
         "Cheque Issued Name", "Cheque Date", "Cheque No", "REMARK", "domain", "Vendor_PO_No", "Vendor_PO_Date", "Address", "Alchemy PO"
       ) VALUES (
-        (SELECT COALESCE(MAX("Sl.No"), 0) + 1 FROM "Alchemy_Routing"), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44
       ) RETURNING *`,
       [
-        validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
+        nextSlNo, validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
         routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
         routingData['Training / Services Details'] || null, routingData['Description'] || null,
         routingData['IBM / KYNDRYL PO No'] || null, routingData['IBM / KYNDRYL PO Date'] || null,
@@ -652,13 +656,17 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         "Alchemy Techsol Invoice Date", "Alchemy Techsol Invoice Amount", "Payment Expected Date (IBM)",
         "Cheque Issued Name", "Cheque Date", "Cheque No", "REMARK", "domain", "Vendor_PO_No", "Vendor_PO_Date", "Address", "Alchemy PO"
       ) VALUES (
-        (SELECT COALESCE(MAX("Sl.No"), 0) + 1 FROM "Alchemy_Routing"), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44
       )`;
       
-      for (const routingData of data) {
+      for (let i = 0; i < data.length; i++) {
+        const routingData = data[i];
+        const slNoResult = await client.query('SELECT COALESCE(MAX("Sl.No"), 0) + 1 as next_sl_no FROM "Alchemy_Routing"');
+        const nextSlNo = slNoResult.rows[0].next_sl_no;
+        
         await client.query(insertQuery, [
-          validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
+          nextSlNo, validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
           routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
           routingData['Training / Services Details'] || null, routingData['Description'] || null,
           routingData['IBM / KYNDRYL PO No'] || null, routingData['IBM / KYNDRYL PO Date'] || null,
