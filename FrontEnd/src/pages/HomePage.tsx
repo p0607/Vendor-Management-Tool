@@ -88,8 +88,7 @@ const HomePage: React.FC = () => {
       </div>
       <div className="main-content">
         <div className="welcome-card">
-          <h1>Welcome to FINANCIALS <br/> </h1>
-         
+          <h1>Welcome to FINANCIALS </h1>
           <h2>Where would you like to start?</h2>
           <div className="sticky-note-buttons">
             {getVisibleButtons().map(button => (

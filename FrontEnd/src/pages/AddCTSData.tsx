@@ -389,7 +389,7 @@ const AddCTSData: React.FC = () => {
             <input
               type={field.includes('date') || field === 'service_month' ? 'date' : 'text'}
               name={field}
-              value={field.includes('date') || field === 'service_month' ? formatDateForDisplay(formData[field]) : formData[field]}
+              value={field.includes('date') || field === 'service_month' ? formData[field] : formData[field]}
               onChange={handleChange}
             />
           </div>
