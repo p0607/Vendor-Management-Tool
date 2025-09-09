@@ -59,7 +59,7 @@ const QuarterlyPieChart: React.FC<QuarterlyPieChartProps> = ({ data, selectedPar
     }));
 
     am5.array.each(am5.registry.rootElements, function(root) {
-      if (root.dom.id === "quarterlyPie") root.dispose();
+      if (root && root.dom && root.dom.id === "quarterlyPie") root.dispose();
     });
 
     const root = am5.Root.new("quarterlyPie");

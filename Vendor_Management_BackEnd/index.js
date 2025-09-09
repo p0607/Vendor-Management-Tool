@@ -366,6 +366,15 @@ app.post('/api/CTS', async (req, res, next) => {
         return null;
       }
       
+      // Handle date ranges (e.g., "10-09-2025 to 15-09-2025" -> use start date)
+      if (typeof value === 'string' && value.includes(' to ')) {
+        const startDate = value.split(' to ')[0].trim();
+        const date = new Date(startDate);
+        if (!isNaN(date.getTime())) {
+          return startDate;
+        }
+      }
+      
       if (!isNaN(value) && value > 1000) {
         const excelDate = new Date((value - 25569) * 86400 * 1000);
         if (!isNaN(excelDate.getTime())) {
@@ -384,6 +393,13 @@ app.post('/api/CTS', async (req, res, next) => {
       if (!value || value === '' || value === 'null' || value === 'undefined') {
         return null;
       }
+      
+      // Handle percentage values (e.g., "10%" -> 10)
+      if (typeof value === 'string' && value.includes('%')) {
+        const numericValue = parseFloat(value.replace('%', ''));
+        return isNaN(numericValue) ? null : numericValue;
+      }
+      
       // If it's a string that's not a valid number, return null
       if (typeof value === 'string' && isNaN(parseFloat(value))) {
         return null;
@@ -480,6 +496,15 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         return null;
       }
       
+      // Handle date ranges (e.g., "10-09-2025 to 15-09-2025" -> use start date)
+      if (typeof value === 'string' && value.includes(' to ')) {
+        const startDate = value.split(' to ')[0].trim();
+        const date = new Date(startDate);
+        if (!isNaN(date.getTime())) {
+          return startDate;
+        }
+      }
+      
       if (!isNaN(value) && value > 1000) {
         const excelDate = new Date((value - 25569) * 86400 * 1000);
         if (!isNaN(excelDate.getTime())) {
@@ -498,6 +523,13 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
       if (!value || value === '' || value === 'null' || value === 'undefined') {
         return null;
       }
+      
+      // Handle percentage values (e.g., "10%" -> 10)
+      if (typeof value === 'string' && value.includes('%')) {
+        const numericValue = parseFloat(value.replace('%', ''));
+        return isNaN(numericValue) ? null : numericValue;
+      }
+      
       // If it's a string that's not a valid number, return null
       if (typeof value === 'string' && isNaN(parseFloat(value))) {
         return null;
@@ -662,6 +694,15 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         return null;
       }
       
+      // Handle date ranges (e.g., "10-09-2025 to 15-09-2025" -> use start date)
+      if (typeof value === 'string' && value.includes(' to ')) {
+        const startDate = value.split(' to ')[0].trim();
+        const date = new Date(startDate);
+        if (!isNaN(date.getTime())) {
+          return startDate;
+        }
+      }
+      
       if (!isNaN(value) && value > 1000) {
         const excelDate = new Date((value - 25569) * 86400 * 1000);
         if (!isNaN(excelDate.getTime())) {
@@ -680,6 +721,13 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
       if (!value || value === '' || value === 'null' || value === 'undefined') {
         return null;
       }
+      
+      // Handle percentage values (e.g., "10%" -> 10)
+      if (typeof value === 'string' && value.includes('%')) {
+        const numericValue = parseFloat(value.replace('%', ''));
+        return isNaN(numericValue) ? null : numericValue;
+      }
+      
       // If it's a string that's not a valid number, return null
       if (typeof value === 'string' && isNaN(parseFloat(value))) {
         return null;

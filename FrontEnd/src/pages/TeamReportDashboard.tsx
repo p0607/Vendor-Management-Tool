@@ -288,7 +288,7 @@ const TeamReportDashboard: React.FC = () => {
     });
 
     am5.array.each(am5.registry.rootElements, function(root) {
-      if (root.dom.id === "barChart") root.dispose();
+      if (root && root.dom && root.dom.id === "barChart") root.dispose();
     });
 
     const root = am5.Root.new("barChart");

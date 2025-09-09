@@ -194,7 +194,7 @@ const AddRoutingData: React.FC = () => {
       if (window.confirm(`Are you sure you want to import ${validatedData.length} records?`)) {
         setIsSubmitting(true);
         
-        const response = await apiClient.post('/Alchemy_Routing/bulk', validatedData);
+        const response = await apiClient.post('/Alchemy_Routing/bulk', { data: validatedData });
 
         alert(`${validatedData.length} records imported successfully!`);
         navigate('/RoutingTable');

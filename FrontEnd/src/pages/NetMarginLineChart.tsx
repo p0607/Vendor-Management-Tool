@@ -31,7 +31,7 @@ const NetMarginLineChart: React.FC<NetMarginLineChartProps> = ({ data, selectedP
     }));
 
     am5.array.each(am5.registry.rootElements, function(root) {
-      if (root.dom.id === "netMarginLine") root.dispose();
+      if (root && root.dom && root.dom.id === "netMarginLine") root.dispose();
     });
 
     const root = am5.Root.new("netMarginLine");

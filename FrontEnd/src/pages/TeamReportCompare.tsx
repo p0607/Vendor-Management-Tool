@@ -557,7 +557,7 @@ const TeamReportCompare: React.FC = () => {
       
       // Cleanup existing chart
       am5.array.each(am5.registry.rootElements, (root) => {
-        if (root.dom.id === "comparisonChart") root.dispose();
+        if (root && root.dom && root.dom.id === "comparisonChart") root.dispose();
       });
 
       const root = am5.Root.new("comparisonChart");
@@ -768,7 +768,7 @@ const TeamReportCompare: React.FC = () => {
     return () => {
       clearTimeout(timer);
       am5.array.each(am5.registry.rootElements, (root) => {
-        if (root.dom.id === "comparisonChart") root.dispose();
+        if (root && root.dom && root.dom.id === "comparisonChart") root.dispose();
       });
     };
   }, [comparisonData, selectedParameters, chartType]);
