@@ -360,6 +360,37 @@ app.get('/api/CTS', async (req, res, next) => {
 app.post('/api/CTS', async (req, res, next) => {
   try {
     const data = req.body;
+    
+    const validateDateField = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined' || value === '1') {
+        return null;
+      }
+      
+      if (!isNaN(value) && value > 1000) {
+        const excelDate = new Date((value - 25569) * 86400 * 1000);
+        if (!isNaN(excelDate.getTime())) {
+          return excelDate.toISOString().split('T')[0];
+        }
+      }
+      
+      const date = new Date(value);
+      if (isNaN(date.getTime())) {
+        return null;
+      }
+      return value;
+    };
+
+    const validateNumericField = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') {
+        return null;
+      }
+      // If it's a string that's not a valid number, return null
+      if (typeof value === 'string' && isNaN(parseFloat(value))) {
+        return null;
+      }
+      return parseFloat(value);
+    };
+    
     const result = await executeQuery(
       `INSERT INTO cts (
         sl_no, vendor_name, booking_month, resource_name, vendor_invoice_no,
@@ -373,12 +404,12 @@ app.post('/api/CTS', async (req, res, next) => {
         $20, $21, $22, $23, $24, $25, $26
       ) RETURNING *`,
       [
-        data.sl_no, data.vendor_name, data.booking_month, data.resource_name, data.vendor_invoice_no,
-        data.vendor_invoice_date, data.atipl_invoice_base_amount, data.gst, data.total_invoice_amount,
-        data.tds, data.net_receivable, data.payment_receive_from_client, data.balance_receivable_from_client, data.tally_book_entry_date,
-        data.sub_vendor_invoice_date, data.sub_vendor_invoice_no, data.base_amt_as_per_tally_vendor, data.margin,
-        data.vendor_invoice_status, data.payment_date, data.instrument_no, data.payment_mode, data.payment_status,
-        data.receipts_status, data.extra || null, data.service_month
+        data.sl_no, data.vendor_name, validateDateField(data.booking_month), data.resource_name, data.vendor_invoice_no,
+        validateDateField(data.vendor_invoice_date), validateNumericField(data.atipl_invoice_base_amount), validateNumericField(data.gst), validateNumericField(data.total_invoice_amount),
+        validateNumericField(data.tds), validateNumericField(data.net_receivable), validateNumericField(data.payment_receive_from_client), validateNumericField(data.balance_receivable_from_client), validateDateField(data.tally_book_entry_date),
+        validateDateField(data.sub_vendor_invoice_date), data.sub_vendor_invoice_no, validateNumericField(data.base_amt_as_per_tally_vendor), validateNumericField(data.margin),
+        data.vendor_invoice_status, validateDateField(data.payment_date), data.instrument_no, data.payment_mode, data.payment_status,
+        data.receipts_status, data.extra || null, validateDateField(data.service_month)
       ]
     );
     

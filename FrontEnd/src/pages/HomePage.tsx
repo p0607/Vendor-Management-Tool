@@ -36,7 +36,7 @@ const HomePage: React.FC = () => {
       },
       { 
         key: 'teamReport',
-        label: 'Team Report MoM',
+        label: 'MFS',
         path: '/TeamReportDashboard',
         visibleTo: ['SUPER ADMIN', 'ADMIN', 'BU HEAD']
       }

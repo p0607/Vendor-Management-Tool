@@ -231,7 +231,7 @@ const TeamReportDashboard: React.FC = () => {
   const actionDropdownItems = [
     {
       key: 'add',
-      label: 'Add Team Report Data',
+      label: 'Add MFS Data',
       onClick: () => navigate('/AddTeamReportData')
     },
     {
@@ -573,7 +573,7 @@ const TeamReportDashboard: React.FC = () => {
           fontFamily: 'Montserrat, sans-serif', 
           margin: 0, 
           zIndex: 1 
-        }}>Team Report Dashboard</h2>
+        }}>MFS Dashboard</h2>
         <div className="auth-buttons-container">
           <Dropdown
             menu={{ items: actionDropdownItems }}

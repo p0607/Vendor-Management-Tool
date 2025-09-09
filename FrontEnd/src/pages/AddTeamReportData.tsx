@@ -71,7 +71,7 @@ const PARTICULARS_OPTIONS = [
       const response = await apiClient.post('/team-report', formattedData);
       
       // Show success message
-      alert('Team Report data submitted successfully!');
+      alert('MFS data submitted successfully!');
       
       navigate('/AddTeamReportData'); // Change to your desired route after submit
     } catch (err: any) {
@@ -93,7 +93,7 @@ const PARTICULARS_OPTIONS = [
         </div>
       </header>
       <div className="add-routing-container">
-        <h2>Add Team Report Data</h2>
+        <h2>Add MFS Data</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit} className="routing-form">
           <div className="field-group">

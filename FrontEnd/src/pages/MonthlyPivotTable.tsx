@@ -86,7 +86,6 @@ const MonthlyPivotTable: React.FC<Props> = ({
         {month}
       </th>
     ))}
-    <th scope="col">Total</th>
   </tr>
 </thead>
 <tbody>
@@ -103,9 +102,6 @@ const MonthlyPivotTable: React.FC<Props> = ({
            {row.monthly[month] ? formatAmount(row.monthly[month], row.particulars) : "-"}
          </td>
        ))}
-       <td className="text-right total-cell">
-         {formatAmount(row.total, row.particulars)}
-       </td>
     </tr>
   ))}
 </tbody>

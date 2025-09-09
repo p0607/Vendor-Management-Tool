@@ -882,7 +882,7 @@ const TeamReportCompare: React.FC = () => {
         `}
       </style>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ color: '#000000' }}>Team Report Comparison</h1>
+        <h1 style={{ color: '#000000' }}>MFS Comparison</h1>
         <Button className="ant-btn" onClick={() => navigate(-1)}>
           Back
         </Button>
