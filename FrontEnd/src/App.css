@@ -1,5 +1,8 @@
 .App {
   text-align: center;
+  background-color: var(--primary-bg);
+  color: var(--primary-text);
+  min-height: 100vh;
 }
 
 .App-logo {
@@ -14,18 +17,27 @@
 }
 
 .App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+  background-color: var(--heading-bg);
+  color: var(--heading-text);
+  padding: 20px;
+  border-bottom: 3px solid var(--heading-underline);
+  min-height: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
-  color: white;
 }
 
 .App-link {
-  color: #61dafb;
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.App-link:hover {
+  color: #e67e00;
+  text-decoration: underline;
 }
 
 @keyframes App-logo-spin {
@@ -35,4 +47,54 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Homepage specific styles */
+.homepage {
+  background-color: var(--primary-bg);
+  color: var(--primary-text);
+  min-height: 100vh;
+}
+
+/* Navigation styles */
+.navbar, .navigation {
+  background-color: var(--heading-bg) !important;
+  color: var(--heading-text) !important;
+  border-bottom: 2px solid var(--heading-underline) !important;
+}
+
+.navbar a, .navigation a {
+  color: var(--heading-text) !important;
+  text-decoration: none !important;
+  padding: 10px 15px !important;
+  border-radius: 4px !important;
+  transition: all 0.3s ease !important;
+}
+
+.navbar a:hover, .navigation a:hover {
+  background-color: var(--accent-color) !important;
+  color: var(--button-text) !important;
+}
+
+/* Dashboard specific styles */
+.dashboard-container {
+  background-color: var(--primary-bg);
+  color: var(--primary-text);
+  padding: 20px;
+}
+
+/* Stats and KPI cards */
+.stats-card, .kpi-card {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  padding: 20px !important;
+  margin: 10px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  transition: transform 0.3s ease !important;
+}
+
+.stats-card:hover, .kpi-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
 }

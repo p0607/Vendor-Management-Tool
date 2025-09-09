@@ -2,18 +2,18 @@
 
 body, html {
   font-family: 'Montserrat', sans-serif;
-  background-color: white;
-  color: black;
+  background-color: var(--primary-bg);
+  color: var(--primary-text);
 }
 
 * {
   font-family: 'Montserrat', sans-serif;
-  color: black;
+  color: var(--primary-text);
 }
 
 .header {
-  background-color: white;
-  color: black;
+  background-color: var(--primary-bg);
+  color: var(--primary-text);
   font-family: 'Montserrat', sans-serif;
 }
 
@@ -27,9 +27,9 @@ body, html {
 }
 
 .auth-button {
-  background-color: rgba(0, 0, 0, 0.1);
-  color: black;
-  border: 1px solid rgba(0, 0, 0, 0.3);
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  border: none;
   padding: 0.5rem 1rem;
   border-radius: 4px;
   cursor: pointer;
@@ -51,7 +51,9 @@ body, html {
 }
 
 .auth-button:hover {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: #e67e00;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Action Dropdown Styles */

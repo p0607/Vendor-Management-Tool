@@ -59,7 +59,7 @@ const Login = () => {
       </div>
       <main className="login-center">
         <form className="glassmorphism" onSubmit={handleLogin}>
-          <h2 className="login-title">Vendor Management Tool</h2>
+          <h2 className="login-title">FINANCIALS</h2>
           {error && <div className="login-error">{error}</div>}
           <div className="login-field">
             <label htmlFor="name">Username</label>

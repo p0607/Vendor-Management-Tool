@@ -2,8 +2,8 @@
 
 body {
   font-family: 'Montserrat', sans-serif;
-  background-color: #002542;
-  color: white;
+  background-color: var(--primary-bg);
+  color: var(--primary-text);
   background-size: cover;
   margin: 0;
   padding: 0;
@@ -11,7 +11,7 @@ body {
 
 * {
   font-family: 'Montserrat', sans-serif;
-  color: white;
+  color: var(--primary-text);
 }
 
 /* Header Styles */
