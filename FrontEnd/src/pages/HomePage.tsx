@@ -52,7 +52,7 @@ const HomePage: React.FC = () => {
   };
 
   React.useEffect(() => {
-    document.body.style.backgroundColor = "#002542";
+    document.body.style.backgroundColor = "#ffffff";
     document.body.style.fontFamily = "'Montserrat', sans-serif";
     return () => { 
       document.body.style.backgroundColor = "";
@@ -62,9 +62,9 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="homepage" style={{ 
-      backgroundColor: '#002542',
+      backgroundColor: '#ffffff',
       minHeight: '100vh',
-      color: 'white',
+      color: '#000000',
       alignItems: 'center'
     }}>
       <div className="homepage-logo-top-left">

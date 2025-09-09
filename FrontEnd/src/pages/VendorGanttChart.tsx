@@ -113,7 +113,7 @@ const topVendors = Object.entries(vendorTotals)
         wheelX: "panX",
         wheelY: "zoomX",
         layout: root.verticalLayout,
-        background: am5.Rectangle.new(root, { fill: am5.color(0x002542) })
+        background: am5.Rectangle.new(root, { fill: am5.color(0xFFFFFF) })
       })
     );
 
@@ -134,7 +134,7 @@ const topVendors = Object.entries(vendorTotals)
       })
     );
     yAxis.get("renderer").labels.template.setAll({
-      fill: am5.color(0xFFFFFF)
+      fill: am5.color(0x000000)
     });
     yAxis.data.setAll(topVendors.map(vendor => ({ vendor })));
 
@@ -146,7 +146,7 @@ const topVendors = Object.entries(vendorTotals)
       })
     );
     xAxis.get("renderer").labels.template.setAll({
-      fill: am5.color(0xFFFFFF)
+      fill: am5.color(0x000000)
     });
     xAxis.data.setAll(periods.map(period => ({ period })));
 
@@ -198,7 +198,7 @@ const topVendors = Object.entries(vendorTotals)
       x: am5.p50
     }));
     legend.labels.template.setAll({
-      fill: am5.color(0xFFFFFF)
+      fill: am5.color(0x000000)
     });
     legend.data.setAll(chart.series.values);
 

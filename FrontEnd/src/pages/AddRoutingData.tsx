@@ -216,10 +216,15 @@ const AddRoutingData: React.FC = () => {
   ];
   
   const poTableRows = [
-    { field: "Vendor Name", value: formData['Vendor Details'] },
-    { field: "PO Date", value: formData['IBM / KYNDRYL PO Date'] },
-    { field: "PO Value", value: formData['IBM / KYNDRYL PO Value'] },
-    { field: "Total Invoice", value: formData['Total Invoice'] }
+    { field: "Vendor PO Number", value: formData['Vendor_PO_No'] || 'N/A' },
+    { field: "Vendor PO Date", value: formData['Vendor_PO_Date'] || 'N/A' },
+    { field: "Vendor Details", value: formData['Vendor Details'] || 'N/A' },
+    { field: "Training Dates", value: formData['Training Dates'] || 'N/A' },
+    { field: "Address", value: formData['Address'] || 'N/A' },
+    { field: "Vendor SPOC", value: formData['Vendor SPOC'] || 'N/A' },
+    { field: "Description", value: formData['Description'] || 'N/A' },
+    { field: "Alchemy PO", value: formData['IBM / KYNDRYL PO No'] || 'N/A' },
+    { field: "Payment Days", value: formData["Payment Day's"] || 'N/A' }
   ];
 
   // Helper function to convert number to words (Indian numbering system)
@@ -835,27 +840,12 @@ const AddRoutingData: React.FC = () => {
               <h3>PO Summary</h3>
               <table>
                 <tbody>
-                  <tr>
-                    <td><strong>Vendor Name</strong></td>
-                    <td>{formData['Vendor Details']}</td>
-                  </tr>
-                  <tr>
-                    <td><strong>PO No</strong></td>
-                    <td>{formData['IBM / KYNDRYL PO No']}</td>
-                  </tr>
-                  <tr>
-                    <td><strong>PO Date</strong></td>
-                    <td>{formData['IBM / KYNDRYL PO Date']}</td>
-                  </tr>
-                  <tr>
-                    <td><strong>PO Value</strong></td>
-                    <td>{formData['IBM / KYNDRYL PO Value']}</td>
-                  </tr>
-
-                  <tr>
-                    <td><strong>Total Invoice</strong></td>
-                    <td>{formData['Total Invoice']}</td>
-                  </tr>
+                  {poTableRows.map(row => (
+                    <tr key={row.field}>
+                      <td><strong>{row.field}</strong></td>
+                      <td>{row.value}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
               <div style={{ marginTop: '1rem' }}>

@@ -60,7 +60,7 @@ const RoutingDashboardBarChart: React.FC<RoutingDashboardBarChartProps> = ({ dat
     xRenderer.labels.template.setAll({
       fontSize: "1rem",
       paddingTop: 5,
-      fill: am5.color(0xFFFFFF) // White color for X-axis labels
+      fill: am5.color(0x000000) // Black color for X-axis labels
     });
 
     const xAxis = chart.xAxes.push(
@@ -80,7 +80,7 @@ const RoutingDashboardBarChart: React.FC<RoutingDashboardBarChartProps> = ({ dat
     
     yRenderer.labels.template.setAll({
       fontSize: "1rem",
-      fill: am5.color(0xFFFFFF) // White color for Y-axis labels
+      fill: am5.color(0x000000) // Black color for Y-axis labels
     });
 
     const yAxis = chart.yAxes.push(
@@ -121,7 +121,7 @@ const RoutingDashboardBarChart: React.FC<RoutingDashboardBarChartProps> = ({ dat
       if (tooltip) {
         tooltip.label.setAll({
           fontSize: "0.8rem", // Set the desired font size for the tooltip text
-          fill: am5.color(0xffffff) // Optional: Set text color to white
+          fill: am5.color(0x000000) // Black color for tooltip text
         });
       }
       
@@ -157,7 +157,7 @@ const RoutingDashboardBarChart: React.FC<RoutingDashboardBarChartProps> = ({ dat
     // Change the size of legend text
     legend.labels.template.setAll({
       fontSize: "0.8rem", // Set the desired font size for legend text
-      fill: am5.color(0xFFFFFF) // White color for legend labels
+      fill: am5.color(0x000000) // Black color for legend labels
     });
     
     legend.data.setAll(chart.series.values);

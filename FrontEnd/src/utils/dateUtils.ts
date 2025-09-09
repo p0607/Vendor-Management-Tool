@@ -9,7 +9,9 @@ export const formatDateToDDMMYYYY = (dateStr: string | null | undefined): string
   if (!dateStr) return '';
   
   try {
-    const date = new Date(dateStr);
+    // Handle ISO date strings with time by extracting only the date part
+    const dateOnly = dateStr.split('T')[0];
+    const date = new Date(dateOnly);
     if (isNaN(date.getTime())) return '';
     
     const day = String(date.getDate()).padStart(2, '0');
