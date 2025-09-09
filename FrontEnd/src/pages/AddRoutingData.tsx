@@ -216,8 +216,8 @@ const AddRoutingData: React.FC = () => {
   ];
   
   const poTableRows = [
-    { field: "Vendor PO Number", value: formData['Vendor_PO_No'] || 'N/A' },
-    { field: "Vendor PO Date", value: formData['Vendor_PO_Date'] || 'N/A' },
+    { field: "Vendor PO Number", value: formData['Vendor Inv. No.'] || 'N/A' },
+    { field: "Vendor PO Date", value: formData['Vendor Inv. Date'] || 'N/A' },
     { field: "Vendor Details", value: formData['Vendor Details'] || 'N/A' },
     { field: "Training Dates", value: formData['Training Dates'] || 'N/A' },
     { field: "Address", value: formData['Address'] || 'N/A' },
@@ -303,67 +303,89 @@ const AddRoutingData: React.FC = () => {
   // PDF Export
   const exportPOToPDF = () => {
     const doc = new jsPDF();
-    // Add Alchemy logo in top-left corner (smaller size)
+    
+    // Add Alchemy logo in top-left corner
     const logoImg = new Image();
     logoImg.src = logo;
+    
+    // Wait for logo to load before adding to PDF
     logoImg.onload = () => {
-      doc.addImage(logoImg, 'PNG', 15, 15, 15, 15);
+      // Add logo in top-left corner (20, 20 position, 30x30 size)
+      doc.addImage(logoImg, 'PNG', 15, 15, 20, 20);
+      
+      // Add "Getting IT Done" tagline below logo
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Getting IT Done', 22, 40);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ALCHEMY TECHSOL INDIA PVT LTD', 105, 25, { align: 'center' });
+      doc.setFont('montserrat', 'normal');
+      doc.text('Getting IT Done', 25, 25);
+      
+      // Add company name on the right side
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('CIN NO : U72200KA2015PTC081787', 105, 32, { align: 'center' });
+      doc.setFont('montserrat', 'bold');
+      doc.text('ALCHEMY TECHSOL INDIA PVT LTD', 105, 20, { align: 'right' });
+      
+      // Add CIN number below company name
+      doc.setFontSize(8);
+      doc.setFont('montserrat', 'normal');
+      doc.text('CIN NO : U72200KA2015PTC081787', 105, 21, { align: 'right' });
+      
+      // Add horizontal line separator
       doc.setDrawColor(0, 0, 0);
-      doc.line(20, 45, 190, 45);
+      doc.line(20, 22, 190, 22);
       
+      // PO Details section (left-aligned)
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`PO: ${formData['Vendor Inv. No.'] || 'N/A'}`, 20, 20);
-      doc.text(`PO Date: ${formData['Vendor Inv. Date'] || 'N/A'}`, 20, 25);
+      doc.setFont('montserrat', 'normal');
+      doc.text(`PO: ${formData['Vendor Inv. No.'] || 'N/A'}`, 20, 23);
+      doc.text(`PO Date: ${formData['Vendor Inv. Date'] || 'N/A'}`, 20, 24);
       
-      doc.text(`${formData['Vendor Details'] || 'N/A'}`, 20, 30);
+      // Vendor Details
+      doc.text(`${formData['Vendor Details'] || 'N/A'}`, 20, 25);
+      
+      // Address formatted in 3 lines
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
+      doc.setFont('montserrat', 'normal');
       const address = formData['Address'] || 'N/A';
       const addressLines = address.length > 60 ? 
         [address.substring(0, 60), address.substring(60, 120), address.substring(120, 180)] : 
         [address];
+      
       addressLines.forEach((line, index) => {
         if (line && line.trim()) {
-          doc.text(line, 20, 23 + (index * 1));
+          doc.text(line, 20, 26 + (index * 1));
         }
       });
       
+      // Kind Attn
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Kind Attn: ${formData['Vendor SPOC'] || 'N/A'}`, 20, 35);
-      doc.text(`Sub: ${formData['Description'] || 'N/A'}`, 20, 36);
+      doc.setFont('montserrat', 'bold');
+      doc.text(`Kind Attn: ${formData['Vendor SPOC'] || 'N/A'}`, 20, 28);
+      doc.text(`Sub: ${formData['Description'] || 'N/A'}`, 20, 29);
       
       // Vendor Details Table with proper table structure
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Vendor Details', 20, 30);
-      doc.text('Amount (in Rs)', 150, 30);
+      doc.setFont('montserrat', 'bold');
+      
+      // Table headers
+      doc.text('Vendor Details', 20, 32);
+      doc.text('Amount (in Rs)', 150, 32);
+      
+      // Draw table borders
       doc.setDrawColor(0, 0, 0);
-      doc.line(20, 28, 190, 28); // Top border
-      doc.line(20, 28, 20, 45);  // Left border
-      doc.line(150, 28, 150, 45); // Middle border
-      doc.line(190, 28, 190, 45); // Right border
-      doc.line(20, 32, 190, 32);  // Header separator
+      doc.line(20, 30, 190, 30); // Top border
+      doc.line(20, 30, 20, 44);  // Left border
+      doc.line(150, 30, 150, 44); // Middle border
+      doc.line(190, 30, 190, 44); // Right border
+      doc.line(20, 34, 190, 34);  // Header separator
       
       // Table content - handle multiple descriptions
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
+      doc.setFont('montserrat', 'normal');
       
       // Split description by commas or semicolons to handle multiple items
       const descriptions = (formData['Description'] || 'N/A').split(/[,;]/).map(d => d.trim()).filter(d => d);
       const alchemyPOValue = parseFloat(formData['IBM / KYNDRYL PO Value'] || '0') || 0;
       
-      let currentY = 35;
+      let currentY = 37;
       let totalAmount = 0;
       
       if (descriptions.length > 1) {
@@ -371,7 +393,7 @@ const AddRoutingData: React.FC = () => {
         const amountPerItem = alchemyPOValue / descriptions.length;
         
         descriptions.forEach((desc, index) => {
-          if (currentY > 170) {
+          if (currentY > 190) {
             // Add new page if needed
             doc.addPage();
             currentY = 30;
@@ -395,162 +417,40 @@ const AddRoutingData: React.FC = () => {
       
       // Total row
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Total', 25, currentY + 1);
-      doc.text(totalAmount.toFixed(2), 155, currentY + 1);
+      doc.setFont('montserrat', 'bold');
+      doc.text('Total', 25, currentY);
+      doc.text(totalAmount.toFixed(2), 155, currentY);
       
-      // Draw bottom border
-      doc.line(20, currentY + 2, 190, currentY + 2);
-      
-      // Amount in Words
+      // Amount in words
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      const amountInWords = numberToWords(totalAmount);
-      doc.text(`Amount in Words: ${amountInWords}`, 20, currentY + 3);
+      doc.setFont('montserrat', 'normal');
+      doc.text(`Amount in Words: ${numberToWords(totalAmount)}`, 20, currentY + 5);
       
-      // Payment Terms
-      doc.text(`Payment Terms: ${formData["Payment Day's"] || 'N/A'}`, 20, currentY + 4);
+      // Payment terms
+      doc.text(`Payment Terms: ${formData["Payment Day's"] || 'N/A'}`, 20, currentY + 10);
       
-      // Taxes
-      doc.text('Taxes - As Applicable. (Alchemy Techsol GST No. 29AANCA7675B1ZC)', 20, currentY + 5);
+      // Tax information
+      doc.text('Taxes - As Applicable. (Alchemy Techsol GST No. 29AANCA7675B1ZC)', 20, currentY + 15);
       
-      // Service Start date
-      doc.text(`Service Start date: ${formData['Training Dates'] || 'N/A'}`, 20, currentY + 6);
+      // Service start date
+      doc.text(`Service Start date: ${formData['Training Dates'] || 'N/A'}`, 20, currentY + 20);
       
+      // Signature line
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text('For Alchemy Techsol India Pvt Ltd', 20, currentY + 7);
-      doc.text('Date & Signature:', 20, currentY + 8);
+      doc.setFont('montserrat', 'bold');
+      doc.text('For Alchemy Techsol India Pvt Ltd', 20, currentY + 30);
       
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Reg. Office Address :', 20, currentY + 9);
-      doc.text('Padmavathi Complex, No.81/1, 4th Floor 80 Feet Road, 8th Block Koramangala.', 20, currentY + 10);
-      doc.text('Bangalore, Karnataka, India – 560095', 20, currentY + 11);
-      
-      doc.save('Purchase_Order.pdf');
+      doc.save('PO_Summary.pdf');
     };
-    logoImg.onerror = () => {
-      // Fallback without logo
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ALCHEMY TECHSOL INDIA PVT LTD', 105, 25, { align: 'center' });
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('CIN NO : U72200KA2015PTC081787', 105, 32, { align: 'center' });
-      doc.setDrawColor(0, 0, 0);
-      doc.line(20, 45, 190, 45);
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`PO: ${formData['Vendor Inv. No.'] || 'N/A'}`, 20, 60);
-      doc.text(`PO Date: ${formData['Vendor Inv. Date'] || 'N/A'}`, 20, 61);
-      
-      doc.text(`${formData['Vendor Details'] || 'N/A'}`, 20, 62);
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      const address = formData['Address'] || 'N/A';
-      const addressLines = address.length > 60 ? 
-        [address.substring(0, 60), address.substring(60, 120), address.substring(120, 180)] : 
-        [address];
-      addressLines.forEach((line, index) => {
-        if (line && line.trim()) {
-          doc.text(line, 20, 63 + (index * 1));
-        }
-      });
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Kind Attn: ${formData['Vendor SPOC'] || 'N/A'}`, 20, 65);
-      doc.text(`Sub: ${formData['Description'] || 'N/A'}`, 20, 66);
-      
-      // Vendor Details Table with proper table structure
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Vendor Details', 20, 70);
-      doc.text('Amount (in Rs)', 150, 70);
-      doc.setDrawColor(0, 0, 0);
-      doc.line(20, 68, 190, 68); // Top border
-      doc.line(20, 68, 20, 85);  // Left border
-      doc.line(150, 68, 150, 85); // Middle border
-      doc.line(190, 68, 190, 85); // Right border
-      doc.line(20, 72, 190, 72);  // Header separator
-      
-      // Table content - handle multiple descriptions
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      
-      // Split description by commas or semicolons to handle multiple items
-      const descriptions = (formData['Description'] || 'N/A').split(/[,;]/).map(d => d.trim()).filter(d => d);
-      const alchemyPOValue = parseFloat(formData['IBM / KYNDRYL PO Value'] || '0') || 0;
-      
-      let currentY = 75;
-      let totalAmount = 0;
-      
-      if (descriptions.length > 1) {
-        // Multiple descriptions - split amount equally or use individual amounts
-        const amountPerItem = alchemyPOValue / descriptions.length;
-        
-        descriptions.forEach((desc, index) => {
-          if (currentY > 170) {
-            // Add new page if needed
-            doc.addPage();
-            currentY = 30;
-          }
-          
-          doc.text(desc, 25, currentY);
-          doc.text(amountPerItem.toFixed(2), 155, currentY);
-          totalAmount += amountPerItem;
-          
-          // Draw row separator
-          doc.line(20, currentY + 3, 190, currentY + 3);
-          currentY += 8;
-        });
-      } else {
-        // Single description
-        doc.text(formData['Description'] || 'N/A', 25, currentY);
-        doc.text(alchemyPOValue.toFixed(2), 155, currentY);
-        totalAmount = alchemyPOValue;
-        currentY += 8;
+    
+    // Fallback if logo doesn't load
+    setTimeout(() => {
+      if (doc.internal.pages.length === 0) {
+        doc.setFontSize(16);
+        doc.text('PO Summary', 105, 20, { align: 'center' });
+        doc.save('PO_Summary.pdf');
       }
-      
-      // Total row
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Total', 25, currentY + 5);
-      doc.text(totalAmount.toFixed(2), 155, currentY + 5);
-      
-      // Draw bottom border
-      doc.line(20, currentY + 8, 190, currentY + 8);
-      
-      // Amount in Words
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      const amountInWords = numberToWords(totalAmount);
-      doc.text(`Amount in Words: ${amountInWords}`, 20, currentY + 15);
-      
-      // Payment Terms
-      doc.text(`Payment Terms: ${formData["Payment Day's"] || 'N/A'}`, 20, currentY + 28);
-      
-      // Taxes
-      doc.text('Taxes - As Applicable. (Alchemy Techsol GST No. 29AANCA7675B1ZC)', 20, currentY + 41);
-      
-      // Service Start date
-      doc.text(`Service Start date: ${formData['Training Dates'] || 'N/A'}`, 20, currentY + 54);
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('For Alchemy Techsol India Pvt Ltd', 20, currentY + 70);
-      doc.text('Date & Signature:', 20, currentY + 82);
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Reg. Office Address :', 20, currentY + 98);
-      doc.text('Padmavathi Complex, No.81/1, 4th Floor 80 Feet Road, 8th Block Koramangala.', 20, currentY + 102);
-      doc.text('Bangalore, Karnataka, India – 560095', 20, currentY + 106);
-      
-      doc.save('Purchase_Order.pdf');
-    };
+    }, 1000);
   };
 
   const calculateNetMargin = () => {

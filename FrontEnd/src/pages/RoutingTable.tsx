@@ -175,8 +175,8 @@ const RoutingTable: React.FC = () => {
 
   // PO Table columns and rows generator
   const getPoTableRows = (row: RoutingTableItem) => [
-    { field: "Vendor PO Number", value: row['Vendor_PO_No'] || 'N/A' },
-    { field: "Vendor PO Date", value: row['Vendor_PO_Date'] || 'N/A' },
+    { field: "Vendor PO Number", value: row['Vendor Inv. No.'] || 'N/A' },
+    { field: "Vendor PO Date", value: row['Vendor Inv. Date'] || 'N/A' },
     { field: "Vendor Details", value: row['Vendor Details'] || 'N/A' },
     { field: "Training Dates", value: row['Training Dates'] || 'N/A' },
     { field: "Address", value: row['Address'] || 'N/A' },
