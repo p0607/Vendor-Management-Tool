@@ -914,11 +914,25 @@ app.post('/api/team-report', async (req, res, next) => {
         team_cost, opr_cost, funding_cost, np, np_percentage, month, year 
       } = req.body;
       
+      // Convert month name to date format (YYYY-MM-01)
+      let monthDate = null;
+      if (month && month !== '') {
+        const monthNames = {
+          'January': '01', 'February': '02', 'March': '03', 'April': '04',
+          'May': '05', 'June': '06', 'July': '07', 'August': '08',
+          'September': '09', 'October': '10', 'November': '11', 'December': '12'
+        };
+        const monthNum = monthNames[month];
+        if (monthNum) {
+          monthDate = `${year || new Date().getFullYear()}-${monthNum}-01`;
+        }
+      }
+
       // Log the incoming data for debugging
       logger.info('Creating team report', { 
         tower, client_name, project_name, business_unit, bu_head, hc, 
         salary_cost, sales, gpm, gpm_percentage, leave_encashment, 
-        team_cost, opr_cost, funding_cost, np, np_percentage, month, year 
+        team_cost, opr_cost, funding_cost, np, np_percentage, month, year, monthDate 
       });
       
       const result = await executeQuery(
@@ -944,7 +958,7 @@ app.post('/api/team-report', async (req, res, next) => {
           funding_cost || 0,
           np || 0,
           np_percentage || 0,
-          month === '' ? null : month,
+          monthDate,
           year || new Date().getFullYear()
         ]
       );
@@ -1006,6 +1020,21 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
           record[field] = 0; // Default to 0 for numeric fields
         }
       }
+
+      // Convert month name to date format (YYYY-MM-01)
+      let monthDate = null;
+      if (record.month && record.month !== '') {
+        const monthNames = {
+          'January': '01', 'February': '02', 'March': '03', 'April': '04',
+          'May': '05', 'June': '06', 'July': '07', 'August': '08',
+          'September': '09', 'October': '10', 'November': '11', 'December': '12'
+        };
+        const monthNum = monthNames[record.month];
+        if (monthNum) {
+          monthDate = `${record.year || new Date().getFullYear()}-${monthNum}-01`;
+        }
+      }
+      record.monthDate = monthDate;
       
       // Convert empty strings to null for all fields
       const allFields = ['tower', 'client_name', 'project_name', 'business_unit', 'bu_head', 'month'];
@@ -1047,7 +1076,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             record.funding_cost || 0,
             record.np || 0,
             record.np_percentage || 0,
-            record.month === '' ? null : record.month,
+            record.monthDate,
             record.year || new Date().getFullYear()
           ]);
         } catch (insertErr) {
