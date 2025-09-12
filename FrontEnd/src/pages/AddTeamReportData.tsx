@@ -78,20 +78,46 @@ const BUSINESS_UNIT_OPTIONS = [
 
     // All fields are optional - no required field validation
 
-    // Convert month value (YYYY-MM) to a proper date format (YYYY-MM-01)
+    // Convert numeric fields to numbers and handle empty strings
     const formattedData = {
       ...formData,
-      month: formData.month ? `${formData.month}-01` : formData.month
+      // Convert numeric fields to numbers
+      hc: formData.hc ? parseFloat(formData.hc) : 0,
+      salary_cost: formData.salary_cost ? parseFloat(formData.salary_cost) : 0,
+      sales: formData.sales ? parseFloat(formData.sales) : 0,
+      gpm: formData.gpm ? parseFloat(formData.gpm) : 0,
+      gpm_percentage: formData.gpm_percentage ? parseFloat(formData.gpm_percentage) : 0,
+      leave_encashment: formData.leave_encashment ? parseFloat(formData.leave_encashment) : 0,
+      team_cost: formData.team_cost ? parseFloat(formData.team_cost) : 0,
+      opr_cost: formData.opr_cost ? parseFloat(formData.opr_cost) : 0,
+      funding_cost: formData.funding_cost ? parseFloat(formData.funding_cost) : 0,
+      np: formData.np ? parseFloat(formData.np) : 0,
+      np_percentage: formData.np_percentage ? parseFloat(formData.np_percentage) : 0,
+      year: formData.year ? parseInt(formData.year) : new Date().getFullYear(),
+      // Convert empty strings to null for text fields
+      client_name: formData.client_name || null,
+      project_name: formData.project_name || null,
+      business_unit: formData.business_unit || null,
+      bu_head: formData.bu_head || null,
+      tower: formData.tower || null,
+      month: formData.month || null
     };
 
     try {
+      console.log('Sending data to backend:', formattedData);
       const response = await apiClient.post('/team-report', formattedData);
       
       // Show success message
       alert('MFS data submitted successfully!');
       
-      navigate('/AddTeamReportData'); // Change to your desired route after submit
+      // Reset form
+      setFormData(initialFormData);
+      
+      // Navigate back to team report compare
+      navigate('/team-report/compare');
     } catch (err: any) {
+      console.error('Error adding team report data:', err);
+      console.error('Error response:', err.response?.data);
       setError(err.response?.data?.error || err.message || 'Failed to submit data');
     } finally {
       setIsSubmitting(false);
@@ -186,7 +212,21 @@ const BUSINESS_UNIT_OPTIONS = [
               </div>
               <div className="form-group">
                 <label>Month</label>
-                <input type="month" name="month" value={formData.month} onChange={handleChange} />
+                <select name="month" value={formData.month} onChange={handleChange}>
+                  <option value="">Select Month</option>
+                  <option value="January">January</option>
+                  <option value="February">February</option>
+                  <option value="March">March</option>
+                  <option value="April">April</option>
+                  <option value="May">May</option>
+                  <option value="June">June</option>
+                  <option value="July">July</option>
+                  <option value="August">August</option>
+                  <option value="September">September</option>
+                  <option value="October">October</option>
+                  <option value="November">November</option>
+                  <option value="December">December</option>
+                </select>
               </div>
               <div className="form-group">
                 <label>Year</label>
