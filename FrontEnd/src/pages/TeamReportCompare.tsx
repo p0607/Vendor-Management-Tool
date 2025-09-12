@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Select, Button, Dropdown, Tabs } from "antd";
+import { Select, Button, Dropdown, Tabs, message } from "antd";
 import { PlusOutlined, CloseOutlined, DownOutlined } from "@ant-design/icons";
 import * as am5 from "@amcharts/amcharts5";
 import * as am5xy from "@amcharts/amcharts5/xy";
@@ -10,6 +10,8 @@ import axios from "axios";
 import TargetTrackingChart from './TargetTrackingChart';
 import { formatValueForTable } from '../utils/formatUtils';
 import apiClient from '../config/api';
+import logo from '../assets/logo_1.png';
+import * as XLSX from 'xlsx';
 
 const { Option } = Select;
 
@@ -55,26 +57,74 @@ const TeamReportCompare: React.FC = () => {
     "MS", "SI", "Singapore", "USA"
   ];
 
-  // State declarations
+  // Helper function to get current financial year quarters
+  const getCurrentFinancialYearQuarters = () => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // 1-12
+    const currentYear = currentDate.getFullYear();
+    
+    // Financial year starts from April (month 4)
+    let financialYear;
+    if (currentMonth >= 4) {
+      financialYear = currentYear;
+    } else {
+      financialYear = currentYear - 1;
+    }
+    
+    // Return quarters for the current financial year
+    return [
+      `Q1 ${financialYear}`,
+      `Q2 ${financialYear}`,
+      `Q3 ${financialYear}`,
+      `Q4 ${financialYear}`
+    ];
+  };
+
+  // State declarations with URL parameter defaults
   const [user, setUser] = useState<any>({});
   const [isBUHead, setIsBUHead] = useState(false);
   const [allowedLobs, setAllowedLobs] = useState<string[]>(lobOptions);
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string | null>(null);
-  const [compareType, setCompareType] = useState<CompareType>("year");
-  const [comparisonValues, setComparisonValues] = useState<(string | null)[]>([null, null]); // [firstValue, secondValue, ...]
+  const [compareType, setCompareType] = useState<CompareType>(
+    (queryParams.get('compareType') as CompareType) || "quarter"
+  );
+  const [comparisonValues, setComparisonValues] = useState<(string | null)[]>(() => {
+    // Set default to current financial year quarters if coming from MFS button
+    const defaultFinancialYear = queryParams.get('defaultFinancialYear');
+    if (defaultFinancialYear && compareType === "quarter") {
+      const financialYear = parseInt(defaultFinancialYear);
+      return [
+        `Q1 ${financialYear}`,
+        `Q2 ${financialYear}`,
+        `Q3 ${financialYear}`,
+        `Q4 ${financialYear}`
+      ];
+    }
+    return [null, null];
+  });
   const [combinedPeriods, setCombinedPeriods] = useState<CombinedPeriod[]>([]);
   const [showCombinedModal, setShowCombinedModal] = useState<number | null>(null);
   const [selectedPeriodsForCombination, setSelectedPeriodsForCombination] = useState<string[]>([]);
   const [data, setData] = useState<ReportData[]>([]);
   const [availableOptions, setAvailableOptions] = useState<string[]>([]);
-  const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
-  const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>('bar');
+  const [selectedParameters, setSelectedParameters] = useState<string[]>(() => {
+    // Set default parameters from URL or use GPM% and Net Margin%
+    const paramsFromURL = queryParams.get('selectedParameters');
+    if (paramsFromURL) {
+      return decodeURIComponent(paramsFromURL).split(',');
+    }
+    return ['GPM%', 'Net Margin%'];
+  });
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(
+    (queryParams.get('chartType') as 'bar' | 'line' | 'combo') || 'bar'
+  );
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
   const [comparisonData, setComparisonData] = useState<{period: string, amount: number}[]>([]);
   const [growthAnalysis, setGrowthAnalysis] = useState<GrowthAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('chart');
   const [showGrowthAnalysis, setShowGrowthAnalysis] = useState<boolean>(false);
+  const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
   // Simplified date parser for ISO format (YYYY-MM-DD)
   const parseDate = (dateStr: string): Date => {
@@ -111,6 +161,120 @@ const TeamReportCompare: React.FC = () => {
       year
     };
   };
+
+  // Excel date conversion helper
+  const excelDateToISO = (serial: number | string): string => {
+    if (!serial) return "";
+    
+    // Handle DD-MM-YYYY format (like "01-04-2024")
+    if (typeof serial === "string" && /^\d{2}-\d{2}-\d{4}$/.test(serial)) {
+      const [day, month, year] = serial.split('-');
+      return `${year}-${month}-${day}`; // Convert to YYYY-MM-DD for database
+    }
+    
+    // Handle YYYY-MM-DD format
+    if (typeof serial === "string" && /^\d{4}-\d{2}-\d{2}$/.test(serial)) {
+      return serial;
+    }
+    
+    // Handle other date formats
+    if (typeof serial === "string" && !isNaN(Date.parse(serial))) {
+      const date = new Date(serial);
+      return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+    }
+    
+    // Handle Excel serial numbers
+    if (typeof serial === "number" || !isNaN(parseInt(serial, 10))) {
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      const days = typeof serial === "number" ? serial : parseInt(serial, 10);
+      const date = new Date(excelEpoch.getTime() + days * 86400000);
+      return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+    }
+    
+    return "";
+  };
+
+  // Handle Excel import
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target?.result;
+      if (!bstr) return;
+      const workbook = XLSX.read(bstr, { type: 'binary' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      const mappedData = jsonData.map((row: any) => {
+        return {
+          business_unit: row['Business Unit'] || row.business_unit || row.LOB || row.lob || '',
+          particulars: row.Particulars || row.particulars || '',
+          amount: parseFloat(row.Amount || row.amount || '0') || 0,
+          month: excelDateToISO(row.month || row.Month || ""),
+        };
+      });
+
+      try {
+        await apiClient.post("/team-report/bulk", { data: mappedData });
+        message.success('Data imported successfully');
+        
+        // Refresh data
+        const res = await apiClient.get<ReportData[]>("/team-report");
+        setData(res.data);
+      } catch (err: any) {
+        console.error('Error importing data:', err);
+        message.error(err.response?.data?.error || 'Failed to import data');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // Handle Excel export
+  const handleExportExcel = () => {
+    const exportData = data.map((row: ReportData) => ({
+      'Business Unit': row.business_unit,
+      Particulars: row.particulars,
+      Amount: row.amount,
+      Month: row.month,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "TeamReport");
+    XLSX.writeFile(workbook, "TeamReport.xlsx");
+  };
+
+  // Action dropdown items
+  const actionDropdownItems = [
+    {
+      key: 'add',
+      label: 'Add MFS Data',
+      onClick: () => navigate('/AddTeamReportData')
+    },
+    {
+      key: 'import',
+      label: 'Import Excel',
+      onClick: () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.xlsx, .xls';
+        input.onchange = (e) => handleImportExcel(e as any);
+        input.click();
+      }
+    },
+    {
+      key: 'export',
+      label: 'Export Excel',
+      onClick: handleExportExcel
+    },
+    {
+      key: 'dashboard',
+      label: 'MFS Dashboard',
+      onClick: () => navigate('/TeamReportDashboard')
+    }
+  ];
 
   // Handle adding a new comparison period
   const handleAddComparison = () => {
@@ -210,6 +374,37 @@ const TeamReportCompare: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to parse user data:", error);
+    }
+  }, []);
+
+  // Handle URL parameters for MFS button redirect
+  useEffect(() => {
+    const defaultFinancialYear = queryParams.get('defaultFinancialYear');
+    const compareTypeFromURL = queryParams.get('compareType');
+    const selectedParamsFromURL = queryParams.get('selectedParameters');
+    const chartTypeFromURL = queryParams.get('chartType');
+
+    // Set default financial year quarters if coming from MFS button
+    if (defaultFinancialYear && compareTypeFromURL === 'quarter') {
+      const financialYear = parseInt(defaultFinancialYear);
+      const quarters = [
+        `Q1 ${financialYear}`,
+        `Q2 ${financialYear}`,
+        `Q3 ${financialYear}`,
+        `Q4 ${financialYear}`
+      ];
+      setComparisonValues(quarters);
+    }
+
+    // Set default parameters if coming from MFS button
+    if (selectedParamsFromURL) {
+      const params = decodeURIComponent(selectedParamsFromURL).split(',');
+      setSelectedParameters(params);
+    }
+
+    // Set chart type if coming from MFS button
+    if (chartTypeFromURL && ['bar', 'line', 'combo'].includes(chartTypeFromURL)) {
+      setChartType(chartTypeFromURL as 'bar' | 'line' | 'combo');
     }
   }, []);
 
@@ -881,14 +1076,39 @@ const TeamReportCompare: React.FC = () => {
           }
         `}
       </style>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ color: '#000000' }}>MFS Comparison</h1>
-        <Button className="ant-btn" onClick={() => navigate(-1)}>
-          Back
-        </Button>
+      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '2rem 2rem 0 2rem' }}>
+        <div className="homepage-logo-top-left">
+          <img src={logo} alt="Alchemy Logo" />
+        </div>
+        <h2 style={{ 
+          position: 'absolute', 
+          left: '50%', 
+          transform: 'translateX(-50%)', 
+          color: 'white', 
+          fontWeight: 700, 
+          fontSize: '2rem', 
+          fontFamily: 'Montserrat, sans-serif', 
+          margin: 0, 
+          zIndex: 1 
+        }}>MFS Comparison</h2>
+        <div className="auth-buttons-container">
+          <Dropdown
+            menu={{ items: actionDropdownItems }}
+            trigger={['click']}
+            open={isActionDropdownOpen}
+            onOpenChange={setIsActionDropdownOpen}
+          >
+            <button className="auth-button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Actions <DownOutlined />
+            </button>
+          </Dropdown>
+          <button className="auth-button" onClick={() => navigate('/HomePage')}>
+            Home
+          </button>
+        </div>
       </div>
 
-      <div style={{ margin: "24px 0" }}>
+      <div style={{ margin: "6rem 24px 24px 24px" }}>
   <div style={{ 
     display: "flex", 
     gap: 16,

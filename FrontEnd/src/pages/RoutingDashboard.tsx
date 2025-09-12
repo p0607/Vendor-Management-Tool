@@ -520,15 +520,6 @@ const chartData = metricFields.map(({ field, label }) => {
   const calculateDatePivotSummaries = (): DatePivotSummary[] => {
     const dateMap = new Map<string, DatePivotSummary>();
 
-    // Debug: Log sample data to verify costing dates
-    if (filteredData.length > 0) {
-      console.log('Sample costing dates from filtered data:', 
-        filteredData.slice(0, 5).map(item => ({
-          costingDate: item['Costing Date'],
-          dateGroup: getDateGroup(item['Costing Date'] || '', pivotDateType)
-        }))
-      );
-    }
 
     filteredData.forEach(item => {
       // Use Costing Date as primary date field, fallback to other date fields
@@ -628,7 +619,7 @@ const chartData = metricFields.map(({ field, label }) => {
     })).sort((a, b) => b.sum - a.sum); // Sort by sum descending
   };
 
-  // Calculate monthly billing data for bar chart
+  // Calculate monthly billing data for bar chart based on Costing Date
   const calculateMonthlyBillingData = () => {
     const monthlyMap = new Map<string, {
       alchemyBilling: number;
@@ -638,14 +629,32 @@ const chartData = metricFields.map(({ field, label }) => {
     }>();
     
     filteredData.forEach(item => {
-      const billingMonth = item['Billing Month'] || 'Unknown Month';
+      // Use Costing Date to determine the month/quarter/year grouping
+      const costingDateStr = item['Costing Date'] || '';
+      let dateGroup = 'Unknown Date';
+      
+      if (costingDateStr) {
+        try {
+          const date = new Date(costingDateStr);
+          if (!isNaN(date.getTime())) {
+            // Format as "MMM YYYY" (e.g., "Aug 2024")
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = monthNames[date.getMonth()];
+            const year = date.getFullYear();
+            dateGroup = `${month} ${year}`;
+          }
+        } catch (error) {
+          console.error('Error parsing costing date:', costingDateStr, error);
+        }
+      }
+      
       const alchemyBilling = parseFloat(String(item['Alchemy Billing Value'] || '0').replace(/[^\d.-]/g, '').replace(/,/g, '')) || 0;
       const integratorCharges = parseFloat(String(item['Integrator Charges (Margin)'] || '0').replace(/[^\d.-]/g, '').replace(/,/g, '')) || 0;
       const fundingCost = parseFloat(String(item['Funding cost'] || '0').replace(/[^\d.-]/g, '').replace(/,/g, '')) || 0;
       const netMargin = parseFloat(String(item['Net Margin'] || '0').replace(/[^\d.-]/g, '').replace(/,/g, '')) || 0;
       
-      if (!monthlyMap.has(billingMonth)) {
-        monthlyMap.set(billingMonth, {
+      if (!monthlyMap.has(dateGroup)) {
+        monthlyMap.set(dateGroup, {
           alchemyBilling: 0,
           integratorCharges: 0,
           fundingCost: 0,
@@ -653,7 +662,7 @@ const chartData = metricFields.map(({ field, label }) => {
         });
       }
       
-      const monthData = monthlyMap.get(billingMonth)!;
+      const monthData = monthlyMap.get(dateGroup)!;
       monthData.alchemyBilling += alchemyBilling;
       monthData.integratorCharges += integratorCharges;
       monthData.fundingCost += fundingCost;
@@ -667,9 +676,17 @@ const chartData = metricFields.map(({ field, label }) => {
       fundingCost: Math.round(data.fundingCost),
       netMargin: Math.round(data.netMargin)
     })).sort((a, b) => {
-      const dateA = new Date(a.billingMonth);
-      const dateB = new Date(b.billingMonth);
-      return dateA.getTime() - dateB.getTime();
+      // Sort by date properly
+      try {
+        const dateA = new Date(a.billingMonth);
+        const dateB = new Date(b.billingMonth);
+        if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+          return dateA.getTime() - dateB.getTime();
+        }
+      } catch (error) {
+        // If date parsing fails, sort alphabetically
+      }
+      return a.billingMonth.localeCompare(b.billingMonth);
     });
   };
 

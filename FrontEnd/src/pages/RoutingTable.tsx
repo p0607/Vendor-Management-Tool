@@ -1190,7 +1190,7 @@ const filteredData = useMemo(() => {
         </div>
         
         <div className="results-count">
-          Showing {visibleRoutingTable.length} of {filteredData.length} matching records
+          Showing {visibleRoutingTable.length} of {filteredData.length}
         </div>
         
         <table className="routing-table">

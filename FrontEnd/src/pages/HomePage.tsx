@@ -19,6 +19,22 @@ const HomePage: React.FC = () => {
     navigate('/');
   };
 
+  // Helper function to get current financial year for MFS redirect
+  const getCurrentFinancialYear = () => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // 1-12
+    const currentYear = currentDate.getFullYear();
+    
+    // Financial year starts from April (month 4)
+    // If current month is Jan-Mar (1-3), financial year is previous year
+    // If current month is Apr-Dec (4-12), financial year is current year
+    if (currentMonth >= 4) {
+      return currentYear;
+    } else {
+      return currentYear - 1;
+    }
+  };
+
   const getVisibleButtons = () => {
     
     const buttons = [
@@ -37,7 +53,7 @@ const HomePage: React.FC = () => {
       { 
         key: 'teamReport',
         label: 'MFS',
-        path: '/TeamReportDashboard',
+        path: `/team-report/compare?compareType=quarter&selectedParameters=GPM%25,Net%20Margin%25&chartType=bar&defaultFinancialYear=${getCurrentFinancialYear()}`,
         visibleTo: ['SUPER ADMIN', 'ADMIN', 'BU HEAD']
       }
     ];
