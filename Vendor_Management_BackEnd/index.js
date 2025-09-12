@@ -945,12 +945,22 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       });
     }
 
+    // Limit batch size to prevent server overload
+    if (data.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        error: `Batch size too large. Maximum 1000 records per batch. Received ${data.length} records. Please split your data into smaller batches.`
+      });
+    }
+
     // Process and validate each record - allow null values for all fields
     for (let i = 0; i < data.length; i++) {
       const record = data[i];
       
-      // Log the record being processed for debugging
-      logger.info('Processing record', { recordIndex: i, record: record });
+      // Log only first few records for debugging to avoid log spam
+      if (i < 3) {
+        logger.info('Processing record', { recordIndex: i, record: record });
+      }
       
       // All fields are optional - no required field validation
       

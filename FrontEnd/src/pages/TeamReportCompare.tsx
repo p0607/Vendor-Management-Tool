@@ -314,16 +314,59 @@ const TeamReportCompare: React.FC = () => {
       });
 
       try {
-        console.log('Sending data to backend:', mappedData.slice(0, 2)); // Log first 2 records for debugging
-        await apiClient.post("/team-report/bulk", { data: mappedData });
-        message.success('Data imported successfully');
+        console.log(`Importing ${mappedData.length} records in batches...`);
+        
+        // Process in batches of 100 records to avoid server overload
+        const batchSize = 100;
+        const totalBatches = Math.ceil(mappedData.length / batchSize);
+        let successCount = 0;
+        let errorCount = 0;
+        
+        message.loading(`Importing ${mappedData.length} records... (0/${totalBatches} batches)`, 0);
+        
+        for (let i = 0; i < mappedData.length; i += batchSize) {
+          const batch = mappedData.slice(i, i + batchSize);
+          const batchNumber = Math.floor(i / batchSize) + 1;
+          
+          try {
+            console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} records)`);
+            await apiClient.post("/team-report/bulk", { data: batch });
+            successCount += batch.length;
+            
+            // Update progress message
+            message.loading(`Importing ${mappedData.length} records... (${batchNumber}/${totalBatches} batches completed)`, 0);
+            
+            // Small delay to prevent overwhelming the server
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+          } catch (batchErr: any) {
+            console.error(`Batch ${batchNumber} failed:`, batchErr);
+            errorCount += batch.length;
+            
+            // Continue with next batch instead of stopping completely
+            message.warning(`Batch ${batchNumber} failed, continuing with remaining batches...`);
+          }
+        }
+        
+        // Clear loading message
+        message.destroy();
+        
+        if (errorCount === 0) {
+          message.success(`Successfully imported all ${successCount} records!`);
+        } else if (successCount > 0) {
+          message.warning(`Imported ${successCount} records successfully, ${errorCount} records failed.`);
+        } else {
+          message.error('All batches failed to import.');
+        }
         
         // Refresh data
         const res = await apiClient.get<ReportData[]>("/team-report");
         setData(res.data);
+        
       } catch (err: any) {
         console.error('Error importing data:', err);
         console.error('Error response:', err.response?.data);
+        message.destroy(); // Clear any loading messages
         message.error(err.response?.data?.error || 'Failed to import data');
       }
     };
