@@ -123,7 +123,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
 
     // Filter by parameter if it's a specific parameter (not calculated)
     if (selectedParameter !== 'Revenue' && selectedParameter !== 'Net Margin' && selectedParameter !== 'GPM' && selectedParameter !== 'HC') {
-      filteredData = filteredData.filter(item => item.particulars === selectedParameter);
+      filteredData = filteredData.filter(item => item.business_unit === selectedParameter);
     }
 
     console.log('🔍 Filtered data count:', filteredData.length);
@@ -188,7 +188,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         memory: 80,
         disk: 500,
         network: 800,
-        particulars: item.particulars,
+        tower: item.tower,
         business_unit: item.business_unit
       };
     }).filter(item => item !== null); // Remove any null items

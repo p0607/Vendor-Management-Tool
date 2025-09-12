@@ -42,7 +42,7 @@ const QuarterlyPieChart: React.FC<QuarterlyPieChartProps> = ({ data, selectedPar
     if (data.length === 0) return;
 
     const filtered = data.filter(item =>
-      item.particulars.toUpperCase() === selected.toUpperCase()
+      item.business_unit.toUpperCase() === selected.toUpperCase()
     );
 
     const quarterlySums: Record<string, number> = {};

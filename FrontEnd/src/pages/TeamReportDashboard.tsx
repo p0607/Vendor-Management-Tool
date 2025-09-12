@@ -134,13 +134,13 @@ const TeamReportDashboard: React.FC = () => {
     });
   }, [user?.designation, isBUHead, user?.business_unit, selectedLob]);
 
-  // Get unique particulars for dropdown
-  const uniqueParticulars = Array.from(new Set(data.map(item => item.particulars))).sort();
+  // Get unique business units for dropdown (since we no longer have particulars)
+  const uniqueBusinessUnits = Array.from(new Set(data.map(item => item.business_unit))).sort();
 
-  // Filter logic remains the same
+  // Filter logic updated for new structure
   const filteredData = data.filter(item => {
     if (selectedLob && item.business_unit !== selectedLob) return false;  // Changed from lob
-    if (selectedParticular && item.particulars !== selectedParticular) return false;  // Filter by selected particular
+    if (selectedParticular && item.business_unit !== selectedParticular) return false;  // Filter by selected business unit
     if (!range || range.length !== 2) return true;
     const itemDate = new Date(item.month);
     if (filterType === "date") {
@@ -307,15 +307,15 @@ const TeamReportDashboard: React.FC = () => {
       let key: string;
       
       if (selectedParticular) {
-        // If a particular is selected, group by business unit and month
+        // Group by business unit and month
         const month = new Date(item.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
         key = `${item.business_unit} - ${month}`;
       } else {
-        // If no particular is selected, group by business unit and particulars
-        key = `${item.business_unit} - ${item.particulars}`.toUpperCase();
+        // Group by business unit and tower
+        key = `${item.business_unit} - ${item.tower}`.toUpperCase();
       }
       
-      acc[key] = (acc[key] || 0) + Number(item.amount);
+      acc[key] = (acc[key] || 0) + Number(item.sales);
       return acc;
     }, {});
 
@@ -654,12 +654,12 @@ const TeamReportDashboard: React.FC = () => {
              value={selectedParticular || undefined}
              onChange={(value) => setSelectedParticular(value || null)}
              style={{ width: 200 }}
-             placeholder="Select Particular"
+             placeholder="Select Tower"
              allowClear
            >
-             <Option value="">All Particulars</Option>
-             {uniqueParticulars.map(particular => (
-               <Option key={particular} value={particular}>{particular}</Option>
+             <Option value="">All Towers</Option>
+             {uniqueBusinessUnits.map(businessUnit => (
+               <Option key={businessUnit} value={businessUnit}>{businessUnit}</Option>
              ))}
            </Select>
            <Select value={filterType} onChange={setFilterType} style={{ width: 120 }}>

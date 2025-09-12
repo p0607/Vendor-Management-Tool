@@ -134,7 +134,7 @@ const TeamReportCompare: React.FC = () => {
         return ['GPM %', 'NP %'];
       }
     }
-    return ['GPM%', 'Net Margin%'];
+    return ['GPM %', 'NP %'];
   });
   const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(
     (queryParams.get('chartType') as 'bar' | 'line' | 'combo') || 'bar'
@@ -477,7 +477,7 @@ const TeamReportCompare: React.FC = () => {
         setSelectedParameters(params);
       } catch (error) {
         console.warn('Failed to decode URL parameters in useEffect, using defaults:', error);
-        setSelectedParameters(['GPM%', 'Net Margin%']);
+        setSelectedParameters(['GPM %', 'NP %']);
       }
     }
 
@@ -491,13 +491,8 @@ const TeamReportCompare: React.FC = () => {
   useEffect(() => {
     if (data.length === 0) return;
     
-    // Define available parameters based on the new structure
+    // Define available parameters - only the financial columns that behave like particulars
     const baseParameters = [
-      'Tower',
-      'Client Name', 
-      'Project Name',
-      'Business Unit',
-      'BU Head',
       'HC',
       'Salary Cost',
       'Sales',
@@ -731,20 +726,8 @@ const TeamReportCompare: React.FC = () => {
     const getPeriodAmountForParameter = (periodValue: string | null, index: number, parameter: string): number => {
       if (!periodValue) return 0;
       
-      // Handle calculated metrics
-      if (parameter === 'Net Margin %' || parameter === 'Growth Margin %') {
-        const revenue = getBaseParameterValue(periodValue, index, 'Revenue');
-        
-        if (revenue === 0) return 0;
-        
-        if (parameter === 'Net Margin %') {
-          const netMargin = getBaseParameterValue(periodValue, index, 'Net Margin');
-          return (netMargin / revenue) * 100;
-        } else if (parameter === 'Growth Margin %') {
-          const gpm = getBaseParameterValue(periodValue, index, 'GPM');
-          return (gpm / revenue) * 100;
-        }
-      }
+      // Handle calculated metrics - these are now direct fields in our new structure
+      // No need for complex calculations since we have direct percentage fields
       
       // For regular parameters, use the base function
       return getBaseParameterValue(periodValue, index, parameter);
@@ -778,20 +761,8 @@ const TeamReportCompare: React.FC = () => {
         const periodAmounts = comparisonValues.map((periodValue, index) => {
           if (!periodValue) return null;
           
-          // Handle calculated metrics
-          if (param === 'Net Margin %' || param === 'Growth Margin %') {
-            const revenue = getBaseParameterValue(periodValue, index, 'Revenue');
-            
-            if (revenue === 0) return 0;
-            
-            if (param === 'Net Margin %') {
-              const netMargin = getBaseParameterValue(periodValue, index, 'Net Margin');
-              return (netMargin / revenue) * 100;
-            } else if (param === 'Growth Margin %') {
-              const gpm = getBaseParameterValue(periodValue, index, 'GPM');
-              return (gpm / revenue) * 100;
-            }
-          }
+          // Handle calculated metrics - these are now direct fields in our new structure
+          // No need for complex calculations since we have direct percentage fields
           
           // Check if this is a combined period
           const combinedPeriod = combinedPeriods[index];
@@ -979,7 +950,7 @@ const TeamReportCompare: React.FC = () => {
 
       // Helper function to get format for parameter
       const getParameterFormat = (param: string) => {
-        if (param === 'Net Margin %' || param === 'Growth Margin %') {
+        if (param === 'GPM %' || param === 'NP %') {
           return {
             prefix: '',
             suffix: '%',
@@ -1709,9 +1680,9 @@ const TeamReportCompare: React.FC = () => {
         period,
         hc: periodData.find(i => i.parameter === "HC")?.amount || 0,
         teamCost: periodData.find(i => i.parameter === "Team Cost")?.amount || 0,
-        revenue: periodData.find(i => i.parameter === "Revenue")?.amount || 0,
+        revenue: periodData.find(i => i.parameter === "Sales")?.amount || 0,
         gpm: periodData.find(i => i.parameter === "GPM")?.amount || 0,
-        netMargin: periodData.find(i => i.parameter === "Net Margin")?.amount || 0
+        netMargin: periodData.find(i => i.parameter === "NP")?.amount || 0
       };
     });
 
@@ -1726,7 +1697,7 @@ const TeamReportCompare: React.FC = () => {
         unit: '₹'
       },
       {
-        name: "Revenue per HC",
+        name: "Sales per HC",
         calculate: (m: typeof metrics[0]) => m.revenue / (m.hc || 1),
         ideal: 'increase',
         unit: '₹'
@@ -1738,13 +1709,13 @@ const TeamReportCompare: React.FC = () => {
         unit: '₹'
       },
       {
-        name: "Team Cost % of Revenue",
+        name: "Team Cost % of Sales",
         calculate: (m: typeof metrics[0]) => (m.teamCost / (m.revenue || 1)) * 100,
         ideal: 'decrease',
         unit: '%'
       },
       {
-        name: "Net Margin %",
+        name: "NP %",
         calculate: (m: typeof metrics[0]) => (m.netMargin / (m.revenue || 1)) * 100,
         ideal: 'increase',
         unit: '%'
@@ -1793,7 +1764,7 @@ const TeamReportCompare: React.FC = () => {
           margin: '8px 0',  // Increased margin
           color: '#000000'
         }}>
-          {metric.name === "Revenue per HC" 
+          {metric.name === "Sales per HC" 
             ? `${currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}₹`
             : `${currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${metric.unit}`
           }
@@ -1851,7 +1822,7 @@ const TeamReportCompare: React.FC = () => {
                     return (
                       <td key={j} style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>
                         <div style={{ color: '#000000' }}>
-                          {metric.name === "Revenue per HC" 
+                          {metric.name === "Sales per HC" 
                             ? `${value.toFixed(2)}₹`
                             : `${value.toFixed(2)}${metric.unit}`
                           }
@@ -1862,7 +1833,7 @@ const TeamReportCompare: React.FC = () => {
                             color: isPositive ? '#4ade80' : '#f87171'
                           }}>
                             {isPositive ? '+' : ''}
-                            {metric.name === "Revenue per HC" 
+                            {metric.name === "Sales per HC" 
                               ? `${change.toFixed(2)}₹`
                               : `${change.toFixed(2)}${metric.unit}`
                             }
@@ -1883,7 +1854,7 @@ const TeamReportCompare: React.FC = () => {
                       return (
                         <div style={{ color: isPositive ? '#4ade80' : '#f87171' }}>
                           {isPositive ? '+' : ''}
-                          {metric.name === "Revenue per HC" 
+                          {metric.name === "Sales per HC" 
                             ? `${change.toFixed(2)}₹`
                             : `${change.toFixed(2)}${metric.unit}`
                           } ({pctChange.toFixed(2)}%)
@@ -1953,7 +1924,7 @@ const TeamReportCompare: React.FC = () => {
                           color: isPositive ? '#4ade80' : '#f87171'
                         }}>
                           {isPositive ? '+' : ''}
-                          {def.name === "Revenue per HC" 
+                          {def.name === "Sales per HC" 
                             ? `${change.toFixed(2)}₹`
                             : `${change.toFixed(2)}${def.unit}`
                           } ({pctChange.toFixed(2)}%)
