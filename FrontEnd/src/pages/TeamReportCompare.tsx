@@ -241,6 +241,24 @@ const TeamReportCompare: React.FC = () => {
     return "";
   };
 
+  // Helper function to safely parse numeric values from Excel (handles formulas)
+  const parseNumericValue = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
+    
+    // If it's already a number, return it
+    if (typeof value === 'number') return value;
+    
+    // Convert to string and clean it
+    const stringValue = String(value).trim();
+    
+    // Handle empty strings
+    if (stringValue === '' || stringValue === '-') return 0;
+    
+    // Try to parse as number
+    const parsed = parseFloat(stringValue);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   // Handle Excel import
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -249,35 +267,54 @@ const TeamReportCompare: React.FC = () => {
     reader.onload = async (evt) => {
       const bstr = evt.target?.result;
       if (!bstr) return;
-      const workbook = XLSX.read(bstr, { type: 'binary' });
+      
+      // Read Excel with formula evaluation
+      const workbook = XLSX.read(bstr, { 
+        type: 'binary',
+        cellFormula: true,
+        cellHTML: false,
+        cellNF: false,
+        cellStyles: false,
+        cellText: false,
+        cellDates: true,
+        dateNF: 'yyyy-mm-dd'
+      });
+      
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      // Convert to JSON with raw values (formulas will be evaluated)
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+        raw: true,
+        defval: '',
+        blankrows: false
+      });
       
       const mappedData = jsonData.map((row: any) => {
         return {
-          tower: row['Tower'] || row.tower || '',
-          client_name: row['Client Name'] || row.client_name || '',
-          project_name: row['Project_Name'] || row.project_name || '',
-          business_unit: row['Business unit'] || row.business_unit || '',
-          bu_head: row['BU Head'] || row.bu_head || '',
-          hc: parseInt(row['HC'] || row.hc || '0') || 0,
-          salary_cost: parseFloat(row['Salary Cost'] || row.salary_cost || '0') || 0,
-          sales: parseFloat(row['SALES'] || row.sales || '0') || 0,
-          gpm: parseFloat(row['GPM'] || row.gpm || '0') || 0,
-          gpm_percentage: parseFloat(row['GPM %'] || row.gpm_percentage || '0') || 0,
-          leave_encashment: parseFloat(row['Leav Encsh'] || row.leave_encashment || '0') || 0,
-          team_cost: parseFloat(row['Team Cost'] || row.team_cost || '0') || 0,
-          opr_cost: parseFloat(row['Opr Cost'] || row.opr_cost || '0') || 0,
-          funding_cost: parseFloat(row['Funding Cost'] || row.funding_cost || '0') || 0,
-          np: parseFloat(row['NP'] || row.np || '0') || 0,
-          np_percentage: parseFloat(row['NP %'] || row.np_percentage || '0') || 0,
-          month: row['Month'] || row.month || "",
-          year: parseInt(row['Year'] || row.year || new Date().getFullYear().toString()) || new Date().getFullYear(),
+          tower: String(row['Tower'] || row.tower || '').trim(),
+          client_name: String(row['Client Name'] || row.client_name || '').trim(),
+          project_name: String(row['Project_Name'] || row.project_name || '').trim(),
+          business_unit: String(row['Business unit'] || row.business_unit || '').trim(),
+          bu_head: String(row['BU Head'] || row.bu_head || '').trim(),
+          hc: parseNumericValue(row['HC'] || row.hc),
+          salary_cost: parseNumericValue(row['Salary Cost'] || row.salary_cost),
+          sales: parseNumericValue(row['SALES'] || row.sales),
+          gpm: parseNumericValue(row['GPM'] || row.gpm),
+          gpm_percentage: parseNumericValue(row['GPM %'] || row.gpm_percentage),
+          leave_encashment: parseNumericValue(row['Leav Encsh'] || row.leave_encashment),
+          team_cost: parseNumericValue(row['Team Cost'] || row.team_cost),
+          opr_cost: parseNumericValue(row['Opr Cost'] || row.opr_cost),
+          funding_cost: parseNumericValue(row['Funding Cost'] || row.funding_cost),
+          np: parseNumericValue(row['NP'] || row.np),
+          np_percentage: parseNumericValue(row['NP %'] || row.np_percentage),
+          month: String(row['Month'] || row.month || "").trim(),
+          year: parseNumericValue(row['Year'] || row.year) || new Date().getFullYear(),
         };
       });
 
       try {
+        console.log('Sending data to backend:', mappedData.slice(0, 2)); // Log first 2 records for debugging
         await apiClient.post("/team-report/bulk", { data: mappedData });
         message.success('Data imported successfully');
         
@@ -286,6 +323,7 @@ const TeamReportCompare: React.FC = () => {
         setData(res.data);
       } catch (err: any) {
         console.error('Error importing data:', err);
+        console.error('Error response:', err.response?.data);
         message.error(err.response?.data?.error || 'Failed to import data');
       }
     };

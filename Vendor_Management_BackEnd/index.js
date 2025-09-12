@@ -949,13 +949,20 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
     for (let i = 0; i < data.length; i++) {
       const record = data[i];
       
+      // Log the record being processed for debugging
+      logger.info('Processing record', { recordIndex: i, record: record });
+      
       // All fields are optional - no required field validation
       
       // Convert numeric fields to numbers
       const numericFields = ['hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'year'];
       for (const field of numericFields) {
-        if (record[field] && typeof record[field] === 'string') {
-          record[field] = parseFloat(record[field]) || 0;
+        if (record[field] !== null && record[field] !== undefined && record[field] !== '') {
+          if (typeof record[field] === 'string') {
+            record[field] = parseFloat(record[field]) || 0;
+          }
+        } else {
+          record[field] = 0; // Default to 0 for numeric fields
         }
       }
       
@@ -979,27 +986,37 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         team_cost, opr_cost, funding_cost, np, np_percentage, month, year
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`;
       
-      for (const record of data) {
-        await client.query(insertQuery, [
-          record.tower,
-          record.client_name,
-          record.project_name,
-          record.business_unit,
-          record.bu_head || null,
-          record.hc || 0,
-          record.salary_cost || 0,
-          record.sales || 0,
-          record.gpm || 0,
-          record.gpm_percentage || 0,
-          record.leave_encashment || 0,
-          record.team_cost || 0,
-          record.opr_cost || 0,
-          record.funding_cost || 0,
-          record.np || 0,
-          record.np_percentage || 0,
-          record.month,
-          record.year || new Date().getFullYear()
-        ]);
+      for (let i = 0; i < data.length; i++) {
+        const record = data[i];
+        try {
+          await client.query(insertQuery, [
+            record.tower || null,
+            record.client_name || null,
+            record.project_name || null,
+            record.business_unit || null,
+            record.bu_head || null,
+            record.hc || 0,
+            record.salary_cost || 0,
+            record.sales || 0,
+            record.gpm || 0,
+            record.gpm_percentage || 0,
+            record.leave_encashment || 0,
+            record.team_cost || 0,
+            record.opr_cost || 0,
+            record.funding_cost || 0,
+            record.np || 0,
+            record.np_percentage || 0,
+            record.month || null,
+            record.year || new Date().getFullYear()
+          ]);
+        } catch (insertErr) {
+          logger.error('Failed to insert record', { 
+            recordIndex: i, 
+            record: record, 
+            error: insertErr.message 
+          });
+          throw new Error(`Failed to insert record ${i + 1}: ${insertErr.message}`);
+        }
       }
       
       await client.query('COMMIT');
