@@ -10,8 +10,6 @@ import { DownOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import styles from './TeamReportDashboard.module.css';
 import KPIStats from "./KPIStats";
-import QuarterlyPieChart from "./QuarterlyPieChart";
-import NetMarginLineChart from "./NetMarginLineChart";
 import * as XLSX from "xlsx";
 import MonthlyPivotTable from "./MonthlyPivotTable";
 import logo from '../assets/logo_1.png';
@@ -687,11 +685,7 @@ const TeamReportDashboard: React.FC = () => {
              </h2>
              <div id="barChart" style={{ width: "100%", height: "500px" }}></div>
            </div>
-                     <QuarterlyPieChart data={filteredData} selectedParticular={selectedParticular} />
         </div>
-
-                 {/* Line Chart (Net Margin Trend) */}
-         <NetMarginLineChart data={filteredData} selectedParticular={selectedParticular} />
         <MonthlyPivotTable data={filteredData} />
       </div>
     </div>

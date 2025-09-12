@@ -4,17 +4,45 @@ import apiClient from '../config/api';
 import './AddTeamReportData.css';
 
 interface TeamReportData {
+  tower: string;
+  client_name: string;
+  project_name: string;
   business_unit: string;
-  particulars: string;
-  amount: string;
+  bu_head: string;
+  hc: string;
+  salary_cost: string;
+  sales: string;
+  gpm: string;
+  gpm_percentage: string;
+  leave_encashment: string;
+  team_cost: string;
+  opr_cost: string;
+  funding_cost: string;
+  np: string;
+  np_percentage: string;
   month: string;
+  year: string;
 }
 
 const initialFormData: TeamReportData = {
+  tower: '',
+  client_name: '',
+  project_name: '',
   business_unit: '',
-  particulars: '',
-  amount: '',
+  bu_head: '',
+  hc: '',
+  salary_cost: '',
+  sales: '',
+  gpm: '',
+  gpm_percentage: '',
+  leave_encashment: '',
+  team_cost: '',
+  opr_cost: '',
+  funding_cost: '',
+  np: '',
+  np_percentage: '',
   month: '',
+  year: '',
 };
 
 const AddTeamReportData: React.FC = () => {
@@ -55,8 +83,8 @@ const PARTICULARS_OPTIONS = [
     setIsSubmitting(true);
     setError(null);
 
-    if (!formData.business_unit || !formData.particulars || !formData.amount || !formData.month) {
-      setError('Please fill in all fields');
+    if (!formData.tower || !formData.client_name || !formData.project_name || !formData.business_unit || !formData.month || !formData.year) {
+      setError('Please fill in all required fields (Tower, Client Name, Project Name, Business Unit, Month, Year)');
       setIsSubmitting(false);
       return;
     }

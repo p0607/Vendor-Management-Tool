@@ -13,7 +13,6 @@ import VendorBarChart from './pages/VendorBarChart';
 import CTSDataTable from './pages/CTSDataTable';
 import CTSDashboard from './pages/CTSDashboard';
 import TeamReportDashboard from './pages/TeamReportDashboard';
-import QuarterlyPieChart from './pages/QuarterlyPieChart';
 import AddCTSData from './pages/AddCTSData'
 import VendorGanttChart from './pages/VendorGanttChart';
 import VendorResourcePieAnalysis from './pages/VendorResourcePieAnalysis';
@@ -38,7 +37,6 @@ const App: React.FC = () => {
         <Route path="/CTSDataTable" element={<CTSDataTable />} />
         <Route path="/CTSDashboard" element={<CTSDashboard />} />
         <Route path="/TeamReportDashboard" element={<TeamReportDashboard />} />
-        <Route path="/QuarterlyPieChart" element={<QuarterlyPieChart data={[]} />} />
         <Route path="/AddCTSData" element={<AddCTSData />} />
         <Route path="/VendorGanttChart" element={<VendorGanttChart data={[]} view="monthly" metric="head_count" />} />
         <Route path="/VendorResourcePieAnalysis" element={<VendorResourcePieAnalysis data={[]} />} />
