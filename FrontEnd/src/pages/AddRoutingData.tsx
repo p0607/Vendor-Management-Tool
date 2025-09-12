@@ -145,10 +145,15 @@ const AddRoutingData: React.FC = () => {
         if (key in validatedItem) {
           let value = item[key];
           
-                     // Handle Excel date serial numbers for date fields
-           if ((key === 'Costing Date' || key === 'Vendor_PO_Date') && !isNaN(Number(value)) && Number(value) > 1000) {
-             // Convert Excel serial number to date
-             value = formatExcelDate(Number(value));
+                     // Handle Excel date serial numbers and string dates for date fields
+           if (key === 'Costing Date' || key === 'Vendor_PO_Date' || key === 'IBM / KYNDRYL PO Date' || 
+               key === 'Training Dates' || key === 'Vendor Inv. Date' || key === 'Payment Due Date' ||
+               key === 'Alchemy Techsol Invoice Date' || key === 'Payment Expected Date (IBM)' || 
+               key === 'Cheque Date') {
+             if (value) {
+               // Convert Excel date (serial number or string) to proper format
+               value = formatExcelDate(value);
+             }
            }
           
           validatedItem[key] = value?.toString() || '';

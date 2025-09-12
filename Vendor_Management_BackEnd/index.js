@@ -505,6 +505,32 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         }
       }
       
+      // Handle dd-mmm-yy format (e.g., "13-Aug-24")
+      if (typeof value === 'string' && /^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(value)) {
+        const [day, month, year] = value.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === month.toLowerCase());
+        
+        if (monthIndex !== -1) {
+          // Convert 2-digit year to 4-digit year
+          const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
+          const date = new Date(fullYear, monthIndex, parseInt(day));
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+          }
+        }
+      }
+      
+      // Handle dd-mm-yyyy format (e.g., "13-08-2024")
+      if (typeof value === 'string' && /^\d{1,2}-\d{1,2}-\d{4}$/.test(value)) {
+        const [day, month, year] = value.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        if (!isNaN(date.getTime())) {
+          return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+        }
+      }
+      
+      // Handle Excel serial numbers
       if (!isNaN(value) && value > 1000) {
         const excelDate = new Date((value - 25569) * 86400 * 1000);
         if (!isNaN(excelDate.getTime())) {
@@ -512,11 +538,13 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         }
       }
       
+      // Try standard date parsing
       const date = new Date(value);
-      if (isNaN(date.getTime())) {
-        return null;
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
       }
-      return value;
+      
+      return null;
     };
 
     const validateNumericField = (value) => {
@@ -703,6 +731,32 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         }
       }
       
+      // Handle dd-mmm-yy format (e.g., "13-Aug-24")
+      if (typeof value === 'string' && /^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(value)) {
+        const [day, month, year] = value.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === month.toLowerCase());
+        
+        if (monthIndex !== -1) {
+          // Convert 2-digit year to 4-digit year
+          const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
+          const date = new Date(fullYear, monthIndex, parseInt(day));
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+          }
+        }
+      }
+      
+      // Handle dd-mm-yyyy format (e.g., "13-08-2024")
+      if (typeof value === 'string' && /^\d{1,2}-\d{1,2}-\d{4}$/.test(value)) {
+        const [day, month, year] = value.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        if (!isNaN(date.getTime())) {
+          return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+        }
+      }
+      
+      // Handle Excel serial numbers
       if (!isNaN(value) && value > 1000) {
         const excelDate = new Date((value - 25569) * 86400 * 1000);
         if (!isNaN(excelDate.getTime())) {
@@ -710,11 +764,13 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         }
       }
       
+      // Try standard date parsing
       const date = new Date(value);
-      if (isNaN(date.getTime())) {
-        return null;
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
       }
-      return value;
+      
+      return null;
     };
 
     const validateNumericField = (value) => {

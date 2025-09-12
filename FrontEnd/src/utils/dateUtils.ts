@@ -47,19 +47,47 @@ export const formatDateOnly = (dateStr: string | null | undefined): string => {
 };
 
 /**
- * Converts Excel serial number to DD-MM-YYYY format
- * @param serial - Excel serial number
+ * Converts Excel serial number or date string to DD-MM-YYYY format
+ * @param value - Excel serial number or date string
  * @returns Formatted date string in DD-MM-YYYY format
  */
-export const formatExcelDate = (serial: number): string => {
-  if (!serial || serial < 1) return '';
+export const formatExcelDate = (value: number | string): string => {
+  if (!value) return '';
   
   try {
-    // Excel dates are number of days since 1900-01-01
-    const excelDate = new Date((serial - 25569) * 86400 * 1000);
-    if (isNaN(excelDate.getTime())) return '';
+    // Handle string dates (like "13-Aug-24")
+    if (typeof value === 'string') {
+      // Handle dd-mmm-yy format (e.g., "13-Aug-24")
+      if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(value)) {
+        const [day, month, year] = value.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === month.toLowerCase());
+        
+        if (monthIndex !== -1) {
+          // Convert 2-digit year to 4-digit year
+          const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
+          const date = new Date(fullYear, monthIndex, parseInt(day));
+          return formatDateToDDMMYYYY(date.toISOString());
+        }
+      }
+      
+      // Handle other string formats
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        return formatDateToDDMMYYYY(date.toISOString());
+      }
+    }
     
-    return formatDateToDDMMYYYY(excelDate.toISOString());
+    // Handle Excel serial numbers
+    if (typeof value === 'number' && value > 1) {
+      // Excel dates are number of days since 1900-01-01
+      const excelDate = new Date((value - 25569) * 86400 * 1000);
+      if (!isNaN(excelDate.getTime())) {
+        return formatDateToDDMMYYYY(excelDate.toISOString());
+      }
+    }
+    
+    return '';
   } catch (error) {
     console.error('Error formatting Excel date:', error);
     return '';
