@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../config/api';
+import logo from '../assets/Logo.jpg';
 import './AddTeamReportData.css';
 
 interface TeamReportData {
@@ -128,7 +129,7 @@ const BUSINESS_UNIT_OPTIONS = [
     <div className="homepage">
       <header className="header">
         <div className="logo">
-          <img src="/Logo.jpg" alt="Alchemy Logo" />
+          <img src={logo} alt="Alchemy Logo" />
         </div>
         <div className="tabs">
           <button className="tab-button" onClick={() => navigate('/HomePage')}>Home</button>

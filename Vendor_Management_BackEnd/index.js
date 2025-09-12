@@ -914,20 +914,51 @@ app.post('/api/team-report', async (req, res, next) => {
         team_cost, opr_cost, funding_cost, np, np_percentage, month, year 
       } = req.body;
       
+      // Log the incoming data for debugging
+      logger.info('Creating team report', { 
+        tower, client_name, project_name, business_unit, bu_head, hc, 
+        salary_cost, sales, gpm, gpm_percentage, leave_encashment, 
+        team_cost, opr_cost, funding_cost, np, np_percentage, month, year 
+      });
+      
       const result = await executeQuery(
         `INSERT INTO team_report (
           tower, client_name, project_name, business_unit, bu_head, hc,
           salary_cost, sales, gpm, gpm_percentage, leave_encashment,
           team_cost, opr_cost, funding_cost, np, np_percentage, month, year
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
-        [tower, client_name, project_name, business_unit, bu_head, hc, 
-         salary_cost, sales, gpm, gpm_percentage, leave_encashment,
-         team_cost, opr_cost, funding_cost, np, np_percentage, month, year]
+        [
+          tower === '' ? null : tower,
+          client_name === '' ? null : client_name,
+          project_name === '' ? null : project_name,
+          business_unit === '' ? null : business_unit,
+          bu_head === '' ? null : bu_head,
+          hc || 0,
+          salary_cost || 0,
+          sales || 0,
+          gpm || 0,
+          gpm_percentage || 0,
+          leave_encashment || 0,
+          team_cost || 0,
+          opr_cost || 0,
+          funding_cost || 0,
+          np || 0,
+          np_percentage || 0,
+          month === '' ? null : month,
+          year || new Date().getFullYear()
+        ]
       );
       
       logger.info('Team report created', { recordId: result.rows[0].id });
       res.status(201).json(result.rows[0]);
     } catch (err) {
+      logger.error('Failed to create team report', { 
+        error: err.message, 
+        stack: err.stack,
+        sqlError: err.code,
+        detail: err.detail,
+        body: req.body 
+      });
       next(err);
     }
   }
