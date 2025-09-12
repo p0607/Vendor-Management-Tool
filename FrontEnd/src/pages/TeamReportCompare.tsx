@@ -101,6 +101,7 @@ const TeamReportCompare: React.FC = () => {
   const [isBUHead, setIsBUHead] = useState(false);
   const [allowedLobs, setAllowedLobs] = useState<string[]>(lobOptions);
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string | null>(null);
+  const [selectedParticular, setSelectedParticular] = useState<string | null>(null);
   const [compareType, setCompareType] = useState<CompareType>(
     (queryParams.get('compareType') as CompareType) || "quarter"
   );
@@ -343,11 +344,6 @@ const TeamReportCompare: React.FC = () => {
       label: 'Export Excel',
       onClick: handleExportExcel
     },
-    {
-      key: 'dashboard',
-      label: 'MFS Dashboard',
-      onClick: () => navigate('/TeamReportDashboard')
-    }
   ];
 
   // Handle adding a new comparison period
@@ -624,8 +620,26 @@ const TeamReportCompare: React.FC = () => {
             if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
               return false;
             }
-            // Skip particulars check since we don't have that field anymore
-            // We'll filter by parameter in the value calculation
+            // Filter by particulars (financial field) if selected
+            if (selectedParticular) {
+              // Check if the selected particular has a non-zero value for this item
+              let hasValue = false;
+              switch (selectedParticular) {
+                case 'HC': hasValue = (item.hc || 0) > 0; break;
+                case 'Salary Cost': hasValue = (item.salary_cost || 0) > 0; break;
+                case 'Sales': hasValue = (item.sales || 0) > 0; break;
+                case 'GPM': hasValue = (item.gpm || 0) > 0; break;
+                case 'GPM %': hasValue = (item.gpm_percentage || 0) > 0; break;
+                case 'Leave Encashment': hasValue = (item.leave_encashment || 0) > 0; break;
+                case 'Team Cost': hasValue = (item.team_cost || 0) > 0; break;
+                case 'Opr Cost': hasValue = (item.opr_cost || 0) > 0; break;
+                case 'Funding Cost': hasValue = (item.funding_cost || 0) > 0; break;
+                case 'NP': hasValue = (item.np || 0) > 0; break;
+                case 'NP %': hasValue = (item.np_percentage || 0) > 0; break;
+                default: hasValue = true;
+              }
+              if (!hasValue) return false;
+            }
             
             const date = parseDate(item.month);
             if (isNaN(date.getTime())) return false;
@@ -675,8 +689,26 @@ const TeamReportCompare: React.FC = () => {
         if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
           return false;
         }
-        // Skip particulars check since we don't have that field anymore
-        // We'll filter by parameter in the value calculation
+        // Filter by particulars (financial field) if selected
+        if (selectedParticular) {
+          // Check if the selected particular has a non-zero value for this item
+          let hasValue = false;
+          switch (selectedParticular) {
+            case 'HC': hasValue = (item.hc || 0) > 0; break;
+            case 'Salary Cost': hasValue = (item.salary_cost || 0) > 0; break;
+            case 'Sales': hasValue = (item.sales || 0) > 0; break;
+            case 'GPM': hasValue = (item.gpm || 0) > 0; break;
+            case 'GPM %': hasValue = (item.gpm_percentage || 0) > 0; break;
+            case 'Leave Encashment': hasValue = (item.leave_encashment || 0) > 0; break;
+            case 'Team Cost': hasValue = (item.team_cost || 0) > 0; break;
+            case 'Opr Cost': hasValue = (item.opr_cost || 0) > 0; break;
+            case 'Funding Cost': hasValue = (item.funding_cost || 0) > 0; break;
+            case 'NP': hasValue = (item.np || 0) > 0; break;
+            case 'NP %': hasValue = (item.np_percentage || 0) > 0; break;
+            default: hasValue = true;
+          }
+          if (!hasValue) return false;
+        }
         
         const date = parseDate(item.month);
         if (isNaN(date.getTime())) return false;
@@ -717,7 +749,7 @@ const TeamReportCompare: React.FC = () => {
         }
         return sum + value;
       }, 0);
-  }, [data, selectedBusinessUnit, compareType, combinedPeriods]);
+  }, [data, selectedBusinessUnit, selectedParticular, compareType, combinedPeriods]);
 
   // Calculate comparison data when selections change
   useEffect(() => {
@@ -747,7 +779,7 @@ const TeamReportCompare: React.FC = () => {
     });
 
     setComparisonData(newComparisonData);
-  }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedParameters, combinedPeriods]);
+  }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedParticular, selectedParameters, combinedPeriods]);
 
   // Calculate growth analysis when selections change
   useEffect(() => {
@@ -772,7 +804,25 @@ const TeamReportCompare: React.FC = () => {
               return total + data
                 .filter(item => {
                   if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
-                  // Skip particulars check since we don't have that field anymore
+                  // Filter by particulars (financial field) if selected
+                  if (selectedParticular) {
+                    let hasValue = false;
+                    switch (selectedParticular) {
+                      case 'HC': hasValue = (item.hc || 0) > 0; break;
+                      case 'Salary Cost': hasValue = (item.salary_cost || 0) > 0; break;
+                      case 'Sales': hasValue = (item.sales || 0) > 0; break;
+                      case 'GPM': hasValue = (item.gpm || 0) > 0; break;
+                      case 'GPM %': hasValue = (item.gpm_percentage || 0) > 0; break;
+                      case 'Leave Encashment': hasValue = (item.leave_encashment || 0) > 0; break;
+                      case 'Team Cost': hasValue = (item.team_cost || 0) > 0; break;
+                      case 'Opr Cost': hasValue = (item.opr_cost || 0) > 0; break;
+                      case 'Funding Cost': hasValue = (item.funding_cost || 0) > 0; break;
+                      case 'NP': hasValue = (item.np || 0) > 0; break;
+                      case 'NP %': hasValue = (item.np_percentage || 0) > 0; break;
+                      default: hasValue = true;
+                    }
+                    if (!hasValue) return false;
+                  }
                   
                   const date = parseDate(item.month);
                   if (isNaN(date.getTime())) return false;
@@ -813,7 +863,25 @@ const TeamReportCompare: React.FC = () => {
           return data
             .filter(item => {
               if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
-              // Skip particulars check since we don't have that field anymore
+              // Filter by particulars (financial field) if selected
+              if (selectedParticular) {
+                let hasValue = false;
+                switch (selectedParticular) {
+                  case 'HC': hasValue = (item.hc || 0) > 0; break;
+                  case 'Salary Cost': hasValue = (item.salary_cost || 0) > 0; break;
+                  case 'Sales': hasValue = (item.sales || 0) > 0; break;
+                  case 'GPM': hasValue = (item.gpm || 0) > 0; break;
+                  case 'GPM %': hasValue = (item.gpm_percentage || 0) > 0; break;
+                  case 'Leave Encashment': hasValue = (item.leave_encashment || 0) > 0; break;
+                  case 'Team Cost': hasValue = (item.team_cost || 0) > 0; break;
+                  case 'Opr Cost': hasValue = (item.opr_cost || 0) > 0; break;
+                  case 'Funding Cost': hasValue = (item.funding_cost || 0) > 0; break;
+                  case 'NP': hasValue = (item.np || 0) > 0; break;
+                  case 'NP %': hasValue = (item.np_percentage || 0) > 0; break;
+                  default: hasValue = true;
+                }
+                if (!hasValue) return false;
+              }
               
               const date = parseDate(item.month);
               if (isNaN(date.getTime())) return false;
@@ -880,7 +948,7 @@ const TeamReportCompare: React.FC = () => {
     };
 
     setGrowthAnalysis(calculateGrowth());
-  }, [comparisonValues, data, compareType, selectedBusinessUnit, availableParameters, combinedPeriods]);
+  }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedParticular, availableParameters, combinedPeriods]);
 
   // Render comparison chart
   useEffect(() => {
@@ -1273,6 +1341,22 @@ const TeamReportCompare: React.FC = () => {
         <Option value="">All Business Units</Option>
         {allowedLobs.map((bu: string) => (
           <Option key={bu} value={bu}>{bu}</Option>
+        ))}
+      </Select>
+    </div>
+
+    {/* Particulars Filter */}
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ color: '#000000' }}>Particulars:</label>
+      <Select
+        value={selectedParticular || ''}
+        onChange={(value) => setSelectedParticular(value || null)}
+        style={{ width: 200, marginLeft: 8 }}
+        allowClear
+      >
+        <Option value="">All Particulars</Option>
+        {availableParameters.map((param: string) => (
+          <Option key={param} value={param}>{param}</Option>
         ))}
       </Select>
     </div>
