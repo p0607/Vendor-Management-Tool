@@ -111,7 +111,12 @@ const TeamReportCompare: React.FC = () => {
     // Set default parameters from URL or use GPM% and Net Margin%
     const paramsFromURL = queryParams.get('selectedParameters');
     if (paramsFromURL) {
-      return decodeURIComponent(paramsFromURL).split(',');
+      try {
+        return decodeURIComponent(paramsFromURL).split(',');
+      } catch (error) {
+        console.warn('Failed to decode URL parameters, using defaults:', error);
+        return ['GPM%', 'Net Margin%'];
+      }
     }
     return ['GPM%', 'Net Margin%'];
   });
@@ -398,8 +403,13 @@ const TeamReportCompare: React.FC = () => {
 
     // Set default parameters if coming from MFS button
     if (selectedParamsFromURL) {
-      const params = decodeURIComponent(selectedParamsFromURL).split(',');
-      setSelectedParameters(params);
+      try {
+        const params = decodeURIComponent(selectedParamsFromURL).split(',');
+        setSelectedParameters(params);
+      } catch (error) {
+        console.warn('Failed to decode URL parameters in useEffect, using defaults:', error);
+        setSelectedParameters(['GPM%', 'Net Margin%']);
+      }
     }
 
     // Set chart type if coming from MFS button
