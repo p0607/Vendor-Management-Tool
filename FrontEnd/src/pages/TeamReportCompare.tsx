@@ -291,12 +291,18 @@ const TeamReportCompare: React.FC = () => {
       });
       
       const mappedData = jsonData.map((row: any) => {
+        // Helper function to convert empty strings to null
+        const stringOrNull = (value: any): string | null => {
+          const str = String(value || '').trim();
+          return str === '' ? null : str;
+        };
+
         return {
-          tower: String(row['Tower'] || row.tower || '').trim(),
-          client_name: String(row['Client Name'] || row.client_name || '').trim(),
-          project_name: String(row['Project_Name'] || row.project_name || '').trim(),
-          business_unit: String(row['Business unit'] || row.business_unit || '').trim(),
-          bu_head: String(row['BU Head'] || row.bu_head || '').trim(),
+          tower: stringOrNull(row['Tower'] || row.tower),
+          client_name: stringOrNull(row['Client Name'] || row.client_name),
+          project_name: stringOrNull(row['Project_Name'] || row.project_name),
+          business_unit: stringOrNull(row['Business unit'] || row.business_unit),
+          bu_head: stringOrNull(row['BU Head'] || row.bu_head),
           hc: parseNumericValue(row['HC'] || row.hc),
           salary_cost: parseNumericValue(row['Salary Cost'] || row.salary_cost),
           sales: parseNumericValue(row['SALES'] || row.sales),
@@ -308,7 +314,7 @@ const TeamReportCompare: React.FC = () => {
           funding_cost: parseNumericValue(row['Funding Cost'] || row.funding_cost),
           np: parseNumericValue(row['NP'] || row.np),
           np_percentage: parseNumericValue(row['NP %'] || row.np_percentage),
-          month: String(row['Month'] || row.month || "").trim(),
+          month: stringOrNull(row['Month'] || row.month),
           year: parseNumericValue(row['Year'] || row.year) || new Date().getFullYear(),
         };
       });

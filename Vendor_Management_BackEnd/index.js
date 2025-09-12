@@ -999,12 +999,12 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       for (let i = 0; i < data.length; i++) {
         const record = data[i];
         try {
-          await client.query(insertQuery, [
-            record.tower || null,
-            record.client_name || null,
-            record.project_name || null,
-            record.business_unit || null,
-            record.bu_head || null,
+        await client.query(insertQuery, [
+          record.tower === '' ? null : record.tower,
+          record.client_name === '' ? null : record.client_name,
+          record.project_name === '' ? null : record.project_name,
+          record.business_unit === '' ? null : record.business_unit,
+          record.bu_head === '' ? null : record.bu_head,
             record.hc || 0,
             record.salary_cost || 0,
             record.sales || 0,
@@ -1016,16 +1016,19 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             record.funding_cost || 0,
             record.np || 0,
             record.np_percentage || 0,
-            record.month || null,
+            record.month === '' ? null : record.month,
             record.year || new Date().getFullYear()
           ]);
         } catch (insertErr) {
           logger.error('Failed to insert record', { 
             recordIndex: i, 
             record: record, 
-            error: insertErr.message 
+            error: insertErr.message,
+            stack: insertErr.stack,
+            sqlError: insertErr.code,
+            detail: insertErr.detail
           });
-          throw new Error(`Failed to insert record ${i + 1}: ${insertErr.message}`);
+          throw new Error(`Failed to insert record ${i + 1}: ${insertErr.message} (Code: ${insertErr.code})`);
         }
       }
       

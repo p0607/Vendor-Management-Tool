@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Single Record Import</title>
+</head>
+<body>
+    <h2>Test Single Record Import</h2>
+    <button onclick="testImport()">Test Import Single Record</button>
+    <div id="result"></div>
+
+    <script>
+        async function testImport() {
+            const testData = [{
+                tower: "TOWER-3",
+                client_name: "Test Client",
+                project_name: "Test Project",
+                business_unit: "BPO",
+                bu_head: "RB",
+                hc: 10,
+                salary_cost: 1000,
+                sales: 2000,
+                gpm: 1000,
+                gpm_percentage: 0.5,
+                leave_encashment: 100,
+                team_cost: 200,
+                opr_cost: 150,
+                funding_cost: 100,
+                np: 450,
+                np_percentage: 0.225,
+                month: "April",
+                year: 2023
+            }];
+
+            try {
+                const response = await fetch('http://40.67.147.19/api/team-report/bulk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ data: testData })
+                });
+
+                const result = await response.json();
+                document.getElementById('result').innerHTML = 
+                    `<h3>Response Status: ${response.status}</h3>
+                     <pre>${JSON.stringify(result, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('result').innerHTML = 
+                    `<h3>Error:</h3>
+                     <pre>${error.message}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>
