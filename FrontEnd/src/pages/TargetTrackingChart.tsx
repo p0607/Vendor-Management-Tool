@@ -76,22 +76,22 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       console.log('🔍 Fetching data from database with params:', params);
       const res = await apiClient.get("/team-report", { params });
       
-      // Convert amounts to numbers and handle formatting
+      // Convert sales to numbers and handle formatting
       const convertedData = res.data.map((item: any) => {
-        let amountValue: number;
+        let salesValue: number;
         
-        if (typeof item.amount === 'string') {
+        if (typeof item.sales === 'string') {
           // Remove commas and convert to float
-          amountValue = parseFloat(item.amount.replace(/,/g, ''));
-        } else if (typeof item.amount === 'number') {
-          amountValue = item.amount;
+          salesValue = parseFloat(item.sales.replace(/,/g, ''));
+        } else if (typeof item.sales === 'number') {
+          salesValue = item.sales;
         } else {
-          amountValue = 0;
+          salesValue = 0;
         }
         
         return {
           ...item,
-          amount: isNaN(amountValue) ? 0 : amountValue
+          amount: isNaN(salesValue) ? 0 : salesValue // Keep amount field for compatibility with existing chart logic
         };
       });
       

@@ -63,13 +63,6 @@ const BUSINESS_UNIT_OPTIONS = [
   "USA"
 ];
 
-const PARTICULARS_OPTIONS = [
-  "GPM",
-  "HC",
-  "Net Margin",
-  "Revenue",
-  "Team Cost"
-];
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -127,30 +120,81 @@ const PARTICULARS_OPTIONS = [
           <div className="field-group">
             <div className="field-grid">
               <div className="form-group">
-  <label>Business Unit</label>
-  <select name="business_unit" value={formData.business_unit} onChange={handleChange}>
-    <option value="">Select Business Unit</option>
-    {BUSINESS_UNIT_OPTIONS.map(opt => (
-      <option key={opt} value={opt}>{opt}</option>
-    ))}
-  </select>
-</div>
-<div className="form-group">
-  <label>Particulars</label>
-  <select name="particulars" value={formData.particulars} onChange={handleChange}>
-    <option value="">Select Particulars</option>
-    {PARTICULARS_OPTIONS.map(opt => (
-      <option key={opt} value={opt}>{opt}</option>
-    ))}
-  </select>
-</div>
-              <div className="form-group">
-                <label>Amount</label>
-                <input type="number" name="amount" value={formData.amount} onChange={handleChange} />
+                <label>Tower *</label>
+                <input type="text" name="tower" value={formData.tower} onChange={handleChange} required />
               </div>
               <div className="form-group">
-                <label>Month</label>
-                <input type="month" name="month" value={formData.month} onChange={handleChange} />
+                <label>Client Name *</label>
+                <input type="text" name="client_name" value={formData.client_name} onChange={handleChange} required />
+              </div>
+              <div className="form-group">
+                <label>Project Name *</label>
+                <input type="text" name="project_name" value={formData.project_name} onChange={handleChange} required />
+              </div>
+              <div className="form-group">
+                <label>Business Unit *</label>
+                <select name="business_unit" value={formData.business_unit} onChange={handleChange} required>
+                  <option value="">Select Business Unit</option>
+                  {BUSINESS_UNIT_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>BU Head</label>
+                <input type="text" name="bu_head" value={formData.bu_head} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>HC</label>
+                <input type="number" name="hc" value={formData.hc} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>Salary Cost</label>
+                <input type="number" name="salary_cost" value={formData.salary_cost} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>Sales</label>
+                <input type="number" name="sales" value={formData.sales} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>GPM</label>
+                <input type="number" name="gpm" value={formData.gpm} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>GPM %</label>
+                <input type="number" name="gpm_percentage" value={formData.gpm_percentage} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>Leave Encashment</label>
+                <input type="number" name="leave_encashment" value={formData.leave_encashment} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>Team Cost</label>
+                <input type="number" name="team_cost" value={formData.team_cost} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>Opr Cost</label>
+                <input type="number" name="opr_cost" value={formData.opr_cost} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>Funding Cost</label>
+                <input type="number" name="funding_cost" value={formData.funding_cost} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>NP</label>
+                <input type="number" name="np" value={formData.np} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>NP %</label>
+                <input type="number" name="np_percentage" value={formData.np_percentage} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>Month *</label>
+                <input type="month" name="month" value={formData.month} onChange={handleChange} required />
+              </div>
+              <div className="form-group">
+                <label>Year *</label>
+                <input type="number" name="year" value={formData.year} onChange={handleChange} min="2020" max="2030" required />
               </div>
             </div>
           </div>
@@ -158,7 +202,7 @@ const PARTICULARS_OPTIONS = [
             <button type="submit" disabled={isSubmitting} className="submit-btn">
               {isSubmitting ? 'Submitting...' : 'Submit Data'}
             </button>
-            <button type="button" onClick={() => navigate('/TeamReportDashboard')} className="cancel-btn">
+            <button type="button" onClick={() => navigate('/team-report/compare')} className="cancel-btn">
               Cancel
             </button>
           </div>
