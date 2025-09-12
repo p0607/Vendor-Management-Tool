@@ -213,11 +213,8 @@ const RoutingDashboard: React.FC = () => {
         setData(response.data as RoutingTableItem[]);
         setFilteredData(response.data as RoutingTableItem[]);
         
-        // Set default filter to current financial year
-        const { startDate: fyStartDate, endDate: fyEndDate } = getCurrentFinancialYearRange();
-        setStartDate(fyStartDate);
-        setEndDate(fyEndDate);
-        setDateFilterType('dateRange');
+        // Don't set default date filter - show all data by default
+        // Users can manually apply filters if needed
       } catch (err: any) {
         console.error("Fetch failed:", err);
         setError(err.response?.data?.error || err.message || 'An unknown error occurred');
@@ -523,6 +520,16 @@ const chartData = metricFields.map(({ field, label }) => {
   const calculateDatePivotSummaries = (): DatePivotSummary[] => {
     const dateMap = new Map<string, DatePivotSummary>();
 
+    // Debug: Log sample data to verify costing dates
+    if (filteredData.length > 0) {
+      console.log('Sample costing dates from filtered data:', 
+        filteredData.slice(0, 5).map(item => ({
+          costingDate: item['Costing Date'],
+          dateGroup: getDateGroup(item['Costing Date'] || '', pivotDateType)
+        }))
+      );
+    }
+
     filteredData.forEach(item => {
       // Use Costing Date as primary date field, fallback to other date fields
       const dateStr = item['Costing Date'] || item['IBM / KYNDRYL PO Date'] || item['Vendor_PO_Date'] || '';
@@ -563,9 +570,38 @@ const chartData = metricFields.map(({ field, label }) => {
 
     return Array.from(dateMap.values()).sort((a, b) => {
       // Sort by date group (chronological order)
-      const dateA = new Date(a.dateGroup.replace('Q', '').replace(/(\d+)/, ' $1'));
-      const dateB = new Date(b.dateGroup.replace('Q', '').replace(/(\d+)/, ' $1'));
-      return dateA.getTime() - dateB.getTime();
+      const parseDateGroup = (dateGroup: string): Date => {
+        // Handle different date group formats
+        if (dateGroup.includes('Q')) {
+          // Quarter format: "Q1 2024"
+          const [quarter, year] = dateGroup.split(' ');
+          const quarterNum = parseInt(quarter.replace('Q', ''));
+          const yearNum = parseInt(year);
+          // Convert quarter to month (Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct)
+          const month = (quarterNum - 1) * 3;
+          return new Date(yearNum, month, 1);
+        } else if (dateGroup.includes(' ')) {
+          // Month format: "Jan 2024"
+          const [monthName, year] = dateGroup.split(' ');
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const monthIndex = monthNames.indexOf(monthName);
+          const yearNum = parseInt(year);
+          return new Date(yearNum, monthIndex, 1);
+        } else {
+          // Year format: "2024"
+          const yearNum = parseInt(dateGroup);
+          return new Date(yearNum, 0, 1);
+        }
+      };
+
+      try {
+        const dateA = parseDateGroup(a.dateGroup);
+        const dateB = parseDateGroup(b.dateGroup);
+        return dateA.getTime() - dateB.getTime();
+      } catch (error) {
+        // If parsing fails, sort alphabetically
+        return a.dateGroup.localeCompare(b.dateGroup);
+      }
     });
   };
 
