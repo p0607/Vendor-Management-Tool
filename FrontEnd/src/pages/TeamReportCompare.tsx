@@ -16,10 +16,26 @@ import * as XLSX from 'xlsx';
 const { Option } = Select;
 
 interface ReportData {
+  id?: number;
+  tower: string;
+  client_name: string;
+  project_name: string;
   business_unit: string;
-  particulars: string;
-  amount: number | string;
+  bu_head: string;
+  hc: number;
+  salary_cost: number;
+  sales: number;
+  gpm: number;
+  gpm_percentage: number;
+  leave_encashment: number;
+  team_cost: number;
+  opr_cost: number;
+  funding_cost: number;
+  np: number;
+  np_percentage: number;
   month: string;
+  year: number;
+  created_at?: string;
 }
 
 interface PeriodChange {
@@ -115,7 +131,7 @@ const TeamReportCompare: React.FC = () => {
         return decodeURIComponent(paramsFromURL).split(',');
       } catch (error) {
         console.warn('Failed to decode URL parameters, using defaults:', error);
-        return ['GPM%', 'Net Margin%'];
+        return ['GPM %', 'NP %'];
       }
     }
     return ['GPM%', 'Net Margin%'];
@@ -131,9 +147,34 @@ const TeamReportCompare: React.FC = () => {
   const [showGrowthAnalysis, setShowGrowthAnalysis] = useState<boolean>(false);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
-  // Simplified date parser for ISO format (YYYY-MM-DD)
+  // Enhanced date parser to handle various date formats
   const parseDate = (dateStr: string): Date => {
-    return new Date(dateStr);
+    if (!dateStr) return new Date();
+    
+    // Handle month name format (e.g., "April")
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    const monthIndex = monthNames.findIndex(month => 
+      dateStr.toLowerCase().includes(month.toLowerCase())
+    );
+    
+    if (monthIndex !== -1) {
+      // If we find a month name, create a date for the 1st of that month
+      // We'll use the year from the year field or current year
+      return new Date(new Date().getFullYear(), monthIndex, 1);
+    }
+    
+    // Handle ISO format (YYYY-MM-DD) or other standard formats
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+    
+    // Fallback to current date
+    return new Date();
   };
 
   // Helper function to get fiscal quarter info
@@ -214,10 +255,24 @@ const TeamReportCompare: React.FC = () => {
       
       const mappedData = jsonData.map((row: any) => {
         return {
-          business_unit: row['Business Unit'] || row.business_unit || row.LOB || row.lob || '',
-          particulars: row.Particulars || row.particulars || '',
-          amount: parseFloat(row.Amount || row.amount || '0') || 0,
-          month: excelDateToISO(row.month || row.Month || ""),
+          tower: row['Tower'] || row.tower || '',
+          client_name: row['Client Name'] || row.client_name || '',
+          project_name: row['Project_Name'] || row.project_name || '',
+          business_unit: row['Business unit'] || row.business_unit || '',
+          bu_head: row['BU Head'] || row.bu_head || '',
+          hc: parseInt(row['HC'] || row.hc || '0') || 0,
+          salary_cost: parseFloat(row['Salary Cost'] || row.salary_cost || '0') || 0,
+          sales: parseFloat(row['SALES'] || row.sales || '0') || 0,
+          gpm: parseFloat(row['GPM'] || row.gpm || '0') || 0,
+          gpm_percentage: parseFloat(row['GPM %'] || row.gpm_percentage || '0') || 0,
+          leave_encashment: parseFloat(row['Leav Encsh'] || row.leave_encashment || '0') || 0,
+          team_cost: parseFloat(row['Team Cost'] || row.team_cost || '0') || 0,
+          opr_cost: parseFloat(row['Opr Cost'] || row.opr_cost || '0') || 0,
+          funding_cost: parseFloat(row['Funding Cost'] || row.funding_cost || '0') || 0,
+          np: parseFloat(row['NP'] || row.np || '0') || 0,
+          np_percentage: parseFloat(row['NP %'] || row.np_percentage || '0') || 0,
+          month: row['Month'] || row.month || "",
+          year: parseInt(row['Year'] || row.year || new Date().getFullYear().toString()) || new Date().getFullYear(),
         };
       });
 
@@ -239,10 +294,24 @@ const TeamReportCompare: React.FC = () => {
   // Handle Excel export
   const handleExportExcel = () => {
     const exportData = data.map((row: ReportData) => ({
-      'Business Unit': row.business_unit,
-      Particulars: row.particulars,
-      Amount: row.amount,
-      Month: row.month,
+      'Tower': row.tower,
+      'Client Name': row.client_name,
+      'Project_Name': row.project_name,
+      'Business unit': row.business_unit,
+      'BU Head': row.bu_head,
+      'HC': row.hc,
+      'Salary Cost': row.salary_cost,
+      'SALES': row.sales,
+      'GPM': row.gpm,
+      'GPM %': row.gpm_percentage,
+      'Leav Encsh': row.leave_encashment,
+      'Team Cost': row.team_cost,
+      'Opr Cost': row.opr_cost,
+      'Funding Cost': row.funding_cost,
+      'NP': row.np,
+      'NP %': row.np_percentage,
+      'Month': row.month,
+      'Year': row.year,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -421,16 +490,28 @@ const TeamReportCompare: React.FC = () => {
   // Extract available parameters from data and add calculated metrics
   useEffect(() => {
     if (data.length === 0) return;
-    const baseParameters = Array.from(new Set(data.map(item => item.particulars)));
     
-    // Add calculated metrics
-    const calculatedParameters = [
-      ...baseParameters,
-      'Net Margin %',
-      'Growth Margin %'
+    // Define available parameters based on the new structure
+    const baseParameters = [
+      'Tower',
+      'Client Name', 
+      'Project Name',
+      'Business Unit',
+      'BU Head',
+      'HC',
+      'Salary Cost',
+      'Sales',
+      'GPM',
+      'GPM %',
+      'Leave Encashment',
+      'Team Cost',
+      'Opr Cost',
+      'Funding Cost',
+      'NP',
+      'NP %'
     ];
     
-    setAvailableParameters(calculatedParameters);
+    setAvailableParameters(baseParameters);
   }, [data]);
 
   useEffect(() => {
@@ -487,21 +568,40 @@ const TeamReportCompare: React.FC = () => {
         
         // Convert amounts to numbers and handle formatting
         const convertedData = res.data.map((item: any) => {
-          let amountValue: number;
+          // Convert numeric fields to numbers
+          const numericFields = ['hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'year'];
           
-          if (typeof item.amount === 'string') {
-            // Remove commas and convert to float
-            amountValue = parseFloat(item.amount.replace(/,/g, ''));
-          } else if (typeof item.amount === 'number') {
-            amountValue = item.amount;
-          } else {
-            amountValue = 0;
+          const processedItem = { ...item };
+          
+          for (const field of numericFields) {
+            if (typeof processedItem[field] === 'string') {
+              processedItem[field] = parseFloat(processedItem[field].replace(/,/g, '')) || 0;
+            } else if (typeof processedItem[field] === 'number') {
+              processedItem[field] = processedItem[field];
+            } else {
+              processedItem[field] = 0;
+            }
           }
           
-          return {
-            ...item,
-            amount: isNaN(amountValue) ? 0 : amountValue
-          };
+          // Create a proper date string for month field if it's just a month name
+          if (processedItem.month && typeof processedItem.month === 'string') {
+            const monthNames = [
+              'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            
+            const monthIndex = monthNames.findIndex(month => 
+              processedItem.month.toLowerCase().includes(month.toLowerCase())
+            );
+            
+            if (monthIndex !== -1 && processedItem.year) {
+              // Create a proper date string using the year from the data
+              const year = processedItem.year || new Date().getFullYear();
+              processedItem.month = `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+            }
+          }
+          
+          return processedItem;
         });
         
         setData(convertedData);
@@ -529,9 +629,8 @@ const TeamReportCompare: React.FC = () => {
             if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
               return false;
             }
-            if (item.particulars !== parameter) {
-              return false;
-            }
+            // Skip particulars check since we don't have that field anymore
+            // We'll filter by parameter in the value calculation
             
             const date = parseDate(item.month);
             if (isNaN(date.getTime())) return false;
@@ -554,8 +653,23 @@ const TeamReportCompare: React.FC = () => {
             return itemValue === period;
           })
           .reduce((sum, item) => {
-            const amount = typeof item.amount === 'number' ? item.amount : 0;
-            return sum + amount;
+            // Get the value based on the selected parameter
+            let value = 0;
+            switch (parameter) {
+              case 'Sales': value = item.sales || 0; break;
+              case 'GPM': value = item.gpm || 0; break;
+              case 'GPM %': value = item.gpm_percentage || 0; break;
+              case 'NP': value = item.np || 0; break;
+              case 'NP %': value = item.np_percentage || 0; break;
+              case 'Salary Cost': value = item.salary_cost || 0; break;
+              case 'Team Cost': value = item.team_cost || 0; break;
+              case 'Opr Cost': value = item.opr_cost || 0; break;
+              case 'Funding Cost': value = item.funding_cost || 0; break;
+              case 'Leave Encashment': value = item.leave_encashment || 0; break;
+              case 'HC': value = item.hc || 0; break;
+              default: value = 0;
+            }
+            return sum + value;
           }, 0);
       }, 0);
     }
@@ -566,9 +680,8 @@ const TeamReportCompare: React.FC = () => {
         if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
           return false;
         }
-        if (item.particulars !== parameter) {
-          return false;
-        }
+        // Skip particulars check since we don't have that field anymore
+        // We'll filter by parameter in the value calculation
         
         const date = parseDate(item.month);
         if (isNaN(date.getTime())) return false;
@@ -591,8 +704,23 @@ const TeamReportCompare: React.FC = () => {
         return itemValue === periodValue;
       })
       .reduce((sum, item) => {
-        const amount = typeof item.amount === 'number' ? item.amount : 0;
-        return sum + amount;
+        // Get the value based on the selected parameter
+        let value = 0;
+        switch (parameter) {
+          case 'Sales': value = item.sales || 0; break;
+          case 'GPM': value = item.gpm || 0; break;
+          case 'GPM %': value = item.gpm_percentage || 0; break;
+          case 'NP': value = item.np || 0; break;
+          case 'NP %': value = item.np_percentage || 0; break;
+          case 'Salary Cost': value = item.salary_cost || 0; break;
+          case 'Team Cost': value = item.team_cost || 0; break;
+          case 'Opr Cost': value = item.opr_cost || 0; break;
+          case 'Funding Cost': value = item.funding_cost || 0; break;
+          case 'Leave Encashment': value = item.leave_encashment || 0; break;
+          case 'HC': value = item.hc || 0; break;
+          default: value = 0;
+        }
+        return sum + value;
       }, 0);
   }, [data, selectedBusinessUnit, compareType, combinedPeriods]);
 
@@ -673,7 +801,7 @@ const TeamReportCompare: React.FC = () => {
               return total + data
                 .filter(item => {
                   if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
-                  if (item.particulars !== param) return false;
+                  // Skip particulars check since we don't have that field anymore
                   
                   const date = parseDate(item.month);
                   if (isNaN(date.getTime())) return false;
@@ -688,7 +816,25 @@ const TeamReportCompare: React.FC = () => {
                   
                   return itemValue === period;
                 })
-                .reduce((sum, item) => sum + (typeof item.amount === 'number' ? item.amount : 0), 0);
+                .reduce((sum, item) => {
+                  // Get the value based on the selected parameter
+                  let value = 0;
+                  switch (param) {
+                    case 'Sales': value = item.sales || 0; break;
+                    case 'GPM': value = item.gpm || 0; break;
+                    case 'GPM %': value = item.gpm_percentage || 0; break;
+                    case 'NP': value = item.np || 0; break;
+                    case 'NP %': value = item.np_percentage || 0; break;
+                    case 'Salary Cost': value = item.salary_cost || 0; break;
+                    case 'Team Cost': value = item.team_cost || 0; break;
+                    case 'Opr Cost': value = item.opr_cost || 0; break;
+                    case 'Funding Cost': value = item.funding_cost || 0; break;
+                    case 'Leave Encashment': value = item.leave_encashment || 0; break;
+                    case 'HC': value = item.hc || 0; break;
+                    default: value = 0;
+                  }
+                  return sum + value;
+                }, 0);
             }, 0);
           }
           
@@ -696,7 +842,7 @@ const TeamReportCompare: React.FC = () => {
           return data
             .filter(item => {
               if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
-              if (item.particulars !== param) return false;
+              // Skip particulars check since we don't have that field anymore
               
               const date = parseDate(item.month);
               if (isNaN(date.getTime())) return false;
@@ -711,7 +857,25 @@ const TeamReportCompare: React.FC = () => {
               
               return itemValue === periodValue;
             })
-            .reduce((sum, item) => sum + (typeof item.amount === 'number' ? item.amount : 0), 0);
+            .reduce((sum, item) => {
+              // Get the value based on the selected parameter
+              let value = 0;
+              switch (param) {
+                case 'Sales': value = item.sales || 0; break;
+                case 'GPM': value = item.gpm || 0; break;
+                case 'GPM %': value = item.gpm_percentage || 0; break;
+                case 'NP': value = item.np || 0; break;
+                case 'NP %': value = item.np_percentage || 0; break;
+                case 'Salary Cost': value = item.salary_cost || 0; break;
+                case 'Team Cost': value = item.team_cost || 0; break;
+                case 'Opr Cost': value = item.opr_cost || 0; break;
+                case 'Funding Cost': value = item.funding_cost || 0; break;
+                case 'Leave Encashment': value = item.leave_encashment || 0; break;
+                case 'HC': value = item.hc || 0; break;
+                default: value = 0;
+              }
+              return sum + value;
+            }, 0);
         }).filter(amount => amount !== null);
 
         // Calculate changes between consecutive periods

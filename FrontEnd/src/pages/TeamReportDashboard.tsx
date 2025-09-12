@@ -24,10 +24,26 @@ const { RangePicker } = DatePicker;
 const { Option } = Select;
 
 interface ReportData {
-  business_unit: string;  // Changed from lob to business_unit
-  particulars: string;
-  amount: number;
+  id?: number;
+  tower: string;
+  client_name: string;
+  project_name: string;
+  business_unit: string;
+  bu_head: string;
+  hc: number;
+  salary_cost: number;
+  sales: number;
+  gpm: number;
+  gpm_percentage: number;
+  leave_encashment: number;
+  team_cost: number;
+  opr_cost: number;
+  funding_cost: number;
+  np: number;
+  np_percentage: number;
   month: string;
+  year: number;
+  created_at?: string;
 }
 
 
@@ -171,30 +187,42 @@ const TeamReportDashboard: React.FC = () => {
       const jsonData: any[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
       const mappedData = jsonData.map(row => {
-        // Handle amount formatting - remove commas and handle negative values in parentheses
-        let amountValue = row.amount || row.Amount || 0;
-        
-        // Handle blank/empty values
-        if (amountValue === null || amountValue === undefined || amountValue === '') {
-          amountValue = 0;
-        } else if (typeof amountValue === 'string') {
-          // Remove commas from numbers
-          amountValue = amountValue.replace(/,/g, '');
-          
-          // Handle negative values in parentheses like "(80,003)"
-          if (amountValue.startsWith('(') && amountValue.endsWith(')')) {
-            amountValue = '-' + amountValue.slice(1, -1);
+        // Helper function to parse numeric values
+        const parseNumericValue = (value: any) => {
+          if (value === null || value === undefined || value === '') {
+            return 0;
           }
-          
-          // Convert to number
-          amountValue = parseFloat(amountValue) || 0;
-        }
+          if (typeof value === 'string') {
+            // Remove commas from numbers
+            value = value.replace(/,/g, '');
+            // Handle negative values in parentheses like "(80,003)"
+            if (value.startsWith('(') && value.endsWith(')')) {
+              value = '-' + value.slice(1, -1);
+            }
+            return parseFloat(value) || 0;
+          }
+          return parseFloat(value) || 0;
+        };
         
         return {
-          business_unit: row.business_unit || row['Business Unit'] || row['BUSINESS UNIT'] || "",
-          particulars: row.particulars || row.Particulars || "",
-          amount: amountValue,
-          month: excelDateToISO(row.month || row.Month || ""),
+          tower: row['Tower'] || row.tower || '',
+          client_name: row['Client Name'] || row.client_name || '',
+          project_name: row['Project_Name'] || row.project_name || '',
+          business_unit: row['Business unit'] || row.business_unit || '',
+          bu_head: row['BU Head'] || row.bu_head || '',
+          hc: parseInt(row['HC'] || row.hc || '0') || 0,
+          salary_cost: parseNumericValue(row['Salary Cost'] || row.salary_cost),
+          sales: parseNumericValue(row['SALES'] || row.sales),
+          gpm: parseNumericValue(row['GPM'] || row.gpm),
+          gpm_percentage: parseNumericValue(row['GPM %'] || row.gpm_percentage),
+          leave_encashment: parseNumericValue(row['Leav Encsh'] || row.leave_encashment),
+          team_cost: parseNumericValue(row['Team Cost'] || row.team_cost),
+          opr_cost: parseNumericValue(row['Opr Cost'] || row.opr_cost),
+          funding_cost: parseNumericValue(row['Funding Cost'] || row.funding_cost),
+          np: parseNumericValue(row['NP'] || row.np),
+          np_percentage: parseNumericValue(row['NP %'] || row.np_percentage),
+          month: row['Month'] || row.month || "",
+          year: parseInt(row['Year'] || row.year || new Date().getFullYear().toString()) || new Date().getFullYear(),
         };
       });
 
@@ -215,10 +243,24 @@ const TeamReportDashboard: React.FC = () => {
 
   const handleExportExcel = () => {
     const exportData = filteredData.map((row: ReportData) => ({
-      'Business Unit': row.business_unit,  // Changed from LOB
-      Particulars: row.particulars,
-      Amount: row.amount,
-      Month: row.month,
+      'Tower': row.tower,
+      'Client Name': row.client_name,
+      'Project_Name': row.project_name,
+      'Business unit': row.business_unit,
+      'BU Head': row.bu_head,
+      'HC': row.hc,
+      'Salary Cost': row.salary_cost,
+      'SALES': row.sales,
+      'GPM': row.gpm,
+      'GPM %': row.gpm_percentage,
+      'Leav Encsh': row.leave_encashment,
+      'Team Cost': row.team_cost,
+      'Opr Cost': row.opr_cost,
+      'Funding Cost': row.funding_cost,
+      'NP': row.np,
+      'NP %': row.np_percentage,
+      'Month': row.month,
+      'Year': row.year,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);

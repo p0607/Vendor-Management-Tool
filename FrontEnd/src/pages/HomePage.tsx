@@ -53,7 +53,7 @@ const HomePage: React.FC = () => {
       { 
         key: 'teamReport',
         label: 'MFS',
-        path: `/team-report/compare?compareType=quarter&selectedParameters=GPM%2CNet%20Margin&chartType=bar&defaultFinancialYear=${getCurrentFinancialYear()}`,
+        path: `/team-report/compare?compareType=quarter&selectedParameters=GPM%20%25%2CNP%20%25&chartType=bar&defaultFinancialYear=${getCurrentFinancialYear()}`,
         visibleTo: ['SUPER ADMIN', 'ADMIN', 'BU HEAD']
       }
     ];

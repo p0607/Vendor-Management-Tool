@@ -670,6 +670,35 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
   }
 });
 
+app.patch('/api/team-report/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    // Build dynamic update query
+    const fields = Object.keys(updates);
+    const values = Object.values(updates);
+    
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
+    const query = `UPDATE team_report SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`;
+    
+    const result = await executeQuery(query, [...values, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    logger.info('Team report record patched', { recordId: id });
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Forgot Password endpoint
 app.post('/api/forgot-password', async (req, res, next) => {
   try {
@@ -878,13 +907,24 @@ app.get('/api/team-report', async (req, res, next) => {
 });
 
 app.post('/api/team-report', 
-  validateRequiredFields(['business_unit', 'particulars', 'amount', 'month']),
+  validateRequiredFields(['tower', 'client_name', 'project_name', 'business_unit', 'bu_head', 'hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'month', 'year']),
   async (req, res, next) => {
     try {
-      const { business_unit, particulars, amount, month } = req.body;
+      const { 
+        tower, client_name, project_name, business_unit, bu_head, hc, 
+        salary_cost, sales, gpm, gpm_percentage, leave_encashment, 
+        team_cost, opr_cost, funding_cost, np, np_percentage, month, year 
+      } = req.body;
+      
       const result = await executeQuery(
-        'INSERT INTO team_report (business_unit, particulars, amount, month) VALUES ($1, $2, $3, $4) RETURNING *',
-        [business_unit, particulars, amount, month]
+        `INSERT INTO team_report (
+          tower, client_name, project_name, business_unit, bu_head, hc,
+          salary_cost, sales, gpm, gpm_percentage, leave_encashment,
+          team_cost, opr_cost, funding_cost, np, np_percentage, month, year
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
+        [tower, client_name, project_name, business_unit, bu_head, hc, 
+         salary_cost, sales, gpm, gpm_percentage, leave_encashment,
+         team_cost, opr_cost, funding_cost, np, np_percentage, month, year]
       );
       
       logger.info('Team report created', { recordId: result.rows[0].id });
@@ -911,21 +951,28 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
     for (let i = 0; i < data.length; i++) {
       const record = data[i];
       
-      // Convert empty strings to null for all fields
-      if (record.business_unit === '' || record.business_unit === undefined) {
-        record.business_unit = null;
+      // Validate required fields
+      if (!record.tower || !record.client_name || !record.project_name || !record.business_unit) {
+        return res.status(400).json({
+          success: false,
+          error: `Missing required fields in record ${i + 1}: tower, client_name, project_name, and business_unit are required`
+        });
       }
       
-      if (record.particulars === '' || record.particulars === undefined) {
-        record.particulars = null;
+      // Convert numeric fields to numbers
+      const numericFields = ['hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'year'];
+      for (const field of numericFields) {
+        if (record[field] && typeof record[field] === 'string') {
+          record[field] = parseFloat(record[field]) || 0;
+        }
       }
       
-      if (record.amount === '' || record.amount === undefined) {
-        record.amount = null;
-      }
-      
-      if (record.month === '' || record.month === undefined) {
-        record.month = null;
+      // Convert empty strings to null for optional fields
+      const optionalFields = ['bu_head', 'month'];
+      for (const field of optionalFields) {
+        if (record[field] === '' || record[field] === undefined) {
+          record[field] = null;
+        }
       }
     }
 
@@ -934,14 +981,32 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
     try {
       await client.query('BEGIN');
       
-      const insertQuery = 'INSERT INTO team_report (business_unit, particulars, amount, month) VALUES ($1, $2, $3, $4)';
+      const insertQuery = `INSERT INTO team_report (
+        tower, client_name, project_name, business_unit, bu_head, hc,
+        salary_cost, sales, gpm, gpm_percentage, leave_encashment,
+        team_cost, opr_cost, funding_cost, np, np_percentage, month, year
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`;
       
       for (const record of data) {
         await client.query(insertQuery, [
+          record.tower,
+          record.client_name,
+          record.project_name,
           record.business_unit,
-          record.particulars,
-          record.amount,
-          record.month
+          record.bu_head || null,
+          record.hc || 0,
+          record.salary_cost || 0,
+          record.sales || 0,
+          record.gpm || 0,
+          record.gpm_percentage || 0,
+          record.leave_encashment || 0,
+          record.team_cost || 0,
+          record.opr_cost || 0,
+          record.funding_cost || 0,
+          record.np || 0,
+          record.np_percentage || 0,
+          record.month,
+          record.year || new Date().getFullYear()
         ]);
       }
       
