@@ -76,11 +76,7 @@ const BUSINESS_UNIT_OPTIONS = [
     setIsSubmitting(true);
     setError(null);
 
-    if (!formData.tower || !formData.client_name || !formData.project_name || !formData.business_unit || !formData.month || !formData.year) {
-      setError('Please fill in all required fields (Tower, Client Name, Project Name, Business Unit, Month, Year)');
-      setIsSubmitting(false);
-      return;
-    }
+    // All fields are optional - no required field validation
 
     // Convert month value (YYYY-MM) to a proper date format (YYYY-MM-01)
     const formattedData = {
@@ -120,20 +116,20 @@ const BUSINESS_UNIT_OPTIONS = [
           <div className="field-group">
             <div className="field-grid">
               <div className="form-group">
-                <label>Tower *</label>
-                <input type="text" name="tower" value={formData.tower} onChange={handleChange} required />
+                <label>Tower</label>
+                <input type="text" name="tower" value={formData.tower} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Client Name *</label>
-                <input type="text" name="client_name" value={formData.client_name} onChange={handleChange} required />
+                <label>Client Name</label>
+                <input type="text" name="client_name" value={formData.client_name} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Project Name *</label>
-                <input type="text" name="project_name" value={formData.project_name} onChange={handleChange} required />
+                <label>Project Name</label>
+                <input type="text" name="project_name" value={formData.project_name} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Business Unit *</label>
-                <select name="business_unit" value={formData.business_unit} onChange={handleChange} required>
+                <label>Business Unit</label>
+                <select name="business_unit" value={formData.business_unit} onChange={handleChange}>
                   <option value="">Select Business Unit</option>
                   {BUSINESS_UNIT_OPTIONS.map(opt => (
                     <option key={opt} value={opt}>{opt}</option>
@@ -189,12 +185,12 @@ const BUSINESS_UNIT_OPTIONS = [
                 <input type="number" name="np_percentage" value={formData.np_percentage} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Month *</label>
-                <input type="month" name="month" value={formData.month} onChange={handleChange} required />
+                <label>Month</label>
+                <input type="month" name="month" value={formData.month} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Year *</label>
-                <input type="number" name="year" value={formData.year} onChange={handleChange} min="2020" max="2030" required />
+                <label>Year</label>
+                <input type="number" name="year" value={formData.year} onChange={handleChange} min="2020" max="2030" />
               </div>
             </div>
           </div>

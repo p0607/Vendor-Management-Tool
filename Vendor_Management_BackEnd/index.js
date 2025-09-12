@@ -906,9 +906,7 @@ app.get('/api/team-report', async (req, res, next) => {
   }
 });
 
-app.post('/api/team-report', 
-  validateRequiredFields(['tower', 'client_name', 'project_name', 'business_unit', 'bu_head', 'hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'month', 'year']),
-  async (req, res, next) => {
+app.post('/api/team-report', async (req, res, next) => {
     try {
       const { 
         tower, client_name, project_name, business_unit, bu_head, hc, 
@@ -951,13 +949,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
     for (let i = 0; i < data.length; i++) {
       const record = data[i];
       
-      // Validate required fields
-      if (!record.tower || !record.client_name || !record.project_name || !record.business_unit) {
-        return res.status(400).json({
-          success: false,
-          error: `Missing required fields in record ${i + 1}: tower, client_name, project_name, and business_unit are required`
-        });
-      }
+      // All fields are optional - no required field validation
       
       // Convert numeric fields to numbers
       const numericFields = ['hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'year'];
@@ -967,9 +959,9 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         }
       }
       
-      // Convert empty strings to null for optional fields
-      const optionalFields = ['bu_head', 'month'];
-      for (const field of optionalFields) {
+      // Convert empty strings to null for all fields
+      const allFields = ['tower', 'client_name', 'project_name', 'business_unit', 'bu_head', 'month'];
+      for (const field of allFields) {
         if (record[field] === '' || record[field] === undefined) {
           record[field] = null;
         }
