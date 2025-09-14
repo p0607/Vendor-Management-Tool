@@ -133,8 +133,22 @@ const RoutingDashboard: React.FC = () => {
         case 'year':
           return `${year}`;
         case 'quarter':
-          const quarter = Math.ceil(month / 3);
-          return `Q${quarter} ${year}`;
+          // Indian financial year quarters
+          let quarter, financialYear;
+          if (month >= 3 && month <= 5) { // April (3)-June (5)
+            quarter = 1;
+            financialYear = year;
+          } else if (month >= 6 && month <= 8) { // July (6)-Sept (8)
+            quarter = 2;
+            financialYear = year;
+          } else if (month >= 9 && month <= 11) { // Oct (9)-Dec (11)
+            quarter = 3;
+            financialYear = year;
+          } else { // Jan (0)-Mar (2)
+            quarter = 4;
+            financialYear = year - 1; // Q4 belongs to previous financial year
+          }
+          return `Q${quarter} ${financialYear}`;
         case 'month':
         default:
           const monthNames = [
@@ -564,12 +578,26 @@ const chartData = metricFields.map(({ field, label }) => {
       const parseDateGroup = (dateGroup: string): Date => {
         // Handle different date group formats
         if (dateGroup.includes('Q')) {
-          // Quarter format: "Q1 2024"
+          // Quarter format: "Q1 2024" - Indian financial year quarters
           const [quarter, year] = dateGroup.split(' ');
           const quarterNum = parseInt(quarter.replace('Q', ''));
           const yearNum = parseInt(year);
-          // Convert quarter to month (Q1=Jan, Q2=Apr, Q3=Jul, Q4=Oct)
-          const month = (quarterNum - 1) * 3;
+          
+          // Convert Indian financial year quarter to month
+          let month: number;
+          if (quarterNum === 1) {
+            month = 3; // April (Q1)
+          } else if (quarterNum === 2) {
+            month = 6; // July (Q2)
+          } else if (quarterNum === 3) {
+            month = 9; // October (Q3)
+          } else if (quarterNum === 4) {
+            month = 0; // January (Q4) - next calendar year
+            return new Date(yearNum + 1, month, 1);
+          } else {
+            // Default fallback
+            month = 0;
+          }
           return new Date(yearNum, month, 1);
         } else if (dateGroup.includes(' ')) {
           // Month format: "Jan 2024"

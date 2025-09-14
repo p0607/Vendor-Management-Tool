@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Select, Button, Dropdown, Tabs, message } from "antd";
+import { Select, Button, Dropdown, Tabs, message, AutoComplete } from "antd";
 import { PlusOutlined, CloseOutlined, DownOutlined } from "@ant-design/icons";
 import * as am5 from "@amcharts/amcharts5";
 import * as am5xy from "@amcharts/amcharts5/xy";
@@ -83,12 +83,12 @@ const TeamReportCompare: React.FC = () => {
       financialYear = currentYear - 1;
     }
     
-    // Return quarters for the current financial year
+    // Return quarters for the current financial year with proper labels
     return [
-      `Q1 ${financialYear}`,
-      `Q2 ${financialYear}`,
-      `Q3 ${financialYear}`,
-      `Q4 ${financialYear}`
+      `Q1(Apr-Jun) ${financialYear}`,
+      `Q2(Jul-Sep) ${financialYear}`,
+      `Q3(Oct-Dec) ${financialYear}`,
+      `Q4(Jan-Mar) ${financialYear}` // Q4 belongs to same financial year but next calendar year
     ];
   };
 
@@ -100,6 +100,7 @@ const TeamReportCompare: React.FC = () => {
   const [selectedBUHead, setSelectedBUHead] = useState<string | null>(null);
   const [businessUnits, setBusinessUnits] = useState<string[]>([]);
   const [clientNames, setClientNames] = useState<string[]>([]);
+  const [filteredClientNames, setFilteredClientNames] = useState<string[]>([]);
   const [buHeads, setBUHeads] = useState<string[]>([]);
   const [compareType, setCompareType] = useState<CompareType>(
     (queryParams.get('compareType') as CompareType) || "quarter"
@@ -110,10 +111,10 @@ const TeamReportCompare: React.FC = () => {
     if (defaultFinancialYear && compareType === "quarter") {
       const financialYear = parseInt(defaultFinancialYear);
       return [
-        `Q1 ${financialYear}`,
-        `Q2 ${financialYear}`,
-        `Q3 ${financialYear}`,
-        `Q4 ${financialYear}`
+        `Q1(Apr-Jun) ${financialYear}`,
+        `Q2(Jul-Sep) ${financialYear}`,
+        `Q3(Oct-Dec) ${financialYear}`,
+        `Q4(Jan-Mar) ${financialYear}` // Q4 belongs to same financial year but next calendar year
       ];
     }
     return [null, null];
@@ -187,25 +188,29 @@ const TeamReportCompare: React.FC = () => {
     const monthNum = date.getMonth(); // 0-11 (Jan-Dec)
     const year = date.getFullYear();
     
-    let quarter, quarterRange;
+    let quarter, quarterRange, financialYear;
     if (monthNum >= 3 && monthNum <= 5) { // April (3)-June (5)
       quarter = 1;
       quarterRange = "Apr-Jun";
+      financialYear = year; // Q1 belongs to current year
     } else if (monthNum >= 6 && monthNum <= 8) { // July (6)-Sept (8)
       quarter = 2;
       quarterRange = "Jul-Sep";
+      financialYear = year; // Q2 belongs to current year
     } else if (monthNum >= 9 && monthNum <= 11) { // Oct (9)-Dec (11)
       quarter = 3;
       quarterRange = "Oct-Dec";
+      financialYear = year; // Q3 belongs to current year
     } else { // Jan (0)-Mar (2)
       quarter = 4;
       quarterRange = "Jan-Mar";
+      financialYear = year - 1; // Q4 belongs to previous financial year
     }
     
     return {
-      label: `Q${quarter}(${quarterRange}) ${year}`,
+      label: `Q${quarter}(${quarterRange}) ${financialYear}`,
       quarter,
-      year
+      year: financialYear
     };
   };
 
@@ -586,10 +591,10 @@ const TeamReportCompare: React.FC = () => {
     if (defaultFinancialYear && compareTypeFromURL === 'quarter') {
       const financialYear = parseInt(defaultFinancialYear);
       const quarters = [
-        `Q1 ${financialYear}`,
-        `Q2 ${financialYear}`,
-        `Q3 ${financialYear}`,
-        `Q4 ${financialYear}`
+        `Q1(Apr-Jun) ${financialYear}`,
+        `Q2(Jul-Sep) ${financialYear}`,
+        `Q3(Oct-Dec) ${financialYear}`,
+        `Q4(Jan-Mar) ${financialYear}` // Q4 belongs to same financial year but next calendar year
       ];
       setComparisonValues(quarters);
     }
@@ -759,6 +764,7 @@ const TeamReportCompare: React.FC = () => {
         
         console.log(`🔍 Unique names for ${businessUnit}:`, uniqueNames);
         setClientNames(uniqueNames);
+        setFilteredClientNames(uniqueNames);
       } else {
         console.warn(`🔍 No data received for business unit: ${businessUnit}`);
         setClientNames([]);
@@ -929,6 +935,19 @@ const TeamReportCompare: React.FC = () => {
 
 
 
+  // Handle client name search
+  const handleClientNameSearch = (value: string) => {
+    if (!value) {
+      setFilteredClientNames(clientNames);
+      return;
+    }
+    
+    const filtered = clientNames.filter(name => 
+      name.toLowerCase().includes(value.toLowerCase())
+    );
+    setFilteredClientNames(filtered);
+  };
+
   // Fetch client names when business unit changes
   useEffect(() => {
     fetchClientNames(selectedBusinessUnit);
@@ -944,6 +963,17 @@ const TeamReportCompare: React.FC = () => {
   // Helper function to get base parameter value - moved to component level
   const getBaseParameterValue = useCallback((periodValue: string | null, index: number, parameter: string): number => {
     if (!periodValue) return 0;
+    
+    console.log(`🔍 getBaseParameterValue called:`, {
+      periodValue,
+      index,
+      parameter,
+      dataLength: data.length,
+      selectedBusinessUnit,
+      selectedClientName,
+      selectedBUHead,
+      compareType
+    });
     
     // Check if this is a combined period
     const combinedPeriod = combinedPeriods[index];
@@ -1013,44 +1043,70 @@ const TeamReportCompare: React.FC = () => {
     }
     
     // Single period calculation
-    return data
-      .filter(item => {
-        if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
-          return false;
+    const filteredData = data.filter(item => {
+      // Business unit filter
+      if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+        return false;
+      }
+      
+      // Client/Project name filter
+      if (selectedClientName) {
+        if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+          if (item.project_name !== selectedClientName) return false;
+        } else {
+          if (item.client_name !== selectedClientName) return false;
         }
-        // Filter by client name/project name if selected
-        if (selectedClientName) {
-          if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-            if (item.project_name !== selectedClientName) return false;
-          } else {
-            if (item.client_name !== selectedClientName) return false;
+      }
+      
+      // BU head filter
+      if (selectedBUHead && item.bu_head !== selectedBUHead) {
+        return false;
+      }
+      
+      // Date parsing and period matching
+      const date = parseDate(item.month);
+      if (isNaN(date.getTime())) {
+        console.log(`🔍 Invalid date for item:`, item.month, item);
+        return false;
+      }
+      
+      let itemValue = "";
+      switch (compareType) {
+        case "year":
+          itemValue = date.getFullYear().toString();
+          break;
+        case "month":
+          itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+          break;
+        case "quarter":
+          itemValue = getFiscalQuarter(date).label;
+          break;
+        default:
+          return false;
+      }
+      
+      const matches = itemValue === periodValue;
+      if (matches) {
+        console.log(`🔍 Period match found:`, {
+          itemValue,
+          periodValue,
+          item: {
+            month: item.month,
+            year: item.year,
+            business_unit: item.business_unit,
+            client_name: item.client_name,
+            [parameter]: (item as any)[parameter.toLowerCase().replace(' ', '_').replace('%', '_percentage')] || (item as any)[parameter]
           }
-        }
-        // Filter by BU head if selected
-        if (selectedBUHead && item.bu_head !== selectedBUHead) {
-          return false;
-        }
-        
-        const date = parseDate(item.month);
-        if (isNaN(date.getTime())) return false;
-        
-        let itemValue = "";
-        switch (compareType) {
-          case "year":
-            itemValue = date.getFullYear().toString();
-            break;
-          case "month":
-            itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
-            break;
-          case "quarter":
-            itemValue = getFiscalQuarter(date).label;
-            break;
-          default:
-            return false;
-        }
-        
-        return itemValue === periodValue;
-      })
+        });
+      }
+      
+      return matches;
+    });
+    
+    console.log(`🔍 Filtered data for ${parameter} in ${periodValue}:`, filteredData.length, "items");
+    console.log(`🔍 Sample filtered items:`, filteredData.slice(0, 3));
+    
+    return filteredData
       .reduce((sum, item) => {
         // Get the value based on the selected parameter
         let value = 0;
@@ -1070,6 +1126,17 @@ const TeamReportCompare: React.FC = () => {
             console.warn(`🔍 Unknown parameter: ${parameter}`);
             value = 0;
         }
+        
+        console.log(`🔍 Adding value for ${parameter}:`, {
+          itemId: item.id,
+          businessUnit: item.business_unit,
+          clientName: item.client_name,
+          month: item.month,
+          parameter,
+          value,
+          runningSum: sum + value
+        });
+        
         return sum + value;
       }, 0);
   }, [data, selectedBusinessUnit, selectedClientName, selectedBUHead, compareType, combinedPeriods]);
@@ -1470,7 +1537,7 @@ const TeamReportCompare: React.FC = () => {
             stroke: colors[index % colors.length]
           });
 
-          // Add bullets
+          // Add bullets with data labels
           lineSeries.bullets.push(() => {
             return am5.Bullet.new(root, {
               sprite: am5.Circle.new(root, {
@@ -1478,6 +1545,22 @@ const TeamReportCompare: React.FC = () => {
                 fill: colors[index % colors.length],
                 stroke: am5.color(0xffffff),
                 strokeWidth: 2
+              })
+            });
+          });
+
+          // Add data labels
+          lineSeries.bullets.push(() => {
+            return am5.Bullet.new(root, {
+              sprite: am5.Label.new(root, {
+                text: `${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+                fill: am5.color(0x000000),
+                centerX: am5.p50,
+                centerY: am5.p100,
+                populateText: true,
+                fontSize: 10,
+                fontWeight: "500",
+                dy: -10
               })
             });
           });
@@ -1748,6 +1831,52 @@ const TeamReportCompare: React.FC = () => {
           });
         });
 
+        // Add data labels to each series
+        salesSeries.bullets.push(() => {
+          return am5.Bullet.new(root, {
+            sprite: am5.Label.new(root, {
+              text: "₹{valueY.formatNumber('#,##0')}",
+              fill: am5.color(0x000000),
+              centerX: am5.p50,
+              centerY: am5.p100,
+              populateText: true,
+              fontSize: 9,
+              fontWeight: "500",
+              dy: -8
+            })
+          });
+        });
+
+        gpmSeries.bullets.push(() => {
+          return am5.Bullet.new(root, {
+            sprite: am5.Label.new(root, {
+              text: "₹{valueY.formatNumber('#,##0')}",
+              fill: am5.color(0x000000),
+              centerX: am5.p50,
+              centerY: am5.p100,
+              populateText: true,
+              fontSize: 9,
+              fontWeight: "500",
+              dy: -8
+            })
+          });
+        });
+
+        npSeries.bullets.push(() => {
+          return am5.Bullet.new(root, {
+            sprite: am5.Label.new(root, {
+              text: "₹{valueY.formatNumber('#,##0')}",
+              fill: am5.color(0x000000),
+              centerX: am5.p50,
+              centerY: am5.p100,
+              populateText: true,
+              fontSize: 9,
+              fontWeight: "500",
+              dy: -8
+            })
+          });
+        });
+
         // Set data
         const trendData = comparisonData.map(item => ({
           period: item.period,
@@ -1854,6 +1983,37 @@ const TeamReportCompare: React.FC = () => {
                 strokeWidth: 2
               })
             });
+          });
+        });
+
+        // Add data labels to percentage series
+        gpmPercentSeries.bullets.push(() => {
+          return am5.Bullet.new(root, {
+            sprite: am5.Label.new(root, {
+              text: "{valueY.formatNumber('#,##0.0')}%",
+              fill: am5.color(0x000000),
+              centerX: am5.p50,
+              centerY: am5.p100,
+              populateText: true,
+              fontSize: 9,
+              fontWeight: "500",
+              dy: -8
+            })
+          });
+        });
+
+        npPercentSeries.bullets.push(() => {
+          return am5.Bullet.new(root, {
+            sprite: am5.Label.new(root, {
+              text: "{valueY.formatNumber('#,##0.0')}%",
+              fill: am5.color(0x000000),
+              centerX: am5.p50,
+              centerY: am5.p100,
+              populateText: true,
+              fontSize: 9,
+              fontWeight: "500",
+              dy: -8
+            })
           });
         });
 
@@ -2043,6 +2203,11 @@ const TeamReportCompare: React.FC = () => {
         style={{ width: 200, marginLeft: 8 }}
         disabled={isBUHead}
         allowClear={!isBUHead}
+        showSearch
+        filterOption={(input, option) =>
+          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+        }
+        optionFilterProp="children"
       >
         <Option value="">All Business Units</Option>
         {businessUnits.map((bu: string) => (
@@ -2061,20 +2226,23 @@ const TeamReportCompare: React.FC = () => {
       <label style={{ color: '#000000' }}>
         {selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Project Name:" : "Client Name:"}
       </label>
-      <Select
+      <AutoComplete
         value={selectedClientName || ''}
         onChange={(value) => setSelectedClientName(value || null)}
+        onSearch={handleClientNameSearch}
         style={{ width: 200, marginLeft: 8 }}
+        placeholder={selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Search projects..." : "Search clients..."}
         allowClear
         disabled={!selectedBusinessUnit}
-      >
-        <Option value="">
-          {selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "All Projects" : "All Clients"}
-        </Option>
-        {clientNames.map((name: string) => (
-          <Option key={name} value={name}>{name}</Option>
-        ))}
-      </Select>
+        options={[
+          { value: '', label: selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "All Projects" : "All Clients" },
+          ...filteredClientNames.map((name: string) => ({
+            value: name,
+            label: name
+          }))
+        ]}
+        filterOption={false}
+      />
     </div>
 
     {/* BU Head Filter */}
@@ -2086,6 +2254,11 @@ const TeamReportCompare: React.FC = () => {
         style={{ width: 200, marginLeft: 8 }}
         allowClear
         disabled={!selectedBusinessUnit}
+        showSearch
+        filterOption={(input, option) =>
+          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+        }
+        optionFilterProp="children"
       >
         <Option value="">All BU Heads</Option>
         {buHeads.map((head: string) => (
@@ -2105,6 +2278,11 @@ const TeamReportCompare: React.FC = () => {
         placeholder="Select parameters to compare"
         loading={isLoading}
         allowClear
+        showSearch
+        filterOption={(input, option) =>
+          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+        }
+        optionFilterProp="children"
       >
         {availableParameters.map((param: string) => (
           <Option key={param} value={param}>{param}</Option>
@@ -2168,6 +2346,11 @@ const TeamReportCompare: React.FC = () => {
             style={{ width: '100%' }}
             placeholder={`Select ${index === 0 ? 'baseline' : 'compare'} ${compareType}`}
             loading={isLoading}
+            showSearch
+            filterOption={(input, option) =>
+              (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+            }
+            optionFilterProp="children"
           >
             {availableOptions.map((option: string) => (
               <Option key={option} value={option}>{option}</Option>

@@ -23,8 +23,26 @@ const processData = (rawData: any[], viewType: string, metricKey: string) => {
       if (viewType === 'monthly') {
         periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       } else if (viewType === 'quarterly') {
-        const quarter = Math.floor(date.getMonth() / 3) + 1;
-        periodKey = `${date.getFullYear()}-Q${quarter}`;
+        // Indian financial year quarters
+        const monthNum = date.getMonth(); // 0-11 (Jan-Dec)
+        const year = date.getFullYear();
+        
+        let quarter, financialYear;
+        if (monthNum >= 3 && monthNum <= 5) { // April (3)-June (5)
+          quarter = 1;
+          financialYear = year;
+        } else if (monthNum >= 6 && monthNum <= 8) { // July (6)-Sept (8)
+          quarter = 2;
+          financialYear = year;
+        } else if (monthNum >= 9 && monthNum <= 11) { // Oct (9)-Dec (11)
+          quarter = 3;
+          financialYear = year;
+        } else { // Jan (0)-Mar (2)
+          quarter = 4;
+          financialYear = year - 1; // Q4 belongs to previous financial year
+        }
+        
+        periodKey = `${financialYear}-Q${quarter}`;
       } else {
         periodKey = `${date.getFullYear()}`;
       }
