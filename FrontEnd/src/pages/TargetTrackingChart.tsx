@@ -315,7 +315,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     
     // Cleanup existing chart
     am5.array.each(am5.registry.rootElements, (root) => {
-      if (root.dom.id === "forecastChart") root.dispose();
+      if (root && root.dom && root.dom.id === "forecastChart") root.dispose();
     });
 
     const root = am5.Root.new("forecastChart");
