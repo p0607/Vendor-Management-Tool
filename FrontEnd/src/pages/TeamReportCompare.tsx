@@ -68,10 +68,6 @@ const TeamReportCompare: React.FC = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   
-  const lobOptions = [
-    "BPO | HTD", "Canada", "Captive", "Egg", "Japan", 
-    "MS", "SI", "Singapore", "USA"
-  ];
 
   // Helper function to get current financial year quarters
   const getCurrentFinancialYearQuarters = () => {
@@ -99,7 +95,6 @@ const TeamReportCompare: React.FC = () => {
   // State declarations with URL parameter defaults
   const [user, setUser] = useState<any>({});
   const [isBUHead, setIsBUHead] = useState(false);
-  const [allowedLobs, setAllowedLobs] = useState<string[]>(lobOptions);
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string | null>(null);
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
   const [selectedBUHead, setSelectedBUHead] = useState<string | null>(null);
@@ -521,11 +516,6 @@ const TeamReportCompare: React.FC = () => {
         const userIsBUHead = parsedUser?.designation === 'BU HEAD';
         setIsBUHead(userIsBUHead);
         
-        setAllowedLobs(
-          userIsBUHead && parsedUser.business_unit
-            ? [parsedUser.business_unit]
-            : lobOptions
-        );
 
         const buFromURL = queryParams.get('business_unit');
         if (buFromURL) {
@@ -638,6 +628,8 @@ const TeamReportCompare: React.FC = () => {
   const fetchBusinessUnits = async () => {
     try {
       console.log("🔍 Fetching business units from API...");
+      console.log("🔍 API URL being called:", `${apiClient.defaults.baseURL}/team-report`);
+      
       const res = await apiClient.get("/team-report");
       console.log("🔍 Raw API response:", res.data);
       console.log("🔍 Response status:", res.status);
@@ -645,6 +637,9 @@ const TeamReportCompare: React.FC = () => {
       
       if (res.data && Array.isArray(res.data)) {
         console.log("🔍 Total records received:", res.data.length);
+        
+        // Log all records to see what's actually in the database
+        console.log("🔍 All records from database:", res.data);
         
         // Extract business units and filter out null/undefined values
         const businessUnitsFromData = res.data
@@ -672,6 +667,7 @@ const TeamReportCompare: React.FC = () => {
       console.error("❌ Error fetching business units:", error);
       console.error("❌ Error details:", error.response?.data);
       console.error("❌ Error status:", error.response?.status);
+      console.error("❌ Full error object:", error);
       setBusinessUnits([]);
     }
   };
@@ -836,6 +832,8 @@ const TeamReportCompare: React.FC = () => {
 
   // Fetch business units on component mount
   useEffect(() => {
+    console.log("🚀 Component mounted, fetching business units...");
+    console.log("🚀 Current businessUnits state:", businessUnits);
     fetchBusinessUnits();
   }, []);
 
@@ -855,6 +853,10 @@ const TeamReportCompare: React.FC = () => {
       
       if (res.data && res.data.length > 0) {
         console.log("📋 Available columns in first record:", Object.keys(res.data[0]));
+        console.log("📋 All business_unit values in response:", res.data.map((item: any) => item.business_unit));
+        console.log("📋 Unique business_unit values:", Array.from(new Set(res.data.map((item: any) => item.business_unit))));
+      } else {
+        console.log("📋 No data in response - database might be empty");
       }
       
       return res.data;
@@ -2091,7 +2093,7 @@ const TeamReportCompare: React.FC = () => {
     </div>
 
     {/* Debug and Sample Data Buttons */}
-    <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
       <Button
         type="default"
         onClick={testAPIConnection}
@@ -2102,6 +2104,23 @@ const TeamReportCompare: React.FC = () => {
         }}
       >
         Test API Connection
+      </Button>
+      
+      <Button
+        type="default"
+        onClick={() => {
+          console.log("🔍 Current state debug:");
+          console.log("🔍 businessUnits:", businessUnits);
+          console.log("🔍 selectedBusinessUnit:", selectedBusinessUnit);
+          console.log("🔍 API Base URL:", process.env.REACT_APP_API_URL || 'http://40.67.147.19');
+        }}
+        style={{ 
+          backgroundColor: '#faad14',
+          borderColor: '#faad14',
+          color: 'white'
+        }}
+      >
+        Debug State
       </Button>
       
       {businessUnits.length === 0 && (
@@ -2120,7 +2139,7 @@ const TeamReportCompare: React.FC = () => {
       <span style={{ color: '#666666', fontSize: '12px' }}>
         {businessUnits.length === 0 
           ? "No business units found. Use buttons above to test connection or create sample data."
-          : `${businessUnits.length} business units loaded successfully.`
+          : `${businessUnits.length} business units loaded: ${businessUnits.join(', ')}`
         }
       </span>
     </div>

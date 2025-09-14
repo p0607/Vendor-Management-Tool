@@ -894,14 +894,29 @@ app.get('/api/team-report', async (req, res, next) => {
     let query = 'SELECT * FROM team_report';
     let params = [];
 
+    console.log('🔍 GET /api/team-report called with query params:', req.query);
+
     if (designation === 'BU HEAD' && business_unit) {
       query += ' WHERE business_unit = $1';
       params.push(business_unit);
     }
 
+    console.log('🔍 Executing query:', query);
+    console.log('🔍 Query params:', params);
+
     const result = await executeQuery(query, params);
+    
+    console.log('🔍 Query result count:', result.rows.length);
+    console.log('🔍 Sample records:', result.rows.slice(0, 3));
+    
+    if (result.rows.length > 0) {
+      console.log('🔍 Available columns:', Object.keys(result.rows[0]));
+      console.log('🔍 Business units in result:', result.rows.map(row => row.business_unit));
+    }
+    
     res.json(result.rows);
   } catch (err) {
+    console.error('❌ Error in GET /api/team-report:', err);
     next(err);
   }
 });
