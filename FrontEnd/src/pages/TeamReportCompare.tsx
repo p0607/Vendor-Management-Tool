@@ -101,7 +101,11 @@ const TeamReportCompare: React.FC = () => {
   const [isBUHead, setIsBUHead] = useState(false);
   const [allowedLobs, setAllowedLobs] = useState<string[]>(lobOptions);
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string | null>(null);
-  const [selectedParticular, setSelectedParticular] = useState<string | null>(null);
+  const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
+  const [selectedBUHead, setSelectedBUHead] = useState<string | null>(null);
+  const [businessUnits, setBusinessUnits] = useState<string[]>([]);
+  const [clientNames, setClientNames] = useState<string[]>([]);
+  const [buHeads, setBUHeads] = useState<string[]>([]);
   const [compareType, setCompareType] = useState<CompareType>(
     (queryParams.get('compareType') as CompareType) || "quarter"
   );
@@ -141,12 +145,13 @@ const TeamReportCompare: React.FC = () => {
     (queryParams.get('chartType') as 'bar' | 'line' | 'combo') || 'bar'
   );
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
-  const [comparisonData, setComparisonData] = useState<{period: string, amount: number}[]>([]);
+  const [comparisonData, setComparisonData] = useState<{[key: string]: any}[]>([]);
   const [growthAnalysis, setGrowthAnalysis] = useState<GrowthAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('chart');
   const [showGrowthAnalysis, setShowGrowthAnalysis] = useState<boolean>(false);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
+  const [showAllParameters, setShowAllParameters] = useState(false);
 
   // Enhanced date parser to handle various date formats
   const parseDate = (dateStr: string): Date => {
@@ -629,6 +634,69 @@ const TeamReportCompare: React.FC = () => {
     setAvailableOptions(sortedPeriods);
   }, [data, compareType]);
 
+  // Fetch business units from database
+  const fetchBusinessUnits = async () => {
+    try {
+      const res = await apiClient.get("/team-report");
+      const uniqueBusinessUnits = Array.from(new Set(
+        res.data.map((item: any) => item.business_unit).filter(Boolean)
+      )) as string[];
+      setBusinessUnits(uniqueBusinessUnits);
+    } catch (error) {
+      console.error("Error fetching business units:", error);
+    }
+  };
+
+  // Fetch client names based on selected business unit
+  const fetchClientNames = async (businessUnit: string | null) => {
+    if (!businessUnit) {
+      setClientNames([]);
+      return;
+    }
+    
+    try {
+      const res = await apiClient.get("/team-report", {
+        params: { business_unit: businessUnit }
+      });
+      
+      let uniqueNames: string[];
+      if (businessUnit === "Managed Services" || businessUnit === "MS") {
+        // For Managed Services, show project names
+        uniqueNames = Array.from(new Set(
+          res.data.map((item: any) => item.project_name).filter(Boolean)
+        )) as string[];
+      } else {
+        // For other business units, show client names
+        uniqueNames = Array.from(new Set(
+          res.data.map((item: any) => item.client_name).filter(Boolean)
+        )) as string[];
+      }
+      setClientNames(uniqueNames);
+    } catch (error) {
+      console.error("Error fetching client names:", error);
+    }
+  };
+
+  // Fetch BU heads based on selected business unit
+  const fetchBUHeads = async (businessUnit: string | null) => {
+    if (!businessUnit) {
+      setBUHeads([]);
+      return;
+    }
+    
+    try {
+      const res = await apiClient.get("/team-report", {
+        params: { business_unit: businessUnit }
+      });
+      const uniqueBUHeads = Array.from(new Set(
+        res.data.map((item: any) => item.bu_head).filter(Boolean)
+      )) as string[];
+      setBUHeads(uniqueBUHeads);
+    } catch (error) {
+      console.error("Error fetching BU heads:", error);
+    }
+  };
+
   // Fetch data with business unit filter
   useEffect(() => {
     const fetchData = async () => {
@@ -637,6 +705,16 @@ const TeamReportCompare: React.FC = () => {
         const params: any = {};
         if (selectedBusinessUnit) {
           params.business_unit = selectedBusinessUnit;
+        }
+        if (selectedClientName) {
+          if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+            params.project_name = selectedClientName;
+          } else {
+            params.client_name = selectedClientName;
+          }
+        }
+        if (selectedBUHead) {
+          params.bu_head = selectedBUHead;
         }
         if (isBUHead && user.business_unit) {
           params.business_unit = user.business_unit;
@@ -691,7 +769,24 @@ const TeamReportCompare: React.FC = () => {
     };
 
     fetchData();
-  }, [selectedBusinessUnit, isBUHead, user?.business_unit]);
+  }, [selectedBusinessUnit, selectedClientName, selectedBUHead, isBUHead, user?.business_unit]);
+
+  // Fetch business units on component mount
+  useEffect(() => {
+    fetchBusinessUnits();
+  }, []);
+
+  // Fetch client names when business unit changes
+  useEffect(() => {
+    fetchClientNames(selectedBusinessUnit);
+    setSelectedClientName(null); // Reset client name selection
+  }, [selectedBusinessUnit]);
+
+  // Fetch BU heads when business unit changes
+  useEffect(() => {
+    fetchBUHeads(selectedBusinessUnit);
+    setSelectedBUHead(null); // Reset BU head selection
+  }, [selectedBusinessUnit]);
 
   // Helper function to get base parameter value - moved to component level
   const getBaseParameterValue = useCallback((periodValue: string | null, index: number, parameter: string): number => {
@@ -707,25 +802,17 @@ const TeamReportCompare: React.FC = () => {
             if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
               return false;
             }
-            // Filter by particulars (financial field) if selected
-            if (selectedParticular) {
-              // Check if the selected particular has a non-zero value for this item
-              let hasValue = false;
-              switch (selectedParticular) {
-                case 'HC': hasValue = (item.hc || 0) > 0; break;
-                case 'Salary Cost': hasValue = (item.salary_cost || 0) > 0; break;
-                case 'Sales': hasValue = (item.sales || 0) > 0; break;
-                case 'GPM': hasValue = (item.gpm || 0) > 0; break;
-                case 'GPM %': hasValue = (item.gpm_percentage || 0) > 0; break;
-                case 'Leave Encashment': hasValue = (item.leave_encashment || 0) > 0; break;
-                case 'Team Cost': hasValue = (item.team_cost || 0) > 0; break;
-                case 'Opr Cost': hasValue = (item.opr_cost || 0) > 0; break;
-                case 'Funding Cost': hasValue = (item.funding_cost || 0) > 0; break;
-                case 'NP': hasValue = (item.np || 0) > 0; break;
-                case 'NP %': hasValue = (item.np_percentage || 0) > 0; break;
-                default: hasValue = true;
+            // Filter by client name/project name if selected
+            if (selectedClientName) {
+              if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+                if (item.project_name !== selectedClientName) return false;
+              } else {
+                if (item.client_name !== selectedClientName) return false;
               }
-              if (!hasValue) return false;
+            }
+            // Filter by BU head if selected
+            if (selectedBUHead && item.bu_head !== selectedBUHead) {
+              return false;
             }
             
             const date = parseDate(item.month);
@@ -776,25 +863,17 @@ const TeamReportCompare: React.FC = () => {
         if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
           return false;
         }
-        // Filter by particulars (financial field) if selected
-        if (selectedParticular) {
-          // Check if the selected particular has a non-zero value for this item
-          let hasValue = false;
-          switch (selectedParticular) {
-            case 'HC': hasValue = (item.hc || 0) > 0; break;
-            case 'Salary Cost': hasValue = (item.salary_cost || 0) > 0; break;
-            case 'Sales': hasValue = (item.sales || 0) > 0; break;
-            case 'GPM': hasValue = (item.gpm || 0) > 0; break;
-            case 'GPM %': hasValue = (item.gpm_percentage || 0) > 0; break;
-            case 'Leave Encashment': hasValue = (item.leave_encashment || 0) > 0; break;
-            case 'Team Cost': hasValue = (item.team_cost || 0) > 0; break;
-            case 'Opr Cost': hasValue = (item.opr_cost || 0) > 0; break;
-            case 'Funding Cost': hasValue = (item.funding_cost || 0) > 0; break;
-            case 'NP': hasValue = (item.np || 0) > 0; break;
-            case 'NP %': hasValue = (item.np_percentage || 0) > 0; break;
-            default: hasValue = true;
+        // Filter by client name/project name if selected
+        if (selectedClientName) {
+          if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+            if (item.project_name !== selectedClientName) return false;
+          } else {
+            if (item.client_name !== selectedClientName) return false;
           }
-          if (!hasValue) return false;
+        }
+        // Filter by BU head if selected
+        if (selectedBUHead && item.bu_head !== selectedBUHead) {
+          return false;
         }
         
         const date = parseDate(item.month);
@@ -836,7 +915,7 @@ const TeamReportCompare: React.FC = () => {
         }
         return sum + value;
       }, 0);
-  }, [data, selectedBusinessUnit, selectedParticular, compareType, combinedPeriods]);
+  }, [data, selectedBusinessUnit, selectedClientName, selectedBUHead, compareType, combinedPeriods]);
 
   // Calculate comparison data when selections change
   useEffect(() => {
@@ -866,7 +945,7 @@ const TeamReportCompare: React.FC = () => {
     });
 
     setComparisonData(newComparisonData);
-  }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedParticular, selectedParameters, combinedPeriods]);
+  }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, selectedParameters, combinedPeriods]);
 
   // Calculate growth analysis when selections change
   useEffect(() => {
@@ -891,24 +970,17 @@ const TeamReportCompare: React.FC = () => {
               return total + data
                 .filter(item => {
                   if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
-                  // Filter by particulars (financial field) if selected
-                  if (selectedParticular) {
-                    let hasValue = false;
-                    switch (selectedParticular) {
-                      case 'HC': hasValue = (item.hc || 0) > 0; break;
-                      case 'Salary Cost': hasValue = (item.salary_cost || 0) > 0; break;
-                      case 'Sales': hasValue = (item.sales || 0) > 0; break;
-                      case 'GPM': hasValue = (item.gpm || 0) > 0; break;
-                      case 'GPM %': hasValue = (item.gpm_percentage || 0) > 0; break;
-                      case 'Leave Encashment': hasValue = (item.leave_encashment || 0) > 0; break;
-                      case 'Team Cost': hasValue = (item.team_cost || 0) > 0; break;
-                      case 'Opr Cost': hasValue = (item.opr_cost || 0) > 0; break;
-                      case 'Funding Cost': hasValue = (item.funding_cost || 0) > 0; break;
-                      case 'NP': hasValue = (item.np || 0) > 0; break;
-                      case 'NP %': hasValue = (item.np_percentage || 0) > 0; break;
-                      default: hasValue = true;
+                  // Filter by client name/project name if selected
+                  if (selectedClientName) {
+                    if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+                      if (item.project_name !== selectedClientName) return false;
+                    } else {
+                      if (item.client_name !== selectedClientName) return false;
                     }
-                    if (!hasValue) return false;
+                  }
+                  // Filter by BU head if selected
+                  if (selectedBUHead && item.bu_head !== selectedBUHead) {
+                    return false;
                   }
                   
                   const date = parseDate(item.month);
@@ -950,24 +1022,17 @@ const TeamReportCompare: React.FC = () => {
           return data
             .filter(item => {
               if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
-              // Filter by particulars (financial field) if selected
-              if (selectedParticular) {
-                let hasValue = false;
-                switch (selectedParticular) {
-                  case 'HC': hasValue = (item.hc || 0) > 0; break;
-                  case 'Salary Cost': hasValue = (item.salary_cost || 0) > 0; break;
-                  case 'Sales': hasValue = (item.sales || 0) > 0; break;
-                  case 'GPM': hasValue = (item.gpm || 0) > 0; break;
-                  case 'GPM %': hasValue = (item.gpm_percentage || 0) > 0; break;
-                  case 'Leave Encashment': hasValue = (item.leave_encashment || 0) > 0; break;
-                  case 'Team Cost': hasValue = (item.team_cost || 0) > 0; break;
-                  case 'Opr Cost': hasValue = (item.opr_cost || 0) > 0; break;
-                  case 'Funding Cost': hasValue = (item.funding_cost || 0) > 0; break;
-                  case 'NP': hasValue = (item.np || 0) > 0; break;
-                  case 'NP %': hasValue = (item.np_percentage || 0) > 0; break;
-                  default: hasValue = true;
+              // Filter by client name/project name if selected
+              if (selectedClientName) {
+                if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+                  if (item.project_name !== selectedClientName) return false;
+                } else {
+                  if (item.client_name !== selectedClientName) return false;
                 }
-                if (!hasValue) return false;
+              }
+              // Filter by BU head if selected
+              if (selectedBUHead && item.bu_head !== selectedBUHead) {
+                return false;
               }
               
               const date = parseDate(item.month);
@@ -1035,7 +1100,7 @@ const TeamReportCompare: React.FC = () => {
     };
 
     setGrowthAnalysis(calculateGrowth());
-  }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedParticular, availableParameters, combinedPeriods]);
+  }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, availableParameters, combinedPeriods]);
 
   // Render comparison chart
   useEffect(() => {
@@ -1268,6 +1333,382 @@ const TeamReportCompare: React.FC = () => {
     };
   }, [comparisonData, selectedParameters, chartType]);
 
+  // Render Profit Bridge and Trend Charts
+  useEffect(() => {
+    if (comparisonData.length === 0) return;
+
+    // Add a small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      // Profit Bridge Waterfall Chart
+      const profitBridgeElement = document.getElementById("profitBridgeChart");
+      if (profitBridgeElement) {
+        // Cleanup existing chart
+        am5.array.each(am5.registry.rootElements, (root) => {
+          if (root && root.dom && root.dom.id === "profitBridgeChart") root.dispose();
+        });
+
+        const root = am5.Root.new("profitBridgeChart");
+        root.setThemes([am5themes_Animated.new(root)]);
+
+        const chart = root.container.children.push(
+          am5xy.XYChart.new(root, {
+            panX: false,
+            panY: false,
+            wheelX: "none",
+            wheelY: "none",
+            cursor: am5xy.XYCursor.new(root, {}),
+            background: am5.Rectangle.new(root, { fill: am5.color(0xffffff) })
+          })
+        );
+
+        // Create axes
+        const xAxis = chart.xAxes.push(
+          am5xy.CategoryAxis.new(root, {
+            categoryField: "category",
+            renderer: am5xy.AxisRendererX.new(root, {}),
+            tooltip: am5.Tooltip.new(root, {})
+          })
+        );
+        xAxis.get("renderer").labels.template.setAll({
+          fill: am5.color(0x000000)
+        });
+
+        const yAxis = chart.yAxes.push(
+          am5xy.ValueAxis.new(root, {
+            renderer: am5xy.AxisRendererY.new(root, {}),
+            tooltip: am5.Tooltip.new(root, {})
+          })
+        );
+        yAxis.get("renderer").labels.template.setAll({
+          fill: am5.color(0x000000)
+        });
+
+        // Get latest period data for waterfall
+        const latestPeriod = comparisonData[comparisonData.length - 1];
+        if (latestPeriod) {
+          const sales = (latestPeriod as any)['Sales'] || 0;
+          const salaryCost = (latestPeriod as any)['Salary Cost'] || 0;
+          const gpm = (latestPeriod as any)['GPM'] || 0;
+          const oprCost = (latestPeriod as any)['Opr Cost'] || 0;
+          const teamCost = (latestPeriod as any)['Team Cost'] || 0;
+          const fundingCost = (latestPeriod as any)['Funding Cost'] || 0;
+          const leaveEncashment = (latestPeriod as any)['Leave Encashment'] || 0;
+          const np = (latestPeriod as any)['NP'] || 0;
+
+          const waterfallData = [
+            { category: "Sales", value: sales, color: am5.color(0x4ade80) },
+            { category: "(-) Salary Cost", value: -salaryCost, color: am5.color(0xf87171) },
+            { category: "GPM", value: gpm, color: am5.color(0x3b82f6) },
+            { category: "(-) Opr Cost", value: -oprCost, color: am5.color(0xf87171) },
+            { category: "(-) Team Cost", value: -teamCost, color: am5.color(0xf87171) },
+            { category: "(-) Funding Cost", value: -fundingCost, color: am5.color(0xf87171) },
+            { category: "(-) Leave Encashment", value: -leaveEncashment, color: am5.color(0xf87171) },
+            { category: "NP", value: np, color: am5.color(0x10b981) }
+          ];
+
+          const series = chart.series.push(
+            am5xy.ColumnSeries.new(root, {
+              name: "Profit Bridge",
+              xAxis: xAxis,
+              yAxis: yAxis,
+              valueYField: "value",
+              categoryXField: "category",
+              tooltip: am5.Tooltip.new(root, {
+                pointerOrientation: "horizontal",
+                labelText: "{categoryX}: ₹{valueY.formatNumber('#,##0.00')}",
+                autoTextColor: false,
+                labelHTML: `
+                  <div style="
+                    text-align: left; 
+                    padding: 8px 12px; 
+                    background: #ffffff; 
+                    color: #333333; 
+                    border-radius: 6px; 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-size: 12px;
+                    line-height: 1.4;
+                    min-width: 120px;
+                  ">
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
+                    <div style="font-weight: 700; color: #000000; font-size: 13px;">₹{valueY.formatNumber('#,##0.00')}</div>
+                  </div>
+                `
+              })
+            })
+          );
+
+          series.columns.template.setAll({
+            width: am5.percent(80),
+            strokeOpacity: 0,
+            cornerRadiusTL: 5,
+            cornerRadiusTR: 5,
+            tooltipY: 0
+          });
+
+          // Set colors for each column
+          series.columns.template.adapters.add("fill", (fill, target) => {
+            const dataItem = target.dataItem;
+            if (dataItem && dataItem.dataContext) {
+              return (dataItem.dataContext as any).color;
+            }
+            return fill;
+          });
+
+          series.appear(1000);
+          xAxis.data.setAll(waterfallData);
+          series.data.setAll(waterfallData);
+        }
+      }
+
+      // Trend Chart (Sales, GPM, NP)
+      const trendElement = document.getElementById("trendChart");
+      if (trendElement) {
+        // Cleanup existing chart
+        am5.array.each(am5.registry.rootElements, (root) => {
+          if (root && root.dom && root.dom.id === "trendChart") root.dispose();
+        });
+
+        const root = am5.Root.new("trendChart");
+        root.setThemes([am5themes_Animated.new(root)]);
+
+        const chart = root.container.children.push(
+          am5xy.XYChart.new(root, {
+            panX: false,
+            panY: false,
+            wheelX: "none",
+            wheelY: "none",
+            cursor: am5xy.XYCursor.new(root, {}),
+            background: am5.Rectangle.new(root, { fill: am5.color(0xffffff) })
+          })
+        );
+
+        // Create axes
+        const xAxis = chart.xAxes.push(
+          am5xy.CategoryAxis.new(root, {
+            categoryField: "period",
+            renderer: am5xy.AxisRendererX.new(root, {}),
+            tooltip: am5.Tooltip.new(root, {})
+          })
+        );
+        xAxis.get("renderer").labels.template.setAll({
+          fill: am5.color(0x000000)
+        });
+
+        const yAxis = chart.yAxes.push(
+          am5xy.ValueAxis.new(root, {
+            renderer: am5xy.AxisRendererY.new(root, {}),
+            tooltip: am5.Tooltip.new(root, {})
+          })
+        );
+        yAxis.get("renderer").labels.template.setAll({
+          fill: am5.color(0x000000)
+        });
+
+        // Sales series
+        const salesSeries = chart.series.push(
+          am5xy.LineSeries.new(root, {
+            name: "Sales",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "sales",
+            categoryXField: "period",
+            stroke: am5.color(0x3b82f6),
+            tooltip: am5.Tooltip.new(root, {
+              pointerOrientation: "horizontal",
+              labelText: "{categoryX} - Sales: ₹{valueY.formatNumber('#,##0.00')}",
+              autoTextColor: false
+            })
+          })
+        );
+
+        // GPM series
+        const gpmSeries = chart.series.push(
+          am5xy.LineSeries.new(root, {
+            name: "GPM",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "gpm",
+            categoryXField: "period",
+            stroke: am5.color(0x10b981),
+            tooltip: am5.Tooltip.new(root, {
+              pointerOrientation: "horizontal",
+              labelText: "{categoryX} - GPM: ₹{valueY.formatNumber('#,##0.00')}",
+              autoTextColor: false
+            })
+          })
+        );
+
+        // NP series
+        const npSeries = chart.series.push(
+          am5xy.LineSeries.new(root, {
+            name: "NP",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "np",
+            categoryXField: "period",
+            stroke: am5.color(0xf59e0b),
+            tooltip: am5.Tooltip.new(root, {
+              pointerOrientation: "horizontal",
+              labelText: "{categoryX} - NP: ₹{valueY.formatNumber('#,##0.00')}",
+              autoTextColor: false
+            })
+          })
+        );
+
+        // Add bullets
+        [salesSeries, gpmSeries, npSeries].forEach(series => {
+          series.bullets.push(() => {
+            return am5.Bullet.new(root, {
+              sprite: am5.Circle.new(root, {
+                radius: 4,
+                fill: series.get("stroke"),
+                stroke: am5.color(0xffffff),
+                strokeWidth: 2
+              })
+            });
+          });
+        });
+
+        // Set data
+        const trendData = comparisonData.map(item => ({
+          period: item.period,
+          sales: (item as any)['Sales'] || 0,
+          gpm: (item as any)['GPM'] || 0,
+          np: (item as any)['NP'] || 0
+        }));
+
+        xAxis.data.setAll(trendData);
+        salesSeries.data.setAll(trendData);
+        gpmSeries.data.setAll(trendData);
+        npSeries.data.setAll(trendData);
+
+        chart.appear(1000);
+      }
+
+      // Percentage Trend Chart (GPM % vs NP %)
+      const percentageElement = document.getElementById("percentageTrendChart");
+      if (percentageElement) {
+        // Cleanup existing chart
+        am5.array.each(am5.registry.rootElements, (root) => {
+          if (root && root.dom && root.dom.id === "percentageTrendChart") root.dispose();
+        });
+
+        const root = am5.Root.new("percentageTrendChart");
+        root.setThemes([am5themes_Animated.new(root)]);
+
+        const chart = root.container.children.push(
+          am5xy.XYChart.new(root, {
+            panX: false,
+            panY: false,
+            wheelX: "none",
+            wheelY: "none",
+            cursor: am5xy.XYCursor.new(root, {}),
+            background: am5.Rectangle.new(root, { fill: am5.color(0xffffff) })
+          })
+        );
+
+        // Create axes
+        const xAxis = chart.xAxes.push(
+          am5xy.CategoryAxis.new(root, {
+            categoryField: "period",
+            renderer: am5xy.AxisRendererX.new(root, {}),
+            tooltip: am5.Tooltip.new(root, {})
+          })
+        );
+        xAxis.get("renderer").labels.template.setAll({
+          fill: am5.color(0x000000)
+        });
+
+        const yAxis = chart.yAxes.push(
+          am5xy.ValueAxis.new(root, {
+            renderer: am5xy.AxisRendererY.new(root, {}),
+            tooltip: am5.Tooltip.new(root, {}),
+            min: 0
+          })
+        );
+        yAxis.get("renderer").labels.template.setAll({
+          fill: am5.color(0x000000)
+        });
+
+        // GPM % series
+        const gpmPercentSeries = chart.series.push(
+          am5xy.LineSeries.new(root, {
+            name: "GPM %",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "gpmPercent",
+            categoryXField: "period",
+            stroke: am5.color(0x10b981),
+            tooltip: am5.Tooltip.new(root, {
+              pointerOrientation: "horizontal",
+              labelText: "{categoryX} - GPM %: {valueY.formatNumber('#,##0.00')}%",
+              autoTextColor: false
+            })
+          })
+        );
+
+        // NP % series
+        const npPercentSeries = chart.series.push(
+          am5xy.LineSeries.new(root, {
+            name: "NP %",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "npPercent",
+            categoryXField: "period",
+            stroke: am5.color(0xf59e0b),
+            tooltip: am5.Tooltip.new(root, {
+              pointerOrientation: "horizontal",
+              labelText: "{categoryX} - NP %: {valueY.formatNumber('#,##0.00')}%",
+              autoTextColor: false
+            })
+          })
+        );
+
+        // Add bullets
+        [gpmPercentSeries, npPercentSeries].forEach(series => {
+          series.bullets.push(() => {
+            return am5.Bullet.new(root, {
+              sprite: am5.Circle.new(root, {
+                radius: 4,
+                fill: series.get("stroke"),
+                stroke: am5.color(0xffffff),
+                strokeWidth: 2
+              })
+            });
+          });
+        });
+
+        // Set data
+        const percentageData = comparisonData.map(item => {
+          const sales = (item as any)['Sales'] || 0;
+          const gpm = (item as any)['GPM'] || 0;
+          const np = (item as any)['NP'] || 0;
+          return {
+            period: item.period,
+            gpmPercent: sales > 0 ? (gpm / sales) * 100 : 0,
+            npPercent: sales > 0 ? (np / sales) * 100 : 0
+          };
+        });
+
+        xAxis.data.setAll(percentageData);
+        gpmPercentSeries.data.setAll(percentageData);
+        npPercentSeries.data.setAll(percentageData);
+
+        chart.appear(1000);
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      am5.array.each(am5.registry.rootElements, (root) => {
+        if (root && root.dom && (root.dom.id === "profitBridgeChart" || root.dom.id === "trendChart" || root.dom.id === "percentageTrendChart")) {
+          root.dispose();
+        }
+      });
+    };
+  }, [comparisonData]);
+
   return (
     <div style={{ padding: 32, backgroundColor: '#ffffff', minHeight: '100vh', color: '#000000' }}>
       <style>
@@ -1426,24 +1867,46 @@ const TeamReportCompare: React.FC = () => {
         allowClear={!isBUHead}
       >
         <Option value="">All Business Units</Option>
-        {allowedLobs.map((bu: string) => (
+        {businessUnits.map((bu: string) => (
           <Option key={bu} value={bu}>{bu}</Option>
         ))}
       </Select>
     </div>
 
-    {/* Particulars Filter */}
+    {/* Client Name / Project Name Filter */}
     <div style={{ marginBottom: 16 }}>
-      <label style={{ color: '#000000' }}>Particulars:</label>
+      <label style={{ color: '#000000' }}>
+        {selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Project Name:" : "Client Name:"}
+      </label>
       <Select
-        value={selectedParticular || ''}
-        onChange={(value) => setSelectedParticular(value || null)}
+        value={selectedClientName || ''}
+        onChange={(value) => setSelectedClientName(value || null)}
         style={{ width: 200, marginLeft: 8 }}
         allowClear
+        disabled={!selectedBusinessUnit}
       >
-        <Option value="">All Particulars</Option>
-        {availableParameters.map((param: string) => (
-          <Option key={param} value={param}>{param}</Option>
+        <Option value="">
+          {selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "All Projects" : "All Clients"}
+        </Option>
+        {clientNames.map((name: string) => (
+          <Option key={name} value={name}>{name}</Option>
+        ))}
+      </Select>
+    </div>
+
+    {/* BU Head Filter */}
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ color: '#000000' }}>BU Head:</label>
+      <Select
+        value={selectedBUHead || ''}
+        onChange={(value) => setSelectedBUHead(value || null)}
+        style={{ width: 200, marginLeft: 8 }}
+        allowClear
+        disabled={!selectedBusinessUnit}
+      >
+        <Option value="">All BU Heads</Option>
+        {buHeads.map((head: string) => (
+          <Option key={head} value={head}>{head}</Option>
         ))}
       </Select>
     </div>
@@ -1614,6 +2077,8 @@ const TeamReportCompare: React.FC = () => {
                 <h2 style={{ color: '#000000' }}>Growth Analysis Report</h2>
 <p style={{ marginBottom: 16, color: '#000000' }}>
   Comparing {comparisonValues.filter(Boolean).join(' vs ')} for {selectedBusinessUnit || "All Business Units"}
+  {selectedClientName && ` - ${selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Project" : "Client"}: ${selectedClientName}`}
+  {selectedBUHead && ` - BU Head: ${selectedBUHead}`}
 </p>
 
 <div style={{
@@ -1636,7 +2101,7 @@ const TeamReportCompare: React.FC = () => {
       </tr>
     </thead>
     <tbody>
-      {growthAnalysis.map((item, index) => {
+      {(showAllParameters ? growthAnalysis : growthAnalysis.filter(item => selectedParameters.includes(item.parameter))).map((item, index) => {
         // Calculate growth between first and last period for each parameter
         const firstPeriodAmount = item.periodValues[0]?.amount || 0;
         const lastPeriodAmount = item.periodValues[item.periodValues.length - 1]?.amount || 0;
@@ -1682,6 +2147,21 @@ const TeamReportCompare: React.FC = () => {
       })}
     </tbody>
   </table>
+</div>
+
+{/* Expand/Collapse Button */}
+<div style={{ textAlign: 'center', marginTop: 16 }}>
+  <Button
+    type="dashed"
+    onClick={() => setShowAllParameters(!showAllParameters)}
+    style={{ 
+      color: '#000000',
+      borderColor: '#004a7a',
+      backgroundColor: '#ffffff'
+    }}
+  >
+    {showAllParameters ? 'Show Only Selected Parameters' : 'Show All Parameters'}
+  </Button>
 </div>
 
                 {/* Summary Cards */}
@@ -2121,6 +2601,151 @@ const TeamReportCompare: React.FC = () => {
           </div>
         )
       ) : null}
+
+      {/* Profit Bridge & NP Insight Dashboard */}
+      {comparisonData.length > 0 && (
+        <div style={{ marginTop: 40, marginBottom: 40 }}>
+          <h2 style={{ color: '#000000', marginBottom: 24 }}>Profit Bridge & NP Insight Dashboard</h2>
+          
+          {/* KPI Cards */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+            gap: 16, 
+            marginBottom: 24 
+          }}>
+            {(() => {
+              // Calculate KPIs from the latest period data
+              const latestPeriod = comparisonData[comparisonData.length - 1];
+              if (!latestPeriod) return null;
+
+              const sales = (latestPeriod as any)['Sales'] || 0;
+              const salaryCost = (latestPeriod as any)['Salary Cost'] || 0;
+              const gpm = (latestPeriod as any)['GPM'] || 0;
+              const oprCost = (latestPeriod as any)['Opr Cost'] || 0;
+              const teamCost = (latestPeriod as any)['Team Cost'] || 0;
+              const fundingCost = (latestPeriod as any)['Funding Cost'] || 0;
+              const leaveEncashment = (latestPeriod as any)['Leave Encashment'] || 0;
+              const np = (latestPeriod as any)['NP'] || 0;
+
+              const gpmPercentage = sales > 0 ? (gpm / sales) * 100 : 0;
+              const npPercentage = sales > 0 ? (np / sales) * 100 : 0;
+              const salaryPercentage = sales > 0 ? (salaryCost / sales) * 100 : 0;
+              const oprPercentage = sales > 0 ? (oprCost / sales) * 100 : 0;
+
+              return (
+                <>
+                  <div style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: 8,
+                    padding: 16,
+                    border: '1px solid #d9d9d9',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>Total Sales</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#000000' }}>
+                      ₹{sales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: 8,
+                    padding: 16,
+                    border: '1px solid #d9d9d9',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>GPM %</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: gpmPercentage >= 0 ? '#4ade80' : '#f87171' }}>
+                      {gpmPercentage.toFixed(2)}%
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: 8,
+                    padding: 16,
+                    border: '1px solid #d9d9d9',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>NP %</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: npPercentage >= 0 ? '#4ade80' : '#f87171' }}>
+                      {npPercentage.toFixed(2)}%
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: 8,
+                    padding: 16,
+                    border: '1px solid #d9d9d9',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>Salary % of Sales</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#000000' }}>
+                      {salaryPercentage.toFixed(2)}%
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: 8,
+                    padding: 16,
+                    border: '1px solid #d9d9d9',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>Opr % of Sales</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#000000' }}>
+                      {oprPercentage.toFixed(2)}%
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Profit Bridge Waterfall Chart */}
+          <div style={{ 
+            backgroundColor: '#ffffff', 
+            borderRadius: 8, 
+            padding: 24, 
+            border: '1px solid #d9d9d9',
+            marginBottom: 24
+          }}>
+            <h3 style={{ color: '#000000', marginBottom: 16 }}>Profit Bridge (Waterfall) - {comparisonData[comparisonData.length - 1]?.period}</h3>
+            <div id="profitBridgeChart" style={{ width: "100%", height: "400px" }} />
+          </div>
+
+          {/* Trend Analysis Charts */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', 
+            gap: 24 
+          }}>
+            {/* Sales, GPM, NP Trend */}
+            <div style={{ 
+              backgroundColor: '#ffffff', 
+              borderRadius: 8, 
+              padding: 24, 
+              border: '1px solid #d9d9d9'
+            }}>
+              <h3 style={{ color: '#000000', marginBottom: 16 }}>Sales, GPM & NP Trend</h3>
+              <div id="trendChart" style={{ width: "100%", height: "300px" }} />
+            </div>
+
+            {/* Percentage Trends */}
+            <div style={{ 
+              backgroundColor: '#ffffff', 
+              borderRadius: 8, 
+              padding: 24, 
+              border: '1px solid #d9d9d9'
+            }}>
+              <h3 style={{ color: '#000000', marginBottom: 16 }}>GPM % vs NP % Trend</h3>
+              <div id="percentageTrendChart" style={{ width: "100%", height: "300px" }} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Target Tracking Chart - Always visible */}
       <TargetTrackingChart
