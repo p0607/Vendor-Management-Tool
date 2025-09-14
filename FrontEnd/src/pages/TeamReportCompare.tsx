@@ -290,6 +290,14 @@ const TeamReportCompare: React.FC = () => {
         blankrows: false
       });
       
+      // Debug: Log the first few rows and column names
+      console.log("🔍 Excel file loaded successfully");
+      console.log("🔍 Total rows in Excel:", jsonData.length);
+      if (jsonData.length > 0) {
+        console.log("🔍 Available columns in Excel:", Object.keys(jsonData[0] as any));
+        console.log("🔍 First 3 rows of Excel data:", jsonData.slice(0, 3));
+      }
+      
       const mappedData = jsonData.map((row: any) => {
         // Helper function to convert empty strings to null
         const stringOrNull = (value: any): string | null => {
@@ -299,16 +307,16 @@ const TeamReportCompare: React.FC = () => {
 
         return {
           tower: stringOrNull(row['Tower'] || row.tower),
-          client_name: stringOrNull(row['Client Name'] || row.client_name),
+          client_name: stringOrNull(row['Client_Name'] || row['Client Name'] || row.client_name),
           project_name: stringOrNull(row['Project_Name'] || row.project_name),
-          business_unit: stringOrNull(row['Business unit'] || row.business_unit),
-          bu_head: stringOrNull(row['BU Head'] || row.bu_head),
+          business_unit: stringOrNull(row['Business_unit'] || row['Business unit'] || row.business_unit),
+          bu_head: stringOrNull(row['BU_Head'] || row['BU Head'] || row.bu_head),
           hc: parseNumericValue(row['HC'] || row.hc),
           salary_cost: parseNumericValue(row['Salary Cost'] || row.salary_cost),
           sales: parseNumericValue(row['SALES'] || row.sales),
           gpm: parseNumericValue(row['GPM'] || row.gpm),
           gpm_percentage: parseNumericValue(row['GPM %'] || row.gpm_percentage),
-          leave_encashment: parseNumericValue(row['Leav Encsh'] || row.leave_encashment),
+          leave_encashment: parseNumericValue(row['Loan Encash'] || row['Leav Encsh'] || row.leave_encashment),
           team_cost: parseNumericValue(row['Team Cost'] || row.team_cost),
           opr_cost: parseNumericValue(row['Opr Cost'] || row.opr_cost),
           funding_cost: parseNumericValue(row['Funding Cost'] || row.funding_cost),
@@ -321,6 +329,7 @@ const TeamReportCompare: React.FC = () => {
 
       try {
         console.log(`Importing ${mappedData.length} records in batches...`);
+        console.log("🔍 Sample mapped data (first 3 records):", mappedData.slice(0, 3));
         
         // Process in batches of 100 records to avoid server overload
         const batchSize = 100;
@@ -383,16 +392,16 @@ const TeamReportCompare: React.FC = () => {
   const handleExportExcel = () => {
     const exportData = data.map((row: ReportData) => ({
       'Tower': row.tower,
-      'Client Name': row.client_name,
+      'Client_Name': row.client_name,
       'Project_Name': row.project_name,
-      'Business unit': row.business_unit,
-      'BU Head': row.bu_head,
+      'Business_unit': row.business_unit,
+      'BU_Head': row.bu_head,
       'HC': row.hc,
       'Salary Cost': row.salary_cost,
       'SALES': row.sales,
       'GPM': row.gpm,
       'GPM %': row.gpm_percentage,
-      'Leav Encsh': row.leave_encashment,
+      'Loan Encash': row.leave_encashment,
       'Team Cost': row.team_cost,
       'Opr Cost': row.opr_cost,
       'Funding Cost': row.funding_cost,
@@ -408,12 +417,69 @@ const TeamReportCompare: React.FC = () => {
     XLSX.writeFile(workbook, "TeamReport.xlsx");
   };
 
+  // Handle Excel template download
+  const handleDownloadTemplate = () => {
+    // Create a template with correct column names and sample data
+    const templateData = [
+      {
+        'Tower': 'TOWER 1',
+        'Client_Name': 'Sample Client',
+        'Project_Name': 'Sample Project',
+        'Business_unit': 'BPO | HTD',
+        'BU_Head': 'Sample BU Head',
+        'HC': 10,
+        'Salary Cost': 50000,
+        'SALES': 100000,
+        'GPM': 50000,
+        'GPM %': 50,
+        'Loan Encash': 5000,
+        'Team Cost': 10000,
+        'Opr Cost': 15000,
+        'Funding Cost': 5000,
+        'NP': 20000,
+        'NP %': 20,
+        'Month': 'January',
+        'Year': 2024,
+      },
+      {
+        'Tower': 'TOWER 2',
+        'Client_Name': 'Another Client',
+        'Project_Name': 'Another Project',
+        'Business_unit': 'Managed Services',
+        'BU_Head': 'Another BU Head',
+        'HC': 15,
+        'Salary Cost': 75000,
+        'SALES': 150000,
+        'GPM': 75000,
+        'GPM %': 50,
+        'Loan Encash': 7500,
+        'Team Cost': 15000,
+        'Opr Cost': 22500,
+        'Funding Cost': 7500,
+        'NP': 30000,
+        'NP %': 20,
+        'Month': 'February',
+        'Year': 2024,
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+    XLSX.writeFile(workbook, "TeamReport_Template.xlsx");
+  };
+
   // Action dropdown items
   const actionDropdownItems = [
     {
       key: 'add',
       label: 'Add MFS Data',
       onClick: () => navigate('/AddTeamReportData')
+    },
+    {
+      key: 'template',
+      label: 'Download Template',
+      onClick: handleDownloadTemplate
     },
     {
       key: 'import',
