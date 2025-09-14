@@ -637,13 +637,42 @@ const TeamReportCompare: React.FC = () => {
   // Fetch business units from database
   const fetchBusinessUnits = async () => {
     try {
+      console.log("🔍 Fetching business units from API...");
       const res = await apiClient.get("/team-report");
-      const uniqueBusinessUnits = Array.from(new Set(
-        res.data.map((item: any) => item.business_unit).filter(Boolean)
-      )) as string[];
-      setBusinessUnits(uniqueBusinessUnits);
-    } catch (error) {
-      console.error("Error fetching business units:", error);
+      console.log("🔍 Raw API response:", res.data);
+      console.log("🔍 Response status:", res.status);
+      console.log("🔍 Response headers:", res.headers);
+      
+      if (res.data && Array.isArray(res.data)) {
+        console.log("🔍 Total records received:", res.data.length);
+        
+        // Extract business units and filter out null/undefined values
+        const businessUnitsFromData = res.data
+          .map((item: any) => item.business_unit)
+          .filter((bu: any) => bu && bu.trim() !== '');
+        
+        console.log("🔍 Business units from data:", businessUnitsFromData);
+        
+        const uniqueBusinessUnits = Array.from(new Set(businessUnitsFromData)) as string[];
+        console.log("🔍 Unique business units:", uniqueBusinessUnits);
+        
+        setBusinessUnits(uniqueBusinessUnits);
+        
+        // If no business units found, show a warning
+        if (uniqueBusinessUnits.length === 0) {
+          console.warn("⚠️ No business units found in the database. The table might be empty.");
+        }
+      } else {
+        console.warn("🔍 No data received from API or data is not an array");
+        console.warn("🔍 Data type:", typeof res.data);
+        console.warn("🔍 Data value:", res.data);
+        setBusinessUnits([]);
+      }
+    } catch (error: any) {
+      console.error("❌ Error fetching business units:", error);
+      console.error("❌ Error details:", error.response?.data);
+      console.error("❌ Error status:", error.response?.status);
+      setBusinessUnits([]);
     }
   };
 
@@ -655,25 +684,42 @@ const TeamReportCompare: React.FC = () => {
     }
     
     try {
+      console.log(`🔍 Fetching client names for business unit: ${businessUnit}`);
       const res = await apiClient.get("/team-report", {
         params: { business_unit: businessUnit }
       });
       
-      let uniqueNames: string[];
-      if (businessUnit === "Managed Services" || businessUnit === "MS") {
-        // For Managed Services, show project names
-        uniqueNames = Array.from(new Set(
-          res.data.map((item: any) => item.project_name).filter(Boolean)
-        )) as string[];
+      console.log(`🔍 Raw client data for ${businessUnit}:`, res.data);
+      console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
+      
+      if (res.data && Array.isArray(res.data)) {
+        let uniqueNames: string[];
+        if (businessUnit === "Managed Services" || businessUnit === "MS") {
+          // For Managed Services, show project names
+          const projectNames = res.data
+            .map((item: any) => item.project_name)
+            .filter((name: any) => name && name.trim() !== '');
+          console.log(`🔍 Project names for ${businessUnit}:`, projectNames);
+          uniqueNames = Array.from(new Set(projectNames)) as string[];
+        } else {
+          // For other business units, show client names
+          const clientNames = res.data
+            .map((item: any) => item.client_name)
+            .filter((name: any) => name && name.trim() !== '');
+          console.log(`🔍 Client names for ${businessUnit}:`, clientNames);
+          uniqueNames = Array.from(new Set(clientNames)) as string[];
+        }
+        
+        console.log(`🔍 Unique names for ${businessUnit}:`, uniqueNames);
+        setClientNames(uniqueNames);
       } else {
-        // For other business units, show client names
-        uniqueNames = Array.from(new Set(
-          res.data.map((item: any) => item.client_name).filter(Boolean)
-        )) as string[];
+        console.warn(`🔍 No data received for business unit: ${businessUnit}`);
+        setClientNames([]);
       }
-      setClientNames(uniqueNames);
-    } catch (error) {
-      console.error("Error fetching client names:", error);
+    } catch (error: any) {
+      console.error("❌ Error fetching client names:", error);
+      console.error("❌ Error details:", error.response?.data);
+      setClientNames([]);
     }
   };
 
@@ -685,15 +731,32 @@ const TeamReportCompare: React.FC = () => {
     }
     
     try {
+      console.log(`🔍 Fetching BU heads for business unit: ${businessUnit}`);
       const res = await apiClient.get("/team-report", {
         params: { business_unit: businessUnit }
       });
-      const uniqueBUHeads = Array.from(new Set(
-        res.data.map((item: any) => item.bu_head).filter(Boolean)
-      )) as string[];
-      setBUHeads(uniqueBUHeads);
-    } catch (error) {
-      console.error("Error fetching BU heads:", error);
+      
+      console.log(`🔍 Raw BU head data for ${businessUnit}:`, res.data);
+      console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
+      
+      if (res.data && Array.isArray(res.data)) {
+        const buHeadsFromData = res.data
+          .map((item: any) => item.bu_head)
+          .filter((head: any) => head && head.trim() !== '');
+        console.log(`🔍 BU heads for ${businessUnit}:`, buHeadsFromData);
+        
+        const uniqueBUHeads = Array.from(new Set(buHeadsFromData)) as string[];
+        console.log(`🔍 Unique BU heads for ${businessUnit}:`, uniqueBUHeads);
+        
+        setBUHeads(uniqueBUHeads);
+      } else {
+        console.warn(`🔍 No data received for business unit: ${businessUnit}`);
+        setBUHeads([]);
+      }
+    } catch (error: any) {
+      console.error("❌ Error fetching BU heads:", error);
+      console.error("❌ Error details:", error.response?.data);
+      setBUHeads([]);
     }
   };
 
@@ -775,6 +838,67 @@ const TeamReportCompare: React.FC = () => {
   useEffect(() => {
     fetchBusinessUnits();
   }, []);
+
+  // Test API connection and data structure
+  const testAPIConnection = async () => {
+    try {
+      console.log("🔧 Testing API connection...");
+      const res = await apiClient.get("/team-report");
+      console.log("✅ API Connection successful!");
+      console.log("📊 Response structure:", {
+        status: res.status,
+        dataType: typeof res.data,
+        isArray: Array.isArray(res.data),
+        recordCount: res.data?.length || 0,
+        sampleRecord: res.data?.[0] || null
+      });
+      
+      if (res.data && res.data.length > 0) {
+        console.log("📋 Available columns in first record:", Object.keys(res.data[0]));
+      }
+      
+      return res.data;
+    } catch (error: any) {
+      console.error("❌ API Connection failed:", error);
+      console.error("❌ Error details:", error.response?.data);
+      return null;
+    }
+  };
+
+  // Add a test function to create sample data if none exists
+  const createSampleData = async () => {
+    try {
+      console.log("🔧 Creating sample data...");
+      const sampleData = {
+        tower: "Test Tower",
+        client_name: "Test Client",
+        project_name: "Test Project",
+        business_unit: "BPO | HTD",
+        bu_head: "Test BU Head",
+        hc: 10,
+        salary_cost: 50000,
+        sales: 100000,
+        gpm: 50000,
+        gpm_percentage: 50,
+        leave_encashment: 5000,
+        team_cost: 10000,
+        opr_cost: 15000,
+        funding_cost: 5000,
+        np: 20000,
+        np_percentage: 20,
+        month: "January",
+        year: 2024
+      };
+
+      const response = await apiClient.post("/team-report", sampleData);
+      console.log("✅ Sample data created:", response.data);
+      
+      // Refresh business units after creating sample data
+      fetchBusinessUnits();
+    } catch (error) {
+      console.error("❌ Error creating sample data:", error);
+    }
+  };
 
   // Fetch client names when business unit changes
   useEffect(() => {
@@ -1870,6 +1994,11 @@ const TeamReportCompare: React.FC = () => {
         {businessUnits.map((bu: string) => (
           <Option key={bu} value={bu}>{bu}</Option>
         ))}
+        {businessUnits.length === 0 && (
+          <Option value="create_sample" disabled>
+            No data found - Click "Create Sample Data" below
+          </Option>
+        )}
       </Select>
     </div>
 
@@ -1959,6 +2088,41 @@ const TeamReportCompare: React.FC = () => {
         <Option value="quarter">Quarter</Option>
         <Option value="month">Month</Option>
       </Select>
+    </div>
+
+    {/* Debug and Sample Data Buttons */}
+    <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+      <Button
+        type="default"
+        onClick={testAPIConnection}
+        style={{ 
+          backgroundColor: '#52c41a',
+          borderColor: '#52c41a',
+          color: 'white'
+        }}
+      >
+        Test API Connection
+      </Button>
+      
+      {businessUnits.length === 0 && (
+        <Button
+          type="primary"
+          onClick={createSampleData}
+          style={{ 
+            backgroundColor: '#1890ff',
+            borderColor: '#1890ff'
+          }}
+        >
+          Create Sample Data
+        </Button>
+      )}
+      
+      <span style={{ color: '#666666', fontSize: '12px' }}>
+        {businessUnits.length === 0 
+          ? "No business units found. Use buttons above to test connection or create sample data."
+          : `${businessUnits.length} business units loaded successfully.`
+        }
+      </span>
     </div>
   </div>
 
