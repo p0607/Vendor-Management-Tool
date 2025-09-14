@@ -1184,6 +1184,7 @@ const TeamReportCompare: React.FC = () => {
     });
 
     console.log("🔍 Final comparison data:", newComparisonData);
+    console.log("🔍 Available parameters in comparison data:", newComparisonData.length > 0 ? Object.keys(newComparisonData[0]) : []);
     setComparisonData(newComparisonData);
   }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, selectedParameters, combinedPeriods]);
 
@@ -1596,7 +1597,7 @@ const TeamReportCompare: React.FC = () => {
 
   // Render Profit Bridge and Trend Charts
   useEffect(() => {
-    if (comparisonData.length === 0) return;
+    if (comparisonValues.length === 0 || !comparisonValues[comparisonValues.length - 1]) return;
 
     // Add a small delay to ensure DOM is ready
     const timer = setTimeout(() => {
@@ -1644,17 +1645,42 @@ const TeamReportCompare: React.FC = () => {
           fill: am5.color(0x000000)
         });
 
-        // Get latest period data for waterfall
-        const latestPeriod = comparisonData[comparisonData.length - 1];
-        if (latestPeriod) {
-          const sales = (latestPeriod as any)['Sales'] || 0;
-          const salaryCost = (latestPeriod as any)['Salary Cost'] || 0;
-          const gpm = (latestPeriod as any)['GPM'] || 0;
-          const oprCost = (latestPeriod as any)['Opr Cost'] || 0;
-          const teamCost = (latestPeriod as any)['Team Cost'] || 0;
-          const fundingCost = (latestPeriod as any)['Funding Cost'] || 0;
-          const leaveEncashment = (latestPeriod as any)['Leave Encashment'] || 0;
-          const np = (latestPeriod as any)['NP'] || 0;
+        // Get latest period data for waterfall - calculate independently of selected parameters
+        const latestPeriodValue = comparisonValues[comparisonValues.length - 1];
+        console.log("🔍 Waterfall Chart - Latest Period Value:", latestPeriodValue);
+        
+        if (latestPeriodValue) {
+          // Calculate all parameters for the latest period independently
+          const sales = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Sales') || 
+                       getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'SALES') || 0;
+          const salaryCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Salary Cost') || 0;
+          const gpm = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'GPM') || 0;
+          const oprCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Opr Cost') || 0;
+          const teamCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Team Cost') || 0;
+          const fundingCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Funding Cost') || 0;
+          const leaveEncashment = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Leave Encashment') || 0;
+          const np = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'NP') || 0;
+          
+          console.log("🔍 Waterfall Chart - Calculated Values:", {
+            sales, salaryCost, gpm, oprCost, teamCost, fundingCost, leaveEncashment, np
+          });
+          
+          // If we don't have the required parameters, show a message
+          if (sales === 0 && gpm === 0 && np === 0) {
+            console.log("🔍 Waterfall Chart - No data available for waterfall chart");
+            // Add a message to the chart
+            const noDataLabel = chart.children.push(
+              am5.Label.new(root, {
+                text: "No data available for waterfall chart.\nPlease check your data and filters.",
+                centerX: am5.p50,
+                centerY: am5.p50,
+                fill: am5.color(0x666666),
+                fontSize: 14,
+                textAlign: "center"
+              })
+            );
+            return;
+          }
 
           const waterfallData = [
             { category: "Sales", value: sales, color: am5.color(0x4ade80) },
@@ -1877,13 +1903,19 @@ const TeamReportCompare: React.FC = () => {
           });
         });
 
-        // Set data
-        const trendData = comparisonData.map(item => ({
-          period: item.period,
-          sales: (item as any)['Sales'] || 0,
-          gpm: (item as any)['GPM'] || 0,
-          np: (item as any)['NP'] || 0
-        }));
+        // Set data - calculate independently for all periods
+        const trendData = comparisonValues.filter(Boolean).map((periodValue, index) => {
+          const sales = getBaseParameterValue(periodValue, index, 'Sales') || 
+                       getBaseParameterValue(periodValue, index, 'SALES') || 0;
+          const gpm = getBaseParameterValue(periodValue, index, 'GPM') || 0;
+          const np = getBaseParameterValue(periodValue, index, 'NP') || 0;
+          return {
+            period: periodValue,
+            sales,
+            gpm,
+            np
+          };
+        });
 
         xAxis.data.setAll(trendData);
         salesSeries.data.setAll(trendData);
@@ -2017,13 +2049,14 @@ const TeamReportCompare: React.FC = () => {
           });
         });
 
-        // Set data
-        const percentageData = comparisonData.map(item => {
-          const sales = (item as any)['Sales'] || 0;
-          const gpm = (item as any)['GPM'] || 0;
-          const np = (item as any)['NP'] || 0;
+        // Set data - calculate independently for all periods
+        const percentageData = comparisonValues.filter(Boolean).map((periodValue, index) => {
+          const sales = getBaseParameterValue(periodValue, index, 'Sales') || 
+                       getBaseParameterValue(periodValue, index, 'SALES') || 0;
+          const gpm = getBaseParameterValue(periodValue, index, 'GPM') || 0;
+          const np = getBaseParameterValue(periodValue, index, 'NP') || 0;
           return {
-            period: item.period,
+            period: periodValue,
             gpmPercent: sales > 0 ? (gpm / sales) * 100 : 0,
             npPercent: sales > 0 ? (np / sales) * 100 : 0
           };
@@ -2045,7 +2078,7 @@ const TeamReportCompare: React.FC = () => {
         }
       });
     };
-  }, [comparisonData]);
+  }, [comparisonValues, data, selectedBusinessUnit, selectedClientName, selectedBUHead, compareType, combinedPeriods]);
 
   return (
     <div style={{ padding: 32, backgroundColor: '#ffffff', minHeight: '100vh', color: '#000000' }}>
@@ -2991,18 +3024,49 @@ const TeamReportCompare: React.FC = () => {
             marginBottom: 24 
           }}>
             {(() => {
-              // Calculate KPIs from the latest period data
-              const latestPeriod = comparisonData[comparisonData.length - 1];
-              if (!latestPeriod) return null;
+              // Calculate KPIs from the latest period independently of selected parameters
+              const latestPeriodValue = comparisonValues[comparisonValues.length - 1];
+              console.log("🔍 KPI Cards - Latest Period Value:", latestPeriodValue);
+              
+              if (!latestPeriodValue) {
+                console.log("🔍 KPI Cards - No latest period found");
+                return null;
+              }
 
-              const sales = (latestPeriod as any)['Sales'] || 0;
-              const salaryCost = (latestPeriod as any)['Salary Cost'] || 0;
-              const gpm = (latestPeriod as any)['GPM'] || 0;
-              const oprCost = (latestPeriod as any)['Opr Cost'] || 0;
-              const teamCost = (latestPeriod as any)['Team Cost'] || 0;
-              const fundingCost = (latestPeriod as any)['Funding Cost'] || 0;
-              const leaveEncashment = (latestPeriod as any)['Leave Encashment'] || 0;
-              const np = (latestPeriod as any)['NP'] || 0;
+              // Calculate all parameters for the latest period independently
+              const sales = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Sales') || 
+                           getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'SALES') || 0;
+              const salaryCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Salary Cost') || 0;
+              const gpm = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'GPM') || 0;
+              const oprCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Opr Cost') || 0;
+              const teamCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Team Cost') || 0;
+              const fundingCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Funding Cost') || 0;
+              const leaveEncashment = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Leave Encashment') || 0;
+              const np = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'NP') || 0;
+              
+              console.log("🔍 KPI Cards - Calculated Values:", {
+                sales, salaryCost, gpm, oprCost, teamCost, fundingCost, leaveEncashment, np
+              });
+
+              // If no data available, show a message
+              if (sales === 0 && gpm === 0 && np === 0) {
+                console.log("🔍 KPI Cards - No data available");
+                return (
+                  <div style={{
+                    gridColumn: '1 / -1',
+                    textAlign: 'center',
+                    padding: 20,
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: 8,
+                    border: '1px solid #d9d9d9'
+                  }}>
+                    <div style={{ color: '#666666', fontSize: 14 }}>
+                      No data available for KPI calculations.<br/>
+                      Please check your data and filters.
+                    </div>
+                  </div>
+                );
+              }
 
               const gpmPercentage = sales > 0 ? (gpm / sales) * 100 : 0;
               const npPercentage = sales > 0 ? (np / sales) * 100 : 0;
