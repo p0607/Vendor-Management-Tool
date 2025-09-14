@@ -419,47 +419,27 @@ const TeamReportCompare: React.FC = () => {
 
   // Handle Excel template download
   const handleDownloadTemplate = () => {
-    // Create a template with correct column names and sample data
+    // Create a template with only headers (no sample data)
     const templateData = [
       {
-        'Tower': 'TOWER 1',
-        'Client_Name': 'Sample Client',
-        'Project_Name': 'Sample Project',
-        'Business_unit': 'BPO | HTD',
-        'BU_Head': 'Sample BU Head',
-        'HC': 10,
-        'Salary Cost': 50000,
-        'SALES': 100000,
-        'GPM': 50000,
-        'GPM %': 50,
-        'Loan Encash': 5000,
-        'Team Cost': 10000,
-        'Opr Cost': 15000,
-        'Funding Cost': 5000,
-        'NP': 20000,
-        'NP %': 20,
-        'Month': 'January',
-        'Year': 2024,
-      },
-      {
-        'Tower': 'TOWER 2',
-        'Client_Name': 'Another Client',
-        'Project_Name': 'Another Project',
-        'Business_unit': 'Managed Services',
-        'BU_Head': 'Another BU Head',
-        'HC': 15,
-        'Salary Cost': 75000,
-        'SALES': 150000,
-        'GPM': 75000,
-        'GPM %': 50,
-        'Loan Encash': 7500,
-        'Team Cost': 15000,
-        'Opr Cost': 22500,
-        'Funding Cost': 7500,
-        'NP': 30000,
-        'NP %': 20,
-        'Month': 'February',
-        'Year': 2024,
+        'Tower': '',
+        'Client_Name': '',
+        'Project_Name': '',
+        'Business_unit': '',
+        'BU_Head': '',
+        'HC': '',
+        'Salary Cost': '',
+        'SALES': '',
+        'GPM': '',
+        'GPM %': '',
+        'Loan Encash': '',
+        'Team Cost': '',
+        'Opr Cost': '',
+        'Funding Cost': '',
+        'NP': '',
+        'NP %': '',
+        'Month': '',
+        'Year': '',
       }
     ];
 
@@ -747,25 +727,30 @@ const TeamReportCompare: React.FC = () => {
     
     try {
       console.log(`🔍 Fetching client names for business unit: ${businessUnit}`);
-      const res = await apiClient.get("/team-report", {
-        params: { business_unit: businessUnit }
-      });
+      const res = await apiClient.get("/team-report");
       
       console.log(`🔍 Raw client data for ${businessUnit}:`, res.data);
       console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
       
       if (res.data && Array.isArray(res.data)) {
+        // Filter data by business unit first
+        const filteredData = res.data.filter((item: any) => 
+          item.business_unit === businessUnit
+        );
+        
+        console.log(`🔍 Filtered data for ${businessUnit}:`, filteredData);
+        
         let uniqueNames: string[];
         if (businessUnit === "Managed Services" || businessUnit === "MS") {
           // For Managed Services, show project names
-          const projectNames = res.data
+          const projectNames = filteredData
             .map((item: any) => item.project_name)
             .filter((name: any) => name && name.trim() !== '');
           console.log(`🔍 Project names for ${businessUnit}:`, projectNames);
           uniqueNames = Array.from(new Set(projectNames)) as string[];
         } else {
           // For other business units, show client names
-          const clientNames = res.data
+          const clientNames = filteredData
             .map((item: any) => item.client_name)
             .filter((name: any) => name && name.trim() !== '');
           console.log(`🔍 Client names for ${businessUnit}:`, clientNames);
@@ -794,15 +779,20 @@ const TeamReportCompare: React.FC = () => {
     
     try {
       console.log(`🔍 Fetching BU heads for business unit: ${businessUnit}`);
-      const res = await apiClient.get("/team-report", {
-        params: { business_unit: businessUnit }
-      });
+      const res = await apiClient.get("/team-report");
       
       console.log(`🔍 Raw BU head data for ${businessUnit}:`, res.data);
       console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
       
       if (res.data && Array.isArray(res.data)) {
-        const buHeadsFromData = res.data
+        // Filter data by business unit first
+        const filteredData = res.data.filter((item: any) => 
+          item.business_unit === businessUnit
+        );
+        
+        console.log(`🔍 Filtered BU head data for ${businessUnit}:`, filteredData);
+        
+        const buHeadsFromData = filteredData
           .map((item: any) => item.bu_head)
           .filter((head: any) => head && head.trim() !== '');
         console.log(`🔍 BU heads for ${businessUnit}:`, buHeadsFromData);
@@ -827,28 +817,62 @@ const TeamReportCompare: React.FC = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const params: any = {};
+        console.log("🔍 Fetching data with filters:", {
+          selectedBusinessUnit,
+          selectedClientName,
+          selectedBUHead,
+          isBUHead,
+          userBusinessUnit: user.business_unit
+        });
+        
+        // Always fetch all data and filter on frontend for better control
+        const res = await apiClient.get("/team-report");
+        
+        console.log("🔍 Raw data received:", res.data?.length || 0, "records");
+        
+        // Filter data on frontend
+        let filteredData = res.data || [];
+        
         if (selectedBusinessUnit) {
-          params.business_unit = selectedBusinessUnit;
+          filteredData = filteredData.filter((item: any) => 
+            item.business_unit === selectedBusinessUnit
+          );
+          console.log(`🔍 After business unit filter (${selectedBusinessUnit}):`, filteredData.length, "records");
         }
+        
         if (selectedClientName) {
           if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-            params.project_name = selectedClientName;
+            filteredData = filteredData.filter((item: any) => 
+              item.project_name === selectedClientName
+            );
+            console.log(`🔍 After project name filter (${selectedClientName}):`, filteredData.length, "records");
           } else {
-            params.client_name = selectedClientName;
+            filteredData = filteredData.filter((item: any) => 
+              item.client_name === selectedClientName
+            );
+            console.log(`🔍 After client name filter (${selectedClientName}):`, filteredData.length, "records");
           }
         }
+        
         if (selectedBUHead) {
-          params.bu_head = selectedBUHead;
-        }
-        if (isBUHead && user.business_unit) {
-          params.business_unit = user.business_unit;
+          filteredData = filteredData.filter((item: any) => 
+            item.bu_head === selectedBUHead
+          );
+          console.log(`🔍 After BU head filter (${selectedBUHead}):`, filteredData.length, "records");
         }
         
-        const res = await apiClient.get("/team-report", { params });
+        if (isBUHead && user.business_unit) {
+          filteredData = filteredData.filter((item: any) => 
+            item.business_unit === user.business_unit
+          );
+          console.log(`🔍 After user BU filter (${user.business_unit}):`, filteredData.length, "records");
+        }
+        
+        console.log("🔍 Final filtered data:", filteredData.length, "records");
+        console.log("🔍 Sample filtered data:", filteredData.slice(0, 3));
         
         // Convert amounts to numbers and handle formatting
-        const convertedData = res.data.map((item: any) => {
+        const convertedData = filteredData.map((item: any) => {
           // Convert numeric fields to numbers
           const numericFields = ['hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'year'];
           
@@ -903,70 +927,7 @@ const TeamReportCompare: React.FC = () => {
     fetchBusinessUnits();
   }, []);
 
-  // Test API connection and data structure
-  const testAPIConnection = async () => {
-    try {
-      console.log("🔧 Testing API connection...");
-      const res = await apiClient.get("/team-report");
-      console.log("✅ API Connection successful!");
-      console.log("📊 Response structure:", {
-        status: res.status,
-        dataType: typeof res.data,
-        isArray: Array.isArray(res.data),
-        recordCount: res.data?.length || 0,
-        sampleRecord: res.data?.[0] || null
-      });
-      
-      if (res.data && res.data.length > 0) {
-        console.log("📋 Available columns in first record:", Object.keys(res.data[0]));
-        console.log("📋 All business_unit values in response:", res.data.map((item: any) => item.business_unit));
-        console.log("📋 Unique business_unit values:", Array.from(new Set(res.data.map((item: any) => item.business_unit))));
-      } else {
-        console.log("📋 No data in response - database might be empty");
-      }
-      
-      return res.data;
-    } catch (error: any) {
-      console.error("❌ API Connection failed:", error);
-      console.error("❌ Error details:", error.response?.data);
-      return null;
-    }
-  };
 
-  // Add a test function to create sample data if none exists
-  const createSampleData = async () => {
-    try {
-      console.log("🔧 Creating sample data...");
-      const sampleData = {
-        tower: "Test Tower",
-        client_name: "Test Client",
-        project_name: "Test Project",
-        business_unit: "BPO | HTD",
-        bu_head: "Test BU Head",
-        hc: 10,
-        salary_cost: 50000,
-        sales: 100000,
-        gpm: 50000,
-        gpm_percentage: 50,
-        leave_encashment: 5000,
-        team_cost: 10000,
-        opr_cost: 15000,
-        funding_cost: 5000,
-        np: 20000,
-        np_percentage: 20,
-        month: "January",
-        year: 2024
-      };
-
-      const response = await apiClient.post("/team-report", sampleData);
-      console.log("✅ Sample data created:", response.data);
-      
-      // Refresh business units after creating sample data
-      fetchBusinessUnits();
-    } catch (error) {
-      console.error("❌ Error creating sample data:", error);
-    }
-  };
 
   // Fetch client names when business unit changes
   useEffect(() => {
@@ -1028,22 +989,24 @@ const TeamReportCompare: React.FC = () => {
             return itemValue === period;
           })
           .reduce((sum, item) => {
-            // Get the value based on the selected parameter
-            let value = 0;
-            switch (parameter) {
-              case 'Sales': value = item.sales || 0; break;
-              case 'GPM': value = item.gpm || 0; break;
-              case 'GPM %': value = item.gpm_percentage || 0; break;
-              case 'NP': value = item.np || 0; break;
-              case 'NP %': value = item.np_percentage || 0; break;
-              case 'Salary Cost': value = item.salary_cost || 0; break;
-              case 'Team Cost': value = item.team_cost || 0; break;
-              case 'Opr Cost': value = item.opr_cost || 0; break;
-              case 'Funding Cost': value = item.funding_cost || 0; break;
-              case 'Leave Encashment': value = item.leave_encashment || 0; break;
-              case 'HC': value = item.hc || 0; break;
-              default: value = 0;
-            }
+                  // Get the value based on the selected parameter
+                  let value = 0;
+                  switch (parameter) {
+                    case 'Sales': value = item.sales || 0; break;
+                    case 'GPM': value = item.gpm || 0; break;
+                    case 'GPM %': value = item.gpm_percentage || 0; break;
+                    case 'NP': value = item.np || 0; break;
+                    case 'NP %': value = item.np_percentage || 0; break;
+                    case 'Salary Cost': value = item.salary_cost || 0; break;
+                    case 'Team Cost': value = item.team_cost || 0; break;
+                    case 'Opr Cost': value = item.opr_cost || 0; break;
+                    case 'Funding Cost': value = item.funding_cost || 0; break;
+                    case 'Leave Encashment': value = item.leave_encashment || 0; break;
+                    case 'HC': value = item.hc || 0; break;
+                    default: 
+                      console.warn(`🔍 Unknown parameter in combined period: ${parameter}`);
+                      value = 0;
+                  }
             return sum + value;
           }, 0);
       }, 0);
@@ -1103,7 +1066,9 @@ const TeamReportCompare: React.FC = () => {
           case 'Funding Cost': value = item.funding_cost || 0; break;
           case 'Leave Encashment': value = item.leave_encashment || 0; break;
           case 'HC': value = item.hc || 0; break;
-          default: value = 0;
+          default: 
+            console.warn(`🔍 Unknown parameter: ${parameter}`);
+            value = 0;
         }
         return sum + value;
       }, 0);
@@ -1111,7 +1076,16 @@ const TeamReportCompare: React.FC = () => {
 
   // Calculate comparison data when selections change
   useEffect(() => {
-    if (selectedParameters.length === 0 || comparisonValues.every(v => !v)) return;
+    console.log("🔍 Calculating comparison data...");
+    console.log("🔍 selectedParameters:", selectedParameters);
+    console.log("🔍 comparisonValues:", comparisonValues);
+    console.log("🔍 data length:", data.length);
+    console.log("🔍 compareType:", compareType);
+    
+    if (selectedParameters.length === 0 || comparisonValues.every(v => !v)) {
+      console.log("🔍 No parameters or comparison values selected, skipping calculation");
+      return;
+    }
 
     const getPeriodAmountForParameter = (periodValue: string | null, index: number, parameter: string): number => {
       if (!periodValue) return 0;
@@ -1120,28 +1094,40 @@ const TeamReportCompare: React.FC = () => {
       // No need for complex calculations since we have direct percentage fields
       
       // For regular parameters, use the base function
-      return getBaseParameterValue(periodValue, index, parameter);
+      const value = getBaseParameterValue(periodValue, index, parameter);
+      console.log(`🔍 Parameter ${parameter} for period ${periodValue}: ${value}`);
+      return value;
     };
     
     // Create data structure for multiple parameters
     const periods = comparisonValues.filter(Boolean);
+    console.log("🔍 Valid periods:", periods);
+    
     const newComparisonData = periods.map((periodValue, index) => {
       const dataPoint: any = { period: periodValue as string };
       
       // Add amount for each parameter
       selectedParameters.forEach(parameter => {
-        dataPoint[parameter] = getPeriodAmountForParameter(periodValue, index, parameter);
+        const value = getPeriodAmountForParameter(periodValue, index, parameter);
+        dataPoint[parameter] = value;
+        console.log(`🔍 Added ${parameter}: ${value} to period ${periodValue}`);
       });
       
       return dataPoint;
     });
 
+    console.log("🔍 Final comparison data:", newComparisonData);
     setComparisonData(newComparisonData);
   }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, selectedParameters, combinedPeriods]);
 
   // Calculate growth analysis when selections change
   useEffect(() => {
+    console.log("🔍 Calculating growth analysis...");
+    console.log("🔍 comparisonValues:", comparisonValues);
+    console.log("🔍 data length:", data.length);
+    
     if (comparisonValues.filter(Boolean).length < 2) {
+      console.log("🔍 Not enough periods for growth analysis, skipping");
       setGrowthAnalysis([]);
       return;
     }
@@ -2158,53 +2144,11 @@ const TeamReportCompare: React.FC = () => {
       </Select>
     </div>
 
-    {/* Debug and Sample Data Buttons */}
+    {/* Status Message */}
     <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      <Button
-        type="default"
-        onClick={testAPIConnection}
-        style={{ 
-          backgroundColor: '#52c41a',
-          borderColor: '#52c41a',
-          color: 'white'
-        }}
-      >
-        Test API Connection
-      </Button>
-      
-      <Button
-        type="default"
-        onClick={() => {
-          console.log("🔍 Current state debug:");
-          console.log("🔍 businessUnits:", businessUnits);
-          console.log("🔍 selectedBusinessUnit:", selectedBusinessUnit);
-          console.log("🔍 API Base URL:", process.env.REACT_APP_API_URL || 'http://40.67.147.19');
-        }}
-        style={{ 
-          backgroundColor: '#faad14',
-          borderColor: '#faad14',
-          color: 'white'
-        }}
-      >
-        Debug State
-      </Button>
-      
-      {businessUnits.length === 0 && (
-        <Button
-          type="primary"
-          onClick={createSampleData}
-          style={{ 
-            backgroundColor: '#1890ff',
-            borderColor: '#1890ff'
-          }}
-        >
-          Create Sample Data
-        </Button>
-      )}
-      
       <span style={{ color: '#666666', fontSize: '12px' }}>
         {businessUnits.length === 0 
-          ? "No business units found. Use buttons above to test connection or create sample data."
+          ? "No business units found. Use 'Download Template' to get the correct Excel format."
           : `${businessUnits.length} business units loaded: ${businessUnits.join(', ')}`
         }
       </span>
