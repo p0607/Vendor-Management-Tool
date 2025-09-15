@@ -592,32 +592,40 @@ const chartData = metricFields.map(({ field, label }) => {
 
 
 
-  // Calculate date-based summaries for pivot table
+  // Calculate date-based summaries for pivot table - SIMPLIFIED
   const calculateDatePivotSummaries = (): DatePivotSummary[] => {
     const dateMap = new Map<string, DatePivotSummary>();
 
+    // Debug: Log some billing month values to understand the data
+    console.log('=== DEBUG: Billing Month Data ===');
+    const sampleData = filteredData.slice(0, 5).map(item => ({
+      billingMonth: item['Billing Month'],
+      alchemyBilling: item['Alchemy Billing Value'],
+      dateGroup: getDateGroupFromBillingMonth(item['Billing Month'] || '', pivotDateType)
+    }));
+    console.log('Sample billing month data:', sampleData);
 
     filteredData.forEach(item => {
-      // Use Billing Month as primary date field for date pivot view
+      // Use Billing Month ONLY for date grouping
       const billingMonthStr = item['Billing Month'] || '';
-      
-      
       const dateGroup = getDateGroupFromBillingMonth(billingMonthStr, pivotDateType);
       
+      // Simple number conversion function
       const toNumber = (value: any): number => {
         if (typeof value === 'number') return value;
-        const strValue = String(value || '0')
-          .replace(/[^\d.-]/g, '')
-          .replace(/,/g, '');
+        if (!value || value === '') return 0;
+        const strValue = String(value).replace(/[^\d.-]/g, '').replace(/,/g, '');
         return parseFloat(strValue) || 0;
       };
 
+      // Get all values for this item
       const charges = toNumber(item['Integrator Charges (Margin)']);
       const billing = toNumber(item['Alchemy Billing Value']);
       const funding = toNumber(item['Funding cost']);
       const margin = toNumber(item['Net Margin']);
       const vendorInvoice = toNumber(item['Vendor Inv. Amount']);
 
+      // Initialize date group if not exists
       if (!dateMap.has(dateGroup)) {
         dateMap.set(dateGroup, {
           dateGroup,
@@ -629,6 +637,7 @@ const chartData = metricFields.map(({ field, label }) => {
         });
       }
 
+      // Add values to date group
       const dateData = dateMap.get(dateGroup)!;
       dateData.integratorCharges += charges;
       dateData.alchemyBilling += billing;
@@ -636,6 +645,11 @@ const chartData = metricFields.map(({ field, label }) => {
       dateData.netMargin += margin;
       dateData.vendorInvoiceAmount += vendorInvoice;
     });
+
+    // Debug: Log the final date groups
+    console.log('=== DEBUG: Final Date Groups ===');
+    console.log('Date groups found:', Array.from(dateMap.keys()));
+    console.log('Date group values:', Array.from(dateMap.values()));
 
     return Array.from(dateMap.values()).sort((a, b) => {
       // Sort by date group (chronological order)
@@ -721,30 +735,25 @@ const chartData = metricFields.map(({ field, label }) => {
     }>();
     
     filteredData.forEach(item => {
-      // Use Billing Month to determine the month/quarter/year grouping
+      // Use Billing Month ONLY for date grouping (same logic as date pivot)
       const billingMonthStr = item['Billing Month'] || '';
-      let dateGroup = 'Unknown Date';
+      const dateGroup = getDateGroupFromBillingMonth(billingMonthStr, 'month'); // Always use month format
       
-      if (billingMonthStr) {
-        try {
-          const date = parseBillingMonth(billingMonthStr);
-          if (date) {
-            // Format as "MMM YYYY" (e.g., "Aug 2024")
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const month = monthNames[date.getMonth()];
-            const year = date.getFullYear();
-            dateGroup = `${month} ${year}`;
-          }
-        } catch (error) {
-          console.error('Error parsing billing month:', billingMonthStr, error);
-        }
-      }
+      // Simple number conversion function (same as date pivot)
+      const toNumber = (value: any): number => {
+        if (typeof value === 'number') return value;
+        if (!value || value === '') return 0;
+        const strValue = String(value).replace(/[^\d.-]/g, '').replace(/,/g, '');
+        return parseFloat(strValue) || 0;
+      };
+
+      // Get all values for this item (same as date pivot)
+      const alchemyBilling = toNumber(item['Alchemy Billing Value']);
+      const integratorCharges = toNumber(item['Integrator Charges (Margin)']);
+      const fundingCost = toNumber(item['Funding cost']);
+      const netMargin = toNumber(item['Net Margin']);
       
-      const alchemyBilling = parseFloat(String(item['Alchemy Billing Value'] || '0').replace(/[^\d.-]/g, '').replace(/,/g, '')) || 0;
-      const integratorCharges = parseFloat(String(item['Integrator Charges (Margin)'] || '0').replace(/[^\d.-]/g, '').replace(/,/g, '')) || 0;
-      const fundingCost = parseFloat(String(item['Funding cost'] || '0').replace(/[^\d.-]/g, '').replace(/,/g, '')) || 0;
-      const netMargin = parseFloat(String(item['Net Margin'] || '0').replace(/[^\d.-]/g, '').replace(/,/g, '')) || 0;
-      
+      // Initialize monthly group if not exists
       if (!monthlyMap.has(dateGroup)) {
         monthlyMap.set(dateGroup, {
           alchemyBilling: 0,
@@ -754,6 +763,7 @@ const chartData = metricFields.map(({ field, label }) => {
         });
       }
       
+      // Add values to monthly group
       const monthData = monthlyMap.get(dateGroup)!;
       monthData.alchemyBilling += alchemyBilling;
       monthData.integratorCharges += integratorCharges;
