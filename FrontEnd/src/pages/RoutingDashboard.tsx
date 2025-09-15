@@ -130,8 +130,15 @@ const RoutingDashboard: React.FC = () => {
       
       // Proper Excel serial number to JavaScript Date conversion
       // Excel's date system: January 1, 1900 = serial number 1
+      // Excel has a leap year bug - it thinks 1900 is a leap year
+      // So we need to adjust for serial numbers > 59 (after Feb 29, 1900)
+      let adjustedSerial = serialNumber;
+      if (serialNumber > 59) {
+        adjustedSerial = serialNumber - 1;
+      }
+      
       const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
-      const date = new Date(excelEpoch.getTime() + serialNumber * 24 * 60 * 60 * 1000);
+      const date = new Date(excelEpoch.getTime() + adjustedSerial * 24 * 60 * 60 * 1000);
       
       return date;
     }
@@ -596,15 +603,6 @@ const chartData = metricFields.map(({ field, label }) => {
   const calculateDatePivotSummaries = (): DatePivotSummary[] => {
     const dateMap = new Map<string, DatePivotSummary>();
 
-    // Debug: Log some billing month values to understand the data
-    console.log('=== DEBUG: Billing Month Data ===');
-    const sampleData = filteredData.slice(0, 5).map(item => ({
-      billingMonth: item['Billing Month'],
-      alchemyBilling: item['Alchemy Billing Value'],
-      dateGroup: getDateGroupFromBillingMonth(item['Billing Month'] || '', pivotDateType)
-    }));
-    console.log('Sample billing month data:', sampleData);
-
     filteredData.forEach(item => {
       // Use Billing Month ONLY for date grouping
       const billingMonthStr = item['Billing Month'] || '';
@@ -645,11 +643,6 @@ const chartData = metricFields.map(({ field, label }) => {
       dateData.netMargin += margin;
       dateData.vendorInvoiceAmount += vendorInvoice;
     });
-
-    // Debug: Log the final date groups
-    console.log('=== DEBUG: Final Date Groups ===');
-    console.log('Date groups found:', Array.from(dateMap.keys()));
-    console.log('Date group values:', Array.from(dateMap.values()));
 
     return Array.from(dateMap.values()).sort((a, b) => {
       // Sort by date group (chronological order)
