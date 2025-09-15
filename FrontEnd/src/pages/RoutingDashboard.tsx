@@ -599,14 +599,31 @@ const chartData = metricFields.map(({ field, label }) => {
 
 
 
-  // Calculate date-based summaries for pivot table - SIMPLIFIED
+  // Calculate date-based summaries for pivot table - ULTRA SIMPLIFIED
   const calculateDatePivotSummaries = (): DatePivotSummary[] => {
-    const dateMap = new Map<string, DatePivotSummary>();
+    const monthMap = new Map<string, DatePivotSummary>();
 
     filteredData.forEach(item => {
-      // Use Billing Month ONLY for date grouping
+      // Get billing month value directly
       const billingMonthStr = item['Billing Month'] || '';
-      const dateGroup = getDateGroupFromBillingMonth(billingMonthStr, pivotDateType);
+      
+      // Convert Excel serial number to simple month-year format
+      let monthLabel = 'Unknown';
+      if (billingMonthStr) {
+        const date = parseBillingMonth(billingMonthStr);
+        if (date) {
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const month = date.getMonth(); // 0-11
+          const year = date.getFullYear();
+          monthLabel = `${monthNames[month]} ${year}`;
+          
+          // Debug: Log first few conversions
+          if (Math.random() < 0.01) { // Log 1% of records
+            console.log(`DEBUG: "${billingMonthStr}" -> ${date.toDateString()} -> "${monthLabel}"`);
+          }
+        }
+      }
       
       // Simple number conversion function
       const toNumber = (value: any): number => {
@@ -623,10 +640,10 @@ const chartData = metricFields.map(({ field, label }) => {
       const margin = toNumber(item['Net Margin']);
       const vendorInvoice = toNumber(item['Vendor Inv. Amount']);
 
-      // Initialize date group if not exists
-      if (!dateMap.has(dateGroup)) {
-        dateMap.set(dateGroup, {
-          dateGroup,
+      // Initialize month group if not exists
+      if (!monthMap.has(monthLabel)) {
+        monthMap.set(monthLabel, {
+          dateGroup: monthLabel,
           integratorCharges: 0,
           alchemyBilling: 0,
           fundingCost: 0,
@@ -635,16 +652,16 @@ const chartData = metricFields.map(({ field, label }) => {
         });
       }
 
-      // Add values to date group
-      const dateData = dateMap.get(dateGroup)!;
-      dateData.integratorCharges += charges;
-      dateData.alchemyBilling += billing;
-      dateData.fundingCost += funding;
-      dateData.netMargin += margin;
-      dateData.vendorInvoiceAmount += vendorInvoice;
+      // Add values to month group
+      const monthData = monthMap.get(monthLabel)!;
+      monthData.integratorCharges += charges;
+      monthData.alchemyBilling += billing;
+      monthData.fundingCost += funding;
+      monthData.netMargin += margin;
+      monthData.vendorInvoiceAmount += vendorInvoice;
     });
 
-    return Array.from(dateMap.values()).sort((a, b) => {
+    return Array.from(monthMap.values()).sort((a, b) => {
       // Sort by date group (chronological order)
       const parseDateGroup = (dateGroup: string): Date => {
         // Handle different date group formats
@@ -728,9 +745,21 @@ const chartData = metricFields.map(({ field, label }) => {
     }>();
     
     filteredData.forEach(item => {
-      // Use Billing Month ONLY for date grouping (same logic as date pivot)
+      // Get billing month value directly (same as date pivot)
       const billingMonthStr = item['Billing Month'] || '';
-      const dateGroup = getDateGroupFromBillingMonth(billingMonthStr, 'month'); // Always use month format
+      
+      // Convert Excel serial number to simple month-year format (same as date pivot)
+      let monthLabel = 'Unknown';
+      if (billingMonthStr) {
+        const date = parseBillingMonth(billingMonthStr);
+        if (date) {
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const month = date.getMonth(); // 0-11
+          const year = date.getFullYear();
+          monthLabel = `${monthNames[month]} ${year}`;
+        }
+      }
       
       // Simple number conversion function (same as date pivot)
       const toNumber = (value: any): number => {
@@ -747,8 +776,8 @@ const chartData = metricFields.map(({ field, label }) => {
       const netMargin = toNumber(item['Net Margin']);
       
       // Initialize monthly group if not exists
-      if (!monthlyMap.has(dateGroup)) {
-        monthlyMap.set(dateGroup, {
+      if (!monthlyMap.has(monthLabel)) {
+        monthlyMap.set(monthLabel, {
           alchemyBilling: 0,
           integratorCharges: 0,
           fundingCost: 0,
@@ -757,7 +786,7 @@ const chartData = metricFields.map(({ field, label }) => {
       }
       
       // Add values to monthly group
-      const monthData = monthlyMap.get(dateGroup)!;
+      const monthData = monthlyMap.get(monthLabel)!;
       monthData.alchemyBilling += alchemyBilling;
       monthData.integratorCharges += integratorCharges;
       monthData.fundingCost += fundingCost;
