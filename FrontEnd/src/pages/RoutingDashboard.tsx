@@ -118,6 +118,38 @@ const RoutingDashboard: React.FC = () => {
     };
   }, []);
 
+  // Helper function to parse billing month from MMM-YY format
+  const parseBillingMonth = (billingMonthStr: string): Date | null => {
+    if (!billingMonthStr || billingMonthStr === 'N/A' || billingMonthStr === '') {
+      return null;
+    }
+    
+    // Handle MMM-YY format (e.g., "Sep-24", "Aug-24")
+    if (billingMonthStr.includes('-') && billingMonthStr.length === 6) {
+      const [monthStr, yearStr] = billingMonthStr.split('-');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthIndex = monthNames.indexOf(monthStr);
+      
+      if (monthIndex !== -1 && yearStr) {
+        const year = 2000 + parseInt(yearStr, 10);
+        return new Date(year, monthIndex, 1);
+      }
+    }
+    
+    // Handle other date formats as fallback
+    try {
+      const date = new Date(billingMonthStr);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    } catch (error) {
+      // Ignore parsing errors
+    }
+    
+    return null;
+  };
+
   // Helper function to get date group based on pivot type
   const getDateGroup = (dateStr: string, type: 'month' | 'quarter' | 'year'): string => {
     if (!dateStr) return 'Unknown Date';
@@ -160,6 +192,14 @@ const RoutingDashboard: React.FC = () => {
     } catch (error) {
       return 'Invalid Date';
     }
+  };
+
+  // Helper function to get date group from billing month
+  const getDateGroupFromBillingMonth = (billingMonthStr: string, type: 'month' | 'quarter' | 'year'): string => {
+    const date = parseBillingMonth(billingMonthStr);
+    if (!date) return 'Unknown Date';
+    
+    return getDateGroup(date.toISOString().split('T')[0], type);
   };
 
 
@@ -270,15 +310,15 @@ function formatClosingDate(closingDate: string): string {
       (item['Vendor Details'] && String(item['Vendor Details']).toLowerCase().includes(vendorDetailsLower));
 
       const hasBillingDateMatch = !billingDateLower || 
-        (item['Costing Date'] && String(item['Costing Date']).toLowerCase().includes(billingDateLower));
+        (item['Billing Month'] && String(item['Billing Month']).toLowerCase().includes(billingDateLower));
 
-      // Date filters
+      // Date filters - now using Billing Month instead of Costing Date
        let hasDateMatch = true;
-    const itemDateStr = item['Costing Date'];
-     if (itemDateStr) {
-      // Parse the date string (assuming format is YYYY-MM-DD)
-      const itemDate = new Date(itemDateStr);
-      if (isNaN(itemDate.getTime())) {
+    const itemBillingMonth = item['Billing Month'];
+     if (itemBillingMonth) {
+      // Parse the billing month string (MMM-YY format)
+      const itemDate = parseBillingMonth(itemBillingMonth);
+      if (!itemDate) {
         hasDateMatch = false;
       } else {
         const itemYear = itemDate.getFullYear().toString();
@@ -536,9 +576,9 @@ const chartData = metricFields.map(({ field, label }) => {
 
 
     filteredData.forEach(item => {
-      // Use Costing Date as primary date field, fallback to other date fields
-      const dateStr = item['Costing Date'] || item['IBM / KYNDRYL PO Date'] || item['Vendor_PO_Date'] || '';
-      const dateGroup = getDateGroup(dateStr, pivotDateType);
+      // Use Billing Month as primary date field for date pivot view
+      const billingMonthStr = item['Billing Month'] || '';
+      const dateGroup = getDateGroupFromBillingMonth(billingMonthStr, pivotDateType);
       
       const toNumber = (value: any): number => {
         if (typeof value === 'number') return value;
@@ -647,7 +687,7 @@ const chartData = metricFields.map(({ field, label }) => {
     })).sort((a, b) => b.sum - a.sum); // Sort by sum descending
   };
 
-  // Calculate monthly billing data for bar chart based on Costing Date
+  // Calculate monthly billing data for bar chart based on Billing Month
   const calculateMonthlyBillingData = () => {
     const monthlyMap = new Map<string, {
       alchemyBilling: number;
@@ -657,14 +697,14 @@ const chartData = metricFields.map(({ field, label }) => {
     }>();
     
     filteredData.forEach(item => {
-      // Use Costing Date to determine the month/quarter/year grouping
-      const costingDateStr = item['Costing Date'] || '';
+      // Use Billing Month to determine the month/quarter/year grouping
+      const billingMonthStr = item['Billing Month'] || '';
       let dateGroup = 'Unknown Date';
       
-      if (costingDateStr) {
+      if (billingMonthStr) {
         try {
-          const date = new Date(costingDateStr);
-          if (!isNaN(date.getTime())) {
+          const date = parseBillingMonth(billingMonthStr);
+          if (date) {
             // Format as "MMM YYYY" (e.g., "Aug 2024")
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const month = monthNames[date.getMonth()];
@@ -672,7 +712,7 @@ const chartData = metricFields.map(({ field, label }) => {
             dateGroup = `${month} ${year}`;
           }
         } catch (error) {
-          console.error('Error parsing costing date:', costingDateStr, error);
+          console.error('Error parsing billing month:', billingMonthStr, error);
         }
       }
       
@@ -1148,11 +1188,11 @@ const chartData = metricFields.map(({ field, label }) => {
     {vendorDetailsFilter && (
       <span>Vendor Details: <strong>{vendorDetailsFilter}</strong></span>
     )}
-    {/* Costing Date range filter display */}
+    {/* Billing Month range filter display */}
     {dateFilterType === 'dateRange' && (startDate || endDate) && (
   <>
     {vendorDetailsFilter ? <span> | </span> : null}
-    <span>Costing Date Range: 
+    <span>Billing Month Range: 
                       <strong>{startDate ? ` ${formatDateToDDMMYYYY(startDate.toISOString())}` : ''}</strong>
       {startDate && endDate ? ' to ' : ''}
               <strong>{endDate ? ` ${formatDateToDDMMYYYY(endDate.toISOString())}` : ''}</strong>
