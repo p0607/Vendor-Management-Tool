@@ -118,10 +118,21 @@ const RoutingDashboard: React.FC = () => {
     };
   }, []);
 
-  // Helper function to parse billing month from MMM-YY format
+  // Helper function to parse billing month from various formats including Excel serial numbers
   const parseBillingMonth = (billingMonthStr: string): Date | null => {
     if (!billingMonthStr || billingMonthStr === 'N/A' || billingMonthStr === '') {
       return null;
+    }
+    
+    // Handle Excel serial numbers (5-digit numbers like 45532, 45535)
+    if (/^\d{5}$/.test(billingMonthStr.trim())) {
+      const serialNumber = parseInt(billingMonthStr, 10);
+      // Excel serial number to JavaScript Date conversion
+      // Excel's epoch is January 1, 1900, but Excel incorrectly treats 1900 as a leap year
+      // So we need to adjust by subtracting 2 days
+      const excelEpoch = new Date(1900, 0, 1); // January 1, 1900
+      const date = new Date(excelEpoch.getTime() + (serialNumber - 2) * 24 * 60 * 60 * 1000);
+      return date;
     }
     
     // Handle MMM-YY format (e.g., "Sep-24", "Aug-24")
@@ -159,7 +170,7 @@ const RoutingDashboard: React.FC = () => {
       if (isNaN(date.getTime())) return 'Invalid Date';
       
       const year = date.getFullYear();
-      const month = date.getMonth() + 1;
+      const month = date.getMonth() + 1; // 1-12
       
       switch (type) {
         case 'year':
@@ -167,18 +178,18 @@ const RoutingDashboard: React.FC = () => {
         case 'quarter':
           // Indian financial year quarters
           let quarter, financialYear;
-          if (month >= 3 && month <= 5) { // April (3)-June (5)
+          if (month >= 4 && month <= 6) { // April (4)-June (6) = Q1
             quarter = 1;
             financialYear = year;
-          } else if (month >= 6 && month <= 8) { // July (6)-Sept (8)
+          } else if (month >= 7 && month <= 9) { // July (7)-Sept (9) = Q2
             quarter = 2;
             financialYear = year;
-          } else if (month >= 9 && month <= 11) { // Oct (9)-Dec (11)
+          } else if (month >= 10 && month <= 12) { // Oct (10)-Dec (12) = Q3
             quarter = 3;
             financialYear = year;
-          } else { // Jan (0)-Mar (2)
+          } else { // Jan (1)-Mar (3) = Q4
             quarter = 4;
-            financialYear = year - 1; // Q4 belongs to previous financial year
+            financialYear = year - 1; // Q4 belongs to previous financial year (Jan-Mar 2025 = Q4 2024)
           }
           return `Q${quarter} ${financialYear}`;
         case 'month':
@@ -399,7 +410,8 @@ function formatClosingDate(closingDate: string): string {
             
             // For Q4, check if it's in the current year or next year
             if (startQuarter === 'Q4') {
-              if (itemYear < startY || (itemYear === startY && itemMonth < startQ.start)) {
+              const nextStartY = startY + 1;
+              if (itemYear < nextStartY || (itemYear === nextStartY && itemMonth < startQ.start)) {
                 hasDateMatch = false;
               }
             } else {
