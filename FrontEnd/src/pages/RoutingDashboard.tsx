@@ -1366,20 +1366,20 @@ const chartData = metricFields.map(({ field, label }) => {
                 {datePivotSummaries.map((summary, index) => (
                   <tr key={index}>
                     <td>{summary.dateGroup}</td>
-                    <td>₹{summary.alchemyBilling.toLocaleString()}</td>
-                    <td>₹{summary.vendorInvoiceAmount.toLocaleString()}</td>
-                    <td>₹{summary.integratorCharges.toLocaleString()}</td>
-                    <td>₹{summary.fundingCost.toLocaleString()}</td>
-                    <td>₹{summary.netMargin.toLocaleString()}</td>
+                    <td>{summary.alchemyBilling.toLocaleString()}</td>
+                    <td>{summary.vendorInvoiceAmount.toLocaleString()}</td>
+                    <td>{summary.integratorCharges.toLocaleString()}</td>
+                    <td>{summary.fundingCost.toLocaleString()}</td>
+                    <td>{summary.netMargin.toLocaleString()}</td>
                   </tr>
                 ))}
                 <tr className="grand-total">
                   <td><strong>Grand Total</strong></td>
-                  <td>₹{datePivotGrandTotals.alchemyBilling.toLocaleString()}</td>
-                  <td>₹{datePivotGrandTotals.vendorInvoiceAmount.toLocaleString()}</td>
-                  <td>₹{datePivotGrandTotals.integratorCharges.toLocaleString()}</td>
-                  <td>₹{datePivotGrandTotals.fundingCost.toLocaleString()}</td>
-                  <td>₹{datePivotGrandTotals.netMargin.toLocaleString()}</td>
+                  <td>{datePivotGrandTotals.alchemyBilling.toLocaleString()}</td>
+                  <td>{datePivotGrandTotals.vendorInvoiceAmount.toLocaleString()}</td>
+                  <td>{datePivotGrandTotals.integratorCharges.toLocaleString()}</td>
+                  <td>{datePivotGrandTotals.fundingCost.toLocaleString()}</td>
+                  <td>{datePivotGrandTotals.netMargin.toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>
