@@ -599,28 +599,37 @@ const chartData = metricFields.map(({ field, label }) => {
 
 
 
-  // Calculate date-based summaries for pivot table - ULTRA SIMPLIFIED
+  // Calculate date-based summaries for pivot table - EXCEL-LIKE SIMPLE PIVOT
   const calculateDatePivotSummaries = (): DatePivotSummary[] => {
-    const monthMap = new Map<string, DatePivotSummary>();
+    const pivotMap = new Map<string, DatePivotSummary>();
 
     filteredData.forEach(item => {
       // Get billing month value directly
       const billingMonthStr = item['Billing Month'] || '';
       
-      // Convert Excel serial number to simple month-year format
-      let monthLabel = 'Unknown';
+      // Convert to date and get the appropriate group based on pivot type
+      let dateGroup = 'Unknown';
       if (billingMonthStr) {
         const date = parseBillingMonth(billingMonthStr);
         if (date) {
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          const month = date.getMonth(); // 0-11
           const year = date.getFullYear();
-          monthLabel = `${monthNames[month]} ${year}`;
+          const month = date.getMonth() + 1; // 1-12
           
-          // Debug: Log first few conversions
-          if (Math.random() < 0.01) { // Log 1% of records
-            console.log(`DEBUG: "${billingMonthStr}" -> ${date.toDateString()} -> "${monthLabel}"`);
+          switch (pivotDateType) {
+            case 'year':
+              dateGroup = `${year}`;
+              break;
+            case 'quarter':
+              // Simple calendar quarters (not financial year)
+              const quarter = Math.ceil(month / 3);
+              dateGroup = `Q${quarter} ${year}`;
+              break;
+            case 'month':
+            default:
+              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              dateGroup = `${monthNames[month - 1]} ${year}`;
+              break;
           }
         }
       }
@@ -640,10 +649,10 @@ const chartData = metricFields.map(({ field, label }) => {
       const margin = toNumber(item['Net Margin']);
       const vendorInvoice = toNumber(item['Vendor Inv. Amount']);
 
-      // Initialize month group if not exists
-      if (!monthMap.has(monthLabel)) {
-        monthMap.set(monthLabel, {
-          dateGroup: monthLabel,
+      // Initialize date group if not exists
+      if (!pivotMap.has(dateGroup)) {
+        pivotMap.set(dateGroup, {
+          dateGroup: dateGroup,
           integratorCharges: 0,
           alchemyBilling: 0,
           fundingCost: 0,
@@ -652,36 +661,35 @@ const chartData = metricFields.map(({ field, label }) => {
         });
       }
 
-      // Add values to month group
-      const monthData = monthMap.get(monthLabel)!;
-      monthData.integratorCharges += charges;
-      monthData.alchemyBilling += billing;
-      monthData.fundingCost += funding;
-      monthData.netMargin += margin;
-      monthData.vendorInvoiceAmount += vendorInvoice;
+      // Add values to date group
+      const groupData = pivotMap.get(dateGroup)!;
+      groupData.integratorCharges += charges;
+      groupData.alchemyBilling += billing;
+      groupData.fundingCost += funding;
+      groupData.netMargin += margin;
+      groupData.vendorInvoiceAmount += vendorInvoice;
     });
 
-    return Array.from(monthMap.values()).sort((a, b) => {
+    return Array.from(pivotMap.values()).sort((a, b) => {
       // Sort by date group (chronological order)
       const parseDateGroup = (dateGroup: string): Date => {
         // Handle different date group formats
         if (dateGroup.includes('Q')) {
-          // Quarter format: "Q1 2024" - Indian financial year quarters
+          // Quarter format: "Q1 2024" - Simple calendar quarters
           const [quarter, year] = dateGroup.split(' ');
           const quarterNum = parseInt(quarter.replace('Q', ''));
           const yearNum = parseInt(year);
           
-          // Convert Indian financial year quarter to month
+          // Convert calendar quarter to month (Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec)
           let month: number;
           if (quarterNum === 1) {
-            month = 3; // April (Q1)
+            month = 0; // January (Q1)
           } else if (quarterNum === 2) {
-            month = 6; // July (Q2)
+            month = 3; // April (Q2)
           } else if (quarterNum === 3) {
-            month = 9; // October (Q3)
+            month = 6; // July (Q3)
           } else if (quarterNum === 4) {
-            month = 0; // January (Q4) - next calendar year
-            return new Date(yearNum + 1, month, 1);
+            month = 9; // October (Q4)
           } else {
             // Default fallback
             month = 0;
@@ -748,16 +756,16 @@ const chartData = metricFields.map(({ field, label }) => {
       // Get billing month value directly (same as date pivot)
       const billingMonthStr = item['Billing Month'] || '';
       
-      // Convert Excel serial number to simple month-year format (same as date pivot)
+      // Convert Excel serial number to month format (same as date pivot)
       let monthLabel = 'Unknown';
       if (billingMonthStr) {
         const date = parseBillingMonth(billingMonthStr);
         if (date) {
+          const year = date.getFullYear();
+          const month = date.getMonth() + 1; // 1-12
           const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          const month = date.getMonth(); // 0-11
-          const year = date.getFullYear();
-          monthLabel = `${monthNames[month]} ${year}`;
+          monthLabel = `${monthNames[month - 1]} ${year}`;
         }
       }
       
