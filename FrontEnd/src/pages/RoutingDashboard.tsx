@@ -124,18 +124,19 @@ const RoutingDashboard: React.FC = () => {
       return null;
     }
     
-    // Handle Excel serial numbers (5-digit numbers like 45532, 45535)
+    // Handle Excel serial numbers (5-digit numbers like 45532, 45535) - for existing data
     if (/^\d{5}$/.test(billingMonthStr.trim())) {
       const serialNumber = parseInt(billingMonthStr, 10);
-      // Excel serial number to JavaScript Date conversion
-      // Excel's epoch is January 1, 1900, but Excel incorrectly treats 1900 as a leap year
-      // So we need to adjust by subtracting 2 days
-      const excelEpoch = new Date(1900, 0, 1); // January 1, 1900
-      const date = new Date(excelEpoch.getTime() + (serialNumber - 2) * 24 * 60 * 60 * 1000);
+      
+      // Proper Excel serial number to JavaScript Date conversion
+      // Excel's date system: January 1, 1900 = serial number 1
+      const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+      const date = new Date(excelEpoch.getTime() + serialNumber * 24 * 60 * 60 * 1000);
+      
       return date;
     }
     
-    // Handle MMM-YY format (e.g., "Sep-24", "Aug-24")
+    // Handle MMM-YY format (e.g., "Sep-24", "Aug-24") - for existing data
     if (billingMonthStr.includes('-') && billingMonthStr.length === 6) {
       const [monthStr, yearStr] = billingMonthStr.split('-');
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
@@ -145,6 +146,14 @@ const RoutingDashboard: React.FC = () => {
       if (monthIndex !== -1 && yearStr) {
         const year = 2000 + parseInt(yearStr, 10);
         return new Date(year, monthIndex, 1);
+      }
+    }
+    
+    // Handle YYYY-MM-DD format (for new data from backend)
+    if (billingMonthStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const date = new Date(billingMonthStr);
+      if (!isNaN(date.getTime())) {
+        return date;
       }
     }
     
@@ -212,6 +221,7 @@ const RoutingDashboard: React.FC = () => {
     
     return getDateGroup(date.toISOString().split('T')[0], type);
   };
+
 
 
 
@@ -590,6 +600,8 @@ const chartData = metricFields.map(({ field, label }) => {
     filteredData.forEach(item => {
       // Use Billing Month as primary date field for date pivot view
       const billingMonthStr = item['Billing Month'] || '';
+      
+      
       const dateGroup = getDateGroupFromBillingMonth(billingMonthStr, pivotDateType);
       
       const toNumber = (value: any): number => {

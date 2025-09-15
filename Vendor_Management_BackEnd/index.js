@@ -564,6 +564,49 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
       }
       return parseFloat(value);
     };
+
+    // Specialized function to validate and convert billing month
+    const validateBillingMonth = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') {
+        return null;
+      }
+      
+      // Handle MMM-YY format (e.g., "Sep-24", "Jan-25")
+      if (typeof value === 'string' && /^[A-Za-z]{3}-\d{2}$/.test(value)) {
+        const [monthStr, yearStr] = value.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
+        
+        if (monthIndex !== -1) {
+          // Convert 2-digit year to 4-digit year
+          const fullYear = 2000 + parseInt(yearStr);
+          const date = new Date(fullYear, monthIndex, 1); // First day of the month
+          return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+        }
+      }
+      
+      // Handle Excel serial numbers (5-digit numbers like 45532, 45565)
+      if (!isNaN(value) && value > 1000 && value < 100000) {
+        // Excel serial number conversion
+        const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+        const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+        
+        if (!isNaN(date.getTime())) {
+          // Return the first day of the month in YYYY-MM-DD format
+          const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+          return firstDayOfMonth.toISOString().split('T')[0];
+        }
+      }
+      
+      // Try standard date parsing and convert to first day of month
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        return firstDayOfMonth.toISOString().split('T')[0];
+      }
+      
+      return null;
+    };
     
     const result = await executeQuery(
       `INSERT INTO "Alchemy_Routing" (
@@ -589,7 +632,7 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         routingData['IBM / KYNDRYL PO No'] || null, validateDateField(routingData['IBM / KYNDRYL PO Date']),
         validateNumericField(routingData['IBM / KYNDRYL PO Value']), validateNumericField(routingData['Integration %']),
         validateNumericField(routingData['Integrator Charges (Margin)']), validateNumericField(routingData['Alchemy Billing Value']),
-        validateNumericField(routingData['Funding cost']), validateNumericField(routingData['Net Margin']), routingData['Billing Month'] || null,
+        validateNumericField(routingData['Funding cost']), validateNumericField(routingData['Net Margin']), validateBillingMonth(routingData['Billing Month']),
         routingData["Payment Day's"] || null, routingData['Vendor Details'] || null, routingData['Vendor SPOC'] || null,
         routingData['Vendor SPOC Contact No'] || null, routingData['Vendor SPOC E-mail ID'] || null,
         validateDateField(routingData['Training Dates']), routingData['Vendor Inv. No.'] || null, validateDateField(routingData['Vendor Inv. Date']),
@@ -646,9 +689,58 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
     const { id } = req.params;
     const updates = req.body;
     
+    // Specialized function to validate and convert billing month
+    const validateBillingMonth = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') {
+        return null;
+      }
+      
+      // Handle MMM-YY format (e.g., "Sep-24", "Jan-25")
+      if (typeof value === 'string' && /^[A-Za-z]{3}-\d{2}$/.test(value)) {
+        const [monthStr, yearStr] = value.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
+        
+        if (monthIndex !== -1) {
+          // Convert 2-digit year to 4-digit year
+          const fullYear = 2000 + parseInt(yearStr);
+          const date = new Date(fullYear, monthIndex, 1); // First day of the month
+          return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+        }
+      }
+      
+      // Handle Excel serial numbers (5-digit numbers like 45532, 45565)
+      if (!isNaN(value) && value > 1000 && value < 100000) {
+        // Excel serial number conversion
+        const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+        const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+        
+        if (!isNaN(date.getTime())) {
+          // Return the first day of the month in YYYY-MM-DD format
+          const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+          return firstDayOfMonth.toISOString().split('T')[0];
+        }
+      }
+      
+      // Try standard date parsing and convert to first day of month
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        return firstDayOfMonth.toISOString().split('T')[0];
+      }
+      
+      return null;
+    };
+    
+    // Process updates to validate billing month if present
+    const processedUpdates = { ...updates };
+    if (processedUpdates['Billing Month']) {
+      processedUpdates['Billing Month'] = validateBillingMonth(processedUpdates['Billing Month']);
+    }
+    
     // Build dynamic update query
-    const fields = Object.keys(updates);
-    const values = Object.values(updates);
+    const fields = Object.keys(processedUpdates);
+    const values = Object.values(processedUpdates);
     
     if (fields.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
