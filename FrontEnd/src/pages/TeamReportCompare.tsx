@@ -67,7 +67,26 @@ type CompareType = "year" | "quarter" | "month";
 const TeamReportCompare: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
+  
+  // Clear URL parameters immediately to prevent them from overriding defaults
+  const currentUrl = new URL(window.location.href);
+  const paramsToRemove = ['compareType', 'selectedParameters', 'chartType', 'defaultFinancialYear'];
+  
+  paramsToRemove.forEach(param => {
+    if (currentUrl.searchParams.has(param)) {
+      console.log(`🔍 Removing URL parameter: ${param}=${currentUrl.searchParams.get(param)}`);
+      currentUrl.searchParams.delete(param);
+    }
+  });
+  
+  // Update URL without the problematic parameters
+  if (paramsToRemove.some(param => window.location.search.includes(param))) {
+    window.history.replaceState({}, '', currentUrl.toString());
+    console.log("🔍 URL cleaned, parameters removed");
+  }
+  
+  // Create queryParams from the cleaned URL
+  const queryParams = new URLSearchParams(currentUrl.search);
   
 
   // Helper function to get current financial year quarters
@@ -221,7 +240,7 @@ const TeamReportCompare: React.FC = () => {
         NP: calculateParameterKPI('np'),
         HC: calculateParameterKPI('hc'),
         'Salary Cost': calculateParameterKPI('salary_cost'),
-        'OPR Cost': calculateParameterKPI('opr_cost'),
+        'Opr Cost': calculateParameterKPI('opr_cost'),
         'Funding Cost': calculateParameterKPI('funding_cost'),
         'Leave Encashment': calculateParameterKPI('leave_encashment')
       };
@@ -325,7 +344,7 @@ const TeamReportCompare: React.FC = () => {
       NP: calculateParameterKPI('np'),
       HC: calculateParameterKPI('hc'),
       'Salary Cost': calculateParameterKPI('salary_cost'),
-      'OPR Cost': calculateParameterKPI('opr_cost'),
+      'Opr Cost': calculateParameterKPI('opr_cost'),
       'Funding Cost': calculateParameterKPI('funding_cost'),
       'Leave Encashment': calculateParameterKPI('leave_encashment')
     };
@@ -1060,25 +1079,8 @@ const TeamReportCompare: React.FC = () => {
   };
 
   // Fetch data with business unit filter
-  // Clear URL parameters and log initial state
+  // Log initial state for debugging
   useEffect(() => {
-    // Clear URL parameters that override our defaults
-    const currentUrl = new URL(window.location.href);
-    const paramsToRemove = ['compareType', 'selectedParameters', 'chartType', 'defaultFinancialYear'];
-    
-    paramsToRemove.forEach(param => {
-      if (currentUrl.searchParams.has(param)) {
-        console.log(`🔍 Removing URL parameter: ${param}=${currentUrl.searchParams.get(param)}`);
-        currentUrl.searchParams.delete(param);
-      }
-    });
-    
-    // Update URL without the problematic parameters
-    if (paramsToRemove.some(param => window.location.search.includes(param))) {
-      window.history.replaceState({}, '', currentUrl.toString());
-      console.log("🔍 URL cleaned, parameters removed");
-    }
-    
     console.log("🔍 Component mounted with forced defaults:");
     console.log("🔍 compareType:", compareType);
     console.log("🔍 selectedParameters:", selectedParameters);
@@ -1621,18 +1623,18 @@ const TeamReportCompare: React.FC = () => {
       // Map parameter names to KPI keys
       let kpiKey = '';
       switch (parameter) {
-        case 'Sales': kpiKey = 'sales'; break;
-        case 'GPM': kpiKey = 'gpm'; break;
-        case 'GPM %': kpiKey = 'gpm'; break; // Use same data for percentage
-        case 'NP': kpiKey = 'np'; break;
-        case 'NP %': kpiKey = 'np'; break; // Use same data for percentage
-        case 'Team Cost': kpiKey = 'team_cost'; break;
-        case 'Salary Cost': kpiKey = 'salary_cost'; break;
-        case 'Opr Cost': kpiKey = 'opr_cost'; break;
-        case 'Funding Cost': kpiKey = 'funding_cost'; break;
-        case 'Leave Encashment': kpiKey = 'leave_encashment'; break;
-        case 'HC': kpiKey = 'hc'; break;
-        default: kpiKey = parameter.toLowerCase().replace(/\s+/g, '_'); break;
+        case 'Sales': kpiKey = 'Sales'; break;
+        case 'GPM': kpiKey = 'GPM'; break;
+        case 'GPM %': kpiKey = 'GPM'; break; // Use same data for percentage
+        case 'NP': kpiKey = 'NP'; break;
+        case 'NP %': kpiKey = 'NP'; break; // Use same data for percentage
+        case 'Team Cost': kpiKey = 'Team Cost'; break;
+        case 'Salary Cost': kpiKey = 'Salary Cost'; break;
+        case 'Opr Cost': kpiKey = 'Opr Cost'; break;
+        case 'Funding Cost': kpiKey = 'Funding Cost'; break;
+        case 'Leave Encashment': kpiKey = 'Leave Encashment'; break;
+        case 'HC': kpiKey = 'HC'; break;
+        default: kpiKey = parameter; break;
       }
       
       const kpi = kpiData[kpiKey];
@@ -1770,7 +1772,7 @@ const TeamReportCompare: React.FC = () => {
 
   // Render comparison chart
   useEffect(() => {
-    if (comparisonData.length === 0 || selectedParameters.length === 0) return;
+    if (growthAnalysis.length === 0 || selectedParameters.length === 0) return;
     
     // Add a small delay to ensure DOM is ready
     const timer = setTimeout(() => {
@@ -1987,11 +1989,17 @@ const TeamReportCompare: React.FC = () => {
       chart.appear(1000, 100);
 
       // Set data for all series
-      // Use growth data instead of raw comparison data
-      const growthData = calculateGrowthData();
-      xAxis.data.setAll(growthData);
+      // Use growth analysis data from KPI calculations
+      const chartData = growthAnalysis.map(item => ({
+        period: item.parameter,
+        value: item.changes[0]?.percentageChange || 0,
+        isPositive: item.changes[0]?.isPositive || true
+      }));
+      
+      console.log("🔍 Chart data for x-axis:", chartData);
+      xAxis.data.setAll(chartData);
       chart.series.values.forEach(series => {
-        series.data.setAll(growthData);
+        series.data.setAll(chartData);
       });
     }, 100); // 100ms delay
 
@@ -2001,7 +2009,7 @@ const TeamReportCompare: React.FC = () => {
         if (root && root.dom && root.dom.id === "comparisonChart") root.dispose();
       });
     };
-  }, [comparisonData, selectedParameters, chartType]);
+  }, [growthAnalysis, selectedParameters, chartType]);
 
   // Render Profit Bridge and Trend Charts
   useEffect(() => {
@@ -3654,32 +3662,12 @@ const TeamReportCompare: React.FC = () => {
           }}>
             {(() => {
               // Calculate KPIs from the latest period independently of selected parameters
-              const latestPeriodValue = comparisonValues[comparisonValues.length - 1];
-              console.log("🔍 KPI Cards - Latest Period Value:", latestPeriodValue);
-              
-              if (!latestPeriodValue) {
-                console.log("🔍 KPI Cards - No latest period found");
-                return null;
-              }
+              // Use the KPI calculation function for consistent year-based data
+              const kpiData = calculateKPIs();
+              console.log("🔍 KPI Cards - Using KPI calculation data:", kpiData);
 
-              // Calculate all parameters for the latest period independently
-              const sales = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Sales') || 
-                           getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'SALES') || 0;
-              const salaryCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Salary Cost') || 0;
-              const gpm = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'GPM') || 0;
-              const oprCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Opr Cost') || 0;
-              const teamCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Team Cost') || 0;
-              const fundingCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Funding Cost') || 0;
-              const leaveEncashment = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Leave Encashment') || 0;
-              const np = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'NP') || 0;
-              
-              console.log("🔍 KPI Cards - Calculated Values:", {
-                sales, salaryCost, gpm, oprCost, teamCost, fundingCost, leaveEncashment, np
-              });
-
-              // If no data available, show a message
-              if (sales === 0 && gpm === 0 && np === 0) {
-                console.log("🔍 KPI Cards - No data available");
+              if (!kpiData || Object.keys(kpiData).length === 0) {
+                console.log("🔍 KPI Cards - No KPI data available");
                 return (
                   <div style={{
                     gridColumn: '1 / -1',
@@ -3697,77 +3685,305 @@ const TeamReportCompare: React.FC = () => {
                 );
               }
 
-              const gpmPercentage = sales > 0 ? (gpm / sales) * 100 : 0;
-              const npPercentage = sales > 0 ? (np / sales) * 100 : 0;
-              const salaryPercentage = sales > 0 ? (salaryCost / sales) * 100 : 0;
-              const oprPercentage = sales > 0 ? (oprCost / sales) * 100 : 0;
+              // Get the main KPI data
+              const salesKPI = kpiData['Sales'];
+              const gpmKPI = kpiData['GPM'];
+              const npKPI = kpiData['NP'];
+              const teamCostKPI = kpiData['Team Cost'];
 
               return (
                 <>
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: 8,
-                    padding: 16,
-                    border: '1px solid #d9d9d9',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>Total Sales</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: '#000000' }}>
-                      ₹{sales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  {/* Sales KPI Card */}
+                  {salesKPI && (
+                    <div style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: 8,
+                      padding: 16,
+                      border: '1px solid #d9d9d9',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ 
+                        backgroundColor: '#000000', 
+                        color: '#ffffff', 
+                        padding: '4px 8px', 
+                        borderRadius: 4, 
+                        fontSize: 12, 
+                        marginBottom: 8,
+                        display: 'inline-block'
+                      }}>
+                        Sales
+                        <div style={{ 
+                          width: 8, 
+                          height: 8, 
+                          borderRadius: '50%', 
+                          backgroundColor: salesKPI.isPositive ? '#4ade80' : '#f87171',
+                          display: 'inline-block',
+                          marginLeft: 8
+                        }} />
+                      </div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#000000', marginBottom: 8 }}>
+                        ₹{(salesKPI.currentFY / 100000).toFixed(1)}L
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
+                        {salesKPI.period}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 8 }}>
+                        vs {salesKPI.period.split(' vs ')[1]}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
+                        ₹{(salesKPI.previousFY / 100000).toFixed(1)}L
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 4
+                      }}>
+                        <div>
+                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Change in Value</div>
+                          <div style={{ 
+                            color: salesKPI.isPositive ? '#4ade80' : '#f87171',
+                            fontSize: 13,
+                            fontWeight: 600
+                          }}>
+                            {salesKPI.isPositive ? '+' : ''}₹{((salesKPI.currentFY - salesKPI.previousFY) / 100000).toFixed(1)}L
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Growth/Decline</div>
+                          <div style={{ 
+                            color: salesKPI.isPositive ? '#4ade80' : '#f87171',
+                            fontSize: 13,
+                            fontWeight: 600
+                          }}>
+                            {salesKPI.isPositive ? '+' : ''}{salesKPI.growthPercentage.toFixed(1)}%
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#666666' }}>
+                        {salesKPI.monthsCompleted}/12 months
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: 8,
-                    padding: 16,
-                    border: '1px solid #d9d9d9',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>GPM %</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: gpmPercentage >= 0 ? '#4ade80' : '#f87171' }}>
-                      {gpmPercentage.toFixed(2)}%
+                  )}
+
+                  {/* GPM KPI Card */}
+                  {gpmKPI && (
+                    <div style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: 8,
+                      padding: 16,
+                      border: '1px solid #d9d9d9',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ 
+                        backgroundColor: '#000000', 
+                        color: '#ffffff', 
+                        padding: '4px 8px', 
+                        borderRadius: 4, 
+                        fontSize: 12, 
+                        marginBottom: 8,
+                        display: 'inline-block'
+                      }}>
+                        GPM
+                        <div style={{ 
+                          width: 8, 
+                          height: 8, 
+                          borderRadius: '50%', 
+                          backgroundColor: gpmKPI.isPositive ? '#4ade80' : '#f87171',
+                          display: 'inline-block',
+                          marginLeft: 8
+                        }} />
+                      </div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#000000', marginBottom: 8 }}>
+                        ₹{(gpmKPI.currentFY / 100000).toFixed(1)}L
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
+                        {gpmKPI.period}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 8 }}>
+                        vs {gpmKPI.period.split(' vs ')[1]}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
+                        ₹{(gpmKPI.previousFY / 100000).toFixed(1)}L
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 4
+                      }}>
+                        <div>
+                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Change in Value</div>
+                          <div style={{ 
+                            color: gpmKPI.isPositive ? '#4ade80' : '#f87171',
+                            fontSize: 13,
+                            fontWeight: 600
+                          }}>
+                            {gpmKPI.isPositive ? '+' : ''}₹{((gpmKPI.currentFY - gpmKPI.previousFY) / 100000).toFixed(1)}L
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Growth/Decline</div>
+                          <div style={{ 
+                            color: gpmKPI.isPositive ? '#4ade80' : '#f87171',
+                            fontSize: 13,
+                            fontWeight: 600
+                          }}>
+                            {gpmKPI.isPositive ? '+' : ''}{gpmKPI.growthPercentage.toFixed(1)}%
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#666666' }}>
+                        {gpmKPI.monthsCompleted}/12 months
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: 8,
-                    padding: 16,
-                    border: '1px solid #d9d9d9',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>NP %</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: npPercentage >= 0 ? '#4ade80' : '#f87171' }}>
-                      {npPercentage.toFixed(2)}%
+                  )}
+
+                  {/* NP KPI Card */}
+                  {npKPI && (
+                    <div style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: 8,
+                      padding: 16,
+                      border: '1px solid #d9d9d9',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ 
+                        backgroundColor: '#000000', 
+                        color: '#ffffff', 
+                        padding: '4px 8px', 
+                        borderRadius: 4, 
+                        fontSize: 12, 
+                        marginBottom: 8,
+                        display: 'inline-block'
+                      }}>
+                        NP
+                        <div style={{ 
+                          width: 8, 
+                          height: 8, 
+                          borderRadius: '50%', 
+                          backgroundColor: npKPI.isPositive ? '#4ade80' : '#f87171',
+                          display: 'inline-block',
+                          marginLeft: 8
+                        }} />
+                      </div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#000000', marginBottom: 8 }}>
+                        ₹{(npKPI.currentFY / 100000).toFixed(1)}L
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
+                        {npKPI.period}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 8 }}>
+                        vs {npKPI.period.split(' vs ')[1]}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
+                        ₹{(npKPI.previousFY / 100000).toFixed(1)}L
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 4
+                      }}>
+                        <div>
+                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Change in Value</div>
+                          <div style={{ 
+                            color: npKPI.isPositive ? '#4ade80' : '#f87171',
+                            fontSize: 13,
+                            fontWeight: 600
+                          }}>
+                            {npKPI.isPositive ? '+' : ''}₹{((npKPI.currentFY - npKPI.previousFY) / 100000).toFixed(1)}L
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Growth/Decline</div>
+                          <div style={{ 
+                            color: npKPI.isPositive ? '#4ade80' : '#f87171',
+                            fontSize: 13,
+                            fontWeight: 600
+                          }}>
+                            {npKPI.isPositive ? '+' : ''}{npKPI.growthPercentage.toFixed(1)}%
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#666666' }}>
+                        {npKPI.monthsCompleted}/12 months
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: 8,
-                    padding: 16,
-                    border: '1px solid #d9d9d9',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>Salary % of Sales</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: '#000000' }}>
-                      {salaryPercentage.toFixed(2)}%
+                  )}
+
+                  {/* Team Cost KPI Card */}
+                  {teamCostKPI && (
+                    <div style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: 8,
+                      padding: 16,
+                      border: '1px solid #d9d9d9',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ 
+                        backgroundColor: '#000000', 
+                        color: '#ffffff', 
+                        padding: '4px 8px', 
+                        borderRadius: 4, 
+                        fontSize: 12, 
+                        marginBottom: 8,
+                        display: 'inline-block'
+                      }}>
+                        Team Cost
+                        <div style={{ 
+                          width: 8, 
+                          height: 8, 
+                          borderRadius: '50%', 
+                          backgroundColor: teamCostKPI.isPositive ? '#4ade80' : '#f87171',
+                          display: 'inline-block',
+                          marginLeft: 8
+                        }} />
+                      </div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#000000', marginBottom: 8 }}>
+                        ₹{(teamCostKPI.currentFY / 100000).toFixed(1)}L
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
+                        {teamCostKPI.period}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 8 }}>
+                        vs {teamCostKPI.period.split(' vs ')[1]}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
+                        ₹{(teamCostKPI.previousFY / 100000).toFixed(1)}L
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 4
+                      }}>
+                        <div>
+                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Change in Value</div>
+                          <div style={{ 
+                            color: teamCostKPI.isPositive ? '#4ade80' : '#f87171',
+                            fontSize: 13,
+                            fontWeight: 600
+                          }}>
+                            {teamCostKPI.isPositive ? '+' : ''}₹{((teamCostKPI.currentFY - teamCostKPI.previousFY) / 100000).toFixed(1)}L
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Growth/Decline</div>
+                          <div style={{ 
+                            color: teamCostKPI.isPositive ? '#4ade80' : '#f87171',
+                            fontSize: 13,
+                            fontWeight: 600
+                          }}>
+                            {teamCostKPI.isPositive ? '+' : ''}{teamCostKPI.growthPercentage.toFixed(1)}%
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#666666' }}>
+                        {teamCostKPI.monthsCompleted}/12 months
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: 8,
-                    padding: 16,
-                    border: '1px solid #d9d9d9',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>Opr % of Sales</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: '#000000' }}>
-                      {oprPercentage.toFixed(2)}%
-                    </div>
-                  </div>
+                  )}
                 </>
               );
             })()}
