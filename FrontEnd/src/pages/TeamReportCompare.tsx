@@ -287,6 +287,16 @@ const TeamReportCompare: React.FC = () => {
         const lastMonthValue = lastMonthData[parameter] || 0;
         // Multiply last month's value by remaining months
         currentFYProjected = currentFYActual + (lastMonthValue * monthsRemaining);
+        
+        console.log(`🔍 KPI Calculation for ${parameter}:`, {
+          currentFY,
+          monthsCompleted,
+          monthsRemaining,
+          currentFYActual,
+          lastMonthValue,
+          currentFYProjected,
+          projectionFormula: `${currentFYActual} + (${lastMonthValue} × ${monthsRemaining})`
+        });
       }
 
       // Calculate previous FY total
@@ -335,9 +345,12 @@ const TeamReportCompare: React.FC = () => {
     (queryParams.get('compareType') as CompareType) || "year"
   );
   const [comparisonValues, setComparisonValues] = useState<(string | null)[]>(() => {
-    // Set default to current financial year quarters if coming from MFS button
+    // Always default to year comparison unless explicitly set to quarter
+    const compareTypeFromURL = queryParams.get('compareType');
     const defaultFinancialYear = queryParams.get('defaultFinancialYear');
-    if (defaultFinancialYear && compareType === "quarter") {
+    
+    // Only use quarter defaults if explicitly set to quarter in URL
+    if (compareTypeFromURL === "quarter" && defaultFinancialYear) {
       const financialYear = parseInt(defaultFinancialYear);
       return [
         `Q1(Apr-Jun) ${financialYear}`,
@@ -347,14 +360,10 @@ const TeamReportCompare: React.FC = () => {
       ];
     }
     
-    // Set default to current and previous financial years for year comparison
-    if (compareType === "year") {
-      const currentFY = getCurrentFinancialYear();
-      const previousFY = currentFY - 1;
-      return [`FY ${currentFY}`, `FY ${previousFY}`];
-    }
-    
-    return [null, null];
+    // Default to year comparison
+    const currentFY = getCurrentFinancialYear();
+    const previousFY = currentFY - 1;
+    return [`FY ${currentFY}`, `FY ${previousFY}`];
   });
   const [combinedPeriods, setCombinedPeriods] = useState<CombinedPeriod[]>([]);
   const [showCombinedModal, setShowCombinedModal] = useState<number | null>(null);
@@ -1067,6 +1076,15 @@ const TeamReportCompare: React.FC = () => {
   };
 
   // Fetch data with business unit filter
+  // Ensure default year comparison is set on mount
+  useEffect(() => {
+    if (compareType === "year" && (!comparisonValues[0] || !comparisonValues[1])) {
+      const currentFY = getCurrentFinancialYear();
+      const previousFY = currentFY - 1;
+      setComparisonValues([`FY ${currentFY}`, `FY ${previousFY}`]);
+    }
+  }, [compareType]);
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -1600,6 +1618,13 @@ const TeamReportCompare: React.FC = () => {
   const calculateGrowthData = () => {
     if (comparisonData.length === 0 || selectedParameters.length === 0) return [];
     
+    console.log("🔍 calculateGrowthData called with:", {
+      comparisonData,
+      selectedParameters,
+      compareType,
+      comparisonValues
+    });
+    
     return comparisonData.map(periodData => {
       const growthData: any = { period: periodData.period };
       
@@ -1628,6 +1653,13 @@ const TeamReportCompare: React.FC = () => {
             const currentYear = comparisonValues[0];
             const previousYear = comparisonValues[1];
             
+            console.log(`🔍 Year comparison for ${parameter}:`, {
+              currentYear,
+              previousYear,
+              currentValue,
+              periodData
+            });
+            
             if (currentYear && previousYear) {
               // Find previous year data
               const previousPeriodData = comparisonData.find(p => p.period === previousYear);
@@ -1636,6 +1668,12 @@ const TeamReportCompare: React.FC = () => {
               const growthPercentage = previousValue > 0 
                 ? ((currentValue - previousValue) / previousValue) * 100 
                 : 0;
+              
+              console.log(`🔍 Growth calculation for ${parameter}:`, {
+                currentValue,
+                previousValue,
+                growthPercentage
+              });
               
               growthData[parameter] = growthPercentage;
             }
