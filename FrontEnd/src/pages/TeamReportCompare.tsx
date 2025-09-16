@@ -342,37 +342,16 @@ const TeamReportCompare: React.FC = () => {
   const [filteredClientNames, setFilteredClientNames] = useState<string[]>([]);
   const [buHeads, setBUHeads] = useState<string[]>([]);
   const [compareType, setCompareType] = useState<CompareType>(() => {
-    const urlCompareType = queryParams.get('compareType') as CompareType;
-    console.log("🔍 URL compareType:", urlCompareType);
-    console.log("🔍 Setting compareType to:", urlCompareType || "year");
-    return urlCompareType || "year";
+    // Force year comparison regardless of URL
+    console.log("🔍 Force setting compareType to: year");
+    return "year";
   });
   const [comparisonValues, setComparisonValues] = useState<(string | null)[]>(() => {
-    // Always default to year comparison unless explicitly set to quarter
-    const compareTypeFromURL = queryParams.get('compareType');
-    const defaultFinancialYear = queryParams.get('defaultFinancialYear');
-    
-    console.log("🔍 URL compareTypeFromURL:", compareTypeFromURL);
-    console.log("🔍 URL defaultFinancialYear:", defaultFinancialYear);
-    
-    // Only use quarter defaults if explicitly set to quarter in URL
-    if (compareTypeFromURL === "quarter" && defaultFinancialYear) {
-      const financialYear = parseInt(defaultFinancialYear);
-      const quarterValues = [
-        `Q1(Apr-Jun) ${financialYear}`,
-        `Q2(Jul-Sep) ${financialYear}`,
-        `Q3(Oct-Dec) ${financialYear}`,
-        `Q4(Jan-Mar) ${financialYear}` // Q4 belongs to same financial year but next calendar year
-      ];
-      console.log("🔍 Using quarter defaults:", quarterValues);
-      return quarterValues;
-    }
-    
-    // Default to year comparison
+    // Force year comparison values
     const currentFY = getCurrentFinancialYear();
     const previousFY = currentFY - 1;
     const yearValues = [`FY ${currentFY}`, `FY ${previousFY}`];
-    console.log("🔍 Using year defaults:", yearValues);
+    console.log("🔍 Force using year defaults:", yearValues);
     return yearValues;
   });
   const [combinedPeriods, setCombinedPeriods] = useState<CombinedPeriod[]>([]);
@@ -381,27 +360,15 @@ const TeamReportCompare: React.FC = () => {
   const [data, setData] = useState<ReportData[]>([]);
   const [availableOptions, setAvailableOptions] = useState<string[]>([]);
   const [selectedParameters, setSelectedParameters] = useState<string[]>(() => {
-    // Set default parameters from URL or use Sales, GPM, NP, Team Cost
-    const paramsFromURL = queryParams.get('selectedParameters');
-    console.log("🔍 URL selectedParameters:", paramsFromURL);
-    if (paramsFromURL) {
-      try {
-        const decoded = decodeURIComponent(paramsFromURL).split(',');
-        console.log("🔍 Decoded parameters:", decoded);
-        return decoded;
-      } catch (error) {
-        console.warn('Failed to decode URL parameters, using defaults:', error);
-        return ['Sales', 'GPM', 'NP', 'Team Cost'];
-      }
-    }
-    console.log("🔍 Using default parameters: Sales, GPM, NP, Team Cost");
-    return ['Sales', 'GPM', 'NP', 'Team Cost'];
+    // Force default parameters
+    const defaultParams = ['Sales', 'GPM', 'NP', 'Team Cost'];
+    console.log("🔍 Force using default parameters:", defaultParams);
+    return defaultParams;
   });
   const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(() => {
-    const urlChartType = queryParams.get('chartType') as 'bar' | 'line' | 'combo';
-    console.log("🔍 URL chartType:", urlChartType);
-    console.log("🔍 Setting chartType to:", urlChartType || 'line');
-    return urlChartType || 'line';
+    // Force line chart
+    console.log("🔍 Force setting chartType to: line");
+    return 'line';
   });
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
   const [showAllKPIs, setShowAllKPIs] = useState(false);
@@ -1093,42 +1060,30 @@ const TeamReportCompare: React.FC = () => {
   };
 
   // Fetch data with business unit filter
-  // Force correct defaults on mount
+  // Clear URL parameters and log initial state
   useEffect(() => {
-    console.log("🔍 Component mounted, checking defaults...");
-    console.log("🔍 Current compareType:", compareType);
-    console.log("🔍 Current selectedParameters:", selectedParameters);
-    console.log("🔍 Current chartType:", chartType);
-    console.log("🔍 Current comparisonValues:", comparisonValues);
+    // Clear URL parameters that override our defaults
+    const currentUrl = new URL(window.location.href);
+    const paramsToRemove = ['compareType', 'selectedParameters', 'chartType', 'defaultFinancialYear'];
     
-    // Force year comparison if not already set
-    if (compareType !== "year") {
-      console.log("🔍 Forcing compareType to year");
-      setCompareType("year");
+    paramsToRemove.forEach(param => {
+      if (currentUrl.searchParams.has(param)) {
+        console.log(`🔍 Removing URL parameter: ${param}=${currentUrl.searchParams.get(param)}`);
+        currentUrl.searchParams.delete(param);
+      }
+    });
+    
+    // Update URL without the problematic parameters
+    if (paramsToRemove.some(param => window.location.search.includes(param))) {
+      window.history.replaceState({}, '', currentUrl.toString());
+      console.log("🔍 URL cleaned, parameters removed");
     }
     
-    // Force correct parameters if not already set
-    const expectedParams = ['Sales', 'GPM', 'NP', 'Team Cost'];
-    if (JSON.stringify(selectedParameters.sort()) !== JSON.stringify(expectedParams.sort())) {
-      console.log("🔍 Forcing selectedParameters to:", expectedParams);
-      setSelectedParameters(expectedParams);
-    }
-    
-    // Force line chart if not already set
-    if (chartType !== "line") {
-      console.log("🔍 Forcing chartType to line");
-      setChartType("line");
-    }
-    
-    // Force year comparison values if not already set
-    if (compareType === "year" && (!comparisonValues[0] || !comparisonValues[1] || 
-        !comparisonValues[0]?.includes('FY') || !comparisonValues[1]?.includes('FY'))) {
-      const currentFY = getCurrentFinancialYear();
-      const previousFY = currentFY - 1;
-      const yearValues = [`FY ${currentFY}`, `FY ${previousFY}`];
-      console.log("🔍 Forcing comparisonValues to:", yearValues);
-      setComparisonValues(yearValues);
-    }
+    console.log("🔍 Component mounted with forced defaults:");
+    console.log("🔍 compareType:", compareType);
+    console.log("🔍 selectedParameters:", selectedParameters);
+    console.log("🔍 chartType:", chartType);
+    console.log("🔍 comparisonValues:", comparisonValues);
   }, []); // Run only on mount
 
   useEffect(() => {
@@ -1657,8 +1612,74 @@ const TeamReportCompare: React.FC = () => {
       }).filter(item => item.periodValues.length > 0);
     };
 
-    setGrowthAnalysis(calculateGrowth());
-  }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, availableParameters, combinedPeriods]);
+    // Use KPI calculation data for chart to ensure consistency
+    const kpiData = calculateKPIs();
+    console.log("🔍 KPI Data for chart:", kpiData);
+
+    // Convert KPI data to chart format for selected parameters only
+    const chartData = selectedParameters.map(parameter => {
+      // Map parameter names to KPI keys
+      let kpiKey = '';
+      switch (parameter) {
+        case 'Sales': kpiKey = 'sales'; break;
+        case 'GPM': kpiKey = 'gpm'; break;
+        case 'GPM %': kpiKey = 'gpm'; break; // Use same data for percentage
+        case 'NP': kpiKey = 'np'; break;
+        case 'NP %': kpiKey = 'np'; break; // Use same data for percentage
+        case 'Team Cost': kpiKey = 'team_cost'; break;
+        case 'Salary Cost': kpiKey = 'salary_cost'; break;
+        case 'Opr Cost': kpiKey = 'opr_cost'; break;
+        case 'Funding Cost': kpiKey = 'funding_cost'; break;
+        case 'Leave Encashment': kpiKey = 'leave_encashment'; break;
+        case 'HC': kpiKey = 'hc'; break;
+        default: kpiKey = parameter.toLowerCase().replace(/\s+/g, '_'); break;
+      }
+      
+      const kpi = kpiData[kpiKey];
+      
+      if (kpi) {
+        console.log(`🔍 Chart data for ${parameter}:`, {
+          currentValue: kpi.currentFY,
+          previousValue: kpi.previousFY,
+          growthPercentage: kpi.growthPercentage
+        });
+        
+        return {
+          parameter,
+          periodValues: [
+            { period: comparisonValues[0] || 'Current', amount: kpi.currentFY },
+            { period: comparisonValues[1] || 'Previous', amount: kpi.previousFY }
+          ],
+          changes: [{
+            fromPeriod: comparisonValues[1] || 'Previous',
+            toPeriod: comparisonValues[0] || 'Current',
+            absoluteChange: kpi.currentFY - kpi.previousFY,
+            percentageChange: kpi.growthPercentage,
+            isPositive: kpi.isPositive
+          }]
+        };
+      }
+      
+      console.log(`🔍 No KPI data found for ${parameter} (key: ${kpiKey})`);
+      return {
+        parameter,
+        periodValues: [
+          { period: comparisonValues[0] || 'Current', amount: 0 },
+          { period: comparisonValues[1] || 'Previous', amount: 0 }
+        ],
+        changes: [{
+          fromPeriod: comparisonValues[1] || 'Previous',
+          toPeriod: comparisonValues[0] || 'Current',
+          absoluteChange: 0,
+          percentageChange: 0,
+          isPositive: true
+        }]
+      };
+    });
+
+    console.log("🔍 Final chart data from KPI calculations:", chartData);
+    setGrowthAnalysis(chartData);
+  }, [selectedParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
 
   // Calculate growth percentages for chart data
   const calculateGrowthData = () => {
