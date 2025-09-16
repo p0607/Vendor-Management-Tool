@@ -321,10 +321,19 @@ const TeamReportCompare: React.FC = () => {
       // Calculate previous FY total
       const previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
 
-      // Calculate growth percentage
-      const growthPercentage = previousFYTotal > 0 
-        ? ((currentFYProjected - previousFYTotal) / previousFYTotal) * 100 
+      // Calculate growth percentage (previous - current) / current * 100
+      const growthPercentage = currentFYProjected > 0 
+        ? ((previousFYTotal - currentFYProjected) / currentFYProjected) * 100 
         : 0;
+
+      console.log(`🔍 KPI Calculation for ${parameter}:`, {
+        currentFY,
+        previousFY,
+        currentFYProjected,
+        previousFYTotal,
+        growthPercentage,
+        calculation: `(${previousFYTotal} - ${currentFYProjected}) / ${currentFYProjected} * 100 = ${growthPercentage}%`
+      });
 
       return {
         currentFY: currentFYProjected,
