@@ -228,8 +228,18 @@ const TeamReportCompare: React.FC = () => {
     }
 
     // Default financial year calculation
-    const currentFY = getCurrentFinancialYear();
-    const previousFY = currentFY - 1;
+    let currentFY = getCurrentFinancialYear();
+    let previousFY = currentFY - 1;
+    
+    // If we have comparison values set, use them
+    if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
+      const currentFYMatch = comparisonValues[0].match(/FY (\d{4})/);
+      const previousFYMatch = comparisonValues[1].match(/FY (\d{4})/);
+      
+      if (currentFYMatch) currentFY = parseInt(currentFYMatch[1]);
+      if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
+    }
+    
     const monthsCompleted = getMonthsCompletedInCurrentFY();
     const monthsRemaining = 12 - monthsCompleted;
 
@@ -267,8 +277,16 @@ const TeamReportCompare: React.FC = () => {
       // If we have data for current FY, project it for remaining months
       let currentFYProjected = currentFYActual;
       if (currentFYData.length > 0 && monthsRemaining > 0) {
-        const avgMonthlyValue = currentFYActual / monthsCompleted;
-        currentFYProjected = currentFYActual + (avgMonthlyValue * monthsRemaining);
+        // Find the last available month's data
+        const lastMonthData = currentFYData.reduce((latest, item) => {
+          const itemDate = new Date(item.month);
+          const latestDate = new Date(latest.month);
+          return itemDate > latestDate ? item : latest;
+        });
+        
+        const lastMonthValue = lastMonthData[parameter] || 0;
+        // Multiply last month's value by remaining months
+        currentFYProjected = currentFYActual + (lastMonthValue * monthsRemaining);
       }
 
       // Calculate previous FY total
@@ -314,7 +332,7 @@ const TeamReportCompare: React.FC = () => {
   const [filteredClientNames, setFilteredClientNames] = useState<string[]>([]);
   const [buHeads, setBUHeads] = useState<string[]>([]);
   const [compareType, setCompareType] = useState<CompareType>(
-    (queryParams.get('compareType') as CompareType) || "quarter"
+    (queryParams.get('compareType') as CompareType) || "year"
   );
   const [comparisonValues, setComparisonValues] = useState<(string | null)[]>(() => {
     // Set default to current financial year quarters if coming from MFS button
@@ -328,6 +346,14 @@ const TeamReportCompare: React.FC = () => {
         `Q4(Jan-Mar) ${financialYear}` // Q4 belongs to same financial year but next calendar year
       ];
     }
+    
+    // Set default to current and previous financial years for year comparison
+    if (compareType === "year") {
+      const currentFY = getCurrentFinancialYear();
+      const previousFY = currentFY - 1;
+      return [`FY ${currentFY}`, `FY ${previousFY}`];
+    }
+    
     return [null, null];
   });
   const [combinedPeriods, setCombinedPeriods] = useState<CombinedPeriod[]>([]);
@@ -336,20 +362,20 @@ const TeamReportCompare: React.FC = () => {
   const [data, setData] = useState<ReportData[]>([]);
   const [availableOptions, setAvailableOptions] = useState<string[]>([]);
   const [selectedParameters, setSelectedParameters] = useState<string[]>(() => {
-    // Set default parameters from URL or use GPM% and Net Margin%
+    // Set default parameters from URL or use Sales, GPM, NP, Team Cost
     const paramsFromURL = queryParams.get('selectedParameters');
     if (paramsFromURL) {
       try {
         return decodeURIComponent(paramsFromURL).split(',');
       } catch (error) {
         console.warn('Failed to decode URL parameters, using defaults:', error);
-        return ['GPM %', 'NP %'];
+        return ['Sales', 'GPM', 'NP', 'Team Cost'];
       }
     }
-    return ['GPM %', 'NP %'];
+    return ['Sales', 'GPM', 'NP', 'Team Cost'];
   });
   const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(
-    (queryParams.get('chartType') as 'bar' | 'line' | 'combo') || 'bar'
+    (queryParams.get('chartType') as 'bar' | 'line' | 'combo') || 'line'
   );
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
   const [showAllKPIs, setShowAllKPIs] = useState(false);
@@ -1597,21 +1623,39 @@ const TeamReportCompare: React.FC = () => {
             growthData[parameter] = growthPercentage;
           }
         } else {
-          // For year comparison, calculate growth from previous year
-          const currentYear = new Date().getFullYear();
-          const previousYear = currentYear - 1;
-          
-          // Find previous year data
-          const previousPeriodData = comparisonData.find(p => 
-            p.period.includes(previousYear.toString())
-          );
-          const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
-          
-          const growthPercentage = previousValue > 0 
-            ? ((currentValue - previousValue) / previousValue) * 100 
-            : 0;
-          
-          growthData[parameter] = growthPercentage;
+          // For year comparison, use the selected comparison values
+          if (compareType === 'year' && comparisonValues.length >= 2) {
+            const currentYear = comparisonValues[0];
+            const previousYear = comparisonValues[1];
+            
+            if (currentYear && previousYear) {
+              // Find previous year data
+              const previousPeriodData = comparisonData.find(p => p.period === previousYear);
+              const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
+              
+              const growthPercentage = previousValue > 0 
+                ? ((currentValue - previousValue) / previousValue) * 100 
+                : 0;
+              
+              growthData[parameter] = growthPercentage;
+            }
+          } else {
+            // Fallback to default year calculation
+            const currentYear = new Date().getFullYear();
+            const previousYear = currentYear - 1;
+            
+            // Find previous year data
+            const previousPeriodData = comparisonData.find(p => 
+              p.period.includes(previousYear.toString())
+            );
+            const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
+            
+            const growthPercentage = previousValue > 0 
+              ? ((currentValue - previousValue) / previousValue) * 100 
+              : 0;
+            
+            growthData[parameter] = growthPercentage;
+          }
         }
       });
       
@@ -2480,150 +2524,185 @@ const TeamReportCompare: React.FC = () => {
       </div>
 
       <div style={{ margin: "6rem 24px 24px 24px" }}>
-  <div style={{ 
-    display: "flex", 
-    gap: 16,
-    alignItems: "center",
-    flexWrap: "wrap"
-  }}>
-    {/* Business Unit Filter */}
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ color: '#000000' }}>Business Unit:</label>
-      <Select
-        value={selectedBusinessUnit || ''}
-        onChange={(value) => setSelectedBusinessUnit(value || null)}
-        style={{ width: 200, marginLeft: 8 }}
-        disabled={isBUHead}
-        allowClear={!isBUHead}
-        showSearch
-        filterOption={(input, option) =>
-          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
-        }
-        optionFilterProp="children"
-      >
-        <Option value="">All Business Units</Option>
-        {businessUnits.map((bu: string) => (
-          <Option key={bu} value={bu}>{bu}</Option>
-        ))}
-        {businessUnits.length === 0 && (
-          <Option value="create_sample" disabled>
-            No data found - Click "Create Sample Data" below
-          </Option>
-        )}
-      </Select>
-    </div>
+        {/* Filters Section */}
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 24,
+          marginBottom: 24,
+          padding: 20,
+          backgroundColor: '#f8f9fa',
+          borderRadius: 8,
+          border: '1px solid #e9ecef'
+        }}>
+          {/* Business Unit Filter */}
+          <div>
+            <div style={{ 
+              color: '#000000', 
+              fontWeight: 600, 
+              marginBottom: 8,
+              fontSize: '14px'
+            }}>
+              Business Unit
+            </div>
+            <Select
+              value={selectedBusinessUnit || ''}
+              onChange={(value) => setSelectedBusinessUnit(value || null)}
+              style={{ width: '100%' }}
+              disabled={isBUHead}
+              allowClear={!isBUHead}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+              }
+              optionFilterProp="children"
+            >
+              <Option value="">All Business Units</Option>
+              {businessUnits.map((bu: string) => (
+                <Option key={bu} value={bu}>{bu}</Option>
+              ))}
+              {businessUnits.length === 0 && (
+                <Option value="create_sample" disabled>
+                  No data found - Click "Create Sample Data" below
+                </Option>
+              )}
+            </Select>
+          </div>
 
-    {/* Client Name / Project Name Filter */}
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ color: '#000000' }}>
-        {selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Project Name:" : "Client Name:"}
-      </label>
-      <AutoComplete
-        value={selectedClientName || ''}
-        onChange={(value) => setSelectedClientName(value || null)}
-        onSearch={handleClientNameSearch}
-        style={{ width: 200, marginLeft: 8 }}
-        placeholder={selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Search projects..." : "Search clients..."}
-        allowClear
-        disabled={!selectedBusinessUnit}
-        options={[
-          { value: '', label: selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "All Projects" : "All Clients" },
-          ...filteredClientNames.map((name: string) => ({
-            value: name,
-            label: name
-          }))
-        ]}
-        filterOption={false}
-      />
-    </div>
+          {/* Client Name / Project Name Filter */}
+          <div>
+            <div style={{ 
+              color: '#000000', 
+              fontWeight: 600, 
+              marginBottom: 8,
+              fontSize: '14px'
+            }}>
+              {selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Project Name" : "Client Name"}
+            </div>
+            <AutoComplete
+              value={selectedClientName || ''}
+              onChange={(value) => setSelectedClientName(value || null)}
+              onSearch={handleClientNameSearch}
+              style={{ width: '100%' }}
+              placeholder={selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Search projects..." : "Search clients..."}
+              allowClear
+              disabled={!selectedBusinessUnit}
+              options={[
+                { value: '', label: selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "All Projects" : "All Clients" },
+                ...filteredClientNames.map((name: string) => ({
+                  value: name,
+                  label: name
+                }))
+              ]}
+              filterOption={false}
+            />
+          </div>
 
-    {/* BU Head Filter */}
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ color: '#000000' }}>BU Head:</label>
-      <Select
-        value={selectedBUHead || ''}
-        onChange={(value) => setSelectedBUHead(value || null)}
-        style={{ width: 200, marginLeft: 8 }}
-        allowClear
-        disabled={!selectedBusinessUnit}
-        showSearch
-        filterOption={(input, option) =>
-          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
-        }
-        optionFilterProp="children"
-      >
-        <Option value="">All BU Heads</Option>
-        {buHeads.map((head: string) => (
-          <Option key={head} value={head}>{head}</Option>
-        ))}
-      </Select>
-    </div>
-    
-    {/* Parameter Selector */}
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ color: '#000000' }}>Compare Parameters:</label>
-      <Select
-        mode="multiple"
-        value={selectedParameters}
-        onChange={(value) => setSelectedParameters(value)}
-        style={{ width: 300, marginLeft: 8 }}
-        placeholder="Select parameters to compare"
-        loading={isLoading}
-        allowClear
-        showSearch
-        filterOption={(input, option) =>
-          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
-        }
-        optionFilterProp="children"
-      >
-        {availableParameters.map((param: string) => (
-          <Option key={param} value={param}>{param}</Option>
-        ))}
-      </Select>
-    </div>
+          {/* BU Head Filter */}
+          <div>
+            <div style={{ 
+              color: '#000000', 
+              fontWeight: 600, 
+              marginBottom: 8,
+              fontSize: '14px'
+            }}>
+              BU Head
+            </div>
+            <Select
+              value={selectedBUHead || ''}
+              onChange={(value) => setSelectedBUHead(value || null)}
+              style={{ width: '100%' }}
+              allowClear
+              disabled={!selectedBusinessUnit}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+              }
+              optionFilterProp="children"
+            >
+              <Option value="">All BU Heads</Option>
+              {buHeads.map((head: string) => (
+                <Option key={head} value={head}>{head}</Option>
+              ))}
+            </Select>
+          </div>
+          
+          {/* Parameter Selector */}
+          <div>
+            <div style={{ 
+              color: '#000000', 
+              fontWeight: 600, 
+              marginBottom: 8,
+              fontSize: '14px'
+            }}>
+              Compare Parameters
+            </div>
+            <Select
+              mode="multiple"
+              value={selectedParameters}
+              onChange={(value) => setSelectedParameters(value)}
+              style={{ width: '100%' }}
+              placeholder="Select parameters to compare"
+              loading={isLoading}
+              allowClear
+              showSearch
+              filterOption={(input, option) =>
+                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+              }
+              optionFilterProp="children"
+            >
+              {availableParameters.map((param: string) => (
+                <Option key={param} value={param}>{param}</Option>
+              ))}
+            </Select>
+          </div>
 
-    {/* Chart Type Selector */}
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ color: '#000000' }}>Chart Type:</label>
-      <Select
-        value={chartType}
-        onChange={(value: 'bar' | 'line' | 'combo') => setChartType(value)}
-        style={{ width: 120, marginLeft: 8 }}
-      >
-        <Option value="bar">Bar Chart</Option>
-        <Option value="line">Line Chart</Option>
-        <Option value="combo">Combo Chart</Option>
-      </Select>
-    </div>
+          {/* Chart Type Selector */}
+          <div>
+            <div style={{ 
+              color: '#000000', 
+              fontWeight: 600, 
+              marginBottom: 8,
+              fontSize: '14px'
+            }}>
+              Chart Type
+            </div>
+            <Select
+              value={chartType}
+              onChange={(value: 'bar' | 'line' | 'combo') => setChartType(value)}
+              style={{ width: '100%' }}
+            >
+              <Option value="bar">Bar Chart</Option>
+              <Option value="line">Line Chart</Option>
+              <Option value="combo">Combo Chart</Option>
+            </Select>
+          </div>
 
-    {/* Compare Type Selector */}
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ color: '#000000' }}>Compare by:</label>
-      <Select
-        value={compareType}
-        onChange={(value: CompareType) => {
-          setCompareType(value);
-          setComparisonValues([null, null]);
-        }}
-        style={{ width: 120, marginLeft: 8 }}
-        disabled={isLoading}
-      >
-        <Option value="year">Year</Option>
-        <Option value="quarter">Quarter</Option>
-        <Option value="month">Month</Option>
-      </Select>
-    </div>
-
-    {/* Status Message */}
-    <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      <span style={{ color: '#666666', fontSize: '12px' }}>
-        {businessUnits.length === 0 
-          ? "No business units found. Use 'Download Template' to get the correct Excel format."
-          : `${businessUnits.length} business units loaded: ${businessUnits.join(', ')}`
-        }
-      </span>
-    </div>
-  </div>
+          {/* Compare Type Selector */}
+          <div>
+            <div style={{ 
+              color: '#000000', 
+              fontWeight: 600, 
+              marginBottom: 8,
+              fontSize: '14px'
+            }}>
+              Compare by
+            </div>
+            <Select
+              value={compareType}
+              onChange={(value: CompareType) => {
+                setCompareType(value);
+                setComparisonValues([null, null]);
+              }}
+              style={{ width: '100%' }}
+              disabled={isLoading}
+            >
+              <Option value="year">Year</Option>
+              <Option value="quarter">Quarter</Option>
+              <Option value="month">Month</Option>
+            </Select>
+          </div>
+        </div>
 
        
          {/* Period Selectors */}
@@ -2802,18 +2881,19 @@ const TeamReportCompare: React.FC = () => {
                         color: '#666666', 
                         fontSize: '12px'
                       }}>
-                        {kpi.period || `FY ${getCurrentFinancialYear()} (Projected)`}
+                        {compareType === 'year' && comparisonValues[0] 
+                          ? `${comparisonValues[0]} (Projected)` 
+                          : kpi.period || `FY ${getCurrentFinancialYear()} (Projected)`
+                        }
                       </div>
                     </div>
                     
                     <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
                       paddingTop: 8,
                       borderTop: '1px solid #f0f0f0'
                     }}>
-                      <div>
+                      {/* Previous Period Value */}
+                      <div style={{ marginBottom: 8 }}>
                         <div style={{ 
                           color: '#666666', 
                           fontSize: '12px',
@@ -2821,6 +2901,8 @@ const TeamReportCompare: React.FC = () => {
                         }}>
                           {compareType === 'quarter' && comparisonValues[1] 
                             ? `vs ${comparisonValues[1]}` 
+                            : compareType === 'year' && comparisonValues[1]
+                            ? `vs ${comparisonValues[1]}`
                             : `vs FY ${getCurrentFinancialYear() - 1}`
                           }
                         </div>
@@ -2832,25 +2914,60 @@ const TeamReportCompare: React.FC = () => {
                           {formatValue(kpi.previousFY)}
                         </div>
                       </div>
-                      <div style={{
-                        textAlign: 'right'
+
+                      {/* Change in Value and Percentage */}
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 4
                       }}>
-                        <div style={{ 
-                          color: kpi.isPositive ? '#4ade80' : '#f87171', 
-                          fontSize: '14px',
-                          fontWeight: 600
-                        }}>
-                          {kpi.isPositive ? '+' : ''}{kpi.growthPercentage.toFixed(1)}%
+                        <div>
+                          <div style={{ 
+                            color: '#666666', 
+                            fontSize: '11px',
+                            marginBottom: 2
+                          }}>
+                            Change in Value
+                          </div>
+                          <div style={{ 
+                            color: kpi.isPositive ? '#4ade80' : '#f87171', 
+                            fontSize: '13px',
+                            fontWeight: 600
+                          }}>
+                            {kpi.isPositive ? '+' : ''}{formatValue(kpi.currentFY - kpi.previousFY)}
+                          </div>
                         </div>
-                        <div style={{ 
-                          color: '#666666', 
-                          fontSize: '10px'
-                        }}>
-                          {compareType === 'quarter' 
-                            ? `${kpi.monthsCompleted}/3 months` 
-                            : `${kpi.monthsCompleted}/12 months`
-                          }
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ 
+                            color: '#666666', 
+                            fontSize: '11px',
+                            marginBottom: 2
+                          }}>
+                            Growth/Decline
+                          </div>
+                          <div style={{ 
+                            color: kpi.isPositive ? '#4ade80' : '#f87171', 
+                            fontSize: '13px',
+                            fontWeight: 600
+                          }}>
+                            {kpi.isPositive ? '+' : ''}{kpi.growthPercentage.toFixed(1)}%
+                          </div>
                         </div>
+                      </div>
+
+                      {/* Data Completeness */}
+                      <div style={{ 
+                        color: '#666666', 
+                        fontSize: '10px',
+                        textAlign: 'center',
+                        paddingTop: 4,
+                        borderTop: '1px solid #f5f5f5'
+                      }}>
+                        {compareType === 'quarter' 
+                          ? `${kpi.monthsCompleted}/3 months` 
+                          : `${kpi.monthsCompleted}/12 months`
+                        }
                       </div>
                     </div>
                   </div>
