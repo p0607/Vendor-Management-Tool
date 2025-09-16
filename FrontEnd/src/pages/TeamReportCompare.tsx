@@ -36,6 +36,7 @@ interface ReportData {
   month: string;
   year: number;
   created_at?: string;
+  [key: string]: any; // Add index signature for dynamic property access
 }
 
 interface PeriodChange {
@@ -92,6 +93,216 @@ const TeamReportCompare: React.FC = () => {
     ];
   };
 
+  // Helper function to get current financial year
+  const getCurrentFinancialYear = () => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // 1-12
+    const currentYear = currentDate.getFullYear();
+    
+    // Financial year starts from April (month 4)
+    if (currentMonth >= 4) {
+      return currentYear;
+    } else {
+      return currentYear - 1;
+    }
+  };
+
+  // Helper function to get months completed in current financial year
+  const getMonthsCompletedInCurrentFY = () => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // 1-12
+    const currentYear = currentDate.getFullYear();
+    
+    // Financial year starts from April (month 4)
+    if (currentMonth >= 4) {
+      return currentMonth - 3; // April = 1, May = 2, etc.
+    } else {
+      return currentMonth + 9; // Jan = 10, Feb = 11, Mar = 12
+    }
+  };
+
+  // Helper function to get quarter months
+  const getQuarterMonths = (quarter: string) => {
+    if (quarter.includes('Q1')) return [4, 5, 6]; // Apr, May, Jun
+    if (quarter.includes('Q2')) return [7, 8, 9]; // Jul, Aug, Sep
+    if (quarter.includes('Q3')) return [10, 11, 12]; // Oct, Nov, Dec
+    if (quarter.includes('Q4')) return [1, 2, 3]; // Jan, Feb, Mar
+    return [];
+  };
+
+  // Helper function to get corresponding quarter from previous year
+  const getCorrespondingPreviousQuarter = (quarter: string) => {
+    const yearMatch = quarter.match(/(\d{4})/);
+    if (!yearMatch) return null;
+    
+    const currentYear = parseInt(yearMatch[1]);
+    const previousYear = currentYear - 1;
+    
+    if (quarter.includes('Q1')) return `Q1(Apr-Jun) ${previousYear}`;
+    if (quarter.includes('Q2')) return `Q2(Jul-Sep) ${previousYear}`;
+    if (quarter.includes('Q3')) return `Q3(Oct-Dec) ${previousYear}`;
+    if (quarter.includes('Q4')) return `Q4(Jan-Mar) ${previousYear}`;
+    
+    return null;
+  };
+
+  // KPI calculation function
+  const calculateKPIs = (): Record<string, {
+    currentFY: number;
+    previousFY: number;
+    growthPercentage: number;
+    isPositive: boolean;
+    monthsCompleted: number;
+    monthsRemaining: number;
+    period: string;
+  }> => {
+    if (!data || data.length === 0) return {};
+
+    // If comparing by quarters and we have selected quarters
+    if (compareType === 'quarter' && comparisonValues.some(v => v)) {
+      const currentQuarter = comparisonValues[0];
+      const previousQuarter = comparisonValues[1];
+      
+      if (!currentQuarter || !previousQuarter) return {};
+
+      const currentQuarterMonths = getQuarterMonths(currentQuarter);
+      const previousQuarterMonths = getQuarterMonths(previousQuarter);
+      
+      // Extract years from quarter strings
+      const currentYearMatch = currentQuarter.match(/(\d{4})/);
+      const previousYearMatch = previousQuarter.match(/(\d{4})/);
+      
+      if (!currentYearMatch || !previousYearMatch) return {};
+      
+      const currentYear = parseInt(currentYearMatch[1]);
+      const previousYear = parseInt(previousYearMatch[1]);
+
+      // Filter data for current quarter
+      const currentQuarterData = data.filter(item => {
+        const itemDate = new Date(item.month);
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        
+        return itemYear === currentYear && currentQuarterMonths.includes(itemMonth);
+      });
+
+      // Filter data for previous quarter
+      const previousQuarterData = data.filter(item => {
+        const itemDate = new Date(item.month);
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        
+        return itemYear === previousYear && previousQuarterMonths.includes(itemMonth);
+      });
+
+      const calculateParameterKPI = (parameter: string) => {
+        const currentValue = currentQuarterData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        const previousValue = previousQuarterData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+
+        const growthPercentage = previousValue > 0 
+          ? ((currentValue - previousValue) / previousValue) * 100 
+          : 0;
+
+        return {
+          currentFY: currentValue,
+          previousFY: previousValue,
+          growthPercentage,
+          isPositive: growthPercentage >= 0,
+          monthsCompleted: currentQuarterMonths.length,
+          monthsRemaining: 0,
+          period: `${currentQuarter} vs ${previousQuarter}`
+        };
+      };
+
+      return {
+        Sales: calculateParameterKPI('sales'),
+        GPM: calculateParameterKPI('gpm'),
+        'Team Cost': calculateParameterKPI('team_cost'),
+        NP: calculateParameterKPI('np'),
+        HC: calculateParameterKPI('hc'),
+        'Salary Cost': calculateParameterKPI('salary_cost'),
+        'OPR Cost': calculateParameterKPI('opr_cost'),
+        'Funding Cost': calculateParameterKPI('funding_cost'),
+        'Leave Encashment': calculateParameterKPI('leave_encashment')
+      };
+    }
+
+    // Default financial year calculation
+    const currentFY = getCurrentFinancialYear();
+    const previousFY = currentFY - 1;
+    const monthsCompleted = getMonthsCompletedInCurrentFY();
+    const monthsRemaining = 12 - monthsCompleted;
+
+    // Filter data for current and previous financial years
+    const currentFYData = data.filter(item => {
+      const itemDate = new Date(item.month);
+      const itemYear = itemDate.getFullYear();
+      const itemMonth = itemDate.getMonth() + 1;
+      
+      // Check if item belongs to current financial year
+      if (itemMonth >= 4) {
+        return itemYear === currentFY;
+      } else {
+        return itemYear === currentFY + 1;
+      }
+    });
+
+    const previousFYData = data.filter(item => {
+      const itemDate = new Date(item.month);
+      const itemYear = itemDate.getFullYear();
+      const itemMonth = itemDate.getMonth() + 1;
+      
+      // Check if item belongs to previous financial year
+      if (itemMonth >= 4) {
+        return itemYear === previousFY;
+      } else {
+        return itemYear === previousFY + 1;
+      }
+    });
+
+    const calculateParameterKPI = (parameter: string) => {
+      // Calculate current FY total (actual + projected)
+      const currentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+      
+      // If we have data for current FY, project it for remaining months
+      let currentFYProjected = currentFYActual;
+      if (currentFYData.length > 0 && monthsRemaining > 0) {
+        const avgMonthlyValue = currentFYActual / monthsCompleted;
+        currentFYProjected = currentFYActual + (avgMonthlyValue * monthsRemaining);
+      }
+
+      // Calculate previous FY total
+      const previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+
+      // Calculate growth percentage
+      const growthPercentage = previousFYTotal > 0 
+        ? ((currentFYProjected - previousFYTotal) / previousFYTotal) * 100 
+        : 0;
+
+      return {
+        currentFY: currentFYProjected,
+        previousFY: previousFYTotal,
+        growthPercentage,
+        isPositive: growthPercentage >= 0,
+        monthsCompleted,
+        monthsRemaining,
+        period: `FY ${currentFY} vs FY ${previousFY}`
+      };
+    };
+
+    return {
+      Sales: calculateParameterKPI('sales'),
+      GPM: calculateParameterKPI('gpm'),
+      'Team Cost': calculateParameterKPI('team_cost'),
+      NP: calculateParameterKPI('np'),
+      HC: calculateParameterKPI('hc'),
+      'Salary Cost': calculateParameterKPI('salary_cost'),
+      'OPR Cost': calculateParameterKPI('opr_cost'),
+      'Funding Cost': calculateParameterKPI('funding_cost'),
+      'Leave Encashment': calculateParameterKPI('leave_encashment')
+    };
+  };
+
   // State declarations with URL parameter defaults
   const [user, setUser] = useState<any>({});
   const [isBUHead, setIsBUHead] = useState(false);
@@ -141,6 +352,7 @@ const TeamReportCompare: React.FC = () => {
     (queryParams.get('chartType') as 'bar' | 'line' | 'combo') || 'bar'
   );
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
+  const [showAllKPIs, setShowAllKPIs] = useState(false);
   const [comparisonData, setComparisonData] = useState<{[key: string]: any}[]>([]);
   const [growthAnalysis, setGrowthAnalysis] = useState<GrowthAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -509,6 +721,16 @@ const TeamReportCompare: React.FC = () => {
   const handleComparisonChange = (index: number, value: string | null) => {
     const newValues = [...comparisonValues];
     newValues[index] = value;
+    
+    // If comparing by quarters and this is the first selection, auto-suggest corresponding quarter
+    if (compareType === 'quarter' && index === 0 && value) {
+      const correspondingQuarter = getCorrespondingPreviousQuarter(value);
+      if (correspondingQuarter && availableOptions.includes(correspondingQuarter)) {
+        newValues[1] = correspondingQuarter;
+        message.success(`Auto-selected corresponding quarter: ${correspondingQuarter}`);
+      }
+    }
+    
     setComparisonValues(newValues);
   };
 
@@ -1348,6 +1570,55 @@ const TeamReportCompare: React.FC = () => {
     setGrowthAnalysis(calculateGrowth());
   }, [comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, availableParameters, combinedPeriods]);
 
+  // Calculate growth percentages for chart data
+  const calculateGrowthData = () => {
+    if (comparisonData.length === 0 || selectedParameters.length === 0) return [];
+    
+    return comparisonData.map(periodData => {
+      const growthData: any = { period: periodData.period };
+      
+      selectedParameters.forEach(parameter => {
+        const currentValue = periodData[parameter] || 0;
+        
+        // For quarter comparison, we need to find the corresponding previous quarter
+        if (compareType === 'quarter' && comparisonValues.length >= 2) {
+          const currentQuarter = comparisonValues[0];
+          const previousQuarter = comparisonValues[1];
+          
+          if (currentQuarter && previousQuarter) {
+            // Find the previous quarter data
+            const previousPeriodData = comparisonData.find(p => p.period === previousQuarter);
+            const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
+            
+            const growthPercentage = previousValue > 0 
+              ? ((currentValue - previousValue) / previousValue) * 100 
+              : 0;
+            
+            growthData[parameter] = growthPercentage;
+          }
+        } else {
+          // For year comparison, calculate growth from previous year
+          const currentYear = new Date().getFullYear();
+          const previousYear = currentYear - 1;
+          
+          // Find previous year data
+          const previousPeriodData = comparisonData.find(p => 
+            p.period.includes(previousYear.toString())
+          );
+          const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
+          
+          const growthPercentage = previousValue > 0 
+            ? ((currentValue - previousValue) / previousValue) * 100 
+            : 0;
+          
+          growthData[parameter] = growthPercentage;
+        }
+      });
+      
+      return growthData;
+    });
+  };
+
   // Render comparison chart
   useEffect(() => {
     if (comparisonData.length === 0 || selectedParameters.length === 0) return;
@@ -1414,26 +1685,12 @@ const TeamReportCompare: React.FC = () => {
         am5.color(0x52c41a), // Lime
       ];
 
-      // Helper function to get format for parameter
+      // Helper function to get format for parameter (now showing growth percentages)
       const getParameterFormat = (param: string) => {
-        if (param === 'GPM %' || param === 'NP %') {
-          return {
-            prefix: '',
-            suffix: '%',
-            format: '#,##0.00'
-          };
-        }
-        if (param === 'HC') {
-          return {
-            prefix: '',
-            suffix: '',
-            format: '#,##0'
-          };
-        }
         return {
-          prefix: '₹',
-          suffix: '',
-          format: '#,##0.00'
+          prefix: '',
+          suffix: '%',
+          format: '#,##0.0'
         };
       };
 
@@ -1581,9 +1838,11 @@ const TeamReportCompare: React.FC = () => {
       chart.appear(1000, 100);
 
       // Set data for all series
-      xAxis.data.setAll(comparisonData);
+      // Use growth data instead of raw comparison data
+      const growthData = calculateGrowthData();
+      xAxis.data.setAll(growthData);
       chart.series.values.forEach(series => {
-        series.data.setAll(comparisonData);
+        series.data.setAll(growthData);
       });
     }, 100); // 100ms delay
 
@@ -2470,13 +2729,161 @@ const TeamReportCompare: React.FC = () => {
     </div>
   </div>
 </div>
+
+      {/* KPI Stats Dashboard */}
+      {data.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <h2 style={{ color: '#000000', marginBottom: 16 }}>KPI Dashboard</h2>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: showAllKPIs ? 'repeat(auto-fit, minmax(280px, 1fr))' : 'repeat(4, 1fr)',
+            gap: 16,
+            marginBottom: 16
+          }}>
+            {(() => {
+              const kpis = calculateKPIs();
+              const mainKPIs = ['Sales', 'GPM', 'Team Cost', 'NP'];
+              const additionalKPIs = ['HC', 'Salary Cost', 'OPR Cost', 'Funding Cost', 'Leave Encashment'];
+              const displayKPIs = showAllKPIs ? [...mainKPIs, ...additionalKPIs] : mainKPIs;
+              
+              return displayKPIs.map((kpiName) => {
+                const kpi = kpis[kpiName];
+                if (!kpi) return null;
+                
+                const formatValue = (value: number) => {
+                  if (kpiName === 'Sales' || kpiName === 'GPM' || kpiName === 'Team Cost' || kpiName === 'NP' || 
+                      kpiName === 'Salary Cost' || kpiName === 'OPR Cost' || kpiName === 'Funding Cost' || kpiName === 'Leave Encashment') {
+                    return `₹${(value / 100000).toFixed(1)}L`;
+                  }
+                  return value.toFixed(0);
+                };
+                
+                return (
+                  <div key={kpiName} style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: 8,
+                    padding: 20,
+                    border: '1px solid #e0e0e0',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    position: 'relative'
+                  }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      marginBottom: 12
+                    }}>
+                      <h3 style={{ 
+                        color: '#000000', 
+                        margin: 0, 
+                        fontSize: '16px',
+                        fontWeight: 600
+                      }}>
+                        {kpiName}
+                      </h3>
+                      <div style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: kpi.isPositive ? '#4ade80' : '#f87171'
+                      }} />
+                    </div>
+                    
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ 
+                        color: '#000000', 
+                        fontSize: '24px', 
+                        fontWeight: 700,
+                        marginBottom: 4
+                      }}>
+                        {formatValue(kpi.currentFY)}
+                      </div>
+                      <div style={{ 
+                        color: '#666666', 
+                        fontSize: '12px'
+                      }}>
+                        {kpi.period || `FY ${getCurrentFinancialYear()} (Projected)`}
+                      </div>
+                    </div>
+                    
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      paddingTop: 8,
+                      borderTop: '1px solid #f0f0f0'
+                    }}>
+                      <div>
+                        <div style={{ 
+                          color: '#666666', 
+                          fontSize: '12px',
+                          marginBottom: 2
+                        }}>
+                          {compareType === 'quarter' && comparisonValues[1] 
+                            ? `vs ${comparisonValues[1]}` 
+                            : `vs FY ${getCurrentFinancialYear() - 1}`
+                          }
+                        </div>
+                        <div style={{ 
+                          color: '#000000', 
+                          fontSize: '14px',
+                          fontWeight: 500
+                        }}>
+                          {formatValue(kpi.previousFY)}
+                        </div>
+                      </div>
+                      <div style={{
+                        textAlign: 'right'
+                      }}>
+                        <div style={{ 
+                          color: kpi.isPositive ? '#4ade80' : '#f87171', 
+                          fontSize: '14px',
+                          fontWeight: 600
+                        }}>
+                          {kpi.isPositive ? '+' : ''}{kpi.growthPercentage.toFixed(1)}%
+                        </div>
+                        <div style={{ 
+                          color: '#666666', 
+                          fontSize: '10px'
+                        }}>
+                          {compareType === 'quarter' 
+                            ? `${kpi.monthsCompleted}/3 months` 
+                            : `${kpi.monthsCompleted}/12 months`
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+          
+          {/* Show More/Less Button */}
+          <div style={{ textAlign: 'center' }}>
+            <Button
+              type="dashed"
+              icon={<PlusOutlined />}
+              onClick={() => setShowAllKPIs(!showAllKPIs)}
+              style={{
+                color: '#000000',
+                borderColor: '#004a7a',
+                backgroundColor: '#ffffff'
+              }}
+            >
+              {showAllKPIs ? 'Show Less' : 'Show More KPIs'}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#000000' }}>Loading data...</div>
       ) : selectedParameters.length > 0 && comparisonValues.some(v => v) ? (
         comparisonData.length > 0 ? (
           <>
             <div style={{ width: "100%", height: "500px" }}>
-              <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Comparison</h3>
+              <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Growth Analysis</h3>
               <div id="comparisonChart" style={{ width: "100%", height: "100%" }} />
             </div>
 

@@ -124,6 +124,12 @@ const RoutingDashboard: React.FC = () => {
       return null;
     }
     
+    // Handle DD-MM-YYYY format (e.g., "01-09-2024") - NEW CONVERTED DATA
+    if (/^\d{2}-\d{2}-\d{4}$/.test(billingMonthStr.trim())) {
+      const [day, month, year] = billingMonthStr.split('-').map(Number);
+      return new Date(year, month - 1, day); // month is 0-indexed in JavaScript
+    }
+    
     // Handle Excel serial numbers (5-digit numbers like 45532, 45535) - for existing data
     if (/^\d{5}$/.test(billingMonthStr.trim())) {
       const serialNumber = parseInt(billingMonthStr, 10);
