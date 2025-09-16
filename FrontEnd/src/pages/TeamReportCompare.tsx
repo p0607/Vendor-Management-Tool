@@ -341,29 +341,39 @@ const TeamReportCompare: React.FC = () => {
   const [clientNames, setClientNames] = useState<string[]>([]);
   const [filteredClientNames, setFilteredClientNames] = useState<string[]>([]);
   const [buHeads, setBUHeads] = useState<string[]>([]);
-  const [compareType, setCompareType] = useState<CompareType>(
-    (queryParams.get('compareType') as CompareType) || "year"
-  );
+  const [compareType, setCompareType] = useState<CompareType>(() => {
+    const urlCompareType = queryParams.get('compareType') as CompareType;
+    console.log("🔍 URL compareType:", urlCompareType);
+    console.log("🔍 Setting compareType to:", urlCompareType || "year");
+    return urlCompareType || "year";
+  });
   const [comparisonValues, setComparisonValues] = useState<(string | null)[]>(() => {
     // Always default to year comparison unless explicitly set to quarter
     const compareTypeFromURL = queryParams.get('compareType');
     const defaultFinancialYear = queryParams.get('defaultFinancialYear');
     
+    console.log("🔍 URL compareTypeFromURL:", compareTypeFromURL);
+    console.log("🔍 URL defaultFinancialYear:", defaultFinancialYear);
+    
     // Only use quarter defaults if explicitly set to quarter in URL
     if (compareTypeFromURL === "quarter" && defaultFinancialYear) {
       const financialYear = parseInt(defaultFinancialYear);
-      return [
+      const quarterValues = [
         `Q1(Apr-Jun) ${financialYear}`,
         `Q2(Jul-Sep) ${financialYear}`,
         `Q3(Oct-Dec) ${financialYear}`,
         `Q4(Jan-Mar) ${financialYear}` // Q4 belongs to same financial year but next calendar year
       ];
+      console.log("🔍 Using quarter defaults:", quarterValues);
+      return quarterValues;
     }
     
     // Default to year comparison
     const currentFY = getCurrentFinancialYear();
     const previousFY = currentFY - 1;
-    return [`FY ${currentFY}`, `FY ${previousFY}`];
+    const yearValues = [`FY ${currentFY}`, `FY ${previousFY}`];
+    console.log("🔍 Using year defaults:", yearValues);
+    return yearValues;
   });
   const [combinedPeriods, setCombinedPeriods] = useState<CombinedPeriod[]>([]);
   const [showCombinedModal, setShowCombinedModal] = useState<number | null>(null);
@@ -373,19 +383,26 @@ const TeamReportCompare: React.FC = () => {
   const [selectedParameters, setSelectedParameters] = useState<string[]>(() => {
     // Set default parameters from URL or use Sales, GPM, NP, Team Cost
     const paramsFromURL = queryParams.get('selectedParameters');
+    console.log("🔍 URL selectedParameters:", paramsFromURL);
     if (paramsFromURL) {
       try {
-        return decodeURIComponent(paramsFromURL).split(',');
+        const decoded = decodeURIComponent(paramsFromURL).split(',');
+        console.log("🔍 Decoded parameters:", decoded);
+        return decoded;
       } catch (error) {
         console.warn('Failed to decode URL parameters, using defaults:', error);
         return ['Sales', 'GPM', 'NP', 'Team Cost'];
       }
     }
+    console.log("🔍 Using default parameters: Sales, GPM, NP, Team Cost");
     return ['Sales', 'GPM', 'NP', 'Team Cost'];
   });
-  const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(
-    (queryParams.get('chartType') as 'bar' | 'line' | 'combo') || 'line'
-  );
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(() => {
+    const urlChartType = queryParams.get('chartType') as 'bar' | 'line' | 'combo';
+    console.log("🔍 URL chartType:", urlChartType);
+    console.log("🔍 Setting chartType to:", urlChartType || 'line');
+    return urlChartType || 'line';
+  });
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
   const [showAllKPIs, setShowAllKPIs] = useState(false);
   const [comparisonData, setComparisonData] = useState<{[key: string]: any}[]>([]);
@@ -1076,14 +1093,43 @@ const TeamReportCompare: React.FC = () => {
   };
 
   // Fetch data with business unit filter
-  // Ensure default year comparison is set on mount
+  // Force correct defaults on mount
   useEffect(() => {
-    if (compareType === "year" && (!comparisonValues[0] || !comparisonValues[1])) {
+    console.log("🔍 Component mounted, checking defaults...");
+    console.log("🔍 Current compareType:", compareType);
+    console.log("🔍 Current selectedParameters:", selectedParameters);
+    console.log("🔍 Current chartType:", chartType);
+    console.log("🔍 Current comparisonValues:", comparisonValues);
+    
+    // Force year comparison if not already set
+    if (compareType !== "year") {
+      console.log("🔍 Forcing compareType to year");
+      setCompareType("year");
+    }
+    
+    // Force correct parameters if not already set
+    const expectedParams = ['Sales', 'GPM', 'NP', 'Team Cost'];
+    if (JSON.stringify(selectedParameters.sort()) !== JSON.stringify(expectedParams.sort())) {
+      console.log("🔍 Forcing selectedParameters to:", expectedParams);
+      setSelectedParameters(expectedParams);
+    }
+    
+    // Force line chart if not already set
+    if (chartType !== "line") {
+      console.log("🔍 Forcing chartType to line");
+      setChartType("line");
+    }
+    
+    // Force year comparison values if not already set
+    if (compareType === "year" && (!comparisonValues[0] || !comparisonValues[1] || 
+        !comparisonValues[0]?.includes('FY') || !comparisonValues[1]?.includes('FY'))) {
       const currentFY = getCurrentFinancialYear();
       const previousFY = currentFY - 1;
-      setComparisonValues([`FY ${currentFY}`, `FY ${previousFY}`]);
+      const yearValues = [`FY ${currentFY}`, `FY ${previousFY}`];
+      console.log("🔍 Forcing comparisonValues to:", yearValues);
+      setComparisonValues(yearValues);
     }
-  }, [compareType]);
+  }, []); // Run only on mount
 
   useEffect(() => {
     const fetchData = async () => {
