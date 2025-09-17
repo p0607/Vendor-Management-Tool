@@ -92,11 +92,18 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     setIsLoading(true);
     try {
       const params: any = {};
-      if (selectedBusinessUnit) {
-        params.business_unit = selectedBusinessUnit;
+      
+      // Use chart's own business unit filter if set, otherwise use prop
+      const businessUnitToUse = selectedBusinessUnitFilter !== 'all' ? selectedBusinessUnitFilter : selectedBusinessUnit;
+      if (businessUnitToUse) {
+        params.business_unit = businessUnitToUse;
       }
       
       console.log('🔍 Fetching data from API endpoint: /team-report');
+      console.log('🔍 Selected parameter:', selectedParameter);
+      console.log('🔍 Selected business unit filter:', selectedBusinessUnitFilter);
+      console.log('🔍 Prop business unit:', selectedBusinessUnit);
+      console.log('🔍 Final business unit used:', businessUnitToUse);
       console.log('🔍 Fetching data from database with params:', params);
       const res = await apiClient.get("/team-report", { params });
       
@@ -152,10 +159,10 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     }
   };
 
-  // Fetch data when component mounts or business unit changes
+  // Fetch data when component mounts or filters change
   useEffect(() => {
     fetchDataFromDatabase();
-  }, [selectedBusinessUnit]);
+  }, [selectedBusinessUnit, selectedBusinessUnitFilter, selectedParameter]);
 
   // Process data based on selected timeline
   const processDataForTimeline = (data: any[]) => {
@@ -370,6 +377,8 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       
       if (parameterValue === null) {
         console.log('🔍 Skipping item - parameter not found in database fields:', possibleFields);
+        console.log('🔍 Available fields in this item:', Object.keys(item));
+        console.log('🔍 Item values:', item);
         return;
       }
       
@@ -385,10 +394,11 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         const monthIndex = monthNames.findIndex(month => 
           item.month.toLowerCase().includes(month.toLowerCase())
         );
-        if (monthIndex === -1) {
-          console.log('🔍 Could not parse month:', item.month);
-          return;
-        }
+      if (monthIndex === -1) {
+        console.log('🔍 Could not parse month:', item.month);
+        console.log('🔍 Available month names:', monthNames);
+        return;
+      }
         monthValue = monthIndex + 1; // Convert to 1-12
       } else {
         monthValue = parseFloat(item.month);
@@ -418,15 +428,20 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     });
 
     console.log('🔍 Actual data by month:', actualData);
+    console.log('🔍 Database data length:', databaseData.length);
+    console.log('🔍 Sample database data:', databaseData.slice(0, 3));
 
     // Calculate forecasting
     const forecastData: { [key: string]: number } = {};
     
     // Get actual values for available months
     const actualValues = Object.values(actualData).filter(v => v > 0);
+    console.log('🔍 Actual values found:', actualValues);
+    console.log('🔍 Actual values length:', actualValues.length);
     
     if (actualValues.length === 0) {
       console.log('🔍 No actual data available for forecasting, creating sample data for demonstration');
+      console.log('🔍 This means the database data processing failed - check parameter mapping and data structure');
       
       // Create sample data for demonstration
       const sampleData = financialYearMonths.map((month, index) => {
