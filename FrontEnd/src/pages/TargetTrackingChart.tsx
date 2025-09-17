@@ -20,33 +20,38 @@ interface ForecastChartProps {
     hc?: number;
     period: string;
   }[];
+  // Add data from TeamReportCompare
+  data?: any[];
+  availableParameters?: string[];
 }
 
 const ForecastChart: React.FC<ForecastChartProps> = ({
   selectedBusinessUnit,
   selectedPeriod,
   compareType,
-  actualData
+  actualData,
+  data = [],
+  availableParameters: propAvailableParameters = []
 }) => {
-  const [selectedParameter, setSelectedParameter] = useState<string>('Revenue');
+  const [selectedParameter, setSelectedParameter] = useState<string>('Sales');
   const [selectedTimeline, setSelectedTimeline] = useState<string>('month');
   const [selectedBusinessUnitFilter, setSelectedBusinessUnitFilter] = useState<string>('all');
   const [databaseData, setDatabaseData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Available parameters
-  const availableParameters = [
-    'Revenue', 
-    'Net Margin', 
+  // Use parameters from props or fallback to default
+  const availableParameters = propAvailableParameters.length > 0 ? propAvailableParameters : [
+    'Sales', 
     'GPM', 
+    'NP', 
+    'Team Cost',
+    'Salary Cost',
+    'Opr Cost',
+    'Funding Cost',
+    'Leave Encashment',
     'HC',
-    'LPM',
-    'Throughput',
-    'Latency',
-    'CPU',
-    'Memory',
-    'Disk',
-    'Network'
+    'GPM %',
+    'NP %'
   ];
 
   // Timeline options
@@ -55,6 +60,26 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     { value: 'quarter', label: 'Quarter' },
     { value: 'year', label: 'Year' }
   ];
+
+  // Financial year months (April to March)
+  const financialYearMonths = [
+    'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+    'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'
+  ];
+
+  // Get current financial year and month
+  const getCurrentFinancialYear = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // 1-12
+    return month >= 4 ? year : year - 1; // FY starts in April
+  };
+
+  const getCurrentMonthIndex = () => {
+    const now = new Date();
+    const month = now.getMonth() + 1; // 1-12
+    return month >= 4 ? month - 4 : month + 8; // Convert to FY month index (0-11)
+  };
 
   // Get unique business units from data
   const getBusinessUnits = () => {
@@ -262,40 +287,108 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     return sortedData;
   };
 
-      // Generate chart data
-    const generateChartData = () => {
-      const processedData = processDataForTimeline(databaseData);
+  // Generate chart data with forecasting
+  const generateChartData = () => {
+    console.log('🔍 Generating forecast chart data for parameter:', selectedParameter);
+    console.log('🔍 Available data length:', data.length);
+    
+    if (data.length === 0) {
+      console.log('🔍 No data available for forecasting');
+      return [];
+    }
+
+    const currentFY = getCurrentFinancialYear();
+    const currentMonthIndex = getCurrentMonthIndex();
+    
+    console.log('🔍 Current FY:', currentFY);
+    console.log('🔍 Current month index:', currentMonthIndex);
+
+    // Get actual data for current FY months (April to current month)
+    const actualData: { [key: string]: number } = {};
+    
+    // Process data to get monthly totals for the selected parameter
+    data.forEach(item => {
+      if (!item.month || !item[selectedParameter]) return;
       
-      if (processedData.length === 0) {
-        console.log('🔍 No processed data available');
-        return [];
+      const monthValue = parseFloat(item.month);
+      if (isNaN(monthValue)) return;
+      
+      // Convert month to FY month index (1-12 to 0-11, April=0)
+      let fyMonthIndex: number;
+      if (monthValue >= 4) {
+        fyMonthIndex = monthValue - 4; // Apr=0, May=1, etc.
+      } else {
+        fyMonthIndex = monthValue + 8; // Jan=9, Feb=10, Mar=11
+      }
+      
+      const monthKey = financialYearMonths[fyMonthIndex];
+      const value = parseFloat(item[selectedParameter]) || 0;
+      
+      if (!actualData[monthKey]) {
+        actualData[monthKey] = 0;
+      }
+      actualData[monthKey] += value;
+    });
+
+    console.log('🔍 Actual data by month:', actualData);
+
+    // Calculate forecasting
+    const forecastData: { [key: string]: number } = {};
+    
+    // Get actual values for available months
+    const actualValues = Object.values(actualData).filter(v => v > 0);
+    
+    if (actualValues.length === 0) {
+      console.log('🔍 No actual data available for forecasting');
+      return [];
+    }
+
+    // Simple forecasting: use average of last 3 months or all available months
+    const monthsToAverage = Math.min(3, actualValues.length);
+    const recentValues = actualValues.slice(-monthsToAverage);
+    const averageValue = recentValues.reduce((sum, val) => sum + val, 0) / recentValues.length;
+    
+    // Calculate growth trend (simple linear trend)
+    let growthRate = 0;
+    if (actualValues.length >= 2) {
+      const firstValue = actualValues[0];
+      const lastValue = actualValues[actualValues.length - 1];
+      growthRate = (lastValue - firstValue) / (actualValues.length - 1);
+    }
+
+    console.log('🔍 Average value for forecasting:', averageValue);
+    console.log('🔍 Growth rate:', growthRate);
+
+    // Generate chart data for all 12 months
+    const chartData = financialYearMonths.map((month, index) => {
+      let value: number;
+      let isForecast = false;
+      
+      if (actualData[month] && actualData[month] > 0) {
+        // Use actual data
+        value = actualData[month];
+        isForecast = false;
+      } else if (index <= currentMonthIndex) {
+        // Past months with no data - use 0 or average
+        value = 0;
+        isForecast = false;
+      } else {
+        // Future months - apply forecasting
+        const monthsAhead = index - currentMonthIndex;
+        value = averageValue + (growthRate * monthsAhead);
+        isForecast = true;
       }
 
-      console.log('🔍 Processed data:', processedData);
+      return {
+        period: month,
+        value: Math.max(0, value), // Ensure non-negative values
+        isForecast: isForecast
+      };
+    });
 
-      // Get parameter key (convert to lowercase and remove spaces)
-      const parameterKey = selectedParameter.toLowerCase().replace(' ', '');
-      console.log('🔍 Parameter key:', parameterKey);
-      console.log('🔍 Selected parameter:', selectedParameter);
-      console.log('🔍 Available keys in first item:', processedData.length > 0 ? Object.keys(processedData[0] || {}) : 'No data');
-      
-      // Create chart data - EXACTLY like TeamReportCompare
-      const chartData = processedData.map(item => {
-        if (!item) return null; // Additional null check
-        const value = (item as any)[parameterKey] || 0;
-        console.log(`🔍 ${item.timelineLabel}: ${parameterKey} = ${value}`);
-        return {
-          period: item.timelineLabel,
-          value: value
-        };
-      }).filter(item => item !== null); // Remove any null items
-
-      console.log('🔍 Final chart data:', chartData);
-      console.log('🔍 Chart data length:', chartData.length);
-      console.log('🔍 Sample chart data:', chartData.slice(0, 3));
-      console.log('🔍 Chart data structure:', chartData.map(item => ({ period: item?.period, value: item?.value })));
-      return chartData;
-    };
+    console.log('🔍 Final forecast chart data:', chartData);
+    return chartData;
+  };
 
     // Render chart
   useEffect(() => {
@@ -379,24 +472,24 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         };
       }
       return {
-        prefix: '₹',
+        prefix: '',
         suffix: '',
         format: '#,##0.00'
       };
     };
 
-    // Create series - EXACTLY like TeamReportCompare
+    // Create series for actual data
     const format = getParameterFormat(selectedParameter);
-    const series = chart.series.push(
+    const actualSeries = chart.series.push(
       am5xy.LineSeries.new(root, {
-        name: selectedParameter,
+        name: `${selectedParameter} (Actual)`,
         xAxis: xAxis,
         yAxis: yAxis,
-        valueYField: "value",  // Use "value" field from our data structure
+        valueYField: "actualValue",
         categoryXField: "period",
         tooltip: am5.Tooltip.new(root, {
           pointerOrientation: "horizontal",
-          labelText: `{categoryX} - ${selectedParameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+          labelText: `{categoryX} - ${selectedParameter} (Actual): ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
           autoTextColor: false,
           labelHTML: `
             <div style="
@@ -412,7 +505,41 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
               min-width: 120px;
             ">
               <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
-              <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${selectedParameter}</div>
+              <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${selectedParameter} (Actual)</div>
+              <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
+            </div>
+          `
+        })
+      })
+    );
+
+    // Create series for forecast data
+    const forecastSeries = chart.series.push(
+      am5xy.LineSeries.new(root, {
+        name: `${selectedParameter} (Forecast)`,
+        xAxis: xAxis,
+        yAxis: yAxis,
+        valueYField: "forecastValue",
+        categoryXField: "period",
+        tooltip: am5.Tooltip.new(root, {
+          pointerOrientation: "horizontal",
+          labelText: `{categoryX} - ${selectedParameter} (Forecast): ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+          autoTextColor: false,
+          labelHTML: `
+            <div style="
+              text-align: left; 
+              padding: 8px 12px; 
+              background: #ffffff; 
+              color: #333333; 
+              border-radius: 6px; 
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              font-size: 12px;
+              line-height: 1.4;
+              min-width: 120px;
+            ">
+              <div style="font-weight: 600; margin-bottom: 4px; color: #ff6b35; font-size: 11px;">{categoryX}</div>
+              <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${selectedParameter} (Forecast)</div>
               <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
             </div>
           `
@@ -421,25 +548,52 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     );
 
     // Set series styling
-    series.strokes.template.setAll({
-      stroke: am5.color(0x1890ff),
+    actualSeries.strokes.template.setAll({
+      stroke: am5.color(0x1890ff), // Blue for actual data
       strokeWidth: 3
     });
 
-    // Add bullets
-    series.bullets.push(() => {
+    actualSeries.bullets.push(() => {
       return am5.Bullet.new(root, {
         sprite: am5.Circle.new(root, {
-          radius: 6,
-          fill: am5.color(0x1890ff),
-          stroke: am5.color(0xffffff),
-          strokeWidth: 2
+          radius: 4,
+          fill: am5.color(0x1890ff)
         })
       });
     });
 
-    console.log('🔍 Setting series data:', chartData);
-    series.data.setAll(chartData);
+    forecastSeries.strokes.template.setAll({
+      stroke: am5.color(0xff6b35), // Orange for forecast data
+      strokeWidth: 3,
+      strokeDasharray: [5, 5] // Dashed line for forecast
+    });
+
+    forecastSeries.bullets.push(() => {
+      return am5.Bullet.new(root, {
+        sprite: am5.Circle.new(root, {
+          radius: 4,
+          fill: am5.color(0xff6b35)
+        })
+      });
+    });
+
+    // Prepare data for both series
+    const actualData = chartData.map(item => ({
+      period: item.period,
+      actualValue: item.isForecast ? null : item.value,
+      forecastValue: null
+    }));
+
+    const forecastData = chartData.map(item => ({
+      period: item.period,
+      actualValue: null,
+      forecastValue: item.isForecast ? item.value : null
+    }));
+
+    console.log('🔍 Setting actual series data:', actualData);
+    actualSeries.data.setAll(actualData);
+    console.log('🔍 Setting forecast series data:', forecastData);
+    forecastSeries.data.setAll(forecastData);
     console.log('🔍 Series data set successfully');
     
     // Set x-axis data - this is crucial for CategoryAxis
@@ -468,7 +622,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     return () => {
       root.dispose();
     };
-  }, [selectedParameter, selectedTimeline, selectedBusinessUnitFilter, databaseData]);
+  }, [selectedParameter, selectedTimeline, selectedBusinessUnitFilter, databaseData, data]);
 
   return (
     <Card 
