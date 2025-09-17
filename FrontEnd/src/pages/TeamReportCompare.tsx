@@ -950,7 +950,7 @@ const TeamReportCompare: React.FC = () => {
             await new Promise(resolve => setTimeout(resolve, 100));
             
             
-
+            
           } catch (batchErr: any) {
 
             console.error(`Batch ${batchNumber} failed:`, batchErr);
@@ -998,7 +998,7 @@ const TeamReportCompare: React.FC = () => {
         setData(res.data);
         
         
-
+        
       } catch (err: any) {
 
         console.error('Error importing data:', err);
@@ -1377,7 +1377,7 @@ const TeamReportCompare: React.FC = () => {
         
         
 
-
+        
 
         const buFromURL = queryParams.get('business_unit');
 
@@ -1636,7 +1636,7 @@ const TeamReportCompare: React.FC = () => {
           .filter((bu: any) => bu && bu.trim() !== '');
         
         
-
+        
         console.log("🔍 Business units from data:", businessUnitsFromData);
 
         
@@ -4986,10 +4986,10 @@ const TeamReportCompare: React.FC = () => {
 
               {/* Parameter Data Chart */}
               {activeChartTab === 'growth' && (
-                <div style={{ width: "100%", height: "500px" }}>
+            <div style={{ width: "100%", height: "500px" }}>
                   <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Data Visualization</h3>
-                  <div id="comparisonChart" style={{ width: "100%", height: "100%" }} />
-                </div>
+              <div id="comparisonChart" style={{ width: "100%", height: "100%" }} />
+            </div>
               )}
 
               {/* Waterfall Chart */}

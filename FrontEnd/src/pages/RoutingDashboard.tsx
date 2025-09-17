@@ -134,35 +134,48 @@ const RoutingDashboard: React.FC = () => {
     if (/^\d{5}$/.test(billingMonthStr.trim())) {
       const serialNumber = parseInt(billingMonthStr, 10);
       
-      // More accurate Excel serial number to JavaScript Date conversion
+      // CORRECTED Excel serial number to JavaScript Date conversion
       // Excel's date system: January 1, 1900 = serial number 1
       // Excel has a leap year bug - it thinks 1900 is a leap year
+      // The issue was in the epoch calculation - we need to be more precise
       
-      // Method 1: Standard Excel conversion with leap year bug correction
-      const excelEpoch = new Date(1899, 11, 30); // December 30, 1899 (serial number 0)
+      // Method 1: Correct Excel epoch calculation
+      // Excel epoch is December 30, 1899 (serial number 0)
+      // But we need to account for the leap year bug more accurately
+      const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+      
+      // For serial numbers > 59, Excel incorrectly includes Feb 29, 1900
+      // So we need to add 1 day to compensate for this bug
       let daysToAdd = serialNumber;
-      
-      // Excel's leap year bug: it treats 1900 as a leap year
-      // So for serial numbers > 59 (after Feb 29, 1900), we need to subtract 1
       if (serialNumber > 59) {
-        daysToAdd = serialNumber - 1;
+        daysToAdd = serialNumber + 1; // ADD 1 day, not subtract
       }
       
       const date1 = new Date(excelEpoch.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
       
-      // Method 2: Alternative conversion using January 1, 1900 as epoch
-      const date2 = new Date(1900, 0, serialNumber - 1); // January 1, 1900 + serialNumber days
+      // Method 2: Alternative approach - use January 1, 1900 as base
+      // Excel serial number 1 = January 1, 1900
+      const date2 = new Date(1900, 0, serialNumber); // January 1, 1900 + serialNumber days
       
-      // Method 3: Using a more precise calculation
-      // Excel serial number represents days since January 1, 1900
-      // But Excel incorrectly treats 1900 as a leap year
-      const baseDate = new Date(1900, 0, 1); // January 1, 1900
-      const date3 = new Date(baseDate.getTime() + (serialNumber - 1) * 24 * 60 * 60 * 1000);
+      // Method 3: Most accurate approach
+      // Excel serial numbers represent days since December 30, 1899
+      // But we need to handle the leap year bug correctly
+      const baseDate = new Date(1899, 11, 30); // December 30, 1899
+      let adjustedSerial = serialNumber;
+      
+      // Excel's leap year bug: it treats 1900 as a leap year
+      // So for dates after Feb 28, 1900, we need to add 1 day
+      if (serialNumber > 59) {
+        adjustedSerial = serialNumber + 1;
+      }
+      
+      const date3 = new Date(baseDate.getTime() + adjustedSerial * 24 * 60 * 60 * 1000);
       
       // Choose the most reasonable date (between 1900 and 2100)
       const candidates = [date1, date2, date3];
       for (const candidate of candidates) {
         if (candidate.getFullYear() >= 1900 && candidate.getFullYear() <= 2100) {
+          console.log(`🔍 Excel Serial Conversion: ${serialNumber} -> ${candidate.toISOString().split('T')[0]}`);
           return candidate;
         }
       }
@@ -695,6 +708,15 @@ const chartData = metricFields.map(({ field, label }) => {
   const calculateDatePivotSummaries = (): DatePivotSummary[] => {
     const pivotMap = new Map<string, DatePivotSummary>();
 
+    // Debug: Log all unique billing months in the data
+    const uniqueBillingMonths = new Set();
+    filteredData.forEach(item => {
+      if (item['Billing Month']) {
+        uniqueBillingMonths.add(item['Billing Month']);
+      }
+    });
+    console.log('🔍 All Unique Billing Months in Data:', Array.from(uniqueBillingMonths).sort());
+
     filteredData.forEach(item => {
       // Get billing month value directly
       const billingMonthStr = item['Billing Month'] || '';
@@ -706,6 +728,29 @@ const chartData = metricFields.map(({ field, label }) => {
         if (date) {
           const year = date.getFullYear();
           const month = date.getMonth() + 1; // 1-12
+          
+          // Debug specific months that are causing issues
+          if (year === 2025 && (month === 8 || month === 9)) {
+            console.log(`🔍 Date Parsing Debug:`, {
+              billingMonthStr,
+              parsedDate: date,
+              year,
+              month,
+              monthName: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1]
+            });
+          }
+          
+          // Debug all 2025 data to see what's being processed
+          if (year === 2025) {
+            console.log(`🔍 2025 Data Found:`, {
+              billingMonthStr,
+              parsedDate: date,
+              year,
+              month,
+              monthName: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1],
+              itemId: item.id
+            });
+          }
           
           switch (pivotDateType) {
             case 'year':
@@ -737,14 +782,15 @@ const chartData = metricFields.map(({ field, label }) => {
       const vendorInvoice = toNumber(item['Vendor Inv. Amount']);
       
       // Debug logging for data discrepancy analysis
-      if (dateGroup === 'Aug-24' && billing > 0) {
-        console.log(`🔍 Aug-24 Data Debug:`, {
+      if ((dateGroup === 'Aug-24' || dateGroup === 'Aug-25' || dateGroup === 'Sep-25') && billing > 0) {
+        console.log(`🔍 ${dateGroup} Data Debug:`, {
           originalBilling: item['Alchemy Billing Value'],
           convertedBilling: billing,
           dateGroup,
           itemId: item.id || 'unknown',
           costingDate: item['Costing Date'],
-          billingMonth: item['Billing Month']
+          billingMonth: item['Billing Month'],
+          parsedDate: parseBillingMonth(item['Billing Month'])
         });
       }
 
@@ -820,6 +866,7 @@ const chartData = metricFields.map(({ field, label }) => {
     
     // Debug logging to compare with Excel pivot
     console.log('🔍 Date Pivot Summary:', result);
+    console.log('🔍 Date Groups Found:', result.map(r => r.dateGroup));
     const totalBilling = result.reduce((sum, item) => sum + item.alchemyBilling, 0);
     console.log('🔍 Total Alchemy Billing:', totalBilling);
     console.log('🔍 Filtered Data Count:', filteredData.length);
