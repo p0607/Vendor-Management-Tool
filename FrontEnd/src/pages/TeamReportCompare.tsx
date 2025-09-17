@@ -2634,7 +2634,9 @@ const TeamReportCompare: React.FC = () => {
 
     console.log("🔍 Calculating growth analysis...");
     console.log("🔍 availableParameters:", availableParameters);
+    console.log("🔍 availableParameters length:", availableParameters.length);
     console.log("🔍 selectedParameters:", selectedParameters);
+    console.log("🔍 selectedParameters length:", selectedParameters.length);
     console.log("🔍 showAllParameters:", showAllParameters);
     console.log("🔍 comparisonValues:", comparisonValues);
     console.log("🔍 data length:", data.length);
@@ -2654,8 +2656,10 @@ const TeamReportCompare: React.FC = () => {
 
 
     const calculateGrowth = (): GrowthAnalysis[] => {
-
+      console.log("🔍 calculateGrowth called with availableParameters:", availableParameters);
+      
       return availableParameters.map(param => {
+        console.log("🔍 Processing parameter:", param);
 
         const periodAmounts = comparisonValues.map((periodValue, index) => {
 
@@ -2947,8 +2951,8 @@ const TeamReportCompare: React.FC = () => {
     const kpiData = calculateKPIs();
     console.log("🔍 KPI Data for chart:", kpiData);
 
-    // Convert KPI data to chart format for selected parameters only
-    const chartData = selectedParameters.map(parameter => {
+    // Convert KPI data to chart format for all available parameters
+    const chartData = availableParameters.map(parameter => {
       // Map parameter names to KPI keys
       let kpiKey = '';
       switch (parameter) {
@@ -3009,6 +3013,8 @@ const TeamReportCompare: React.FC = () => {
     });
 
     console.log("🔍 Final chart data from KPI calculations:", chartData);
+    console.log("🔍 Chart data length:", chartData.length);
+    console.log("🔍 Chart data parameters:", chartData.map(item => item.parameter));
     console.log("🔍 Setting growthAnalysis state with:", chartData.length, "items");
     setGrowthAnalysis(chartData);
   }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, showAllParameters]);

@@ -151,6 +151,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       console.log('🔍 Sample dates:', convertedData.slice(0, 10).map((item: any) => item.month));
       console.log('🔍 Available fields in first item:', convertedData.length > 0 ? Object.keys(convertedData[0]) : 'No data');
       console.log('🔍 Sample data structure:', convertedData.slice(0, 2));
+      console.log('🔍 First item detailed:', convertedData.length > 0 ? convertedData[0] : 'No data');
       setDatabaseData(convertedData);
     } catch (error: any) {
       console.error("❌ Error fetching data:", error);
@@ -383,23 +384,35 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       }
       
       console.log(`🔍 Found parameter value: ${parameterValue} in field: ${foundField}`);
+      console.log(`🔍 Raw parameter value from database:`, item[foundField]);
       
-      // Handle month as string (e.g., "April", "May", etc.)
+      // Handle month - could be date string, month name, or number
       let monthValue: number;
       if (typeof item.month === 'string') {
-        const monthNames = [
-          'January', 'February', 'March', 'April', 'May', 'June',
-          'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        const monthIndex = monthNames.findIndex(month => 
-          item.month.toLowerCase().includes(month.toLowerCase())
-        );
-      if (monthIndex === -1) {
-        console.log('🔍 Could not parse month:', item.month);
-        console.log('🔍 Available month names:', monthNames);
-        return;
-      }
-        monthValue = monthIndex + 1; // Convert to 1-12
+        // Check if it's a date string (like "2025-01-01T00:00:00.000Z")
+        if (item.month.includes('-') || item.month.includes('T')) {
+          const date = new Date(item.month);
+          if (!isNaN(date.getTime())) {
+            monthValue = date.getMonth() + 1; // Convert to 1-12
+          } else {
+            console.log('🔍 Could not parse date string:', item.month);
+            return;
+          }
+        } else {
+          // Check if it's a month name
+          const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ];
+          const monthIndex = monthNames.findIndex(month => 
+            item.month.toLowerCase().includes(month.toLowerCase())
+          );
+          if (monthIndex === -1) {
+            console.log('🔍 Could not parse month:', item.month);
+            return;
+          }
+          monthValue = monthIndex + 1; // Convert to 1-12
+        }
       } else {
         monthValue = parseFloat(item.month);
         if (isNaN(monthValue)) {
@@ -419,7 +432,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       const monthKey = financialYearMonths[fyMonthIndex];
       const value = parameterValue;
       
-      console.log('🔍 Processed - Month:', monthKey, 'Value:', value);
+      console.log('🔍 Processed - Month:', monthKey, 'Value:', value, 'MonthValue:', monthValue, 'FYIndex:', fyMonthIndex);
       
       if (!actualData[monthKey]) {
         actualData[monthKey] = 0;
