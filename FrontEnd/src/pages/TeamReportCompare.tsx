@@ -1864,16 +1864,17 @@ const TeamReportCompare: React.FC = () => {
         };
       };
 
-      // Add series based on chart type - single series showing growth percentages
+      // Add series based on chart type - one series per parameter for growth analysis
       if (chartType === 'bar' || chartType === 'combo') {
-        const format = getParameterFormat('Growth');
-        const series = chart.series.push(
-          am5xy.ColumnSeries.new(root, {
-            name: "Growth %",
-            xAxis: xAxis,
-            yAxis: yAxis,
-            valueYField: "value",
-            categoryXField: "period",
+        selectedParameters.forEach((parameter, index) => {
+          const format = getParameterFormat('Growth');
+          const series = chart.series.push(
+            am5xy.ColumnSeries.new(root, {
+              name: parameter,
+              xAxis: xAxis,
+              yAxis: yAxis,
+              valueYField: "value",
+              categoryXField: "period",
               tooltip: am5.Tooltip.new(root, {
                 pointerOrientation: "horizontal",
                 labelText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
@@ -1900,44 +1901,38 @@ const TeamReportCompare: React.FC = () => {
             })
           );
 
-        // Configure column appearance
-        series.columns.template.setAll({
-          width: am5.percent(80),
-          strokeOpacity: 0,
-          cornerRadiusTL: 5,
-          cornerRadiusTR: 5,
-          tooltipY: 0,
-          tooltipText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`
-        });
+          // Configure column appearance
+          series.columns.template.setAll({
+            width: am5.percent(60 / selectedParameters.length),
+            strokeOpacity: 0,
+            cornerRadiusTL: 5,
+            cornerRadiusTR: 5,
+            tooltipY: 0,
+            tooltipText: `{categoryX} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+            fill: colors[index % colors.length]
+          });
 
-        // Set colors based on positive/negative growth
-        series.columns.template.adapters.add("fill", (fill, target) => {
-          const dataItem = target.dataItem;
-          if (dataItem && dataItem.dataContext) {
-            return (dataItem.dataContext as any).isPositive ? am5.color(0x52c41a) : am5.color(0xff4d4f);
-          }
-          return fill;
-        });
+          // Add hover state
+          series.columns.template.states.create("hover", {
+            fill: colors[index % colors.length],
+            stroke: am5.color(0x1890ff)
+          });
 
-        // Add hover state
-        series.columns.template.states.create("hover", {
-          fill: am5.color(0x1890ff),
-          stroke: am5.color(0x1890ff)
+          // Add animation
+          series.appear(1000, 100 * index);
         });
-
-        // Add animation
-        series.appear(1000, 100);
       }
       
       if (chartType === 'line' || chartType === 'combo') {
-        const format = getParameterFormat('Growth');
-        const lineSeries = chart.series.push(
-          am5xy.LineSeries.new(root, {
-            name: "Growth %",
-            xAxis: xAxis,
-            yAxis: yAxis,
-            valueYField: "value",
-            categoryXField: "period",
+        selectedParameters.forEach((parameter, index) => {
+          const format = getParameterFormat('Growth');
+          const lineSeries = chart.series.push(
+            am5xy.LineSeries.new(root, {
+              name: parameter,
+              xAxis: xAxis,
+              yAxis: yAxis,
+              valueYField: "value",
+              categoryXField: "period",
               tooltip: am5.Tooltip.new(root, {
                 pointerOrientation: "horizontal",
                 labelText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
@@ -1967,7 +1962,7 @@ const TeamReportCompare: React.FC = () => {
           // Configure line appearance
           lineSeries.strokes.template.setAll({
             strokeWidth: 3,
-            stroke: am5.color(0x1890ff)
+            stroke: colors[index % colors.length]
           });
 
           // Add bullets with data labels
@@ -1975,7 +1970,7 @@ const TeamReportCompare: React.FC = () => {
             return am5.Bullet.new(root, {
               sprite: am5.Circle.new(root, {
                 radius: 5,
-                fill: am5.color(0x1890ff),
+                fill: colors[index % colors.length],
                 stroke: am5.color(0xffffff),
                 strokeWidth: 2
               })
@@ -2001,40 +1996,50 @@ const TeamReportCompare: React.FC = () => {
           // Add hover state
           lineSeries.strokes.template.states.create("hover", {
             strokeWidth: 4,
-            stroke: am5.color(0x1890ff)
+            stroke: colors[index % colors.length]
           });
 
-        // Add animation
-        lineSeries.appear(1000, 100);
+          // Add animation
+          lineSeries.appear(1000, 100 * index);
+        });
       }
 
       // Add chart animation
       chart.appear(1000, 100);
 
-      // Set data for all series
-      // Use growth analysis data from KPI calculations
-      const chartData = growthAnalysis.map(item => ({
-        period: item.parameter,
-        value: item.changes[0]?.percentageChange || 0,
-        isPositive: item.changes[0]?.isPositive || true
-      }));
+      // Set data for Period-to-Period Growth Analysis
+      // Create data points for each parameter showing growth from 0% to actual growth%
+      const growthChartData = growthAnalysis.map(item => {
+        const growthPercentage = item.changes[0]?.percentageChange || 0;
+        return [
+          {
+            period: "FY 2024",
+            value: 0,
+            parameter: item.parameter,
+            label: "Base"
+          },
+          {
+            period: "FY 2025", 
+            value: growthPercentage,
+            parameter: item.parameter,
+            label: `${growthPercentage.toFixed(1)}%`
+          }
+        ];
+      }).flat();
       
-      console.log("🔍 Chart data for x-axis:", chartData);
+      console.log("🔍 Period-to-Period Growth Chart data:", growthChartData);
       console.log("🔍 Growth analysis data:", growthAnalysis);
       console.log("🔍 Chart element found:", !!chartElement);
       console.log("🔍 Chart type:", chartType);
       
-      // Set data for x-axis (categories)
-      xAxis.data.setAll(chartData);
+      // Set data for x-axis (periods)
+      xAxis.data.setAll(growthChartData);
       
-      // Set data for each series
+      // Set data for each series (one line per parameter)
       chart.series.values.forEach((series, index) => {
-        const seriesData = chartData.map(item => ({
-          period: item.period,
-          value: item.value,
-          isPositive: item.isPositive
-        }));
-        console.log(`🔍 Setting data for series ${index}:`, seriesData);
+        const parameterName = selectedParameters[index];
+        const seriesData = growthChartData.filter(item => item.parameter === parameterName);
+        console.log(`🔍 Setting data for series ${parameterName}:`, seriesData);
         series.data.setAll(seriesData);
       });
     }, 100); // 100ms delay
@@ -2047,8 +2052,145 @@ const TeamReportCompare: React.FC = () => {
     };
   }, [growthAnalysis, selectedParameters, chartType]);
 
+  // Render Waterfall Chart
+  useEffect(() => {
+    if (growthAnalysis.length === 0 || selectedParameters.length === 0) return;
+    
+    const timer = setTimeout(() => {
+      const waterfallElement = document.getElementById("waterfallChart");
+      if (!waterfallElement) {
+        console.warn("Waterfall chart element not found");
+        return;
+      }
+      
+      // Cleanup existing chart
+      am5.array.each(am5.registry.rootElements, (root) => {
+        if (root && root.dom && root.dom.id === "waterfallChart") root.dispose();
+      });
 
+      const root = am5.Root.new("waterfallChart");
+      root.setThemes([am5themes_Animated.new(root)]);
 
+      const chart = root.container.children.push(
+        am5xy.XYChart.new(root, {
+          panX: false,
+          panY: false,
+          wheelX: "none",
+          wheelY: "none",
+          cursor: am5xy.XYCursor.new(root, {}),
+          background: am5.Rectangle.new(root, { fill: am5.color(0xffffff) })
+        })
+      );
+
+      // Create axes
+      const xAxis = chart.xAxes.push(
+        am5xy.CategoryAxis.new(root, {
+          categoryField: "category",
+          renderer: am5xy.AxisRendererX.new(root, {}),
+          tooltip: am5.Tooltip.new(root, {})
+        })
+      );
+      xAxis.get("renderer").labels.template.setAll({
+        fill: am5.color(0x000000)
+      });
+
+      const yAxis = chart.yAxes.push(
+        am5xy.ValueAxis.new(root, {
+          renderer: am5xy.AxisRendererY.new(root, {}),
+          tooltip: am5.Tooltip.new(root, {})
+        })
+      );
+      yAxis.get("renderer").labels.template.setAll({
+        fill: am5.color(0x000000)
+      });
+
+      // Get KPI data for waterfall
+      const kpiData = calculateKPIs();
+      
+      // Create waterfall data
+      const waterfallData = selectedParameters.map(parameter => {
+        const kpi = kpiData[parameter];
+        if (!kpi) return null;
+        
+        return {
+          category: parameter,
+          value: kpi.currentFY - kpi.previousFY, // Growth amount
+          previousValue: kpi.previousFY,
+          currentValue: kpi.currentFY,
+          color: kpi.isPositive ? am5.color(0x52c41a) : am5.color(0xff4d4f)
+        };
+      }).filter(Boolean);
+
+      console.log("🔍 Waterfall chart data:", waterfallData);
+
+      // Create series
+      const series = chart.series.push(
+        am5xy.ColumnSeries.new(root, {
+          name: "Growth Amount",
+          xAxis: xAxis,
+          yAxis: yAxis,
+          valueYField: "value",
+          categoryXField: "category",
+          tooltip: am5.Tooltip.new(root, {
+            pointerOrientation: "horizontal",
+            labelText: "{categoryX}: ₹{valueY.formatNumber('#,##0.00')}L",
+            autoTextColor: false,
+            labelHTML: `
+              <div style="
+                text-align: left; 
+                padding: 8px 12px; 
+                background: #ffffff; 
+                color: #333333; 
+                border-radius: 6px; 
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 12px;
+                line-height: 1.4;
+                min-width: 120px;
+              ">
+                <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
+                <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">Growth Amount</div>
+                <div style="font-weight: 700; color: #000000; font-size: 13px;">₹{valueY.formatNumber('#,##0.00')}L</div>
+              </div>
+            `
+          })
+        })
+      );
+
+      // Configure columns
+      series.columns.template.setAll({
+        width: am5.percent(80),
+        strokeOpacity: 0,
+        cornerRadiusTL: 5,
+        cornerRadiusTR: 5,
+        tooltipY: 0
+      });
+
+      // Set colors based on positive/negative growth
+      series.columns.template.adapters.add("fill", (fill, target) => {
+        const dataItem = target.dataItem;
+        if (dataItem && dataItem.dataContext) {
+          return (dataItem.dataContext as any).color;
+        }
+        return fill;
+      });
+
+      // Set data
+      xAxis.data.setAll(waterfallData);
+      series.data.setAll(waterfallData);
+
+      // Add animation
+      series.appear(1000);
+      chart.appear(1000, 100);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      am5.array.each(am5.registry.rootElements, (root) => {
+        if (root && root.dom && root.dom.id === "waterfallChart") root.dispose();
+      });
+    };
+  }, [growthAnalysis, selectedParameters]);
 
   return (
     <div style={{ padding: 32, backgroundColor: '#ffffff', minHeight: '100vh', color: '#000000' }}>
@@ -2733,6 +2875,12 @@ const TeamReportCompare: React.FC = () => {
             <div style={{ width: "100%", height: "500px" }}>
               <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Growth Analysis</h3>
               <div id="comparisonChart" style={{ width: "100%", height: "100%" }} />
+            </div>
+
+            {/* Waterfall Chart */}
+            <div style={{ width: "100%", height: "500px", marginTop: 40 }}>
+              <h3 style={{ color: '#000000' }}>Growth Amount Analysis (₹L)</h3>
+              <div id="waterfallChart" style={{ width: "100%", height: "100%" }} />
             </div>
 
             {/* Growth Analysis Dashboard */}
