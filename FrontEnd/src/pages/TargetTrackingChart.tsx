@@ -95,7 +95,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       
       // Use chart's own business unit filter if set, otherwise use prop
       const businessUnitToUse = selectedBusinessUnitFilter !== 'all' ? selectedBusinessUnitFilter : selectedBusinessUnit;
-      if (businessUnitToUse) {
+      if (businessUnitToUse && businessUnitToUse !== 'all') {
         params.business_unit = businessUnitToUse;
       }
       
@@ -161,6 +161,14 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   };
 
   // Fetch data when component mounts or filters change
+  // Sync business unit filter with parent component
+  useEffect(() => {
+    if (selectedBusinessUnit && selectedBusinessUnit !== selectedBusinessUnitFilter) {
+      setSelectedBusinessUnitFilter(selectedBusinessUnit);
+    }
+  }, [selectedBusinessUnit]);
+
+  // Fetch data when dependencies change
   useEffect(() => {
     fetchDataFromDatabase();
   }, [selectedBusinessUnit, selectedBusinessUnitFilter, selectedParameter]);
@@ -516,12 +524,16 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       let value: number;
       let isForecast = false;
       
-      if (actualData[month] && actualData[month] > 0) {
-        // Use actual data from database
+      // Check if this month has actual data AND is within the current financial year up to current month
+      const hasActualData = actualData[month] && actualData[month] > 0;
+      const isCurrentOrPastMonth = index <= currentMonthIndex;
+      
+      if (hasActualData && isCurrentOrPastMonth) {
+        // Use actual data from database for current/past months
         value = actualData[month];
         isForecast = false;
         console.log(`🔍 Using actual data for ${month}: ${value}`);
-      } else if (index <= currentMonthIndex) {
+      } else if (isCurrentOrPastMonth && !hasActualData) {
         // Past months with no data - use 0
         value = 0;
         isForecast = false;
@@ -761,9 +773,9 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     forecastSeries.data.setAll(forecastData);
     console.log('🔍 Series data set successfully');
     
-    // Set x-axis data - use the same approach as working charts
-    console.log('🔍 Setting x-axis data with actual data:', actualData);
-    xAxis.data.setAll(actualData);
+    // Set x-axis data - use the full chart data to ensure all months are labeled
+    console.log('🔍 Setting x-axis data with full chart data:', chartData);
+    xAxis.data.setAll(chartData);
 
     // Add legend
     const legend = chart.children.push(

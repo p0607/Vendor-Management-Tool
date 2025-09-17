@@ -3112,13 +3112,13 @@ const TeamReportCompare: React.FC = () => {
   useEffect(() => {
 
     console.log("🔍 Chart useEffect triggered with:", {
-      growthAnalysisLength: growthAnalysis.length,
+      dataLength: data.length,
       selectedParametersLength: selectedParameters.length,
-      growthAnalysis: growthAnalysis,
+      compareType: compareType,
       activeChartTab: activeChartTab
     });
     
-    if (growthAnalysis.length === 0 || selectedParameters.length === 0 || activeChartTab !== 'growth') {
+    if (data.length === 0 || selectedParameters.length === 0 || activeChartTab !== 'growth') {
       console.log("🔍 Chart useEffect: Not enough data or tab not active, skipping chart render");
       return;
     }
@@ -3248,16 +3248,33 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      // Helper function to get format for parameter (now showing growth percentages)
+      // Helper function to get format for parameter (now showing actual values)
       const getParameterFormat = (param: string) => {
-
+        if (param === 'Sales' || param === 'GPM' || param === 'NP' || param === 'Team Cost' || 
+            param === 'Salary Cost' || param === 'Opr Cost' || param === 'Funding Cost' || 
+            param === 'Leave Encashment') {
           return {
-
             prefix: '',
-
+            suffix: '',
+            format: '#,##0'
+          };
+        } else if (param === 'GPM %' || param === 'NP %') {
+          return {
+            prefix: '',
             suffix: '%',
-
-          format: '#,##0.0'
+            format: '#,##0.0'
+          };
+        } else if (param === 'HC') {
+          return {
+            prefix: '',
+            suffix: '',
+            format: '#,##0'
+          };
+        }
+        return {
+          prefix: '',
+          suffix: '',
+          format: '#,##0'
         };
       };
 
@@ -3266,7 +3283,7 @@ const TeamReportCompare: React.FC = () => {
 
         selectedParameters.forEach((parameter, index) => {
 
-          const format = getParameterFormat('Growth');
+          const format = getParameterFormat(parameter);
           const series = chart.series.push(
 
             am5xy.ColumnSeries.new(root, {
@@ -3315,7 +3332,7 @@ const TeamReportCompare: React.FC = () => {
 
                     <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
 
-                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">Growth %</div>
+                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">{parameter}</div>
                     <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
 
                   </div>
@@ -3376,7 +3393,7 @@ const TeamReportCompare: React.FC = () => {
 
         selectedParameters.forEach((parameter, index) => {
 
-          const format = getParameterFormat('Growth');
+          const format = getParameterFormat(parameter);
           const lineSeries = chart.series.push(
 
             am5xy.LineSeries.new(root, {
@@ -3425,7 +3442,7 @@ const TeamReportCompare: React.FC = () => {
 
                     <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
 
-                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">Growth %</div>
+                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">{parameter}</div>
                     <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
 
                   </div>
@@ -3536,38 +3553,92 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      // Set data for Period-to-Period Growth Analysis
-      // Create data points for each parameter showing growth from 0% to actual growth%
-      const growthChartData = growthAnalysis.map(item => {
-        const growthPercentage = item.changes[0]?.percentageChange || 0;
-        return [
-          {
-            period: "FY 2024",
-            value: 0,
-            parameter: item.parameter,
-            label: "Base"
-          },
-          {
-            period: "FY 2025", 
-            value: growthPercentage,
-            parameter: item.parameter,
-            label: `${growthPercentage.toFixed(1)}%`
-          }
-        ];
-      }).flat();
+      // Set data for Parameter Data Visualization
+      // Create data points for each parameter showing actual values over time
+      const parameterChartData: any[] = [];
       
-      console.log("🔍 Period-to-Period Growth Chart data:", growthChartData);
-      console.log("🔍 Growth analysis data:", growthAnalysis);
+      // Use the same data structure as other components - default to year comparison
+      const currentFY = getCurrentFinancialYear();
+      const previousFY = currentFY - 1;
+      
+      // Get periods based on comparison type (default to year)
+      let periods: string[] = [];
+      if (compareType === 'quarter') {
+        // Use quarter comparison if available
+        const currentQuarter = comparisonValues[0] || `Q1(Apr-Jun) ${currentFY}`;
+        const previousQuarter = comparisonValues[1] || `Q1(Apr-Jun) ${previousFY}`;
+        periods = [currentQuarter, previousQuarter];
+      } else {
+        // Default to year comparison
+        periods = [`FY ${currentFY}`, `FY ${previousFY}`];
+      }
+      
+      // Create data for each parameter and period
+      selectedParameters.forEach(parameter => {
+        periods.forEach(period => {
+          // Get the actual value for this parameter and period from the data
+          let value = 0;
+          
+          // Filter data based on period (same logic as KPI calculations)
+          let filteredData: any[] = [];
+          
+          if (compareType === 'quarter' && period.includes('Q')) {
+            // Quarter comparison
+            const quarterMonths = getQuarterMonths(period);
+            const yearMatch = period.match(/(\d{4})/);
+            const year = yearMatch ? parseInt(yearMatch[1]) : currentFY;
+            
+            filteredData = data.filter(item => {
+              const itemDate = new Date(item.month);
+              const itemYear = itemDate.getFullYear();
+              const itemMonth = itemDate.getMonth() + 1;
+              return itemYear === year && quarterMonths.includes(itemMonth);
+            });
+          } else {
+            // Year comparison (default)
+            const yearMatch = period.match(/(\d{4})/);
+            const year = yearMatch ? parseInt(yearMatch[1]) : currentFY;
+            
+            filteredData = data.filter(item => {
+              const itemDate = new Date(item.month);
+              const itemYear = itemDate.getFullYear();
+              const itemMonth = itemDate.getMonth() + 1;
+              
+              // Check if item belongs to the financial year
+              if (itemMonth >= 4) {
+                return itemYear === year;
+              } else {
+                return itemYear === year + 1;
+              }
+            });
+          }
+          
+          // Sum up the values for this parameter across all filtered data
+          value = filteredData.reduce((sum, item) => {
+            const paramKey = parameter.toLowerCase().replace(/\s+/g, '_');
+            return sum + (item[paramKey] || 0);
+          }, 0);
+          
+          parameterChartData.push({
+            period: period,
+            value: value,
+            parameter: parameter
+          });
+        });
+      });
+      
+      console.log("🔍 Parameter Data Chart data:", parameterChartData);
+      console.log("🔍 Compare type:", compareType);
       console.log("🔍 Chart element found:", !!chartElement);
       console.log("🔍 Chart type:", chartType);
       
       // Set data for x-axis (periods)
-      xAxis.data.setAll(growthChartData);
+      xAxis.data.setAll(parameterChartData);
       
       // Set data for each series (one line per parameter)
       chart.series.values.forEach((series, index) => {
         const parameterName = selectedParameters[index];
-        const seriesData = growthChartData.filter(item => item.parameter === parameterName);
+        const seriesData = parameterChartData.filter(item => item.parameter === parameterName);
         console.log(`🔍 Setting data for series ${parameterName}:`, seriesData);
         series.data.setAll(seriesData);
       });
@@ -3588,7 +3659,7 @@ const TeamReportCompare: React.FC = () => {
 
     };
 
-  }, [growthAnalysis, selectedParameters, chartType, activeChartTab]);
+  }, [data, selectedParameters, chartType, activeChartTab, compareType, comparisonValues]);
 
 
   // Render Waterfall Chart
@@ -4891,7 +4962,7 @@ const TeamReportCompare: React.FC = () => {
                     marginRight: '2px'
                   }}
                 >
-                  Growth Analysis Chart
+                  Parameter Data Chart
                 </button>
                 <button
                   onClick={() => setActiveChartTab('waterfall')}
@@ -4912,10 +4983,10 @@ const TeamReportCompare: React.FC = () => {
                 </button>
               </div>
 
-              {/* Growth Analysis Chart */}
+              {/* Parameter Data Chart */}
               {activeChartTab === 'growth' && (
                 <div style={{ width: "100%", height: "500px" }}>
-                  <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Growth Analysis</h3>
+                  <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Data Visualization</h3>
                   <div id="comparisonChart" style={{ width: "100%", height: "100%" }} />
                 </div>
               )}
