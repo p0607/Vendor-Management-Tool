@@ -836,6 +836,7 @@ const chartData = metricFields.map(({ field, label }) => {
     });
     
     return result;
+  };
 
   // Calculate domain data for pie chart
   const calculateDomainData = () => {
