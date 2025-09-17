@@ -2633,9 +2633,10 @@ const TeamReportCompare: React.FC = () => {
   useEffect(() => {
 
     console.log("🔍 Calculating growth analysis...");
-
+    console.log("🔍 availableParameters:", availableParameters);
+    console.log("🔍 selectedParameters:", selectedParameters);
+    console.log("🔍 showAllParameters:", showAllParameters);
     console.log("🔍 comparisonValues:", comparisonValues);
-
     console.log("🔍 data length:", data.length);
 
     
@@ -3010,7 +3011,7 @@ const TeamReportCompare: React.FC = () => {
     console.log("🔍 Final chart data from KPI calculations:", chartData);
     console.log("🔍 Setting growthAnalysis state with:", chartData.length, "items");
     setGrowthAnalysis(chartData);
-  }, [selectedParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
+  }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, showAllParameters]);
 
   // Calculate growth percentages for chart data
   const calculateGrowthData = () => {

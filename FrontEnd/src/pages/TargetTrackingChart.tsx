@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import * as am5 from "@amcharts/amcharts5";
 import * as am5xy from "@amcharts/amcharts5/xy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
-import { Card, Row, Col, Select, Typography, Alert } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Select, Typography } from 'antd';
 import apiClient from '../config/api';
 
 const { Title, Text } = Typography;
@@ -117,11 +116,11 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
             let numericValue: number;
             
             if (typeof item[field] === 'string') {
-              // Remove commas and convert to float
+          // Remove commas and convert to float
               numericValue = parseFloat(item[field].replace(/,/g, ''));
             } else if (typeof item[field] === 'number') {
               numericValue = item[field];
-            } else {
+        } else {
               numericValue = 0;
             }
             
@@ -310,16 +309,16 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   };
 
   // Generate chart data with forecasting
-  const generateChartData = () => {
+    const generateChartData = () => {
     console.log('🔍 Generating forecast chart data for parameter:', selectedParameter);
     console.log('🔍 Database data length:', databaseData.length);
     console.log('🔍 Sample database data:', databaseData.slice(0, 3));
-    
+      
     // Use only database data for forecasting
     if (databaseData.length === 0) {
       console.log('🔍 No database data available for forecasting');
-      return [];
-    }
+        return [];
+      }
 
     const currentFY = getCurrentFinancialYear();
     const currentMonthIndex = getCurrentMonthIndex();
@@ -516,16 +515,16 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         console.log(`🔍 Forecasting ${month}: base=${baseForecast}, trend=${trendAdjustment}, final=${value}`);
       }
 
-      return {
+        return {
         period: month,
         value: Math.max(0, value), // Ensure non-negative values
         isForecast: isForecast
-      };
+        };
     });
 
     console.log('🔍 Final forecast chart data:', chartData);
-    return chartData;
-  };
+      return chartData;
+    };
 
     // Render chart
   useEffect(() => {
@@ -622,7 +621,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         name: `${selectedParameter} (Actual)`,
         xAxis: xAxis,
         yAxis: yAxis,
-        valueYField: "actualValue",
+        valueYField: "value",
         categoryXField: "period",
         tooltip: am5.Tooltip.new(root, {
           pointerOrientation: "horizontal",
@@ -656,7 +655,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         name: `${selectedParameter} (Forecast)`,
         xAxis: xAxis,
         yAxis: yAxis,
-        valueYField: "forecastValue",
+        valueYField: "value",
         categoryXField: "period",
         tooltip: am5.Tooltip.new(root, {
           pointerOrientation: "horizontal",
@@ -714,22 +713,29 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       });
     });
 
-    // Prepare combined data for both series
-    const combinedData = chartData.map(item => ({
+    // Prepare data for each series separately (like the working charts)
+    const actualData = chartData.map(item => ({
       period: item.period,
-      actualValue: item.isForecast ? null : item.value,
-      forecastValue: item.isForecast ? item.value : null
+      value: item.isForecast ? null : item.value
     }));
 
-    console.log('🔍 Setting combined series data:', combinedData);
-    actualSeries.data.setAll(combinedData);
-    forecastSeries.data.setAll(combinedData);
+    const forecastData = chartData.map(item => ({
+      period: item.period,
+      value: item.isForecast ? item.value : null
+    }));
+
+    console.log('🔍 Setting actual series data:', actualData);
+    console.log('🔍 Setting forecast series data:', forecastData);
+    console.log('🔍 Sample actual data item:', actualData[0]);
+    console.log('🔍 Sample forecast data item:', forecastData[0]);
+    
+    actualSeries.data.setAll(actualData);
+    forecastSeries.data.setAll(forecastData);
     console.log('🔍 Series data set successfully');
     
-    // Set x-axis data - this is crucial for CategoryAxis
-    const periods = chartData.map(item => item?.period).filter(Boolean);
-    console.log('🔍 Setting x-axis periods:', periods);
-    xAxis.data.setAll(periods);
+    // Set x-axis data - use the same approach as working charts
+    console.log('🔍 Setting x-axis data with actual data:', actualData);
+    xAxis.data.setAll(actualData);
 
     // Add legend
     const legend = chart.children.push(
@@ -836,28 +842,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         </Col>
       </Row>
 
-      <Alert
-        message="Parameter Tracking"
-        description={
-          <div>
-            <p><strong>Blue Line with Points:</strong> {selectedParameter} data over time</p>
-            <p><strong>X-axis:</strong> Shows {selectedTimeline} periods</p>
-            <p><strong>Y-axis:</strong> Shows {selectedParameter} values</p>
-            <p><strong>Data Source:</strong> Real data from your database</p>
-            <p><strong>API Endpoint:</strong> /api/team-report</p>
-            <p><strong>Data Points:</strong> {databaseData.length} records processed</p>
-          </div>
-        }
-        type="info"
-        showIcon
-        icon={<InfoCircleOutlined />}
-        style={{ 
-          marginBottom: '1rem',
-          backgroundColor: '#f8f9fa',
-          borderColor: '#d9d9d9',
-          color: '#000000'
-        }}
-      />
 
       <div id="forecastChart" style={{ width: "100%", height: "500px" }}></div>
     </Card>
