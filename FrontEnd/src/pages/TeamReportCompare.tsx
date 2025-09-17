@@ -3707,70 +3707,177 @@ const TeamReportCompare: React.FC = () => {
                     <div style={{
                       backgroundColor: '#ffffff',
                       borderRadius: 8,
-                      padding: 16,
+                      padding: 20,
                       border: '1px solid #d9d9d9',
-                      textAlign: 'center'
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      position: 'relative'
                     }}>
+                      {/* Black Label with Orange Line */}
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ 
+                          backgroundColor: '#000000', 
+                          color: '#ffffff', 
+                          padding: '6px 12px', 
+                          borderRadius: 4, 
+                          fontSize: 12, 
+                          fontWeight: 600,
+                          display: 'inline-block',
+                          marginBottom: 4
+                        }}>
+                          Sales Analysis
+                        </div>
+                        <div style={{ 
+                          width: 60, 
+                          height: 2, 
+                          backgroundColor: '#ff6b35',
+                          borderRadius: 1
+                        }} />
+                      </div>
+
+                      {/* Green Arrow Icon */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 20,
+                        right: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{
+                          width: 0,
+                          height: 0,
+                          borderLeft: '8px solid transparent',
+                          borderRight: '8px solid transparent',
+                          borderBottom: '12px solid #4ade80',
+                          marginBottom: 2
+                        }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                        </div>
+                      </div>
+
+                      {/* Main Growth Percentage */}
                       <div style={{ 
-                        backgroundColor: '#000000', 
-                        color: '#ffffff', 
+                        fontSize: 28, 
+                        fontWeight: 700, 
+                        color: '#4ade80', 
+                        marginBottom: 8,
+                        textAlign: 'center'
+                      }}>
+                        +{salesKPI.growthPercentage.toFixed(1)}% Growth
+                      </div>
+
+                      {/* Change in Value */}
+                      <div style={{ 
+                        fontSize: 16, 
+                        fontWeight: 600, 
+                        color: '#4ade80', 
+                        marginBottom: 4,
+                        textAlign: 'center'
+                      }}>
+                        +₹{((salesKPI.currentFY - salesKPI.previousFY) / 100000).toFixed(1)}L
+                      </div>
+
+                      {/* vs FY 2024 */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 20,
+                        textAlign: 'center'
+                      }}>
+                        vs FY 2024
+                      </div>
+
+                      {/* Sales Label */}
+                      <div style={{ 
+                        backgroundColor: '#f5f5f5', 
+                        color: '#666666', 
                         padding: '4px 8px', 
                         borderRadius: 4, 
-                        fontSize: 12, 
-                        marginBottom: 8,
-                        display: 'inline-block'
+                        fontSize: 10, 
+                        fontWeight: 500,
+                        display: 'inline-block',
+                        marginBottom: 12
                       }}>
                         Sales
+                      </div>
+
+                      {/* Current FY Value */}
+                      <div style={{ 
+                        fontSize: 20, 
+                        fontWeight: 700, 
+                        color: '#333333', 
+                        marginBottom: 4
+                      }}>
+                        ₹{(salesKPI.currentFY / 100000).toFixed(1)}L
+                      </div>
+
+                      {/* FY 2025 Projected */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 2
+                      }}>
+                        FY 2025 (Projected)
+                      </div>
+
+                      {/* Previous FY Actual */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 16
+                      }}>
+                        ₹{(salesKPI.previousFY / 100000).toFixed(1)}L Actual
+                      </div>
+
+                      {/* Positive Trend */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        marginBottom: 12
+                      }}>
                         <div style={{ 
                           width: 8, 
                           height: 8, 
                           borderRadius: '50%', 
-                          backgroundColor: salesKPI.isPositive ? '#4ade80' : '#f87171',
-                          display: 'inline-block',
-                          marginLeft: 8
+                          backgroundColor: '#4ade80'
                         }} />
+                        <div style={{ 
+                          fontSize: 12, 
+                          color: '#666666'
+                        }}>
+                          Positive Trend
+                        </div>
                       </div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: '#000000', marginBottom: 8 }}>
-                        ₹{(salesKPI.currentFY / 100000).toFixed(1)}L
+
+                      {/* Progress Bar */}
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{
+                          width: '100%',
+                          height: 6,
+                          backgroundColor: '#e5e5e5',
+                          borderRadius: 3,
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${(salesKPI.monthsCompleted / 12) * 100}%`,
+                            height: '100%',
+                            backgroundColor: '#4ade80',
+                            borderRadius: 3
+                          }} />
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
-                        {salesKPI.period}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 8 }}>
-                        vs {salesKPI.period.split(' vs ')[1]}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
-                        ₹{(salesKPI.previousFY / 100000).toFixed(1)}L
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 4
+
+                      {/* Months Completed */}
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: '#666666',
+                        textAlign: 'center'
                       }}>
-                        <div>
-                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Change in Value</div>
-                          <div style={{ 
-                            color: salesKPI.isPositive ? '#4ade80' : '#f87171',
-                            fontSize: 13,
-                            fontWeight: 600
-                          }}>
-                            {salesKPI.isPositive ? '+' : ''}₹{((salesKPI.currentFY - salesKPI.previousFY) / 100000).toFixed(1)}L
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Growth/Decline</div>
-                          <div style={{ 
-                            color: salesKPI.isPositive ? '#4ade80' : '#f87171',
-                            fontSize: 13,
-                            fontWeight: 600
-                          }}>
-                            {salesKPI.isPositive ? '+' : ''}{salesKPI.growthPercentage.toFixed(1)}%
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#666666' }}>
-                        {salesKPI.monthsCompleted}/12 months
+                        {salesKPI.monthsCompleted}/12 months completed
                       </div>
                     </div>
                   )}
@@ -3780,70 +3887,177 @@ const TeamReportCompare: React.FC = () => {
                     <div style={{
                       backgroundColor: '#ffffff',
                       borderRadius: 8,
-                      padding: 16,
+                      padding: 20,
                       border: '1px solid #d9d9d9',
-                      textAlign: 'center'
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      position: 'relative'
                     }}>
+                      {/* Black Label with Orange Line */}
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ 
+                          backgroundColor: '#000000', 
+                          color: '#ffffff', 
+                          padding: '6px 12px', 
+                          borderRadius: 4, 
+                          fontSize: 12, 
+                          fontWeight: 600,
+                          display: 'inline-block',
+                          marginBottom: 4
+                        }}>
+                          GPM Analysis
+                        </div>
+                        <div style={{ 
+                          width: 60, 
+                          height: 2, 
+                          backgroundColor: '#ff6b35',
+                          borderRadius: 1
+                        }} />
+                      </div>
+
+                      {/* Green Arrow Icon */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 20,
+                        right: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{
+                          width: 0,
+                          height: 0,
+                          borderLeft: '8px solid transparent',
+                          borderRight: '8px solid transparent',
+                          borderBottom: '12px solid #4ade80',
+                          marginBottom: 2
+                        }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                        </div>
+                      </div>
+
+                      {/* Main Growth Percentage */}
                       <div style={{ 
-                        backgroundColor: '#000000', 
-                        color: '#ffffff', 
+                        fontSize: 28, 
+                        fontWeight: 700, 
+                        color: '#4ade80', 
+                        marginBottom: 8,
+                        textAlign: 'center'
+                      }}>
+                        +{gpmKPI.growthPercentage.toFixed(1)}% Growth
+                      </div>
+
+                      {/* Change in Value */}
+                      <div style={{ 
+                        fontSize: 16, 
+                        fontWeight: 600, 
+                        color: '#4ade80', 
+                        marginBottom: 4,
+                        textAlign: 'center'
+                      }}>
+                        +₹{((gpmKPI.currentFY - gpmKPI.previousFY) / 100000).toFixed(1)}L
+                      </div>
+
+                      {/* vs FY 2024 */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 20,
+                        textAlign: 'center'
+                      }}>
+                        vs FY 2024
+                      </div>
+
+                      {/* GPM Label */}
+                      <div style={{ 
+                        backgroundColor: '#f5f5f5', 
+                        color: '#666666', 
                         padding: '4px 8px', 
                         borderRadius: 4, 
-                        fontSize: 12, 
-                        marginBottom: 8,
-                        display: 'inline-block'
+                        fontSize: 10, 
+                        fontWeight: 500,
+                        display: 'inline-block',
+                        marginBottom: 12
                       }}>
                         GPM
+                      </div>
+
+                      {/* Current FY Value */}
+                      <div style={{ 
+                        fontSize: 20, 
+                        fontWeight: 700, 
+                        color: '#333333', 
+                        marginBottom: 4
+                      }}>
+                        ₹{(gpmKPI.currentFY / 100000).toFixed(1)}L
+                      </div>
+
+                      {/* FY 2025 Projected */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 2
+                      }}>
+                        FY 2025 (Projected)
+                      </div>
+
+                      {/* Previous FY Actual */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 16
+                      }}>
+                        ₹{(gpmKPI.previousFY / 100000).toFixed(1)}L Actual
+                      </div>
+
+                      {/* Positive Trend */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        marginBottom: 12
+                      }}>
                         <div style={{ 
                           width: 8, 
                           height: 8, 
                           borderRadius: '50%', 
-                          backgroundColor: gpmKPI.isPositive ? '#4ade80' : '#f87171',
-                          display: 'inline-block',
-                          marginLeft: 8
+                          backgroundColor: '#4ade80'
                         }} />
+                        <div style={{ 
+                          fontSize: 12, 
+                          color: '#666666'
+                        }}>
+                          Positive Trend
+                        </div>
                       </div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: '#000000', marginBottom: 8 }}>
-                        ₹{(gpmKPI.currentFY / 100000).toFixed(1)}L
+
+                      {/* Progress Bar */}
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{
+                          width: '100%',
+                          height: 6,
+                          backgroundColor: '#e5e5e5',
+                          borderRadius: 3,
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${(gpmKPI.monthsCompleted / 12) * 100}%`,
+                            height: '100%',
+                            backgroundColor: '#4ade80',
+                            borderRadius: 3
+                          }} />
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
-                        {gpmKPI.period}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 8 }}>
-                        vs {gpmKPI.period.split(' vs ')[1]}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
-                        ₹{(gpmKPI.previousFY / 100000).toFixed(1)}L
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 4
+
+                      {/* Months Completed */}
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: '#666666',
+                        textAlign: 'center'
                       }}>
-                        <div>
-                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Change in Value</div>
-                          <div style={{ 
-                            color: gpmKPI.isPositive ? '#4ade80' : '#f87171',
-                            fontSize: 13,
-                            fontWeight: 600
-                          }}>
-                            {gpmKPI.isPositive ? '+' : ''}₹{((gpmKPI.currentFY - gpmKPI.previousFY) / 100000).toFixed(1)}L
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Growth/Decline</div>
-                          <div style={{ 
-                            color: gpmKPI.isPositive ? '#4ade80' : '#f87171',
-                            fontSize: 13,
-                            fontWeight: 600
-                          }}>
-                            {gpmKPI.isPositive ? '+' : ''}{gpmKPI.growthPercentage.toFixed(1)}%
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#666666' }}>
-                        {gpmKPI.monthsCompleted}/12 months
+                        {gpmKPI.monthsCompleted}/12 months completed
                       </div>
                     </div>
                   )}
@@ -3853,70 +4067,177 @@ const TeamReportCompare: React.FC = () => {
                     <div style={{
                       backgroundColor: '#ffffff',
                       borderRadius: 8,
-                      padding: 16,
+                      padding: 20,
                       border: '1px solid #d9d9d9',
-                      textAlign: 'center'
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      position: 'relative'
                     }}>
+                      {/* Black Label with Orange Line */}
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ 
+                          backgroundColor: '#000000', 
+                          color: '#ffffff', 
+                          padding: '6px 12px', 
+                          borderRadius: 4, 
+                          fontSize: 12, 
+                          fontWeight: 600,
+                          display: 'inline-block',
+                          marginBottom: 4
+                        }}>
+                          NP Analysis
+                        </div>
+                        <div style={{ 
+                          width: 60, 
+                          height: 2, 
+                          backgroundColor: '#ff6b35',
+                          borderRadius: 1
+                        }} />
+                      </div>
+
+                      {/* Green Arrow Icon */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 20,
+                        right: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{
+                          width: 0,
+                          height: 0,
+                          borderLeft: '8px solid transparent',
+                          borderRight: '8px solid transparent',
+                          borderBottom: '12px solid #4ade80',
+                          marginBottom: 2
+                        }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                        </div>
+                      </div>
+
+                      {/* Main Growth Percentage */}
                       <div style={{ 
-                        backgroundColor: '#000000', 
-                        color: '#ffffff', 
+                        fontSize: 28, 
+                        fontWeight: 700, 
+                        color: '#4ade80', 
+                        marginBottom: 8,
+                        textAlign: 'center'
+                      }}>
+                        +{npKPI.growthPercentage.toFixed(1)}% Growth
+                      </div>
+
+                      {/* Change in Value */}
+                      <div style={{ 
+                        fontSize: 16, 
+                        fontWeight: 600, 
+                        color: '#4ade80', 
+                        marginBottom: 4,
+                        textAlign: 'center'
+                      }}>
+                        +₹{((npKPI.currentFY - npKPI.previousFY) / 100000).toFixed(1)}L
+                      </div>
+
+                      {/* vs FY 2024 */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 20,
+                        textAlign: 'center'
+                      }}>
+                        vs FY 2024
+                      </div>
+
+                      {/* NP Label */}
+                      <div style={{ 
+                        backgroundColor: '#f5f5f5', 
+                        color: '#666666', 
                         padding: '4px 8px', 
                         borderRadius: 4, 
-                        fontSize: 12, 
-                        marginBottom: 8,
-                        display: 'inline-block'
+                        fontSize: 10, 
+                        fontWeight: 500,
+                        display: 'inline-block',
+                        marginBottom: 12
                       }}>
                         NP
+                      </div>
+
+                      {/* Current FY Value */}
+                      <div style={{ 
+                        fontSize: 20, 
+                        fontWeight: 700, 
+                        color: '#333333', 
+                        marginBottom: 4
+                      }}>
+                        ₹{(npKPI.currentFY / 100000).toFixed(1)}L
+                      </div>
+
+                      {/* FY 2025 Projected */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 2
+                      }}>
+                        FY 2025 (Projected)
+                      </div>
+
+                      {/* Previous FY Actual */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 16
+                      }}>
+                        ₹{(npKPI.previousFY / 100000).toFixed(1)}L Actual
+                      </div>
+
+                      {/* Positive Trend */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        marginBottom: 12
+                      }}>
                         <div style={{ 
                           width: 8, 
                           height: 8, 
                           borderRadius: '50%', 
-                          backgroundColor: npKPI.isPositive ? '#4ade80' : '#f87171',
-                          display: 'inline-block',
-                          marginLeft: 8
+                          backgroundColor: '#4ade80'
                         }} />
+                        <div style={{ 
+                          fontSize: 12, 
+                          color: '#666666'
+                        }}>
+                          Positive Trend
+                        </div>
                       </div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: '#000000', marginBottom: 8 }}>
-                        ₹{(npKPI.currentFY / 100000).toFixed(1)}L
+
+                      {/* Progress Bar */}
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{
+                          width: '100%',
+                          height: 6,
+                          backgroundColor: '#e5e5e5',
+                          borderRadius: 3,
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${(npKPI.monthsCompleted / 12) * 100}%`,
+                            height: '100%',
+                            backgroundColor: '#4ade80',
+                            borderRadius: 3
+                          }} />
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
-                        {npKPI.period}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 8 }}>
-                        vs {npKPI.period.split(' vs ')[1]}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
-                        ₹{(npKPI.previousFY / 100000).toFixed(1)}L
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 4
+
+                      {/* Months Completed */}
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: '#666666',
+                        textAlign: 'center'
                       }}>
-                        <div>
-                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Change in Value</div>
-                          <div style={{ 
-                            color: npKPI.isPositive ? '#4ade80' : '#f87171',
-                            fontSize: 13,
-                            fontWeight: 600
-                          }}>
-                            {npKPI.isPositive ? '+' : ''}₹{((npKPI.currentFY - npKPI.previousFY) / 100000).toFixed(1)}L
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Growth/Decline</div>
-                          <div style={{ 
-                            color: npKPI.isPositive ? '#4ade80' : '#f87171',
-                            fontSize: 13,
-                            fontWeight: 600
-                          }}>
-                            {npKPI.isPositive ? '+' : ''}{npKPI.growthPercentage.toFixed(1)}%
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#666666' }}>
-                        {npKPI.monthsCompleted}/12 months
+                        {npKPI.monthsCompleted}/12 months completed
                       </div>
                     </div>
                   )}
@@ -3926,70 +4247,177 @@ const TeamReportCompare: React.FC = () => {
                     <div style={{
                       backgroundColor: '#ffffff',
                       borderRadius: 8,
-                      padding: 16,
+                      padding: 20,
                       border: '1px solid #d9d9d9',
-                      textAlign: 'center'
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      position: 'relative'
                     }}>
+                      {/* Black Label with Orange Line */}
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ 
+                          backgroundColor: '#000000', 
+                          color: '#ffffff', 
+                          padding: '6px 12px', 
+                          borderRadius: 4, 
+                          fontSize: 12, 
+                          fontWeight: 600,
+                          display: 'inline-block',
+                          marginBottom: 4
+                        }}>
+                          Team Cost Analysis
+                        </div>
+                        <div style={{ 
+                          width: 60, 
+                          height: 2, 
+                          backgroundColor: '#ff6b35',
+                          borderRadius: 1
+                        }} />
+                      </div>
+
+                      {/* Green Arrow Icon */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 20,
+                        right: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{
+                          width: 0,
+                          height: 0,
+                          borderLeft: '8px solid transparent',
+                          borderRight: '8px solid transparent',
+                          borderBottom: '12px solid #4ade80',
+                          marginBottom: 2
+                        }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                        </div>
+                      </div>
+
+                      {/* Main Growth Percentage */}
                       <div style={{ 
-                        backgroundColor: '#000000', 
-                        color: '#ffffff', 
+                        fontSize: 28, 
+                        fontWeight: 700, 
+                        color: '#4ade80', 
+                        marginBottom: 8,
+                        textAlign: 'center'
+                      }}>
+                        +{teamCostKPI.growthPercentage.toFixed(1)}% Growth
+                      </div>
+
+                      {/* Change in Value */}
+                      <div style={{ 
+                        fontSize: 16, 
+                        fontWeight: 600, 
+                        color: '#4ade80', 
+                        marginBottom: 4,
+                        textAlign: 'center'
+                      }}>
+                        +₹{((teamCostKPI.currentFY - teamCostKPI.previousFY) / 100000).toFixed(1)}L
+                      </div>
+
+                      {/* vs FY 2024 */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 20,
+                        textAlign: 'center'
+                      }}>
+                        vs FY 2024
+                      </div>
+
+                      {/* Team Cost Label */}
+                      <div style={{ 
+                        backgroundColor: '#f5f5f5', 
+                        color: '#666666', 
                         padding: '4px 8px', 
                         borderRadius: 4, 
-                        fontSize: 12, 
-                        marginBottom: 8,
-                        display: 'inline-block'
+                        fontSize: 10, 
+                        fontWeight: 500,
+                        display: 'inline-block',
+                        marginBottom: 12
                       }}>
                         Team Cost
+                      </div>
+
+                      {/* Current FY Value */}
+                      <div style={{ 
+                        fontSize: 20, 
+                        fontWeight: 700, 
+                        color: '#333333', 
+                        marginBottom: 4
+                      }}>
+                        ₹{(teamCostKPI.currentFY / 100000).toFixed(1)}L
+                      </div>
+
+                      {/* FY 2025 Projected */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 2
+                      }}>
+                        FY 2025 (Projected)
+                      </div>
+
+                      {/* Previous FY Actual */}
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666', 
+                        marginBottom: 16
+                      }}>
+                        ₹{(teamCostKPI.previousFY / 100000).toFixed(1)}L Actual
+                      </div>
+
+                      {/* Positive Trend */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        marginBottom: 12
+                      }}>
                         <div style={{ 
                           width: 8, 
                           height: 8, 
                           borderRadius: '50%', 
-                          backgroundColor: teamCostKPI.isPositive ? '#4ade80' : '#f87171',
-                          display: 'inline-block',
-                          marginLeft: 8
+                          backgroundColor: '#4ade80'
                         }} />
+                        <div style={{ 
+                          fontSize: 12, 
+                          color: '#666666'
+                        }}>
+                          Positive Trend
+                        </div>
                       </div>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: '#000000', marginBottom: 8 }}>
-                        ₹{(teamCostKPI.currentFY / 100000).toFixed(1)}L
+
+                      {/* Progress Bar */}
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{
+                          width: '100%',
+                          height: 6,
+                          backgroundColor: '#e5e5e5',
+                          borderRadius: 3,
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${(teamCostKPI.monthsCompleted / 12) * 100}%`,
+                            height: '100%',
+                            backgroundColor: '#4ade80',
+                            borderRadius: 3
+                          }} />
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
-                        {teamCostKPI.period}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 8 }}>
-                        vs {teamCostKPI.period.split(' vs ')[1]}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#666666', marginBottom: 4 }}>
-                        ₹{(teamCostKPI.previousFY / 100000).toFixed(1)}L
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 4
+
+                      {/* Months Completed */}
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: '#666666',
+                        textAlign: 'center'
                       }}>
-                        <div>
-                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Change in Value</div>
-                          <div style={{ 
-                            color: teamCostKPI.isPositive ? '#4ade80' : '#f87171',
-                            fontSize: 13,
-                            fontWeight: 600
-                          }}>
-                            {teamCostKPI.isPositive ? '+' : ''}₹{((teamCostKPI.currentFY - teamCostKPI.previousFY) / 100000).toFixed(1)}L
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ color: '#666666', fontSize: 11, marginBottom: 2 }}>Growth/Decline</div>
-                          <div style={{ 
-                            color: teamCostKPI.isPositive ? '#4ade80' : '#f87171',
-                            fontSize: 13,
-                            fontWeight: 600
-                          }}>
-                            {teamCostKPI.isPositive ? '+' : ''}{teamCostKPI.growthPercentage.toFixed(1)}%
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#666666' }}>
-                        {teamCostKPI.monthsCompleted}/12 months
+                        {teamCostKPI.monthsCompleted}/12 months completed
                       </div>
                     </div>
                   )}
