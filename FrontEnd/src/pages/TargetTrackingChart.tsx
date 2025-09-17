@@ -384,7 +384,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       }
       
       console.log(`🔍 Found parameter value: ${parameterValue} in field: ${foundField}`);
-      console.log(`🔍 Raw parameter value from database:`, item[foundField]);
+      console.log(`🔍 Raw parameter value from database:`, foundField ? item[foundField] : 'N/A');
       
       // Handle month - could be date string, month name, or number
       let monthValue: number;
