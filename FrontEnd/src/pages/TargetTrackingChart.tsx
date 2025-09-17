@@ -161,10 +161,16 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   };
 
   // Fetch data when component mounts or filters change
-  // Sync business unit filter with parent component
+  // Set default values since dropdowns are removed
   useEffect(() => {
-    if (selectedBusinessUnit && selectedBusinessUnit !== selectedBusinessUnitFilter) {
+    // Set default timeline to Month
+    setSelectedTimeline('Month');
+    
+    // Set default business unit filter to use parent's selection
+    if (selectedBusinessUnit) {
       setSelectedBusinessUnitFilter(selectedBusinessUnit);
+    } else {
+      setSelectedBusinessUnitFilter('all');
     }
   }, [selectedBusinessUnit]);
 
@@ -832,7 +838,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       </style>
       
       <Row gutter={16} style={{ marginBottom: '1rem', backgroundColor: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #d9d9d9' }}>
-        <Col span={8}>
+        <Col span={24}>
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ color: '#000000', display: 'block', marginBottom: '0.5rem' }}>
               Select Parameter:
@@ -844,38 +850,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
             >
               {availableParameters.map(param => (
                 <Option key={param} value={param}>{param}</Option>
-              ))}
-            </Select>
-          </div>
-        </Col>
-        <Col span={8}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ color: '#000000', display: 'block', marginBottom: '0.5rem' }}>
-              Select Timeline:
-            </label>
-            <Select
-              value={selectedTimeline}
-              onChange={setSelectedTimeline}
-              style={{ width: '100%' }}
-            >
-              {timelineOptions.map(option => (
-                <Option key={option.value} value={option.value}>{option.label}</Option>
-              ))}
-            </Select>
-          </div>
-        </Col>
-        <Col span={8}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ color: '#000000', display: 'block', marginBottom: '0.5rem' }}>
-              Select Business Unit:
-            </label>
-            <Select
-              value={selectedBusinessUnitFilter}
-              onChange={setSelectedBusinessUnitFilter}
-              style={{ width: '100%' }}
-            >
-              {getBusinessUnits().map(unit => (
-                <Option key={unit.value} value={unit.value}>{unit.label}</Option>
               ))}
             </Select>
           </div>

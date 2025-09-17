@@ -3632,8 +3632,9 @@ const TeamReportCompare: React.FC = () => {
       console.log("🔍 Chart element found:", !!chartElement);
       console.log("🔍 Chart type:", chartType);
       
-      // Set data for x-axis (periods)
-      xAxis.data.setAll(parameterChartData);
+      // Create unique periods for x-axis (only two periods: FY 2024 and FY 2025)
+      const uniquePeriods = periods.map(period => ({ period }));
+      xAxis.data.setAll(uniquePeriods);
       
       // Set data for each series (one line per parameter)
       chart.series.values.forEach((series, index) => {
