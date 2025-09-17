@@ -134,39 +134,37 @@ const RoutingDashboard: React.FC = () => {
     if (/^\d{5}$/.test(billingMonthStr.trim())) {
       const serialNumber = parseInt(billingMonthStr, 10);
       
-      console.log(`🔍 Converting Excel serial number: ${serialNumber}`);
-      
-      // Proper Excel serial number to JavaScript Date conversion
+      // More accurate Excel serial number to JavaScript Date conversion
       // Excel's date system: January 1, 1900 = serial number 1
       // Excel has a leap year bug - it thinks 1900 is a leap year
-      // So we need to adjust for serial numbers > 59 (after Feb 29, 1900)
       
-      // Excel epoch is December 30, 1899 (serial number 0)
-      const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
-      
-      // Calculate the date by adding the serial number days
-      // For serial numbers > 59, subtract 1 to account for Excel's leap year bug
+      // Method 1: Standard Excel conversion with leap year bug correction
+      const excelEpoch = new Date(1899, 11, 30); // December 30, 1899 (serial number 0)
       let daysToAdd = serialNumber;
+      
+      // Excel's leap year bug: it treats 1900 as a leap year
+      // So for serial numbers > 59 (after Feb 29, 1900), we need to subtract 1
       if (serialNumber > 59) {
         daysToAdd = serialNumber - 1;
       }
       
-      const date = new Date(excelEpoch.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+      const date1 = new Date(excelEpoch.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
       
-      console.log(`🔍 Converted serial ${serialNumber} to date: ${date.toISOString().split('T')[0]}`);
+      // Method 2: Alternative conversion using January 1, 1900 as epoch
+      const date2 = new Date(1900, 0, serialNumber - 1); // January 1, 1900 + serialNumber days
       
-      // Validate the date is reasonable (between 1900 and 2100)
-      if (date.getFullYear() >= 1900 && date.getFullYear() <= 2100) {
-        return date;
-      }
+      // Method 3: Using a more precise calculation
+      // Excel serial number represents days since January 1, 1900
+      // But Excel incorrectly treats 1900 as a leap year
+      const baseDate = new Date(1900, 0, 1); // January 1, 1900
+      const date3 = new Date(baseDate.getTime() + (serialNumber - 1) * 24 * 60 * 60 * 1000);
       
-      // If the date is invalid, try alternative conversion
-      // Sometimes Excel serial numbers might be using a different epoch
-      const alternativeDate = new Date(1900, 0, serialNumber - 1); // January 1, 1900 + serialNumber days
-      console.log(`🔍 Alternative conversion for serial ${serialNumber}: ${alternativeDate.toISOString().split('T')[0]}`);
-      
-      if (alternativeDate.getFullYear() >= 1900 && alternativeDate.getFullYear() <= 2100) {
-        return alternativeDate;
+      // Choose the most reasonable date (between 1900 and 2100)
+      const candidates = [date1, date2, date3];
+      for (const candidate of candidates) {
+        if (candidate.getFullYear() >= 1900 && candidate.getFullYear() <= 2100) {
+          return candidate;
+        }
       }
     }
     
@@ -565,10 +563,9 @@ const chartData = metricFields.map(({ field, label }) => {
         .map(item => {
           const val = item[field];
           if (typeof val === 'number') return val;
-          const strValue = String(val || '0')
-            .replace(/[^\d.-]/g, '')
-            .replace(/,/g, '');
-          return parseFloat(strValue) || 0;
+          
+          // Use the same enhanced number conversion for summary calculations
+          return toNumber(val);
         })
         .filter(val => !isNaN(val));
 
@@ -626,6 +623,74 @@ const chartData = metricFields.map(({ field, label }) => {
 
 
 
+  // Enhanced number conversion function to handle Excel number corruption
+  const toNumber = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (!value || value === '') return 0;
+    
+    let strValue = String(value);
+    
+    // Handle various Excel number corruption scenarios
+    
+    // 1. Handle scientific notation (e.g., "1.23E+05" = 123000)
+    if (strValue.includes('E+') || strValue.includes('e+')) {
+      const num = parseFloat(strValue);
+      if (!isNaN(num)) return num;
+    }
+    
+    // 2. Handle Excel date serial numbers that might be in numeric fields
+    // If it's a 5-digit number that could be a date serial, check if it's reasonable
+    if (/^\d{5}$/.test(strValue.trim())) {
+      const serialNum = parseInt(strValue, 10);
+      // Excel serial numbers for dates are typically between 1 (1900-01-01) and 73050 (2099-12-31)
+      if (serialNum >= 1 && serialNum <= 73050) {
+        // This might be a date serial number in a numeric field - skip it
+        console.warn(`⚠️ Potential date serial number in numeric field: ${strValue}`);
+        return 0;
+      }
+    }
+    
+    // 3. Handle Indian numbering system (lakhs format: 63,30,299.04)
+    if (strValue.includes(',') && strValue.split(',')[1] && strValue.split(',')[1].length === 2) {
+      const parts = strValue.split(',');
+      if (parts.length === 2) {
+        // Format: 63,30,299.04 -> 6,330,299.04
+        strValue = parts[0] + parts[1];
+      } else if (parts.length === 3) {
+        // Format: 1,23,45,678.90 -> 12,345,678.90
+        strValue = parts[0] + parts[1] + parts[2];
+      }
+    }
+    
+    // 4. Handle currency symbols and other formatting
+    strValue = strValue.replace(/[₹$€£¥]/g, ''); // Remove currency symbols
+    
+    // 5. Handle percentage values (e.g., "15%" -> 15)
+    if (strValue.includes('%')) {
+      strValue = strValue.replace('%', '');
+      const num = parseFloat(strValue.replace(/[^\d.-]/g, ''));
+      return isNaN(num) ? 0 : num;
+    }
+    
+    // 6. Handle text with numbers (e.g., "Amount: 1234.56" -> 1234.56)
+    const numberMatch = strValue.match(/-?\d+\.?\d*/);
+    if (numberMatch) {
+      strValue = numberMatch[0];
+    }
+    
+    // 7. Final cleanup and conversion
+    strValue = strValue.replace(/[^\d.-]/g, '').replace(/,/g, '');
+    const result = parseFloat(strValue);
+    
+    // 8. Validate the result
+    if (isNaN(result) || !isFinite(result)) {
+      console.warn(`⚠️ Invalid number conversion: "${value}" -> "${strValue}"`);
+      return 0;
+    }
+    
+    return result;
+  };
+
   // Calculate date-based summaries for pivot table - EXCEL-LIKE SIMPLE PIVOT
   const calculateDatePivotSummaries = (): DatePivotSummary[] => {
     const pivotMap = new Map<string, DatePivotSummary>();
@@ -655,19 +720,14 @@ const chartData = metricFields.map(({ field, label }) => {
             default:
               const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-              dateGroup = `${monthNames[month - 1]} ${year}`;
+              // Use Excel-like format: Aug-24, Sep-24, etc.
+              const shortYear = year.toString().slice(-2); // Get last 2 digits of year
+              dateGroup = `${monthNames[month - 1]}-${shortYear}`;
               break;
           }
         }
       }
       
-      // Simple number conversion function
-      const toNumber = (value: any): number => {
-        if (typeof value === 'number') return value;
-        if (!value || value === '') return 0;
-        const strValue = String(value).replace(/[^\d.-]/g, '').replace(/,/g, '');
-        return parseFloat(strValue) || 0;
-      };
 
       // Get all values for this item
       const charges = toNumber(item['Integrator Charges (Margin)']);
@@ -675,6 +735,18 @@ const chartData = metricFields.map(({ field, label }) => {
       const funding = toNumber(item['Funding cost']);
       const margin = toNumber(item['Net Margin']);
       const vendorInvoice = toNumber(item['Vendor Inv. Amount']);
+      
+      // Debug logging for data discrepancy analysis
+      if (dateGroup === 'Aug-24' && billing > 0) {
+        console.log(`🔍 Aug-24 Data Debug:`, {
+          originalBilling: item['Alchemy Billing Value'],
+          convertedBilling: billing,
+          dateGroup,
+          itemId: item.id || 'unknown',
+          costingDate: item['Costing Date'],
+          billingMonth: item['Billing Month']
+        });
+      }
 
       // Initialize date group if not exists
       if (!pivotMap.has(dateGroup)) {
@@ -697,7 +769,7 @@ const chartData = metricFields.map(({ field, label }) => {
       groupData.vendorInvoiceAmount += vendorInvoice;
     });
 
-    return Array.from(pivotMap.values()).sort((a, b) => {
+    const result = Array.from(pivotMap.values()).sort((a, b) => {
       // Sort by date group (chronological order)
       const parseDateGroup = (dateGroup: string): Date => {
         // Handle different date group formats
@@ -745,7 +817,25 @@ const chartData = metricFields.map(({ field, label }) => {
         return a.dateGroup.localeCompare(b.dateGroup);
       }
     });
-  };
+    
+    // Debug logging to compare with Excel pivot
+    console.log('🔍 Date Pivot Summary:', result);
+    const totalBilling = result.reduce((sum, item) => sum + item.alchemyBilling, 0);
+    console.log('🔍 Total Alchemy Billing:', totalBilling);
+    console.log('🔍 Filtered Data Count:', filteredData.length);
+    console.log('🔍 Total Data Count:', data.length);
+    console.log('🔍 Active Filters:', {
+      billingDateFilter,
+      vendorDetailsFilter,
+      startDate,
+      endDate,
+      dateFilterType,
+      selectedQuarter,
+      selectedMonth,
+      selectedYear
+    });
+    
+    return result;
 
   // Calculate domain data for pie chart
   const calculateDomainData = () => {
@@ -797,12 +887,7 @@ const chartData = metricFields.map(({ field, label }) => {
       }
       
       // Simple number conversion function (same as date pivot)
-      const toNumber = (value: any): number => {
-        if (typeof value === 'number') return value;
-        if (!value || value === '') return 0;
-        const strValue = String(value).replace(/[^\d.-]/g, '').replace(/,/g, '');
-        return parseFloat(strValue) || 0;
-      };
+      // Use the enhanced number conversion function (defined above)
 
       // Get all values for this item (same as date pivot)
       const alchemyBilling = toNumber(item['Alchemy Billing Value']);
@@ -890,6 +975,7 @@ const chartData = metricFields.map(({ field, label }) => {
     setEndMonth('');
     setStartYearRange('');
     setEndYearRange('');
+    console.log('🔍 All filters cleared - processing all data');
   };
 
   if (loading) return <div className="loading">Loading dashboard data...</div>;
