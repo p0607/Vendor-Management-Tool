@@ -157,7 +157,7 @@ const TeamReportCompare: React.FC = () => {
   const queryParams = new URLSearchParams(currentUrl.search);
   
 
-
+  
 
   // Helper function to get current financial year quarters
 
@@ -170,7 +170,7 @@ const TeamReportCompare: React.FC = () => {
     const currentYear = currentDate.getFullYear();
 
     
-
+    
     // Financial year starts from April (month 4)
 
     let financialYear;
@@ -186,7 +186,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     // Return quarters for the current financial year with proper labels
 
     return [
@@ -526,6 +526,9 @@ const TeamReportCompare: React.FC = () => {
 
   const [showAllParameters, setShowAllParameters] = useState(false);
 
+  // Chart tab visibility state
+  const [activeChartTab, setActiveChartTab] = useState<string>('none');
+
 
 
   // Enhanced date parser to handle various date formats
@@ -535,7 +538,7 @@ const TeamReportCompare: React.FC = () => {
     if (!dateStr) return new Date();
 
     
-
+    
     // Handle month name format (e.g., "April")
 
     const monthNames = [
@@ -547,7 +550,7 @@ const TeamReportCompare: React.FC = () => {
     ];
 
     
-
+    
     const monthIndex = monthNames.findIndex(month => 
 
       dateStr.toLowerCase().includes(month.toLowerCase())
@@ -555,7 +558,7 @@ const TeamReportCompare: React.FC = () => {
     );
 
     
-
+    
     if (monthIndex !== -1) {
 
       // If we find a month name, create a date for the 1st of that month
@@ -567,7 +570,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     // Handle ISO format (YYYY-MM-DD) or other standard formats
 
     const date = new Date(dateStr);
@@ -579,7 +582,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     // Fallback to current date
 
     return new Date();
@@ -599,13 +602,13 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     const monthNum = date.getMonth(); // 0-11 (Jan-Dec)
 
     const year = date.getFullYear();
 
     
-
+    
     let quarter, quarterRange, financialYear;
 
     if (monthNum >= 3 && monthNum <= 5) { // April (3)-June (5)
@@ -643,7 +646,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     return {
 
       label: `Q${quarter}(${quarterRange}) ${financialYear}`,
@@ -665,7 +668,7 @@ const TeamReportCompare: React.FC = () => {
     if (!serial) return "";
 
     
-
+    
     // Handle DD-MM-YYYY format (like "01-04-2024")
 
     if (typeof serial === "string" && /^\d{2}-\d{2}-\d{4}$/.test(serial)) {
@@ -677,7 +680,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     // Handle YYYY-MM-DD format
 
     if (typeof serial === "string" && /^\d{4}-\d{2}-\d{2}$/.test(serial)) {
@@ -687,7 +690,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     // Handle other date formats
 
     if (typeof serial === "string" && !isNaN(Date.parse(serial))) {
@@ -699,7 +702,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     // Handle Excel serial numbers
 
     if (typeof serial === "number" || !isNaN(parseInt(serial, 10))) {
@@ -715,7 +718,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     return "";
 
   };
@@ -729,25 +732,25 @@ const TeamReportCompare: React.FC = () => {
     if (value === null || value === undefined || value === '') return 0;
 
     
-
+    
     // If it's already a number, return it
 
     if (typeof value === 'number') return value;
 
     
-
+    
     // Convert to string and clean it
 
     const stringValue = String(value).trim();
 
     
-
+    
     // Handle empty strings
 
     if (stringValue === '' || stringValue === '-') return 0;
 
     
-
+    
     // Try to parse as number
 
     const parsed = parseFloat(stringValue);
@@ -775,7 +778,7 @@ const TeamReportCompare: React.FC = () => {
       if (!bstr) return;
 
       
-
+      
       // Read Excel with formula evaluation
 
       const workbook = XLSX.read(bstr, { 
@@ -799,13 +802,13 @@ const TeamReportCompare: React.FC = () => {
       });
 
       
-
+      
       const sheetName = workbook.SheetNames[0];
 
       const worksheet = workbook.Sheets[sheetName];
 
       
-
+      
       // Convert to JSON with raw values (formulas will be evaluated)
 
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
@@ -819,7 +822,7 @@ const TeamReportCompare: React.FC = () => {
       });
 
       
-
+      
       // Debug: Log the first few rows and column names
 
       console.log("🔍 Excel file loaded successfully");
@@ -835,7 +838,7 @@ const TeamReportCompare: React.FC = () => {
       }
 
       
-
+      
       const mappedData = jsonData.map((row: any) => {
 
         // Helper function to convert empty strings to null
@@ -901,7 +904,7 @@ const TeamReportCompare: React.FC = () => {
         console.log("🔍 Sample mapped data (first 3 records):", mappedData.slice(0, 3));
 
         
-
+        
         // Process in batches of 100 records to avoid server overload
 
         const batchSize = 100;
@@ -913,11 +916,11 @@ const TeamReportCompare: React.FC = () => {
         let errorCount = 0;
 
         
-
+        
         message.loading(`Importing ${mappedData.length} records... (0/${totalBatches} batches)`, 0);
 
         
-
+        
         for (let i = 0; i < mappedData.length; i += batchSize) {
 
           const batch = mappedData.slice(i, i + batchSize);
@@ -925,7 +928,7 @@ const TeamReportCompare: React.FC = () => {
           const batchNumber = Math.floor(i / batchSize) + 1;
 
           
-
+          
           try {
 
             console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} records)`);
@@ -935,17 +938,17 @@ const TeamReportCompare: React.FC = () => {
             successCount += batch.length;
 
             
-
+            
             // Update progress message
 
             message.loading(`Importing ${mappedData.length} records... (${batchNumber}/${totalBatches} batches completed)`, 0);
 
             
-
+            
             // Small delay to prevent overwhelming the server
 
             await new Promise(resolve => setTimeout(resolve, 100));
-
+            
             
 
           } catch (batchErr: any) {
@@ -955,7 +958,7 @@ const TeamReportCompare: React.FC = () => {
             errorCount += batch.length;
 
             
-
+            
             // Continue with next batch instead of stopping completely
 
             message.warning(`Batch ${batchNumber} failed, continuing with remaining batches...`);
@@ -965,13 +968,13 @@ const TeamReportCompare: React.FC = () => {
         }
 
         
-
+        
         // Clear loading message
 
         message.destroy();
 
         
-
+        
         if (errorCount === 0) {
 
           message.success(`Successfully imported all ${successCount} records!`);
@@ -987,13 +990,13 @@ const TeamReportCompare: React.FC = () => {
         }
 
         
-
+        
         // Refresh data
 
         const res = await apiClient.get<ReportData[]>("/team-report");
 
         setData(res.data);
-
+        
         
 
       } catch (err: any) {
@@ -1225,7 +1228,7 @@ const TeamReportCompare: React.FC = () => {
       setComparisonValues(newValues);
 
       
-
+      
       // Also remove the corresponding combined period if it exists
 
       const newCombinedPeriods = [...combinedPeriods];
@@ -1283,7 +1286,7 @@ const TeamReportCompare: React.FC = () => {
     if (selectedPeriodsForCombination.length === 0) return;
 
     
-
+    
     const combinedPeriod: CombinedPeriod = {
 
       periods: selectedPeriodsForCombination,
@@ -1295,7 +1298,7 @@ const TeamReportCompare: React.FC = () => {
     };
 
     
-
+    
     const newCombinedPeriods = [...combinedPeriods];
 
     newCombinedPeriods[index] = combinedPeriod;
@@ -1303,7 +1306,7 @@ const TeamReportCompare: React.FC = () => {
     setCombinedPeriods(newCombinedPeriods);
 
     
-
+    
     // Update comparison values to use the combined period
 
     const newValues = [...comparisonValues];
@@ -1313,7 +1316,7 @@ const TeamReportCompare: React.FC = () => {
     setComparisonValues(newValues);
 
     
-
+    
     setShowCombinedModal(null);
 
     setSelectedPeriodsForCombination([]);
@@ -1333,7 +1336,7 @@ const TeamReportCompare: React.FC = () => {
     setCombinedPeriods(newCombinedPeriods);
 
     
-
+    
     // Clear the comparison value
 
     const newValues = [...comparisonValues];
@@ -1371,7 +1374,7 @@ const TeamReportCompare: React.FC = () => {
         const userIsBUHead = parsedUser?.designation === 'BU HEAD';
 
         setIsBUHead(userIsBUHead);
-
+        
         
 
 
@@ -1479,7 +1482,7 @@ const TeamReportCompare: React.FC = () => {
     if (data.length === 0) return;
 
     
-
+    
     // Define available parameters - only the financial columns that behave like particulars
 
     const baseParameters = [
@@ -1509,7 +1512,7 @@ const TeamReportCompare: React.FC = () => {
     ];
 
     
-
+    
     setAvailableParameters(baseParameters);
 
   }, [data]);
@@ -1601,7 +1604,7 @@ const TeamReportCompare: React.FC = () => {
       console.log("🔍 API URL being called:", `${apiClient.defaults.baseURL}/team-report`);
 
       
-
+      
       const res = await apiClient.get("/team-report");
 
       console.log("🔍 Raw API response:", res.data);
@@ -1611,19 +1614,19 @@ const TeamReportCompare: React.FC = () => {
       console.log("🔍 Response headers:", res.headers);
 
       
-
+      
       if (res.data && Array.isArray(res.data)) {
 
         console.log("🔍 Total records received:", res.data.length);
 
         
-
+        
         // Log all records to see what's actually in the database
 
         console.log("🔍 All records from database:", res.data);
 
         
-
+        
         // Extract business units and filter out null/undefined values
 
         const businessUnitsFromData = res.data
@@ -1631,23 +1634,23 @@ const TeamReportCompare: React.FC = () => {
           .map((item: any) => item.business_unit)
 
           .filter((bu: any) => bu && bu.trim() !== '');
-
+        
         
 
         console.log("🔍 Business units from data:", businessUnitsFromData);
 
         
-
+        
         const uniqueBusinessUnits = Array.from(new Set(businessUnitsFromData)) as string[];
 
         console.log("🔍 Unique business units:", uniqueBusinessUnits);
 
         
-
+        
         setBusinessUnits(uniqueBusinessUnits);
 
         
-
+        
         // If no business units found, show a warning
 
         if (uniqueBusinessUnits.length === 0) {
@@ -1699,7 +1702,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     try {
 
       console.log(`🔍 Fetching client names for business unit: ${businessUnit}`);
@@ -1707,13 +1710,13 @@ const TeamReportCompare: React.FC = () => {
       const res = await apiClient.get("/team-report");
 
       
-
+      
       console.log(`🔍 Raw client data for ${businessUnit}:`, res.data);
 
       console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
 
       
-
+      
       if (res.data && Array.isArray(res.data)) {
 
         // Filter data by business unit first
@@ -1725,11 +1728,11 @@ const TeamReportCompare: React.FC = () => {
         );
 
         
-
+        
         console.log(`🔍 Filtered data for ${businessUnit}:`, filteredData);
 
         
-
+        
         let uniqueNames: string[];
 
         if (businessUnit === "Managed Services" || businessUnit === "MS") {
@@ -1763,7 +1766,7 @@ const TeamReportCompare: React.FC = () => {
         }
 
         
-
+        
         console.log(`🔍 Unique names for ${businessUnit}:`, uniqueNames);
 
         setClientNames(uniqueNames);
@@ -1805,7 +1808,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     try {
 
       console.log(`🔍 Fetching BU heads for business unit: ${businessUnit}`);
@@ -1813,13 +1816,13 @@ const TeamReportCompare: React.FC = () => {
       const res = await apiClient.get("/team-report");
 
       
-
+      
       console.log(`🔍 Raw BU head data for ${businessUnit}:`, res.data);
 
       console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
 
       
-
+      
       if (res.data && Array.isArray(res.data)) {
 
         // Filter data by business unit first
@@ -1831,11 +1834,11 @@ const TeamReportCompare: React.FC = () => {
         );
 
         
-
+        
         console.log(`🔍 Filtered BU head data for ${businessUnit}:`, filteredData);
 
         
-
+        
         const buHeadsFromData = filteredData
 
           .map((item: any) => item.bu_head)
@@ -1845,13 +1848,13 @@ const TeamReportCompare: React.FC = () => {
         console.log(`🔍 BU heads for ${businessUnit}:`, buHeadsFromData);
 
         
-
+        
         const uniqueBUHeads = Array.from(new Set(buHeadsFromData)) as string[];
 
         console.log(`🔍 Unique BU heads for ${businessUnit}:`, uniqueBUHeads);
 
         
-
+        
         setBUHeads(uniqueBUHeads);
 
       } else {
@@ -1910,23 +1913,23 @@ const TeamReportCompare: React.FC = () => {
         });
 
         
-
+        
         // Always fetch all data and filter on frontend for better control
 
         const res = await apiClient.get("/team-report");
 
         
-
+        
         console.log("🔍 Raw data received:", res.data?.length || 0, "records");
 
         
-
+        
         // Filter data on frontend
 
         let filteredData = res.data || [];
 
         
-
+        
         if (selectedBusinessUnit) {
 
           filteredData = filteredData.filter((item: any) => 
@@ -1940,7 +1943,7 @@ const TeamReportCompare: React.FC = () => {
         }
 
         
-
+        
         if (selectedClientName) {
 
           if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
@@ -1968,7 +1971,7 @@ const TeamReportCompare: React.FC = () => {
         }
 
         
-
+        
         if (selectedBUHead) {
 
           filteredData = filteredData.filter((item: any) => 
@@ -1982,7 +1985,7 @@ const TeamReportCompare: React.FC = () => {
         }
 
         
-
+        
         if (isBUHead && user.business_unit) {
 
           filteredData = filteredData.filter((item: any) => 
@@ -1996,13 +1999,13 @@ const TeamReportCompare: React.FC = () => {
         }
 
         
-
+        
         console.log("🔍 Final filtered data:", filteredData.length, "records");
 
         console.log("🔍 Sample filtered data:", filteredData.slice(0, 3));
 
         
-
+        
         // Convert amounts to numbers and handle formatting
 
         const convertedData = filteredData.map((item: any) => {
@@ -2012,11 +2015,11 @@ const TeamReportCompare: React.FC = () => {
           const numericFields = ['hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'year'];
 
           
-
+          
           const processedItem = { ...item };
 
           
-
+          
           for (const field of numericFields) {
 
             if (typeof processedItem[field] === 'string') {
@@ -2036,7 +2039,7 @@ const TeamReportCompare: React.FC = () => {
           }
 
           
-
+          
           // Create a proper date string for month field if it's just a month name
 
           if (processedItem.month && typeof processedItem.month === 'string') {
@@ -2050,7 +2053,7 @@ const TeamReportCompare: React.FC = () => {
             ];
 
             
-
+            
             const monthIndex = monthNames.findIndex(month => 
 
               processedItem.month.toLowerCase().includes(month.toLowerCase())
@@ -2058,7 +2061,7 @@ const TeamReportCompare: React.FC = () => {
             );
 
             
-
+            
             if (monthIndex !== -1 && processedItem.year) {
 
               // Create a proper date string using the year from the data
@@ -2072,13 +2075,13 @@ const TeamReportCompare: React.FC = () => {
           }
 
           
-
+          
           return processedItem;
 
         });
 
         
-
+        
         setData(convertedData);
 
       } catch (error: any) {
@@ -2132,7 +2135,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     const filtered = clientNames.filter(name => 
 
       name.toLowerCase().includes(value.toLowerCase())
@@ -2176,7 +2179,7 @@ const TeamReportCompare: React.FC = () => {
     if (!periodValue) return 0;
 
     
-
+    
     console.log(`🔍 getBaseParameterValue called:`, {
 
       periodValue,
@@ -2198,7 +2201,7 @@ const TeamReportCompare: React.FC = () => {
     });
 
     
-
+    
     // Check if this is a combined period
 
     const combinedPeriod = combinedPeriods[index];
@@ -2244,13 +2247,13 @@ const TeamReportCompare: React.FC = () => {
             }
 
             
-
+            
             const date = parseDate(item.month);
 
             if (isNaN(date.getTime())) return false;
 
             
-
+            
             let itemValue = "";
 
             switch (compareType) {
@@ -2280,7 +2283,7 @@ const TeamReportCompare: React.FC = () => {
             }
 
             
-
+            
             return itemValue === period;
 
           })
@@ -2332,7 +2335,7 @@ const TeamReportCompare: React.FC = () => {
     }
 
     
-
+    
     // Single period calculation
 
     const filteredData = data.filter(item => {
@@ -2346,7 +2349,7 @@ const TeamReportCompare: React.FC = () => {
       }
 
       
-
+      
       // Client/Project name filter
 
       if (selectedClientName) {
@@ -2364,7 +2367,7 @@ const TeamReportCompare: React.FC = () => {
       }
 
       
-
+      
       // BU head filter
 
       if (selectedBUHead && item.bu_head !== selectedBUHead) {
@@ -2374,7 +2377,7 @@ const TeamReportCompare: React.FC = () => {
       }
 
       
-
+      
       // Date parsing and period matching
 
       const date = parseDate(item.month);
@@ -2388,7 +2391,7 @@ const TeamReportCompare: React.FC = () => {
       }
 
       
-
+      
       let itemValue = "";
 
       switch (compareType) {
@@ -2418,7 +2421,7 @@ const TeamReportCompare: React.FC = () => {
       }
 
       
-
+      
       const matches = itemValue === periodValue;
 
       if (matches) {
@@ -2448,19 +2451,19 @@ const TeamReportCompare: React.FC = () => {
       }
 
       
-
+      
       return matches;
 
     });
 
     
-
+    
     console.log(`🔍 Filtered data for ${parameter} in ${periodValue}:`, filteredData.length, "items");
 
     console.log(`🔍 Sample filtered items:`, filteredData.slice(0, 3));
 
     
-
+    
     return filteredData
 
       .reduce((sum, item) => {
@@ -2502,7 +2505,7 @@ const TeamReportCompare: React.FC = () => {
         }
 
         
-
+        
         console.log(`🔍 Adding value for ${parameter}:`, {
 
           itemId: item.id,
@@ -2522,7 +2525,7 @@ const TeamReportCompare: React.FC = () => {
         });
 
         
-
+        
         return sum + value;
 
       }, 0);
@@ -2546,7 +2549,7 @@ const TeamReportCompare: React.FC = () => {
     console.log("🔍 compareType:", compareType);
 
     
-
+    
     if (selectedParameters.length === 0 || comparisonValues.every(v => !v)) {
 
       console.log("🔍 No parameters or comparison values selected, skipping calculation");
@@ -2562,13 +2565,13 @@ const TeamReportCompare: React.FC = () => {
       if (!periodValue) return 0;
 
       
-
+      
       // Handle calculated metrics - these are now direct fields in our new structure
 
       // No need for complex calculations since we have direct percentage fields
 
       
-
+      
       // For regular parameters, use the base function
 
       const value = getBaseParameterValue(periodValue, index, parameter);
@@ -2580,7 +2583,7 @@ const TeamReportCompare: React.FC = () => {
     };
 
     
-
+    
     // Create data structure for multiple parameters
 
     const periods = comparisonValues.filter(Boolean);
@@ -2588,13 +2591,13 @@ const TeamReportCompare: React.FC = () => {
     console.log("🔍 Valid periods:", periods);
 
     
-
+    
     const newComparisonData = periods.map((periodValue, index) => {
 
       const dataPoint: any = { period: periodValue as string };
 
       
-
+      
       // Add amount for each parameter
 
       selectedParameters.forEach(parameter => {
@@ -2608,7 +2611,7 @@ const TeamReportCompare: React.FC = () => {
       });
 
       
-
+      
       return dataPoint;
 
     });
@@ -2636,7 +2639,7 @@ const TeamReportCompare: React.FC = () => {
     console.log("🔍 data length:", data.length);
 
     
-
+    
     if (comparisonValues.filter(Boolean).length < 2) {
 
       console.log("🔍 Not enough periods for growth analysis, skipping");
@@ -2658,13 +2661,13 @@ const TeamReportCompare: React.FC = () => {
           if (!periodValue) return null;
 
           
-
+          
           // Handle calculated metrics - these are now direct fields in our new structure
 
           // No need for complex calculations since we have direct percentage fields
 
           
-
+          
           // Check if this is a combined period
 
           const combinedPeriod = combinedPeriods[index];
@@ -2706,13 +2709,13 @@ const TeamReportCompare: React.FC = () => {
                   }
 
                   
-
+                  
                   const date = parseDate(item.month);
 
                   if (isNaN(date.getTime())) return false;
 
                   
-
+                  
                   let itemValue = "";
 
                   switch (compareType) {
@@ -2728,7 +2731,7 @@ const TeamReportCompare: React.FC = () => {
                   }
 
                   
-
+                  
                   return itemValue === period;
 
                 })
@@ -2776,7 +2779,7 @@ const TeamReportCompare: React.FC = () => {
           }
 
           
-
+          
           // Single period calculation
 
           return data
@@ -2810,13 +2813,13 @@ const TeamReportCompare: React.FC = () => {
               }
 
               
-
+              
               const date = parseDate(item.month);
 
               if (isNaN(date.getTime())) return false;
 
               
-
+              
               let itemValue = "";
 
               switch (compareType) {
@@ -2832,7 +2835,7 @@ const TeamReportCompare: React.FC = () => {
               }
 
               
-
+              
               return itemValue === periodValue;
 
             })
@@ -3104,15 +3107,16 @@ const TeamReportCompare: React.FC = () => {
     console.log("🔍 Chart useEffect triggered with:", {
       growthAnalysisLength: growthAnalysis.length,
       selectedParametersLength: selectedParameters.length,
-      growthAnalysis: growthAnalysis
+      growthAnalysis: growthAnalysis,
+      activeChartTab: activeChartTab
     });
     
-    if (growthAnalysis.length === 0 || selectedParameters.length === 0) {
-      console.log("🔍 Chart useEffect: Not enough data, skipping chart render");
+    if (growthAnalysis.length === 0 || selectedParameters.length === 0 || activeChartTab !== 'growth') {
+      console.log("🔍 Chart useEffect: Not enough data or tab not active, skipping chart render");
       return;
     }
     
-
+    
     // Add a small delay to ensure DOM is ready
 
     const timer = setTimeout(() => {
@@ -3130,7 +3134,7 @@ const TeamReportCompare: React.FC = () => {
       }
 
       
-
+      
       // Cleanup existing chart
 
       am5.array.each(am5.registry.rootElements, (root) => {
@@ -3360,7 +3364,7 @@ const TeamReportCompare: React.FC = () => {
       }
 
       
-
+      
       if (chartType === 'line' || chartType === 'combo') {
 
         selectedParameters.forEach((parameter, index) => {
@@ -3577,13 +3581,13 @@ const TeamReportCompare: React.FC = () => {
 
     };
 
-  }, [growthAnalysis, selectedParameters, chartType]);
+  }, [growthAnalysis, selectedParameters, chartType, activeChartTab]);
 
 
   // Render Waterfall Chart
   useEffect(() => {
 
-    if (growthAnalysis.length === 0 || selectedParameters.length === 0) return;
+    if (growthAnalysis.length === 0 || selectedParameters.length === 0 || activeChartTab !== 'waterfall') return;
 
 
     const timer = setTimeout(() => {
@@ -3807,14 +3811,14 @@ const TeamReportCompare: React.FC = () => {
 
       clearTimeout(timer);
 
-      am5.array.each(am5.registry.rootElements, (root) => {
+        am5.array.each(am5.registry.rootElements, (root) => {
 
         if (root && root.dom && root.dom.id === "waterfallChart") root.dispose();
       });
 
     };
 
-  }, [growthAnalysis, selectedParameters]);
+  }, [growthAnalysis, selectedParameters, activeChartTab]);
 
 
   return (
@@ -4265,7 +4269,7 @@ const TeamReportCompare: React.FC = () => {
     </div>
 
     
-
+    
     {/* Parameter Selector */}
 
           <div>
@@ -4390,8 +4394,8 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-       
 
+       
          {/* Period Selectors */}
 
   <div style={{ marginBottom: 24 }}>
@@ -4858,18 +4862,64 @@ const TeamReportCompare: React.FC = () => {
 
           <>
 
-            <div style={{ width: "100%", height: "500px" }}>
+            {/* Chart Tabs */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ 
+                display: 'flex', 
+                borderBottom: '2px solid #e8e8e8',
+                marginBottom: 20
+              }}>
+                <button
+                  onClick={() => setActiveChartTab('growth')}
+                  style={{
+                    padding: '12px 24px',
+                    border: 'none',
+                    backgroundColor: activeChartTab === 'growth' ? '#1890ff' : 'transparent',
+                    color: activeChartTab === 'growth' ? 'white' : '#666',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: activeChartTab === 'growth' ? 'bold' : 'normal',
+                    borderTopLeftRadius: '6px',
+                    borderTopRightRadius: '6px',
+                    marginRight: '2px'
+                  }}
+                >
+                  Growth Analysis Chart
+                </button>
+                <button
+                  onClick={() => setActiveChartTab('waterfall')}
+                  style={{
+                    padding: '12px 24px',
+                    border: 'none',
+                    backgroundColor: activeChartTab === 'waterfall' ? '#1890ff' : 'transparent',
+                    color: activeChartTab === 'waterfall' ? 'white' : '#666',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: activeChartTab === 'waterfall' ? 'bold' : 'normal',
+                    borderTopLeftRadius: '6px',
+                    borderTopRightRadius: '6px',
+                    marginRight: '2px'
+                  }}
+                >
+                  Waterfall Analysis
+                </button>
+              </div>
 
-              <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Growth Analysis</h3>
-              <div id="comparisonChart" style={{ width: "100%", height: "100%" }} />
+              {/* Growth Analysis Chart */}
+              {activeChartTab === 'growth' && (
+                <div style={{ width: "100%", height: "500px" }}>
+                  <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Growth Analysis</h3>
+                  <div id="comparisonChart" style={{ width: "100%", height: "100%" }} />
+                </div>
+              )}
 
-            </div>
-
-
-            {/* Waterfall Chart */}
-            <div style={{ width: "100%", height: "500px", marginTop: 40 }}>
-              <h3 style={{ color: '#000000' }}>Growth Amount Analysis (L)</h3>
-              <div id="waterfallChart" style={{ width: "100%", height: "100%" }} />
+              {/* Waterfall Chart */}
+              {activeChartTab === 'waterfall' && (
+                <div style={{ width: "100%", height: "500px" }}>
+                  <h3 style={{ color: '#000000' }}>Growth Amount Analysis (L)</h3>
+                  <div id="waterfallChart" style={{ width: "100%", height: "100%" }} />
+                </div>
+              )}
             </div>
 
 
@@ -5352,7 +5402,7 @@ const TeamReportCompare: React.FC = () => {
   </h3>
 
   
-
+  
   {(() => {
 
     // Get required metrics for all periods
@@ -5408,7 +5458,7 @@ const TeamReportCompare: React.FC = () => {
     const baseline = metrics[0];
 
     
-
+    
     // Key efficiency metrics to track
 
     const metricDefinitions = [
@@ -5508,7 +5558,7 @@ const TeamReportCompare: React.FC = () => {
     const isPositive = metric.ideal === 'increase' ? change >= 0 : change <= 0;
 
     
-
+    
     return (
 
       <div key={i} style={{
@@ -5658,7 +5708,7 @@ const TeamReportCompare: React.FC = () => {
                   <td style={{ padding: '12px 16px', fontWeight: 500, color: '#000000' }}>{metric.name}</td>
 
                   
-
+                  
                   {metrics.map((m, j) => {
 
                     const value = metric.calculate(m);
@@ -5670,7 +5720,7 @@ const TeamReportCompare: React.FC = () => {
                     const isPositive = metric.ideal === 'increase' ? change >= 0 : change <= 0;
 
                     
-
+                    
                     return (
 
                       <td key={j} style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>
@@ -5718,7 +5768,7 @@ const TeamReportCompare: React.FC = () => {
                   })}
 
                   
-
+                  
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
 
                     {(() => {
@@ -5734,7 +5784,7 @@ const TeamReportCompare: React.FC = () => {
                       const isPositive = metric.ideal === 'increase' ? change >= 0 : change <= 0;
 
                       
-
+                      
                       return (
 
                         <div style={{ color: isPositive ? '#4ade80' : '#f87171' }}>
@@ -5758,7 +5808,7 @@ const TeamReportCompare: React.FC = () => {
                   </td>
 
                   
-
+                  
                   <td style={{ padding: '12px 16px', textAlign: 'center' }}>
 
                     {(() => {
@@ -5774,7 +5824,7 @@ const TeamReportCompare: React.FC = () => {
                       );
 
                       
-
+                      
                       return (
 
                         <div style={{ 
@@ -5864,7 +5914,7 @@ const TeamReportCompare: React.FC = () => {
                     const isPositive = def.ideal === 'increase' ? change >= 0 : change <= 0;
 
                     
-
+                    
                     return (
 
                       <div key={j} style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -5927,7 +5977,7 @@ const TeamReportCompare: React.FC = () => {
 
             No data available for the selected filters
 
-          </div>
+                    </div>
 
         )
 
@@ -6024,7 +6074,7 @@ const TeamReportCompare: React.FC = () => {
             </p>
 
             
-
+            
             <div style={{ marginBottom: 16 }}>
 
               <label style={{ display: 'block', marginBottom: 8, color: '#000000' }}>
