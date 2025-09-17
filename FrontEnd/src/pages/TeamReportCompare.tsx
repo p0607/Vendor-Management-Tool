@@ -1689,6 +1689,7 @@ const TeamReportCompare: React.FC = () => {
     });
 
     console.log("🔍 Final chart data from KPI calculations:", chartData);
+    console.log("🔍 Setting growthAnalysis state with:", chartData.length, "items");
     setGrowthAnalysis(chartData);
   }, [selectedParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
 
@@ -1781,7 +1782,16 @@ const TeamReportCompare: React.FC = () => {
 
   // Render comparison chart
   useEffect(() => {
-    if (growthAnalysis.length === 0 || selectedParameters.length === 0) return;
+    console.log("🔍 Chart useEffect triggered with:", {
+      growthAnalysisLength: growthAnalysis.length,
+      selectedParametersLength: selectedParameters.length,
+      growthAnalysis: growthAnalysis
+    });
+    
+    if (growthAnalysis.length === 0 || selectedParameters.length === 0) {
+      console.log("🔍 Chart useEffect: Not enough data, skipping chart render");
+      return;
+    }
     
     // Add a small delay to ensure DOM is ready
     const timer = setTimeout(() => {
@@ -1854,20 +1864,19 @@ const TeamReportCompare: React.FC = () => {
         };
       };
 
-      // Add series based on chart type
+      // Add series based on chart type - single series showing growth percentages
       if (chartType === 'bar' || chartType === 'combo') {
-        selectedParameters.forEach((parameter, index) => {
-          const format = getParameterFormat(parameter);
-          const series = chart.series.push(
-            am5xy.ColumnSeries.new(root, {
-              name: parameter,
-              xAxis: xAxis,
-              yAxis: yAxis,
-              valueYField: parameter,
-              categoryXField: "period",
+        const format = getParameterFormat('Growth');
+        const series = chart.series.push(
+          am5xy.ColumnSeries.new(root, {
+            name: "Growth %",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "value",
+            categoryXField: "period",
               tooltip: am5.Tooltip.new(root, {
                 pointerOrientation: "horizontal",
-                labelText: `{categoryX} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+                labelText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
                 autoTextColor: false,
                 labelHTML: `
                   <div style="
@@ -1883,7 +1892,7 @@ const TeamReportCompare: React.FC = () => {
                     min-width: 120px;
                   ">
                     <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
-                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${parameter}</div>
+                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">Growth %</div>
                     <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
                   </div>
                 `
@@ -1891,41 +1900,47 @@ const TeamReportCompare: React.FC = () => {
             })
           );
 
-          // Configure column appearance
-          series.columns.template.setAll({
-            width: am5.percent(60 / selectedParameters.length), // Adjust width based on number of parameters
-            strokeOpacity: 0,
-            cornerRadiusTL: 5,
-            cornerRadiusTR: 5,
-            tooltipY: 0,
-            tooltipText: `{categoryX} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-            fill: colors[index % colors.length]
-          });
-
-          // Add hover state
-          series.columns.template.states.create("hover", {
-            fill: colors[index % colors.length],
-            stroke: colors[index % colors.length]
-          });
-
-          // Add animation
-          series.appear(1000, 100 * index);
+        // Configure column appearance
+        series.columns.template.setAll({
+          width: am5.percent(80),
+          strokeOpacity: 0,
+          cornerRadiusTL: 5,
+          cornerRadiusTR: 5,
+          tooltipY: 0,
+          tooltipText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`
         });
+
+        // Set colors based on positive/negative growth
+        series.columns.template.adapters.add("fill", (fill, target) => {
+          const dataItem = target.dataItem;
+          if (dataItem && dataItem.dataContext) {
+            return (dataItem.dataContext as any).isPositive ? am5.color(0x52c41a) : am5.color(0xff4d4f);
+          }
+          return fill;
+        });
+
+        // Add hover state
+        series.columns.template.states.create("hover", {
+          fill: am5.color(0x1890ff),
+          stroke: am5.color(0x1890ff)
+        });
+
+        // Add animation
+        series.appear(1000, 100);
       }
       
       if (chartType === 'line' || chartType === 'combo') {
-        selectedParameters.forEach((parameter, index) => {
-          const format = getParameterFormat(parameter);
-          const lineSeries = chart.series.push(
-            am5xy.LineSeries.new(root, {
-              name: parameter,
-              xAxis: xAxis,
-              yAxis: yAxis,
-              valueYField: parameter,
-              categoryXField: "period",
+        const format = getParameterFormat('Growth');
+        const lineSeries = chart.series.push(
+          am5xy.LineSeries.new(root, {
+            name: "Growth %",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "value",
+            categoryXField: "period",
               tooltip: am5.Tooltip.new(root, {
                 pointerOrientation: "horizontal",
-                labelText: `{categoryX} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+                labelText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
                 autoTextColor: false,
                 labelHTML: `
                   <div style="
@@ -1941,7 +1956,7 @@ const TeamReportCompare: React.FC = () => {
                     min-width: 120px;
                   ">
                     <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
-                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${parameter}</div>
+                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">Growth %</div>
                     <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
                   </div>
                 `
@@ -1952,7 +1967,7 @@ const TeamReportCompare: React.FC = () => {
           // Configure line appearance
           lineSeries.strokes.template.setAll({
             strokeWidth: 3,
-            stroke: colors[index % colors.length]
+            stroke: am5.color(0x1890ff)
           });
 
           // Add bullets with data labels
@@ -1960,7 +1975,7 @@ const TeamReportCompare: React.FC = () => {
             return am5.Bullet.new(root, {
               sprite: am5.Circle.new(root, {
                 radius: 5,
-                fill: colors[index % colors.length],
+                fill: am5.color(0x1890ff),
                 stroke: am5.color(0xffffff),
                 strokeWidth: 2
               })
@@ -1986,12 +2001,11 @@ const TeamReportCompare: React.FC = () => {
           // Add hover state
           lineSeries.strokes.template.states.create("hover", {
             strokeWidth: 4,
-            stroke: colors[index % colors.length]
+            stroke: am5.color(0x1890ff)
           });
 
-          // Add animation
-          lineSeries.appear(1000, 100 * index);
-        });
+        // Add animation
+        lineSeries.appear(1000, 100);
       }
 
       // Add chart animation
@@ -2006,9 +2020,22 @@ const TeamReportCompare: React.FC = () => {
       }));
       
       console.log("🔍 Chart data for x-axis:", chartData);
+      console.log("🔍 Growth analysis data:", growthAnalysis);
+      console.log("🔍 Chart element found:", !!chartElement);
+      console.log("🔍 Chart type:", chartType);
+      
+      // Set data for x-axis (categories)
       xAxis.data.setAll(chartData);
-      chart.series.values.forEach(series => {
-        series.data.setAll(chartData);
+      
+      // Set data for each series
+      chart.series.values.forEach((series, index) => {
+        const seriesData = chartData.map(item => ({
+          period: item.period,
+          value: item.value,
+          isPositive: item.isPositive
+        }));
+        console.log(`🔍 Setting data for series ${index}:`, seriesData);
+        series.data.setAll(seriesData);
       });
     }, 100); // 100ms delay
 
@@ -2020,490 +2047,8 @@ const TeamReportCompare: React.FC = () => {
     };
   }, [growthAnalysis, selectedParameters, chartType]);
 
-  // Render Profit Bridge and Trend Charts
-  useEffect(() => {
-    if (comparisonValues.length === 0 || !comparisonValues[comparisonValues.length - 1]) return;
 
-    // Add a small delay to ensure DOM is ready
-    const timer = setTimeout(() => {
-      // Profit Bridge Waterfall Chart
-      const profitBridgeElement = document.getElementById("profitBridgeChart");
-      if (profitBridgeElement) {
-        // Cleanup existing chart
-        am5.array.each(am5.registry.rootElements, (root) => {
-          if (root && root.dom && root.dom.id === "profitBridgeChart") root.dispose();
-        });
 
-        const root = am5.Root.new("profitBridgeChart");
-        root.setThemes([am5themes_Animated.new(root)]);
-
-        const chart = root.container.children.push(
-          am5xy.XYChart.new(root, {
-            panX: false,
-            panY: false,
-            wheelX: "none",
-            wheelY: "none",
-            cursor: am5xy.XYCursor.new(root, {}),
-            background: am5.Rectangle.new(root, { fill: am5.color(0xffffff) })
-          })
-        );
-
-        // Create axes
-        const xAxis = chart.xAxes.push(
-          am5xy.CategoryAxis.new(root, {
-            categoryField: "category",
-            renderer: am5xy.AxisRendererX.new(root, {}),
-            tooltip: am5.Tooltip.new(root, {})
-          })
-        );
-        xAxis.get("renderer").labels.template.setAll({
-          fill: am5.color(0x000000)
-        });
-
-        const yAxis = chart.yAxes.push(
-          am5xy.ValueAxis.new(root, {
-            renderer: am5xy.AxisRendererY.new(root, {}),
-            tooltip: am5.Tooltip.new(root, {})
-          })
-        );
-        yAxis.get("renderer").labels.template.setAll({
-          fill: am5.color(0x000000)
-        });
-
-        // Get latest period data for waterfall - calculate independently of selected parameters
-        const latestPeriodValue = comparisonValues[comparisonValues.length - 1];
-        console.log("🔍 Waterfall Chart - Latest Period Value:", latestPeriodValue);
-        
-        if (latestPeriodValue) {
-          // Calculate all parameters for the latest period independently
-          const sales = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Sales') || 
-                       getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'SALES') || 0;
-          const salaryCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Salary Cost') || 0;
-          const gpm = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'GPM') || 0;
-          const oprCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Opr Cost') || 0;
-          const teamCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Team Cost') || 0;
-          const fundingCost = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Funding Cost') || 0;
-          const leaveEncashment = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'Leave Encashment') || 0;
-          const np = getBaseParameterValue(latestPeriodValue, comparisonValues.length - 1, 'NP') || 0;
-          
-          console.log("🔍 Waterfall Chart - Calculated Values:", {
-            sales, salaryCost, gpm, oprCost, teamCost, fundingCost, leaveEncashment, np
-          });
-          
-          // If we don't have the required parameters, show a message
-          if (sales === 0 && gpm === 0 && np === 0) {
-            console.log("🔍 Waterfall Chart - No data available for waterfall chart");
-            // Add a message to the chart
-            const noDataLabel = chart.children.push(
-              am5.Label.new(root, {
-                text: "No data available for waterfall chart.\nPlease check your data and filters.",
-                centerX: am5.p50,
-                centerY: am5.p50,
-                fill: am5.color(0x666666),
-                fontSize: 14,
-                textAlign: "center"
-              })
-            );
-            return;
-          }
-
-          const waterfallData = [
-            { category: "Sales", value: sales, color: am5.color(0x4ade80) },
-            { category: "(-) Salary Cost", value: -salaryCost, color: am5.color(0xf87171) },
-            { category: "GPM", value: gpm, color: am5.color(0x3b82f6) },
-            { category: "(-) Opr Cost", value: -oprCost, color: am5.color(0xf87171) },
-            { category: "(-) Team Cost", value: -teamCost, color: am5.color(0xf87171) },
-            { category: "(-) Funding Cost", value: -fundingCost, color: am5.color(0xf87171) },
-            { category: "(-) Leave Encashment", value: -leaveEncashment, color: am5.color(0xf87171) },
-            { category: "NP", value: np, color: am5.color(0x10b981) }
-          ];
-
-          const series = chart.series.push(
-            am5xy.ColumnSeries.new(root, {
-              name: "Profit Bridge",
-              xAxis: xAxis,
-              yAxis: yAxis,
-              valueYField: "value",
-              categoryXField: "category",
-              tooltip: am5.Tooltip.new(root, {
-                pointerOrientation: "horizontal",
-                labelText: "{categoryX}: ₹{valueY.formatNumber('#,##0.00')}",
-                autoTextColor: false,
-                labelHTML: `
-                  <div style="
-                    text-align: left; 
-                    padding: 8px 12px; 
-                    background: #ffffff; 
-                    color: #333333; 
-                    border-radius: 6px; 
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    font-size: 12px;
-                    line-height: 1.4;
-                    min-width: 120px;
-                  ">
-                    <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
-                    <div style="font-weight: 700; color: #000000; font-size: 13px;">₹{valueY.formatNumber('#,##0.00')}</div>
-                  </div>
-                `
-              })
-            })
-          );
-
-          series.columns.template.setAll({
-            width: am5.percent(80),
-            strokeOpacity: 0,
-            cornerRadiusTL: 5,
-            cornerRadiusTR: 5,
-            tooltipY: 0
-          });
-
-          // Set colors for each column
-          series.columns.template.adapters.add("fill", (fill, target) => {
-            const dataItem = target.dataItem;
-            if (dataItem && dataItem.dataContext) {
-              return (dataItem.dataContext as any).color;
-            }
-            return fill;
-          });
-
-          series.appear(1000);
-          xAxis.data.setAll(waterfallData);
-          series.data.setAll(waterfallData);
-        }
-      }
-
-      // Trend Chart (Sales, GPM, NP)
-      const trendElement = document.getElementById("trendChart");
-      if (trendElement) {
-        // Cleanup existing chart
-        am5.array.each(am5.registry.rootElements, (root) => {
-          if (root && root.dom && root.dom.id === "trendChart") root.dispose();
-        });
-
-        const root = am5.Root.new("trendChart");
-        root.setThemes([am5themes_Animated.new(root)]);
-
-        const chart = root.container.children.push(
-          am5xy.XYChart.new(root, {
-            panX: false,
-            panY: false,
-            wheelX: "none",
-            wheelY: "none",
-            cursor: am5xy.XYCursor.new(root, {}),
-            background: am5.Rectangle.new(root, { fill: am5.color(0xffffff) })
-          })
-        );
-
-        // Create axes
-        const xAxis = chart.xAxes.push(
-          am5xy.CategoryAxis.new(root, {
-            categoryField: "period",
-            renderer: am5xy.AxisRendererX.new(root, {}),
-            tooltip: am5.Tooltip.new(root, {})
-          })
-        );
-        xAxis.get("renderer").labels.template.setAll({
-          fill: am5.color(0x000000)
-        });
-
-        const yAxis = chart.yAxes.push(
-          am5xy.ValueAxis.new(root, {
-            renderer: am5xy.AxisRendererY.new(root, {}),
-            tooltip: am5.Tooltip.new(root, {})
-          })
-        );
-        yAxis.get("renderer").labels.template.setAll({
-          fill: am5.color(0x000000)
-        });
-
-        // Sales series
-        const salesSeries = chart.series.push(
-          am5xy.LineSeries.new(root, {
-            name: "Sales",
-            xAxis: xAxis,
-            yAxis: yAxis,
-            valueYField: "sales",
-            categoryXField: "period",
-            stroke: am5.color(0x3b82f6),
-            tooltip: am5.Tooltip.new(root, {
-              pointerOrientation: "horizontal",
-              labelText: "{categoryX} - Sales: ₹{valueY.formatNumber('#,##0.00')}",
-              autoTextColor: false
-            })
-          })
-        );
-
-        // GPM series
-        const gpmSeries = chart.series.push(
-          am5xy.LineSeries.new(root, {
-            name: "GPM",
-            xAxis: xAxis,
-            yAxis: yAxis,
-            valueYField: "gpm",
-            categoryXField: "period",
-            stroke: am5.color(0x10b981),
-            tooltip: am5.Tooltip.new(root, {
-              pointerOrientation: "horizontal",
-              labelText: "{categoryX} - GPM: ₹{valueY.formatNumber('#,##0.00')}",
-              autoTextColor: false
-            })
-          })
-        );
-
-        // NP series
-        const npSeries = chart.series.push(
-          am5xy.LineSeries.new(root, {
-            name: "NP",
-            xAxis: xAxis,
-            yAxis: yAxis,
-            valueYField: "np",
-            categoryXField: "period",
-            stroke: am5.color(0xf59e0b),
-            tooltip: am5.Tooltip.new(root, {
-              pointerOrientation: "horizontal",
-              labelText: "{categoryX} - NP: ₹{valueY.formatNumber('#,##0.00')}",
-              autoTextColor: false
-            })
-          })
-        );
-
-        // Add bullets
-        [salesSeries, gpmSeries, npSeries].forEach(series => {
-          series.bullets.push(() => {
-            return am5.Bullet.new(root, {
-              sprite: am5.Circle.new(root, {
-                radius: 4,
-                fill: series.get("stroke"),
-                stroke: am5.color(0xffffff),
-                strokeWidth: 2
-              })
-            });
-          });
-        });
-
-        // Add data labels to each series
-        salesSeries.bullets.push(() => {
-          return am5.Bullet.new(root, {
-            sprite: am5.Label.new(root, {
-              text: "₹{valueY.formatNumber('#,##0')}",
-              fill: am5.color(0x000000),
-              centerX: am5.p50,
-              centerY: am5.p100,
-              populateText: true,
-              fontSize: 9,
-              fontWeight: "500",
-              dy: -8
-            })
-          });
-        });
-
-        gpmSeries.bullets.push(() => {
-          return am5.Bullet.new(root, {
-            sprite: am5.Label.new(root, {
-              text: "₹{valueY.formatNumber('#,##0')}",
-              fill: am5.color(0x000000),
-              centerX: am5.p50,
-              centerY: am5.p100,
-              populateText: true,
-              fontSize: 9,
-              fontWeight: "500",
-              dy: -8
-            })
-          });
-        });
-
-        npSeries.bullets.push(() => {
-          return am5.Bullet.new(root, {
-            sprite: am5.Label.new(root, {
-              text: "₹{valueY.formatNumber('#,##0')}",
-              fill: am5.color(0x000000),
-              centerX: am5.p50,
-              centerY: am5.p100,
-              populateText: true,
-              fontSize: 9,
-              fontWeight: "500",
-              dy: -8
-            })
-          });
-        });
-
-        // Set data - calculate independently for all periods
-        const trendData = comparisonValues.filter(Boolean).map((periodValue, index) => {
-          const sales = getBaseParameterValue(periodValue, index, 'Sales') || 
-                       getBaseParameterValue(periodValue, index, 'SALES') || 0;
-          const gpm = getBaseParameterValue(periodValue, index, 'GPM') || 0;
-          const np = getBaseParameterValue(periodValue, index, 'NP') || 0;
-          return {
-            period: periodValue,
-            sales,
-            gpm,
-            np
-          };
-        });
-
-        xAxis.data.setAll(trendData);
-        salesSeries.data.setAll(trendData);
-        gpmSeries.data.setAll(trendData);
-        npSeries.data.setAll(trendData);
-
-        chart.appear(1000);
-      }
-
-      // Percentage Trend Chart (GPM % vs NP %)
-      const percentageElement = document.getElementById("percentageTrendChart");
-      if (percentageElement) {
-        // Cleanup existing chart
-        am5.array.each(am5.registry.rootElements, (root) => {
-          if (root && root.dom && root.dom.id === "percentageTrendChart") root.dispose();
-        });
-
-        const root = am5.Root.new("percentageTrendChart");
-        root.setThemes([am5themes_Animated.new(root)]);
-
-        const chart = root.container.children.push(
-          am5xy.XYChart.new(root, {
-            panX: false,
-            panY: false,
-            wheelX: "none",
-            wheelY: "none",
-            cursor: am5xy.XYCursor.new(root, {}),
-            background: am5.Rectangle.new(root, { fill: am5.color(0xffffff) })
-          })
-        );
-
-        // Create axes
-        const xAxis = chart.xAxes.push(
-          am5xy.CategoryAxis.new(root, {
-            categoryField: "period",
-            renderer: am5xy.AxisRendererX.new(root, {}),
-            tooltip: am5.Tooltip.new(root, {})
-          })
-        );
-        xAxis.get("renderer").labels.template.setAll({
-          fill: am5.color(0x000000)
-        });
-
-        const yAxis = chart.yAxes.push(
-          am5xy.ValueAxis.new(root, {
-            renderer: am5xy.AxisRendererY.new(root, {}),
-            tooltip: am5.Tooltip.new(root, {}),
-            min: 0
-          })
-        );
-        yAxis.get("renderer").labels.template.setAll({
-          fill: am5.color(0x000000)
-        });
-
-        // GPM % series
-        const gpmPercentSeries = chart.series.push(
-          am5xy.LineSeries.new(root, {
-            name: "GPM %",
-            xAxis: xAxis,
-            yAxis: yAxis,
-            valueYField: "gpmPercent",
-            categoryXField: "period",
-            stroke: am5.color(0x10b981),
-            tooltip: am5.Tooltip.new(root, {
-              pointerOrientation: "horizontal",
-              labelText: "{categoryX} - GPM %: {valueY.formatNumber('#,##0.00')}%",
-              autoTextColor: false
-            })
-          })
-        );
-
-        // NP % series
-        const npPercentSeries = chart.series.push(
-          am5xy.LineSeries.new(root, {
-            name: "NP %",
-            xAxis: xAxis,
-            yAxis: yAxis,
-            valueYField: "npPercent",
-            categoryXField: "period",
-            stroke: am5.color(0xf59e0b),
-            tooltip: am5.Tooltip.new(root, {
-              pointerOrientation: "horizontal",
-              labelText: "{categoryX} - NP %: {valueY.formatNumber('#,##0.00')}%",
-              autoTextColor: false
-            })
-          })
-        );
-
-        // Add bullets
-        [gpmPercentSeries, npPercentSeries].forEach(series => {
-          series.bullets.push(() => {
-            return am5.Bullet.new(root, {
-              sprite: am5.Circle.new(root, {
-                radius: 4,
-                fill: series.get("stroke"),
-                stroke: am5.color(0xffffff),
-                strokeWidth: 2
-              })
-            });
-          });
-        });
-
-        // Add data labels to percentage series
-        gpmPercentSeries.bullets.push(() => {
-          return am5.Bullet.new(root, {
-            sprite: am5.Label.new(root, {
-              text: "{valueY.formatNumber('#,##0.0')}%",
-              fill: am5.color(0x000000),
-              centerX: am5.p50,
-              centerY: am5.p100,
-              populateText: true,
-              fontSize: 9,
-              fontWeight: "500",
-              dy: -8
-            })
-          });
-        });
-
-        npPercentSeries.bullets.push(() => {
-          return am5.Bullet.new(root, {
-            sprite: am5.Label.new(root, {
-              text: "{valueY.formatNumber('#,##0.0')}%",
-              fill: am5.color(0x000000),
-              centerX: am5.p50,
-              centerY: am5.p100,
-              populateText: true,
-              fontSize: 9,
-              fontWeight: "500",
-              dy: -8
-            })
-          });
-        });
-
-        // Set data - calculate independently for all periods
-        const percentageData = comparisonValues.filter(Boolean).map((periodValue, index) => {
-          const sales = getBaseParameterValue(periodValue, index, 'Sales') || 
-                       getBaseParameterValue(periodValue, index, 'SALES') || 0;
-          const gpm = getBaseParameterValue(periodValue, index, 'GPM') || 0;
-          const np = getBaseParameterValue(periodValue, index, 'NP') || 0;
-          return {
-            period: periodValue,
-            gpmPercent: sales > 0 ? (gpm / sales) * 100 : 0,
-            npPercent: sales > 0 ? (np / sales) * 100 : 0
-          };
-        });
-
-        xAxis.data.setAll(percentageData);
-        gpmPercentSeries.data.setAll(percentageData);
-        npPercentSeries.data.setAll(percentageData);
-
-        chart.appear(1000);
-      }
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-      am5.array.each(am5.registry.rootElements, (root) => {
-        if (root && root.dom && (root.dom.id === "profitBridgeChart" || root.dom.id === "trendChart" || root.dom.id === "percentageTrendChart")) {
-          root.dispose();
-        }
-      });
-    };
-  }, [comparisonValues, data, selectedBusinessUnit, selectedClientName, selectedBUHead, compareType, combinedPeriods]);
 
   return (
     <div style={{ padding: 32, backgroundColor: '#ffffff', minHeight: '100vh', color: '#000000' }}>
@@ -2934,7 +2479,28 @@ const TeamReportCompare: React.FC = () => {
       {/* KPI Stats Dashboard */}
       {data.length > 0 && (
         <div style={{ marginBottom: 32 }}>
-          <h2 style={{ color: '#000000', marginBottom: 16 }}>KPI Dashboard</h2>
+          {/* KPI Dashboard Header */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ 
+              backgroundColor: '#000000', 
+              color: '#ffffff', 
+              padding: '12px 20px', 
+              borderRadius: 4, 
+              fontSize: 18, 
+              fontWeight: 700,
+              display: 'inline-block',
+              marginBottom: 8
+            }}>
+              KPI Dashboard
+            </div>
+            <div style={{ 
+              width: 100, 
+              height: 3, 
+              backgroundColor: '#ff6b35',
+              borderRadius: 2
+            }} />
+          </div>
+
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: showAllKPIs ? 'repeat(auto-fit, minmax(280px, 1fr))' : 'repeat(4, 1fr)',
@@ -2964,133 +2530,176 @@ const TeamReportCompare: React.FC = () => {
                     backgroundColor: '#ffffff',
                     borderRadius: 8,
                     padding: 20,
-                    border: '1px solid #e0e0e0',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    border: '1px solid #d9d9d9',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                     position: 'relative'
                   }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
-                      marginBottom: 12
-                    }}>
-                      <h3 style={{ 
-                        color: '#000000', 
-                        margin: 0, 
-                        fontSize: '16px',
-                        fontWeight: 600
+                    {/* Black Label with Orange Line */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ 
+                        backgroundColor: '#000000', 
+                        color: '#ffffff', 
+                        padding: '6px 12px', 
+                        borderRadius: 4, 
+                        fontSize: 12, 
+                        fontWeight: 600,
+                        display: 'inline-block',
+                        marginBottom: 4
                       }}>
-                        {kpiName}
-                      </h3>
-                      <div style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        backgroundColor: kpi.isPositive ? '#4ade80' : '#f87171'
+                        {kpiName} Analysis
+                      </div>
+                      <div style={{ 
+                        width: 60, 
+                        height: 2, 
+                        backgroundColor: '#ff6b35',
+                        borderRadius: 1
                       }} />
                     </div>
-                    
-                    <div style={{ marginBottom: 8 }}>
-                      <div style={{ 
-                        color: '#000000', 
-                        fontSize: '24px', 
-                        fontWeight: 700,
-                        marginBottom: 4
-                      }}>
-                        {formatValue(kpi.currentFY)}
-                      </div>
-                      <div style={{ 
-                        color: '#666666', 
-                        fontSize: '12px'
-                      }}>
-                        {compareType === 'year' && comparisonValues[0] 
-                          ? `${comparisonValues[0]} (Projected)` 
-                          : kpi.period || `FY ${getCurrentFinancialYear()} (Projected)`
-                        }
+
+                    {/* Green Arrow Icon */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 20,
+                      right: 20,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{
+                        width: 0,
+                        height: 0,
+                        borderLeft: '8px solid transparent',
+                        borderRight: '8px solid transparent',
+                        borderBottom: '12px solid #4ade80',
+                        marginBottom: 2
+                      }} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                        <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                        <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
                       </div>
                     </div>
-                    
+
+                    {/* Main Growth Percentage */}
                     <div style={{ 
-                      paddingTop: 8,
-                      borderTop: '1px solid #f0f0f0'
+                      fontSize: 28, 
+                      fontWeight: 700, 
+                      color: '#4ade80', 
+                      marginBottom: 8,
+                      textAlign: 'center'
                     }}>
-                      {/* Previous Period Value */}
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{ 
-                          color: '#666666', 
-                          fontSize: '12px',
-                          marginBottom: 2
-                        }}>
-                          {compareType === 'quarter' && comparisonValues[1] 
-                            ? `vs ${comparisonValues[1]}` 
-                            : compareType === 'year' && comparisonValues[1]
-                            ? `vs ${comparisonValues[1]}`
-                            : `vs FY ${getCurrentFinancialYear() - 1}`
-                          }
-                        </div>
-                        <div style={{ 
-                          color: '#000000', 
-                          fontSize: '14px',
-                          fontWeight: 500
-                        }}>
-                          {formatValue(kpi.previousFY)}
-                        </div>
-                      </div>
+                      +{kpi.growthPercentage.toFixed(1)}% Growth
+                    </div>
 
-                      {/* Change in Value and Percentage */}
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 4
-                      }}>
-                        <div>
-                          <div style={{ 
-                            color: '#666666', 
-                            fontSize: '11px',
-                            marginBottom: 2
-                          }}>
-                            Change in Value
-                          </div>
-                          <div style={{ 
-                            color: kpi.isPositive ? '#4ade80' : '#f87171', 
-                            fontSize: '13px',
-                            fontWeight: 600
-                          }}>
-                            {kpi.isPositive ? '+' : ''}{formatValue(kpi.currentFY - kpi.previousFY)}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ 
-                            color: '#666666', 
-                            fontSize: '11px',
-                            marginBottom: 2
-                          }}>
-                            Growth/Decline
-                          </div>
-                          <div style={{ 
-                            color: kpi.isPositive ? '#4ade80' : '#f87171', 
-                            fontSize: '13px',
-                            fontWeight: 600
-                          }}>
-                            {kpi.isPositive ? '+' : ''}{kpi.growthPercentage.toFixed(1)}%
-                          </div>
-                        </div>
-                      </div>
+                    {/* Change in Value */}
+                    <div style={{ 
+                      fontSize: 16, 
+                      fontWeight: 600, 
+                      color: '#4ade80', 
+                      marginBottom: 4,
+                      textAlign: 'center'
+                    }}>
+                      +{formatValue(kpi.currentFY - kpi.previousFY)}
+                    </div>
 
-                      {/* Data Completeness */}
+                    {/* vs FY 2024 */}
+                    <div style={{ 
+                      fontSize: 12, 
+                      color: '#666666', 
+                      marginBottom: 20,
+                      textAlign: 'center'
+                    }}>
+                      vs FY 2024
+                    </div>
+
+                    {/* KPI Label */}
+                    <div style={{ 
+                      backgroundColor: '#f5f5f5', 
+                      color: '#666666', 
+                      padding: '4px 8px', 
+                      borderRadius: 4, 
+                      fontSize: 10, 
+                      fontWeight: 500,
+                      display: 'inline-block',
+                      marginBottom: 12
+                    }}>
+                      {kpiName}
+                    </div>
+
+                    {/* Current FY Value */}
+                    <div style={{ 
+                      fontSize: 20, 
+                      fontWeight: 700, 
+                      color: '#333333', 
+                      marginBottom: 4
+                    }}>
+                      {formatValue(kpi.currentFY)}
+                    </div>
+
+                    {/* FY 2025 Projected */}
+                    <div style={{ 
+                      fontSize: 12, 
+                      color: '#666666', 
+                      marginBottom: 2
+                    }}>
+                      FY 2025 (Projected)
+                    </div>
+
+                    {/* Previous FY Actual */}
+                    <div style={{ 
+                      fontSize: 12, 
+                      color: '#666666', 
+                      marginBottom: 16
+                    }}>
+                      {formatValue(kpi.previousFY)} Actual
+                    </div>
+
+                    {/* Positive Trend */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginBottom: 12
+                    }}>
                       <div style={{ 
-                        color: '#666666', 
-                        fontSize: '10px',
-                        textAlign: 'center',
-                        paddingTop: 4,
-                        borderTop: '1px solid #f5f5f5'
+                        width: 8, 
+                        height: 8, 
+                        borderRadius: '50%', 
+                        backgroundColor: '#4ade80'
+                      }} />
+                      <div style={{ 
+                        fontSize: 12, 
+                        color: '#666666'
                       }}>
-                        {compareType === 'quarter' 
-                          ? `${kpi.monthsCompleted}/3 months` 
-                          : `${kpi.monthsCompleted}/12 months`
-                        }
+                        Positive Trend
                       </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{
+                        width: '100%',
+                        height: 6,
+                        backgroundColor: '#e5e5e5',
+                        borderRadius: 3,
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          width: `${(kpi.monthsCompleted / 12) * 100}%`,
+                          height: '100%',
+                          backgroundColor: '#4ade80',
+                          borderRadius: 3
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Months Completed */}
+                    <div style={{ 
+                      fontSize: 11, 
+                      color: '#666666',
+                      textAlign: 'center'
+                    }}>
+                      {kpi.monthsCompleted}/12 months completed
                     </div>
                   </div>
                 );
@@ -3110,7 +2719,7 @@ const TeamReportCompare: React.FC = () => {
                 backgroundColor: '#ffffff'
               }}
             >
-              {showAllKPIs ? 'Show Less' : 'Show More KPIs'}
+              {showAllKPIs ? 'Show Less' : '+ Show More KPIs'}
             </Button>
           </div>
         </div>
@@ -3657,817 +3266,6 @@ const TeamReportCompare: React.FC = () => {
         )
       ) : null}
 
-      {/* Profit Bridge & NP Insight Dashboard */}
-      {comparisonData.length > 0 && (
-        <div style={{ marginTop: 40, marginBottom: 40 }}>
-          <h2 style={{ color: '#000000', marginBottom: 24 }}>Profit Bridge & NP Insight Dashboard</h2>
-          
-          {/* KPI Cards */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-            gap: 16, 
-            marginBottom: 24 
-          }}>
-            {(() => {
-              // Calculate KPIs from the latest period independently of selected parameters
-              // Use the KPI calculation function for consistent year-based data
-              const kpiData = calculateKPIs();
-              console.log("🔍 KPI Cards - Using KPI calculation data:", kpiData);
-
-              if (!kpiData || Object.keys(kpiData).length === 0) {
-                console.log("🔍 KPI Cards - No KPI data available");
-                return (
-                  <div style={{
-                    gridColumn: '1 / -1',
-                    textAlign: 'center',
-                    padding: 20,
-                    backgroundColor: '#f5f5f5',
-                    borderRadius: 8,
-                    border: '1px solid #d9d9d9'
-                  }}>
-                    <div style={{ color: '#666666', fontSize: 14 }}>
-                      No data available for KPI calculations.<br/>
-                      Please check your data and filters.
-                    </div>
-                  </div>
-                );
-              }
-
-              // Get the main KPI data
-              const salesKPI = kpiData['Sales'];
-              const gpmKPI = kpiData['GPM'];
-              const npKPI = kpiData['NP'];
-              const teamCostKPI = kpiData['Team Cost'];
-
-              return (
-                <>
-                  {/* Sales KPI Card */}
-                  {salesKPI && (
-                    <div style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: 8,
-                      padding: 20,
-                      border: '1px solid #d9d9d9',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      position: 'relative'
-                    }}>
-                      {/* Black Label with Orange Line */}
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ 
-                          backgroundColor: '#000000', 
-                          color: '#ffffff', 
-                          padding: '6px 12px', 
-                          borderRadius: 4, 
-                          fontSize: 12, 
-                          fontWeight: 600,
-                          display: 'inline-block',
-                          marginBottom: 4
-                        }}>
-                          Sales Analysis
-                        </div>
-                        <div style={{ 
-                          width: 60, 
-                          height: 2, 
-                          backgroundColor: '#ff6b35',
-                          borderRadius: 1
-                        }} />
-                      </div>
-
-                      {/* Green Arrow Icon */}
-                      <div style={{
-                        position: 'absolute',
-                        top: 20,
-                        right: 20,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center'
-                      }}>
-                        <div style={{
-                          width: 0,
-                          height: 0,
-                          borderLeft: '8px solid transparent',
-                          borderRight: '8px solid transparent',
-                          borderBottom: '12px solid #4ade80',
-                          marginBottom: 2
-                        }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                          <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                          <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                        </div>
-                      </div>
-
-                      {/* Main Growth Percentage */}
-                      <div style={{ 
-                        fontSize: 28, 
-                        fontWeight: 700, 
-                        color: '#4ade80', 
-                        marginBottom: 8,
-                        textAlign: 'center'
-                      }}>
-                        +{salesKPI.growthPercentage.toFixed(1)}% Growth
-                      </div>
-
-                      {/* Change in Value */}
-                      <div style={{ 
-                        fontSize: 16, 
-                        fontWeight: 600, 
-                        color: '#4ade80', 
-                        marginBottom: 4,
-                        textAlign: 'center'
-                      }}>
-                        +₹{((salesKPI.currentFY - salesKPI.previousFY) / 100000).toFixed(1)}L
-                      </div>
-
-                      {/* vs FY 2024 */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 20,
-                        textAlign: 'center'
-                      }}>
-                        vs FY 2024
-                      </div>
-
-                      {/* Sales Label */}
-                      <div style={{ 
-                        backgroundColor: '#f5f5f5', 
-                        color: '#666666', 
-                        padding: '4px 8px', 
-                        borderRadius: 4, 
-                        fontSize: 10, 
-                        fontWeight: 500,
-                        display: 'inline-block',
-                        marginBottom: 12
-                      }}>
-                        Sales
-                      </div>
-
-                      {/* Current FY Value */}
-                      <div style={{ 
-                        fontSize: 20, 
-                        fontWeight: 700, 
-                        color: '#333333', 
-                        marginBottom: 4
-                      }}>
-                        ₹{(salesKPI.currentFY / 100000).toFixed(1)}L
-                      </div>
-
-                      {/* FY 2025 Projected */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 2
-                      }}>
-                        FY 2025 (Projected)
-                      </div>
-
-                      {/* Previous FY Actual */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 16
-                      }}>
-                        ₹{(salesKPI.previousFY / 100000).toFixed(1)}L Actual
-                      </div>
-
-                      {/* Positive Trend */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        marginBottom: 12
-                      }}>
-                        <div style={{ 
-                          width: 8, 
-                          height: 8, 
-                          borderRadius: '50%', 
-                          backgroundColor: '#4ade80'
-                        }} />
-                        <div style={{ 
-                          fontSize: 12, 
-                          color: '#666666'
-                        }}>
-                          Positive Trend
-                        </div>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{
-                          width: '100%',
-                          height: 6,
-                          backgroundColor: '#e5e5e5',
-                          borderRadius: 3,
-                          overflow: 'hidden'
-                        }}>
-                          <div style={{
-                            width: `${(salesKPI.monthsCompleted / 12) * 100}%`,
-                            height: '100%',
-                            backgroundColor: '#4ade80',
-                            borderRadius: 3
-                          }} />
-                        </div>
-                      </div>
-
-                      {/* Months Completed */}
-                      <div style={{ 
-                        fontSize: 11, 
-                        color: '#666666',
-                        textAlign: 'center'
-                      }}>
-                        {salesKPI.monthsCompleted}/12 months completed
-                      </div>
-                    </div>
-                  )}
-
-                  {/* GPM KPI Card */}
-                  {gpmKPI && (
-                    <div style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: 8,
-                      padding: 20,
-                      border: '1px solid #d9d9d9',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      position: 'relative'
-                    }}>
-                      {/* Black Label with Orange Line */}
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ 
-                          backgroundColor: '#000000', 
-                          color: '#ffffff', 
-                          padding: '6px 12px', 
-                          borderRadius: 4, 
-                          fontSize: 12, 
-                          fontWeight: 600,
-                          display: 'inline-block',
-                          marginBottom: 4
-                        }}>
-                          GPM Analysis
-                        </div>
-                        <div style={{ 
-                          width: 60, 
-                          height: 2, 
-                          backgroundColor: '#ff6b35',
-                          borderRadius: 1
-                        }} />
-                      </div>
-
-                      {/* Green Arrow Icon */}
-                      <div style={{
-                        position: 'absolute',
-                        top: 20,
-                        right: 20,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center'
-                      }}>
-                        <div style={{
-                          width: 0,
-                          height: 0,
-                          borderLeft: '8px solid transparent',
-                          borderRight: '8px solid transparent',
-                          borderBottom: '12px solid #4ade80',
-                          marginBottom: 2
-                        }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                          <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                          <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                        </div>
-                      </div>
-
-                      {/* Main Growth Percentage */}
-                      <div style={{ 
-                        fontSize: 28, 
-                        fontWeight: 700, 
-                        color: '#4ade80', 
-                        marginBottom: 8,
-                        textAlign: 'center'
-                      }}>
-                        +{gpmKPI.growthPercentage.toFixed(1)}% Growth
-                      </div>
-
-                      {/* Change in Value */}
-                      <div style={{ 
-                        fontSize: 16, 
-                        fontWeight: 600, 
-                        color: '#4ade80', 
-                        marginBottom: 4,
-                        textAlign: 'center'
-                      }}>
-                        +₹{((gpmKPI.currentFY - gpmKPI.previousFY) / 100000).toFixed(1)}L
-                      </div>
-
-                      {/* vs FY 2024 */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 20,
-                        textAlign: 'center'
-                      }}>
-                        vs FY 2024
-                      </div>
-
-                      {/* GPM Label */}
-                      <div style={{ 
-                        backgroundColor: '#f5f5f5', 
-                        color: '#666666', 
-                        padding: '4px 8px', 
-                        borderRadius: 4, 
-                        fontSize: 10, 
-                        fontWeight: 500,
-                        display: 'inline-block',
-                        marginBottom: 12
-                      }}>
-                        GPM
-                      </div>
-
-                      {/* Current FY Value */}
-                      <div style={{ 
-                        fontSize: 20, 
-                        fontWeight: 700, 
-                        color: '#333333', 
-                        marginBottom: 4
-                      }}>
-                        ₹{(gpmKPI.currentFY / 100000).toFixed(1)}L
-                      </div>
-
-                      {/* FY 2025 Projected */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 2
-                      }}>
-                        FY 2025 (Projected)
-                      </div>
-
-                      {/* Previous FY Actual */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 16
-                      }}>
-                        ₹{(gpmKPI.previousFY / 100000).toFixed(1)}L Actual
-                      </div>
-
-                      {/* Positive Trend */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        marginBottom: 12
-                      }}>
-                        <div style={{ 
-                          width: 8, 
-                          height: 8, 
-                          borderRadius: '50%', 
-                          backgroundColor: '#4ade80'
-                        }} />
-                        <div style={{ 
-                          fontSize: 12, 
-                          color: '#666666'
-                        }}>
-                          Positive Trend
-                        </div>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{
-                          width: '100%',
-                          height: 6,
-                          backgroundColor: '#e5e5e5',
-                          borderRadius: 3,
-                          overflow: 'hidden'
-                        }}>
-                          <div style={{
-                            width: `${(gpmKPI.monthsCompleted / 12) * 100}%`,
-                            height: '100%',
-                            backgroundColor: '#4ade80',
-                            borderRadius: 3
-                          }} />
-                        </div>
-                      </div>
-
-                      {/* Months Completed */}
-                      <div style={{ 
-                        fontSize: 11, 
-                        color: '#666666',
-                        textAlign: 'center'
-                      }}>
-                        {gpmKPI.monthsCompleted}/12 months completed
-                      </div>
-                    </div>
-                  )}
-
-                  {/* NP KPI Card */}
-                  {npKPI && (
-                    <div style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: 8,
-                      padding: 20,
-                      border: '1px solid #d9d9d9',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      position: 'relative'
-                    }}>
-                      {/* Black Label with Orange Line */}
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ 
-                          backgroundColor: '#000000', 
-                          color: '#ffffff', 
-                          padding: '6px 12px', 
-                          borderRadius: 4, 
-                          fontSize: 12, 
-                          fontWeight: 600,
-                          display: 'inline-block',
-                          marginBottom: 4
-                        }}>
-                          NP Analysis
-                        </div>
-                        <div style={{ 
-                          width: 60, 
-                          height: 2, 
-                          backgroundColor: '#ff6b35',
-                          borderRadius: 1
-                        }} />
-                      </div>
-
-                      {/* Green Arrow Icon */}
-                      <div style={{
-                        position: 'absolute',
-                        top: 20,
-                        right: 20,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center'
-                      }}>
-                        <div style={{
-                          width: 0,
-                          height: 0,
-                          borderLeft: '8px solid transparent',
-                          borderRight: '8px solid transparent',
-                          borderBottom: '12px solid #4ade80',
-                          marginBottom: 2
-                        }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                          <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                          <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                        </div>
-                      </div>
-
-                      {/* Main Growth Percentage */}
-                      <div style={{ 
-                        fontSize: 28, 
-                        fontWeight: 700, 
-                        color: '#4ade80', 
-                        marginBottom: 8,
-                        textAlign: 'center'
-                      }}>
-                        +{npKPI.growthPercentage.toFixed(1)}% Growth
-                      </div>
-
-                      {/* Change in Value */}
-                      <div style={{ 
-                        fontSize: 16, 
-                        fontWeight: 600, 
-                        color: '#4ade80', 
-                        marginBottom: 4,
-                        textAlign: 'center'
-                      }}>
-                        +₹{((npKPI.currentFY - npKPI.previousFY) / 100000).toFixed(1)}L
-                      </div>
-
-                      {/* vs FY 2024 */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 20,
-                        textAlign: 'center'
-                      }}>
-                        vs FY 2024
-                      </div>
-
-                      {/* NP Label */}
-                      <div style={{ 
-                        backgroundColor: '#f5f5f5', 
-                        color: '#666666', 
-                        padding: '4px 8px', 
-                        borderRadius: 4, 
-                        fontSize: 10, 
-                        fontWeight: 500,
-                        display: 'inline-block',
-                        marginBottom: 12
-                      }}>
-                        NP
-                      </div>
-
-                      {/* Current FY Value */}
-                      <div style={{ 
-                        fontSize: 20, 
-                        fontWeight: 700, 
-                        color: '#333333', 
-                        marginBottom: 4
-                      }}>
-                        ₹{(npKPI.currentFY / 100000).toFixed(1)}L
-                      </div>
-
-                      {/* FY 2025 Projected */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 2
-                      }}>
-                        FY 2025 (Projected)
-                      </div>
-
-                      {/* Previous FY Actual */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 16
-                      }}>
-                        ₹{(npKPI.previousFY / 100000).toFixed(1)}L Actual
-                      </div>
-
-                      {/* Positive Trend */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        marginBottom: 12
-                      }}>
-                        <div style={{ 
-                          width: 8, 
-                          height: 8, 
-                          borderRadius: '50%', 
-                          backgroundColor: '#4ade80'
-                        }} />
-                        <div style={{ 
-                          fontSize: 12, 
-                          color: '#666666'
-                        }}>
-                          Positive Trend
-                        </div>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{
-                          width: '100%',
-                          height: 6,
-                          backgroundColor: '#e5e5e5',
-                          borderRadius: 3,
-                          overflow: 'hidden'
-                        }}>
-                          <div style={{
-                            width: `${(npKPI.monthsCompleted / 12) * 100}%`,
-                            height: '100%',
-                            backgroundColor: '#4ade80',
-                            borderRadius: 3
-                          }} />
-                        </div>
-                      </div>
-
-                      {/* Months Completed */}
-                      <div style={{ 
-                        fontSize: 11, 
-                        color: '#666666',
-                        textAlign: 'center'
-                      }}>
-                        {npKPI.monthsCompleted}/12 months completed
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Team Cost KPI Card */}
-                  {teamCostKPI && (
-                    <div style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: 8,
-                      padding: 20,
-                      border: '1px solid #d9d9d9',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      position: 'relative'
-                    }}>
-                      {/* Black Label with Orange Line */}
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ 
-                          backgroundColor: '#000000', 
-                          color: '#ffffff', 
-                          padding: '6px 12px', 
-                          borderRadius: 4, 
-                          fontSize: 12, 
-                          fontWeight: 600,
-                          display: 'inline-block',
-                          marginBottom: 4
-                        }}>
-                          Team Cost Analysis
-                        </div>
-                        <div style={{ 
-                          width: 60, 
-                          height: 2, 
-                          backgroundColor: '#ff6b35',
-                          borderRadius: 1
-                        }} />
-                      </div>
-
-                      {/* Green Arrow Icon */}
-                      <div style={{
-                        position: 'absolute',
-                        top: 20,
-                        right: 20,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center'
-                      }}>
-                        <div style={{
-                          width: 0,
-                          height: 0,
-                          borderLeft: '8px solid transparent',
-                          borderRight: '8px solid transparent',
-                          borderBottom: '12px solid #4ade80',
-                          marginBottom: 2
-                        }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                          <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                          <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                        </div>
-                      </div>
-
-                      {/* Main Growth Percentage */}
-                      <div style={{ 
-                        fontSize: 28, 
-                        fontWeight: 700, 
-                        color: '#4ade80', 
-                        marginBottom: 8,
-                        textAlign: 'center'
-                      }}>
-                        +{teamCostKPI.growthPercentage.toFixed(1)}% Growth
-                      </div>
-
-                      {/* Change in Value */}
-                      <div style={{ 
-                        fontSize: 16, 
-                        fontWeight: 600, 
-                        color: '#4ade80', 
-                        marginBottom: 4,
-                        textAlign: 'center'
-                      }}>
-                        +₹{((teamCostKPI.currentFY - teamCostKPI.previousFY) / 100000).toFixed(1)}L
-                      </div>
-
-                      {/* vs FY 2024 */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 20,
-                        textAlign: 'center'
-                      }}>
-                        vs FY 2024
-                      </div>
-
-                      {/* Team Cost Label */}
-                      <div style={{ 
-                        backgroundColor: '#f5f5f5', 
-                        color: '#666666', 
-                        padding: '4px 8px', 
-                        borderRadius: 4, 
-                        fontSize: 10, 
-                        fontWeight: 500,
-                        display: 'inline-block',
-                        marginBottom: 12
-                      }}>
-                        Team Cost
-                      </div>
-
-                      {/* Current FY Value */}
-                      <div style={{ 
-                        fontSize: 20, 
-                        fontWeight: 700, 
-                        color: '#333333', 
-                        marginBottom: 4
-                      }}>
-                        ₹{(teamCostKPI.currentFY / 100000).toFixed(1)}L
-                      </div>
-
-                      {/* FY 2025 Projected */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 2
-                      }}>
-                        FY 2025 (Projected)
-                      </div>
-
-                      {/* Previous FY Actual */}
-                      <div style={{ 
-                        fontSize: 12, 
-                        color: '#666666', 
-                        marginBottom: 16
-                      }}>
-                        ₹{(teamCostKPI.previousFY / 100000).toFixed(1)}L Actual
-                      </div>
-
-                      {/* Positive Trend */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        marginBottom: 12
-                      }}>
-                        <div style={{ 
-                          width: 8, 
-                          height: 8, 
-                          borderRadius: '50%', 
-                          backgroundColor: '#4ade80'
-                        }} />
-                        <div style={{ 
-                          fontSize: 12, 
-                          color: '#666666'
-                        }}>
-                          Positive Trend
-                        </div>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{
-                          width: '100%',
-                          height: 6,
-                          backgroundColor: '#e5e5e5',
-                          borderRadius: 3,
-                          overflow: 'hidden'
-                        }}>
-                          <div style={{
-                            width: `${(teamCostKPI.monthsCompleted / 12) * 100}%`,
-                            height: '100%',
-                            backgroundColor: '#4ade80',
-                            borderRadius: 3
-                          }} />
-                        </div>
-                      </div>
-
-                      {/* Months Completed */}
-                      <div style={{ 
-                        fontSize: 11, 
-                        color: '#666666',
-                        textAlign: 'center'
-                      }}>
-                        {teamCostKPI.monthsCompleted}/12 months completed
-                      </div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-
-          {/* Profit Bridge Waterfall Chart */}
-          <div style={{ 
-            backgroundColor: '#ffffff', 
-            borderRadius: 8, 
-            padding: 24, 
-            border: '1px solid #d9d9d9',
-            marginBottom: 24
-          }}>
-            <h3 style={{ color: '#000000', marginBottom: 16 }}>Profit Bridge (Waterfall) - {comparisonData[comparisonData.length - 1]?.period}</h3>
-            <div id="profitBridgeChart" style={{ width: "100%", height: "400px" }} />
-          </div>
-
-          {/* Trend Analysis Charts */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', 
-            gap: 24 
-          }}>
-            {/* Sales, GPM, NP Trend */}
-            <div style={{ 
-              backgroundColor: '#ffffff', 
-              borderRadius: 8, 
-              padding: 24, 
-              border: '1px solid #d9d9d9'
-            }}>
-              <h3 style={{ color: '#000000', marginBottom: 16 }}>Sales, GPM & NP Trend</h3>
-              <div id="trendChart" style={{ width: "100%", height: "300px" }} />
-            </div>
-
-            {/* Percentage Trends */}
-            <div style={{ 
-              backgroundColor: '#ffffff', 
-              borderRadius: 8, 
-              padding: 24, 
-              border: '1px solid #d9d9d9'
-            }}>
-              <h3 style={{ color: '#000000', marginBottom: 16 }}>GPM % vs NP % Trend</h3>
-              <div id="percentageTrendChart" style={{ width: "100%", height: "300px" }} />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Target Tracking Chart - Always visible */}
       <TargetTrackingChart
