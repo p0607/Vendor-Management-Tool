@@ -483,6 +483,25 @@ const AddRoutingData: React.FC = () => {
         return;
       }
     }
+
+    // Validate Billing Month format
+    if (formData['Billing Month']) {
+      const billingMonth = formData['Billing Month'];
+      // Check if it's a valid date format (YYYY-MM-DD)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(billingMonth)) {
+        setError('Billing Month must be in YYYY-MM-DD format (e.g., 2024-08-01)');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Check if it's a valid date
+      const date = new Date(billingMonth);
+      if (isNaN(date.getTime())) {
+        setError('Billing Month must be a valid date');
+        setIsSubmitting(false);
+        return;
+      }
+    }
   
     try {
       if (!formData['Net Margin']) {
@@ -594,7 +613,7 @@ const AddRoutingData: React.FC = () => {
         {fields.map(field => (
           <div key={field} className="form-group">
             <label>{field}</label>
-            {field.includes('Date') ? (
+            {field.includes('Date') || field === 'Billing Month' ? (
               <input
                 type="date"
                 name={field}

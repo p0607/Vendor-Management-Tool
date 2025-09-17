@@ -134,19 +134,40 @@ const RoutingDashboard: React.FC = () => {
     if (/^\d{5}$/.test(billingMonthStr.trim())) {
       const serialNumber = parseInt(billingMonthStr, 10);
       
+      console.log(`🔍 Converting Excel serial number: ${serialNumber}`);
+      
       // Proper Excel serial number to JavaScript Date conversion
       // Excel's date system: January 1, 1900 = serial number 1
       // Excel has a leap year bug - it thinks 1900 is a leap year
       // So we need to adjust for serial numbers > 59 (after Feb 29, 1900)
-      let adjustedSerial = serialNumber;
+      
+      // Excel epoch is December 30, 1899 (serial number 0)
+      const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+      
+      // Calculate the date by adding the serial number days
+      // For serial numbers > 59, subtract 1 to account for Excel's leap year bug
+      let daysToAdd = serialNumber;
       if (serialNumber > 59) {
-        adjustedSerial = serialNumber - 1;
+        daysToAdd = serialNumber - 1;
       }
       
-      const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
-      const date = new Date(excelEpoch.getTime() + adjustedSerial * 24 * 60 * 60 * 1000);
+      const date = new Date(excelEpoch.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
       
-      return date;
+      console.log(`🔍 Converted serial ${serialNumber} to date: ${date.toISOString().split('T')[0]}`);
+      
+      // Validate the date is reasonable (between 1900 and 2100)
+      if (date.getFullYear() >= 1900 && date.getFullYear() <= 2100) {
+        return date;
+      }
+      
+      // If the date is invalid, try alternative conversion
+      // Sometimes Excel serial numbers might be using a different epoch
+      const alternativeDate = new Date(1900, 0, serialNumber - 1); // January 1, 1900 + serialNumber days
+      console.log(`🔍 Alternative conversion for serial ${serialNumber}: ${alternativeDate.toISOString().split('T')[0]}`);
+      
+      if (alternativeDate.getFullYear() >= 1900 && alternativeDate.getFullYear() <= 2100) {
+        return alternativeDate;
+      }
     }
     
     // Handle MMM-YY format (e.g., "Sep-24", "Aug-24") - for existing data

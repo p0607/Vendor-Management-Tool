@@ -13,6 +13,99 @@ import logo from '../assets/logo_1.png';
 import apiClient from '../config/api';
 import { formatDateOnly } from '../utils/dateUtils';
 
+// Helper function to parse billing month from various formats including Excel serial numbers
+const parseBillingMonth = (billingMonthStr: string): Date | null => {
+  if (!billingMonthStr || billingMonthStr === 'N/A' || billingMonthStr === '') {
+    return null;
+  }
+  
+  // Handle DD-MM-YYYY format (e.g., "01-09-2024") - NEW CONVERTED DATA
+  if (/^\d{2}-\d{2}-\d{4}$/.test(billingMonthStr.trim())) {
+    const [day, month, year] = billingMonthStr.split('-').map(Number);
+    return new Date(year, month - 1, day); // month is 0-indexed in JavaScript
+  }
+  
+  // Handle Excel serial numbers (5-digit numbers like 45532, 45535) - for existing data
+  if (/^\d{5}$/.test(billingMonthStr.trim())) {
+    const serialNumber = parseInt(billingMonthStr, 10);
+    
+    // Proper Excel serial number to JavaScript Date conversion
+    // Excel's date system: January 1, 1900 = serial number 1
+    // Excel has a leap year bug - it thinks 1900 is a leap year
+    // So we need to adjust for serial numbers > 59 (after Feb 29, 1900)
+    
+    // Excel epoch is December 30, 1899 (serial number 0)
+    const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+    
+    // Calculate the date by adding the serial number days
+    // For serial numbers > 59, subtract 1 to account for Excel's leap year bug
+    let daysToAdd = serialNumber;
+    if (serialNumber > 59) {
+      daysToAdd = serialNumber - 1;
+    }
+    
+    const date = new Date(excelEpoch.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    
+    // Validate the date is reasonable (between 1900 and 2100)
+    if (date.getFullYear() >= 1900 && date.getFullYear() <= 2100) {
+      return date;
+    }
+    
+    // If the date is invalid, try alternative conversion
+    // Sometimes Excel serial numbers might be using a different epoch
+    const alternativeDate = new Date(1900, 0, serialNumber - 1); // January 1, 1900 + serialNumber days
+    if (alternativeDate.getFullYear() >= 1900 && alternativeDate.getFullYear() <= 2100) {
+      return alternativeDate;
+    }
+  }
+  
+  // Handle MMM-YY format (e.g., "Sep-24", "Aug-24") - for existing data
+  if (billingMonthStr.includes('-') && billingMonthStr.length === 6) {
+    const [monthStr, yearStr] = billingMonthStr.split('-');
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthIndex = monthNames.indexOf(monthStr);
+    
+    if (monthIndex !== -1 && yearStr) {
+      const year = 2000 + parseInt(yearStr, 10);
+      return new Date(year, monthIndex, 1);
+    }
+  }
+  
+  // Handle YYYY-MM-DD format (for new data from backend)
+  if (billingMonthStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const date = new Date(billingMonthStr);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+  }
+  
+  // Handle other date formats as fallback
+  try {
+    const date = new Date(billingMonthStr);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+  } catch (error) {
+    // Ignore parsing errors
+  }
+  
+  return null;
+};
+
+// Helper function to format billing month for display
+const formatBillingMonth = (billingMonthStr: string): string => {
+  const date = parseBillingMonth(billingMonthStr);
+  if (!date) return billingMonthStr || 'N/A';
+  
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  
+  return `${month} ${year}`;
+};
+
 interface RoutingTableItem {
   id: number;
   "Sl.No": string;
@@ -1027,7 +1120,13 @@ const filteredData = useMemo(() => {
 
   // Export all data functionality
   const exportAllData = () => {
-    const worksheet = XLSX.utils.json_to_sheet(routingTable);
+    // Format the data for export with proper billing month formatting
+    const formattedData = routingTable.map(item => ({
+      ...item,
+      'Billing Month': item['Billing Month'] ? formatBillingMonth(item['Billing Month']) : 'N/A'
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Routing Data');
     XLSX.writeFile(workbook, 'Routing_Data_Export.xlsx');
@@ -1041,7 +1140,12 @@ const filteredData = useMemo(() => {
     
     const headers = defaultVisibleFields;
     const data = routingTable.map(item => 
-      headers.map(header => item[header] || 'N/A')
+      headers.map(header => {
+        if (header === 'Billing Month') {
+          return item[header] ? formatBillingMonth(item[header]) : 'N/A';
+        }
+        return item[header] || 'N/A';
+      })
     );
     
     autoTable(doc, {
@@ -1254,6 +1358,8 @@ const filteredData = useMemo(() => {
       <div className="cell-content">
         {field === 'Costing Date'
           ? (item[field] ? formatDateOnly(item[field]) : 'No Date')
+          : field === 'Billing Month'
+          ? formatBillingMonth(item[field] || '')
           : item[field] || 'N/A'}
         {editingMode && (
           <button
@@ -1305,7 +1411,9 @@ const filteredData = useMemo(() => {
                                         </div>
                                       ) : (
                                         <div className="cell-content">
-                                          {item[field] || 'N/A'}
+                                          {field === 'Billing Month'
+                                            ? formatBillingMonth(item[field] || '')
+                                            : item[field] || 'N/A'}
                                           {editingMode && (
                                             <button
                                               onClick={() => handleEditClick(index, field as string, item[field] || '')}
