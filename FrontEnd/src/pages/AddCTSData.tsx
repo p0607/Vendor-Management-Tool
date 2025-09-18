@@ -400,7 +400,7 @@ const AddCTSData: React.FC = () => {
 
   return (
     <div className="homepage">
-      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '2rem 2rem 0 2rem' }}>
+      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem 0 2rem' }}>
         <div className="homepage-logo-top-left">
           <img src={logo} alt="Alchemy Logo" />
         </div>
@@ -438,7 +438,7 @@ const AddCTSData: React.FC = () => {
           </div>
         </div>
       </div>
-      <div className="add-routing-container" style={{ marginTop: '4rem' }}>
+      <div className="add-routing-container" style={{ marginTop: '2rem' }}>
         {/* Hidden file input for Excel import */}
         <input
           type="file"

@@ -16,6 +16,7 @@ interface VendorBarChartProps {
 const VendorBarChart: React.FC<VendorBarChartProps> = ({ data, onVendorClick }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>('desc');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     // 1. Check if container exists and we have data
@@ -36,6 +37,9 @@ const VendorBarChart: React.FC<VendorBarChartProps> = ({ data, onVendorClick }) 
      const sortedData = [...aggregatedData].sort((a, b) =>
       sortDirection === 'desc' ? a.value - b.value : b.value - a.value
     );
+
+    // 3. Limit data based on expand/collapse state
+    const displayData = isExpanded ? sortedData : sortedData.slice(0, 10);
     // 3. Create root element
     const root = am5.Root.new(chartRef.current);
     root._logo?.dispose();
@@ -73,7 +77,7 @@ const VendorBarChart: React.FC<VendorBarChartProps> = ({ data, onVendorClick }) 
     yAxis.get("renderer").labels.template.setAll({
       oversizedBehavior: "wrap",
       textAlign: "center",
-      fontSize: 14,
+      fontSize: 10,
       cursorOverStyle: "pointer",
       fill: am5.color(0x000000) // Black color for labels
     });
@@ -123,8 +127,8 @@ const VendorBarChart: React.FC<VendorBarChartProps> = ({ data, onVendorClick }) 
     });
 
     // 11. Set data
-    yAxis.data.setAll(sortedData); // Ensure Y-axis has all vendor names
-  series.data.setAll(sortedData);
+    yAxis.data.setAll(displayData); // Ensure Y-axis has all vendor names
+  series.data.setAll(displayData);
 
     // 12. Animate
     series.appear(1000);
@@ -134,26 +138,35 @@ const VendorBarChart: React.FC<VendorBarChartProps> = ({ data, onVendorClick }) 
     return () => {
       root.dispose();
     };
-  }, [data, sortDirection, onVendorClick]);
+  }, [data, sortDirection, onVendorClick, isExpanded]);
 
   return (
     <div className="vendor-chart-container">
       <div className="chart-header">
         <h3>Vendor Performance Overview (Alchemy Billing Value)</h3>
-        <button 
-          onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
-          className="sort-button"
-        >
-          {sortDirection === 'desc' ? '▼' : '▲'}
-          Sort {sortDirection === 'desc' ? 'Ascending' : 'Descending'}
-        </button>
+        <div className="chart-controls">
+          <button 
+            onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="sort-button"
+          >
+            {sortDirection === 'desc' ? '▼' : '▲'}
+            Sort {sortDirection === 'desc' ? 'Ascending' : 'Descending'}
+          </button>
+          <button 
+            onClick={() => setIsExpanded(prev => !prev)}
+            className="expand-button"
+          >
+            {isExpanded ? '▼' : '▶'} 
+            {isExpanded ? 'Show Top 10' : `Show All (${data.length})`}
+          </button>
+        </div>
       </div>
       <div 
         ref={chartRef} 
         style={{ 
           width: "100%", 
-          height: "1000px",
-          minHeight: "600px",
+          height: isExpanded ? "1000px" : "400px",
+          minHeight: isExpanded ? "600px" : "300px",
           backgroundColor: "white" // White background
         }}
       />

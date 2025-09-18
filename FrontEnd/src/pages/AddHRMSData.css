@@ -1,6 +1,6 @@
 .add-hrms-container {
-  padding: 20px;
-  max-width: 1400px;
+  padding: 15px;
+  max-width: 1000px;
   margin: 0 auto;
   background-color: #e8f4f8;
   color: #000000;
@@ -17,19 +17,19 @@
 }
 
 .ant-divider {
-  margin-top: 12px;
-  margin-bottom: 12px;
+  margin-top: 8px;
+  margin-bottom: 8px;
   font-weight: 600;
   color: #000000 !important;
   border-color: rgba(0, 0, 0, 0.2) !important;
   border-width: 1px;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .ant-form-item-label label {
   font-weight: 500;
   color: #000000 !important;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .ant-btn {
@@ -47,13 +47,13 @@
 .ant-card-body {
   background-color: white !important;
   color: #000000 !important;
-  padding: 16px;
+  padding: 12px;
 }
 
 .ant-form-item-label > label {
   color: #000000 !important;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .ant-divider-inner-text {
@@ -159,13 +159,13 @@
 
 /* Form field groups styling */
 .ant-row {
-  background-color: #002542 !important;
-  margin-bottom: 8px;
+  background-color: #e8f4f8 !important;
+  margin-bottom: 6px;
 }
 
 .ant-col {
-  background-color: #002542 !important;
-  padding: 4px;
+  background-color: #e8f4f8 !important;
+  padding: 2px;
 }
 
 /* Button styling */
@@ -193,6 +193,6 @@
 
 /* Form sections styling */
 .ant-form-item {
-  margin-bottom: 8px;
-  background-color: #002542 !important;
+  margin-bottom: 6px;
+  background-color: #e8f4f8 !important;
 }

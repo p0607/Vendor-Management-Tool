@@ -337,7 +337,7 @@ select,
 }
 
 .chart-container {
-  flex: 0 0 65%;
+  flex: 0 0 55%;
   order: 2;
 }
 
@@ -346,13 +346,13 @@ select,
   justify-content: left;
   align-items: left;
   gap: 10px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: bold;
   color: black;
   top: 30px;
   margin: 1.5rem;
-  width: calc(35% - 1.5rem);
-  max-width: 35%;
+  width: calc(45% - 1.5rem);
+  max-width: 45%;
 }
 
 .pivot-table {
@@ -386,6 +386,43 @@ select,
   background-color: #e8f4f8;
 }
 
+/* Specific column widths for pivot table */
+.pivot-table th:nth-child(1),
+.pivot-table td:nth-child(1) {
+  width: 15%;
+  min-width: 120px;
+}
+
+.pivot-table th:nth-child(2),
+.pivot-table td:nth-child(2) {
+  width: 20%;
+  min-width: 150px;
+}
+
+.pivot-table th:nth-child(3),
+.pivot-table td:nth-child(3) {
+  width: 20%;
+  min-width: 150px;
+}
+
+.pivot-table th:nth-child(4),
+.pivot-table td:nth-child(4) {
+  width: 15%;
+  min-width: 120px;
+}
+
+.pivot-table th:nth-child(5),
+.pivot-table td:nth-child(5) {
+  width: 15%;
+  min-width: 120px;
+}
+
+.pivot-table th:nth-child(6),
+.pivot-table td:nth-child(6) {
+  width: 15%;
+  min-width: 120px;
+}
+
 .grand-total {
   font-weight: bold;
   background-color: rgba(0, 0, 0, 0.1);
@@ -407,7 +444,7 @@ select,
 }
 
 .chart-container h3 {
-  font-size: 14px;
+  font-size: 12px;
   margin-top: 0;
   color: black;
   text-align: center;
@@ -421,6 +458,28 @@ select,
   padding: 8px;
   background: rgba(0, 0, 0, 0.05);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chart-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.expand-button {
+  background-color: #ff8c00;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+
+.expand-button:hover {
+  background-color: #e67e00;
 }
 
 /* Ensure chart takes full space */
@@ -444,7 +503,7 @@ select,
   
   .pivot-table-container {
     margin: 1rem;
-    width: calc(35% - 1.5rem);
+    width: calc(45% - 1.5rem);
   }
   
   .pivot-table {

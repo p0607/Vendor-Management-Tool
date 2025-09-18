@@ -680,7 +680,7 @@ const AddRoutingData: React.FC = () => {
 
   return (
     <div className="homepage">
-      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '2rem 2rem 0 2rem' }}>
+      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem 0 2rem' }}>
         <div className="homepage-logo-top-left">
           <img src={logo} alt="Alchemy Logo" />
         </div>

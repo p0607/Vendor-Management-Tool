@@ -175,20 +175,17 @@ body, html {
 
     .expanded-fields-table tr,
 .expanded-fields-table td {
-  background-color: white !important;
+  background-color: #e8f4f8 !important;
   color: black !important;
   font-family: 'Montserrat', sans-serif;
-  padding: 8px 12px;
+  padding: 12px 16px;
   text-align: left;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  font-size: 8px;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
   text-align: center;
-  height: auto;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  max-width: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 
@@ -370,7 +367,7 @@ body, html {
 
 .results-count{
     font-family: 'Times New Roman', Times, serif;
-    font-size: 18px;
+    font-size: 12px;
     font-style: bold;
     margin-right: 100rem;
     margin-top: 2rem;
@@ -534,12 +531,12 @@ body, html {
   background-color: #e8f4f8 !important;
   color: black !important;
   font-family: 'Montserrat', sans-serif;
-  padding: 8px 12px;
+  padding: 12px 16px;
   text-align: left;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  font-size: 8px;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
   text-align: center;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
@@ -548,33 +545,33 @@ body, html {
   font-weight: 700 !important;
   background-color: #f5f5f5 !important;
   color: black !important;
-  width: 35%;
-  font-size: 8px;
+  width: 40%;
+  font-size: 0.7rem;
 }
 
 .expanded-fields-table .field-value {
   font-weight: 500 !important;
   color: black !important;
-  width: 65%;
-  font-size: 8px;
+  width: 60%;
+  font-size: 0.7rem;
 }
 
 .field-name {
   background-color: #f5f5f5 !important;
   color: black !important;
   font-weight: 600;
-  padding: 8px 12px;
+  padding: 12px 16px;
   text-align: left;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  font-size: 8px;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
 }
 
 .field-value {
   background-color: #e8f4f8 !important;
   color: black !important;
-  padding: 8px 12px;
-  font-size: 8px;
+  padding: 12px 16px;
+  font-size: 0.7rem;
 }
 
 /* Override global white color for input fields */

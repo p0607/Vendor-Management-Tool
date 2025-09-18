@@ -879,7 +879,7 @@ series.data.setAll(pieData);
   }
 
   return (
-     <div className="homepage" style={{ backgroundColor: 'white', minHeight: '100vh' }}>
+     <div className="homepage" style={{ backgroundColor: '#e8f4f8', minHeight: '100vh' }}>
       <style>
         {`
           .ant-tabs-content {
@@ -913,7 +913,7 @@ series.data.setAll(pieData);
           }
         `}
       </style>
-      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '2rem 2rem 0 2rem' }}>
+      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem 0 2rem' }}>
         <div className="homepage-logo-top-left">
           <img src={logo} alt="Alchemy Logo" />
         </div>
