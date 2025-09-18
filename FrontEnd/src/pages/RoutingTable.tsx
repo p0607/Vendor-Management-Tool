@@ -1382,55 +1382,47 @@ const filteredData = useMemo(() => {
                   <tr className="expanded-row">
                     <td colSpan={defaultVisibleFields.length + 1}>
                       <div className="expanded-content">
-                        <table className="expanded-fields-table">
-                          <tbody>
-                            {groupedFields.map((rowFields, rowIndex) => (
-                              <tr key={rowIndex}>
-                                {rowFields.map(field => (
-                                  <React.Fragment key={field}>
-                                    <td className="field-name">{field}:</td>
-                                    <td className="field-value">
-                                      {editingMode && editingRow === index && editingField === field ? (
-                                        <div className="edit-container">
-                                          <input
-                                            type="text"
-                                            value={editedValue}
-                                            onChange={(e) => setEditedValue(e.target.value)}
-                                            className="edit-input"
-                                          />
-                                          <button onClick={handleSaveEdit} className="save-button">
-                                            Save
-                                          </button>
-                                          <button onClick={handleCancelEdit} className="cancel-button">
-                                            Cancel
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <div className="cell-content">
-                                          {field === 'Billing Month'
-                                            ? formatBillingMonth(item[field] || '')
-                                            : item[field] || 'N/A'}
-                                          {editingMode && (
-                                            <button
-                                              onClick={() => handleEditClick(index, field as string, item[field] || '')}
-                                              className="edit-pen-button"
-                                            >
-                                              ✏️
-                                            </button>
-                                          )}
-                                        </div>
+                        <div className="expanded-grid">
+                          {Object.entries(item)
+                            .filter(([key]) => !defaultVisibleFields.includes(key))
+                            .map(([field, value]) => (
+                              <div key={field} className="expanded-field">
+                                <span className="field-name">{field}:</span>
+                                <span className="field-value">
+                                  {editingMode && editingRow === index && editingField === field ? (
+                                    <div className="edit-container">
+                                      <input
+                                        type="text"
+                                        value={editedValue}
+                                        onChange={(e) => setEditedValue(e.target.value)}
+                                        className="edit-input"
+                                      />
+                                      <button onClick={handleSaveEdit} className="save-button">
+                                        Save
+                                      </button>
+                                      <button onClick={handleCancelEdit} className="cancel-button">
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="cell-content">
+                                      {field === 'Billing Month'
+                                        ? formatBillingMonth(value || '')
+                                        : value || 'N/A'}
+                                      {editingMode && (
+                                        <button
+                                          onClick={() => handleEditClick(index, field, value || '')}
+                                          className="edit-pen-button"
+                                        >
+                                          ✏️
+                                        </button>
                                       )}
-                                    </td>
-                                  </React.Fragment>
-                                ))}
-                                {rowFields.length < columnsCount && Array.from(
-                                  { length: (columnsCount - rowFields.length) * 2 }, 
-                                  (_, i) => <td key={`empty-${i}`}>&nbsp;</td>
-                                )}
-                              </tr>
+                                    </div>
+                                  )}
+                                </span>
+                              </div>
                             ))}
-                          </tbody>
-                        </table>
+                        </div>
                       </div>
                     </td>
                   </tr>

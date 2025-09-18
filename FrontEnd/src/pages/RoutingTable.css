@@ -195,7 +195,7 @@ body, html {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    font-size: 12px;
+    font-size: 10px;
     border-bottom: 2px solid #e0e0e0;
     border-right: 1px solid #e0e0e0;
     text-align: center;
@@ -511,9 +511,9 @@ body, html {
 
 .expanded-content {
   background-color: #e8f4f8 !important;
-  padding: 0.8rem;
-  border-radius: 8px;
-  margin: 0.5rem 0;
+  padding: 0.4rem;
+  border-radius: 4px;
+  margin: 0.2rem 0;
   width: 100%;
   max-width: none;
 }
@@ -531,29 +531,68 @@ body, html {
   background-color: #e8f4f8 !important;
   color: black !important;
   font-family: 'Montserrat', sans-serif;
-  padding: 12px 16px;
+  padding: 4px 6px;
   text-align: left;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 0.7rem;
+  letter-spacing: 0.2px;
+  font-size: 8px;
   text-align: center;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  line-height: 1.2;
 }
 
 .expanded-fields-table .field-name {
   font-weight: 700 !important;
   background-color: #f5f5f5 !important;
   color: black !important;
-  width: 40%;
-  font-size: 0.7rem;
+  width: 35%;
+  font-size: 8px;
+  text-align: left;
 }
 
 .expanded-fields-table .field-value {
   font-weight: 500 !important;
   color: black !important;
-  width: 60%;
-  font-size: 0.7rem;
+  width: 65%;
+  font-size: 8px;
+  text-align: left;
+}
+
+/* New Grid Layout for Expanded Content */
+.expanded-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 8px;
+  padding: 0.2rem;
+}
+
+.expanded-field {
+  display: flex;
+  align-items: center;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  min-height: 24px;
+}
+
+.expanded-field .field-name {
+  font-weight: 700;
+  color: #333;
+  font-size: 8px;
+  min-width: 120px;
+  margin-right: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.expanded-field .field-value {
+  font-weight: 500;
+  color: #555;
+  font-size: 8px;
+  flex: 1;
+  word-break: break-word;
 }
 
 .field-name {
