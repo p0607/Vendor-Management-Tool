@@ -1511,7 +1511,6 @@ const chartData = metricFields.map(({ field, label }) => {
                 <div key={summary.field} className="summary-card">
                   <h3>{summary.field}</h3>
                   <div className="card-value">₹{summary.sum.toLocaleString()}</div>
-                  <div className="card-label">Total</div>
                   <div className="card-stats">
                     {summary.showPercentage ? (
                       <span>Percentage: {summary.percentage.toFixed(2)}%</span>

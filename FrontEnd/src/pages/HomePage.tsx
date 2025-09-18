@@ -68,7 +68,7 @@ const HomePage: React.FC = () => {
   };
 
   React.useEffect(() => {
-    document.body.style.backgroundColor = "#ffffff";
+    document.body.style.backgroundColor = "#e8f4f8";
     document.body.style.fontFamily = "'Montserrat', sans-serif";
     return () => { 
       document.body.style.backgroundColor = "";
@@ -78,7 +78,7 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="homepage" style={{ 
-      backgroundColor: '#ffffff',
+      backgroundColor: '#e8f4f8',
       minHeight: '100vh',
       color: '#000000',
       alignItems: 'center'

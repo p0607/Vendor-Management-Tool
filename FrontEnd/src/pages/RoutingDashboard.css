@@ -29,7 +29,7 @@ body, html {
 
 .logo {
   position: absolute;
-  top: 24px;
+  top: 8px;
   left: 32px;
   z-index: 20;
 }
@@ -211,8 +211,8 @@ select,
 }
 
 .filter-controls {
-  margin-top: 6rem;
-  margin-bottom: 20px;
+  margin-top: 3rem;
+  margin-bottom: 15px;
   padding: 0 2rem;
 }
 
@@ -271,21 +271,21 @@ select,
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 15px;
-  margin: 1.5rem;
-  width: calc(100% - 3rem);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 1rem;
+  width: calc(100% - 2rem);
   max-width: 100%;
 }
 
 .summary-card {
   background: rgba(0, 0, 0, 0.05);
   border-radius: 6px;
-  padding: 15px;
+  padding: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s;
   border: 1px solid rgba(0, 0, 0, 0.2);
-  min-height: 120px;
+  min-height: 90px;
 }
 
 .summary-card:hover {
@@ -297,27 +297,27 @@ select,
 .summary-card h3 {
   color: black;
   margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 14px;
+  margin-bottom: 6px;
+  font-size: 12px;
 }
 
 .card-value {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: bold;
   color: black;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .card-label {
   color: rgba(0, 0, 0, 0.8);
-  font-size: 12px;
-  margin-bottom: 8px;
+  font-size: 10px;
+  margin-bottom: 4px;
 }
 
 .card-stats {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 10px;
   color: rgba(0, 0, 0, 0.7);
 }
 
@@ -337,7 +337,7 @@ select,
 }
 
 .chart-container {
-  flex: 0 0 75%;
+  flex: 0 0 65%;
   order: 2;
 }
 
@@ -351,35 +351,39 @@ select,
   color: black;
   top: 30px;
   margin: 1.5rem;
-  width: calc(25% - 1.5rem);
-  max-width: 25%;
+  width: calc(35% - 1.5rem);
+  max-width: 35%;
 }
 
 .pivot-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 20px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 5px;
+  margin-top: 15px;
+  background: #e8f4f8;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   font-size: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid #e0e0e0;
 }
 
 .pivot-table th {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: #000000;
   color: white;
-  padding: 8px 12px;
+  padding: 10px 12px;
   text-align: center;
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 2px solid #ff8c00;
 }
 
 .pivot-table td {
   color: black;
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  font-size: 12px;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 10px;
+  text-align: center;
+  background-color: #e8f4f8;
 }
 
 .grand-total {
@@ -440,7 +444,7 @@ select,
   
   .pivot-table-container {
     margin: 1rem;
-    width: calc(25% - 1.5rem);
+    width: calc(35% - 1.5rem);
   }
   
   .pivot-table {

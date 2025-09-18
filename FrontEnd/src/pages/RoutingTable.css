@@ -40,7 +40,7 @@ body, html {
 }
 .logo {
   position: absolute;
-  top: 24px;
+  top: 12px;
   left: 32px;
   z-index: 20;
 }
@@ -147,7 +147,7 @@ body, html {
     border-collapse: collapse;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 0.9rem;
-    background-color: white;
+    background-color: #e8f4f8;
     color: black;
     font-family: 'Montserrat', sans-serif;
     table-layout: fixed;
@@ -178,17 +178,17 @@ body, html {
   background-color: white !important;
   color: black !important;
   font-family: 'Montserrat', sans-serif;
-  padding: 5px 5px;
+  padding: 8px 12px;
   text-align: left;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 0.7rem;
+  letter-spacing: 0.3px;
+  font-size: 8px;
   text-align: center;
-  height: 0.5rem;
+  height: auto;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  max-width: 0;
+  max-width: none;
 }
 
 
@@ -203,6 +203,16 @@ body, html {
     border-right: 1px solid #e0e0e0;
     text-align: center;
   }
+
+  /* Specific column widths */
+  .routing-table th:nth-child(1) { width: 40px; } /* Checkbox column */
+  .routing-table th:nth-child(2) { width: 120px; } /* Costing Date */
+  .routing-table th:nth-child(3) { width: 250px; } /* Vendor Details - increased */
+  .routing-table th:nth-child(4) { width: 150px; } /* Alchemy Billing Value */
+  .routing-table th:nth-child(5) { width: 150px; } /* Integrator Charges */
+  .routing-table th:nth-child(6) { width: 120px; } /* Funding cost */
+  .routing-table th:nth-child(7) { width: 120px; } /* Net Margin */
+  .routing-table th:nth-child(8) { width: 80px; } /* Edit Data - decreased */
   
   .routing-table th:last-child {
     border-right: 2px solid #e0e0e0;
@@ -217,22 +227,32 @@ body, html {
     text-align: center;
     font-size: 10px;
   }
+
+  /* Specific column widths for data cells */
+  .routing-table td:nth-child(1) { width: 40px; } /* Checkbox column */
+  .routing-table td:nth-child(2) { width: 120px; } /* Costing Date */
+  .routing-table td:nth-child(3) { width: 250px; text-align: left; } /* Vendor Details - increased, left aligned */
+  .routing-table td:nth-child(4) { width: 150px; } /* Alchemy Billing Value */
+  .routing-table td:nth-child(5) { width: 150px; } /* Integrator Charges */
+  .routing-table td:nth-child(6) { width: 120px; } /* Funding cost */
+  .routing-table td:nth-child(7) { width: 120px; } /* Net Margin */
+  .routing-table td:nth-child(8) { width: 80px; } /* Edit Data - decreased */
   
   .routing-table td:last-child {
     border-right: 2px solid #e0e0e0;
   }
   
   .routing-table tbody tr {
-    background-color: white !important;
+    background-color: #e8f4f8 !important;
     color: black !important;
   }
   
   .routing-table tbody tr:nth-child(even) {
-    background-color: #f9f9f9 !important;
+    background-color: #d8e8f0 !important;
   }
   
   .routing-table tbody tr:hover {
-    background-color: #f0f0f0 !important;
+    background-color: #c8d8e0 !important;
     color: black !important;
     transition: background-color 0.2s ease;
   }
@@ -489,34 +509,37 @@ body, html {
 }
 
 .expanded-row {
-  background-color: white !important;
+  background-color: #e8f4f8 !important;
 }
 
 .expanded-content {
-  background-color: white !important;
-  padding: 1rem;
+  background-color: #e8f4f8 !important;
+  padding: 0.8rem;
   border-radius: 8px;
   margin: 0.5rem 0;
+  width: 100%;
+  max-width: none;
 }
 
 .expanded-fields-table {
   width: 100%;
-  background-color: white !important;
+  background-color: #e8f4f8 !important;
   table-layout: fixed;
   word-wrap: break-word;
+  min-width: 100%;
 }
 
 .expanded-fields-table tr,
 .expanded-fields-table td {
-  background-color: white !important;
+  background-color: #e8f4f8 !important;
   color: black !important;
   font-family: 'Montserrat', sans-serif;
-  padding: 12px 16px;
+  padding: 8px 12px;
   text-align: left;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 0.7rem;
+  letter-spacing: 0.3px;
+  font-size: 8px;
   text-align: center;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
@@ -525,13 +548,15 @@ body, html {
   font-weight: 700 !important;
   background-color: #f5f5f5 !important;
   color: black !important;
-  width: 40%;
+  width: 35%;
+  font-size: 8px;
 }
 
 .expanded-fields-table .field-value {
   font-weight: 500 !important;
   color: black !important;
-  width: 60%;
+  width: 65%;
+  font-size: 8px;
 }
 
 .field-name {
@@ -541,14 +566,15 @@ body, html {
   padding: 8px 12px;
   text-align: left;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 0.7rem;
+  letter-spacing: 0.3px;
+  font-size: 8px;
 }
 
 .field-value {
-  background-color: white !important;
+  background-color: #e8f4f8 !important;
   color: black !important;
   padding: 8px 12px;
+  font-size: 8px;
 }
 
 /* Override global white color for input fields */

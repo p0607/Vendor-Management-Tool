@@ -17,6 +17,16 @@
     text-transform: uppercase;
 }
 
+/* Specific column widths for CTS table */
+.routing-table th.data-header:nth-child(1) { width: 60px; } /* ID column */
+.routing-table th.data-header:nth-child(2) { width: 80px; } /* SL.NO column */
+.routing-table th.data-header:nth-child(3) { width: 250px; } /* Vendor Details - increased */
+.routing-table th.data-header:nth-child(4) { width: 150px; } /* Other columns */
+.routing-table th.data-header:nth-child(5) { width: 150px; }
+.routing-table th.data-header:nth-child(6) { width: 120px; }
+.routing-table th.data-header:nth-child(7) { width: 120px; }
+.routing-table th.data-header:nth-child(8) { width: 80px; } /* Edit column - decreased */
+
 .routing-table th.edit-header {
     padding: 6px 4px;
     text-align: center;
@@ -38,7 +48,7 @@
     text-align: center;
     padding: 4px 2px;
     border: 1px solid #000000;
-    background-color: white;
+    background-color: #e8f4f8;
     vertical-align: middle;
 }
 
@@ -116,17 +126,27 @@
     text-align: center;
     border: 1px solid #000000;
     vertical-align: middle;
-    background-color: white;
+    background-color: #e8f4f8;
     color: #000000;
     font-size: 10px;
 }
+
+/* Specific column widths for CTS table data cells */
+.routing-table td:nth-child(1) { width: 60px; } /* ID column */
+.routing-table td:nth-child(2) { width: 80px; } /* SL.NO column */
+.routing-table td:nth-child(3) { width: 250px; text-align: left; } /* Vendor Details - increased, left aligned */
+.routing-table td:nth-child(4) { width: 150px; } /* Other columns */
+.routing-table td:nth-child(5) { width: 150px; }
+.routing-table td:nth-child(6) { width: 120px; }
+.routing-table td:nth-child(7) { width: 120px; }
+.routing-table td:nth-child(8) { width: 80px; } /* Edit column - decreased */
 
 /* Table overall styling */
 .routing-table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
-    background-color: white;
+    background-color: #e8f4f8;
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     font-size: 10px;
 }
