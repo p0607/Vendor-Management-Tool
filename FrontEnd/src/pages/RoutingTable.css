@@ -2,7 +2,7 @@
 
 body, html {
   font-family: 'Montserrat', sans-serif;
-  background-color: var(--primary-bg);
+  background-color: #e8f4f8;
   color: var(--primary-text);
 }
 
@@ -12,7 +12,7 @@ body, html {
 }
 
 .header {
-  background-color: var(--primary-bg);
+  background-color: #e8f4f8;
   color: var(--primary-text);
   font-family: 'Montserrat', sans-serif;
 }
@@ -30,11 +30,12 @@ body, html {
   background-color: var(--button-bg);
   color: var(--button-text);
   border: none;
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.8rem;
   border-radius: 4px;
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
+  font-size: 12px;
   transition: all 0.3s ease;
 }
 .logo {
@@ -45,8 +46,8 @@ body, html {
 }
 
 .logo img {
-  height: 60px;
-  max-width: 120px;
+  height: 90px;
+  max-width: 180px;
   width: auto;
 }
 
@@ -80,11 +81,12 @@ body, html {
 }
 
 .dropdown-item {
-  padding: 12px 16px;
+  padding: 8px 12px;
   color: black;
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
+  font-size: 12px;
   transition: background-color 0.3s ease;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
@@ -191,12 +193,12 @@ body, html {
 
 
   .routing-table th {
-    padding: 12px 15px;
+    padding: 8px 10px;
     text-align: left;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    font-size: 0.8rem;
+    font-size: 14px;
     border-bottom: 2px solid #e0e0e0;
     border-right: 1px solid #e0e0e0;
     text-align: center;
@@ -208,11 +210,12 @@ body, html {
   
   /* Table Body */
   .routing-table td {
-    padding: 12px 15px;
+    padding: 6px 10px;
     border-bottom: 1px solid #e0e0e0;
     border-right: 1px solid #e0e0e0;
     vertical-align: middle;
     text-align: center;
+    font-size: 12px;
   }
   
   .routing-table td:last-child {
@@ -357,11 +360,11 @@ body, html {
 .action-button {
   background-color: #808080;
   color: black;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .action-button:hover {
@@ -372,11 +375,11 @@ body, html {
 .edit-data-button {
   background-color: #808080 !important;
   color: white !important;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
   transition: background-color 0.2s ease;
@@ -456,10 +459,11 @@ body, html {
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
+  font-size: 12px;
   transition: background-color 0.2s ease;
 }
 
@@ -472,8 +476,8 @@ body, html {
   color: white;
   border: none;
   border-radius: 6px;
-  padding: 4px 12px;
-  font-size: 1rem;
+  padding: 4px 10px;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.2s;
   display: block;
@@ -618,14 +622,14 @@ input, .date-input {
 .dropdown-item {
   display: block;
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.8rem;
   background: none;
   border: none;
   color: black;
   text-align: left;
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
-  font-size: 0.9rem;
+  font-size: 12px;
   transition: background-color 0.2s ease;
 }
 
@@ -659,6 +663,6 @@ input, .date-input {
   
   .auth-button {
     padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
+    font-size: 12px;
   }
 }

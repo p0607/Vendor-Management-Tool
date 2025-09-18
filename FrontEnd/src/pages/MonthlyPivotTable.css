@@ -6,16 +6,17 @@
 .pivot-table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .pivot-table th,
 .pivot-table td {
   border: 1px solid #ccc;
-  padding: 8px 12px;
+  padding: 6px 10px;
   text-align: left;
   color: #000000;
   background-color: #ffffff;
+  font-size: 12px;
 }
 
 .pivot-table th {
@@ -23,6 +24,7 @@
   font-weight: bold;
   color: #ffffff;
   border-bottom: 2px solid #ff8c00;
+  font-size: 14px;
 }
 
 .text-right {

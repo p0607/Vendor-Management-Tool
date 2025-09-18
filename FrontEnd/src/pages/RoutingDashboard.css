@@ -2,7 +2,7 @@
 
 body, html {
   font-family: 'Montserrat', sans-serif;
-  background-color: white;
+  background-color: #e8f4f8;
   color: black;
 }
 
@@ -12,7 +12,7 @@ body, html {
 }
 
 .homepage {
-  background-color: white;
+  background-color: #e8f4f8;
   color: black;
   min-height: 100vh;
 }
@@ -56,12 +56,12 @@ body, html {
   background-color: rgba(0, 0, 0, 0.1);
   color: black;
   border: 1px solid rgba(0, 0, 0, 0.3);
-  padding: 0.4rem 0.8rem;
+  padding: 0.3rem 0.6rem;
   border-radius: 4px;
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 12px;
   transition: all 0.3s ease;
   white-space: nowrap;
 }
@@ -96,12 +96,12 @@ body, html {
 }
 
 .dropdown-item {
-  padding: 10px 15px;
+  padding: 8px 12px;
   cursor: pointer;
   color: black;
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 12px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   transition: background-color 0.2s ease;
 }
@@ -234,6 +234,7 @@ select,
   font-weight: bold;
   white-space: nowrap;
   color: black;
+  font-size: 12px;
 }
 
 .active-filter {
@@ -254,12 +255,13 @@ select,
   background: #156d96;
   border: none;
   color: white;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 4px;
   cursor: pointer;
   margin-left: 10px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
+  font-size: 12px;
   transition: background-color 0.2s ease;
 }
 
@@ -269,21 +271,21 @@ select,
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  margin: 2rem;
-  width: calc(100% - 4rem);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  margin: 1.5rem;
+  width: calc(100% - 3rem);
   max-width: 100%;
 }
 
 .summary-card {
   background: rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  padding: 20px;
+  border-radius: 6px;
+  padding: 15px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s;
   border: 1px solid rgba(0, 0, 0, 0.2);
-  min-height: 150px;
+  min-height: 120px;
 }
 
 .summary-card:hover {
@@ -295,47 +297,47 @@ select,
 .summary-card h3 {
   color: black;
   margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 1.1rem;
+  margin-bottom: 10px;
+  font-size: 14px;
 }
 
 .card-value {
-  font-size: 1.8rem;
+  font-size: 12px;
   font-weight: bold;
   color: black;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
 }
 
 .card-label {
   color: rgba(0, 0, 0, 0.8);
-  font-size: 0.9rem;
-  margin-bottom: 15px;
+  font-size: 12px;
+  margin-bottom: 8px;
 }
 
 .card-stats {
   display: flex;
   justify-content: space-between;
-  font-size: 0.85rem;
+  font-size: 12px;
   color: rgba(0, 0, 0, 0.7);
 }
 
 .dashboard-table-container {
   overflow-x: auto;
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   height: 100%;
-  margin: 2rem;
-  width: calc(100% - 4rem);
+  margin: 1.5rem;
+  width: calc(100% - 3rem);
   max-width: 100%;
 }
 
 .pie-chart-container {
-  flex: 0 0 50%;
+  flex: 0 0 25%;
   order: 1;
 }
 
 .chart-container {
-  flex: 0 0 50%;
+  flex: 0 0 75%;
   order: 2;
 }
 
@@ -344,13 +346,13 @@ select,
   justify-content: left;
   align-items: left;
   gap: 10px;
-  font-size: 1.0rem;
+  font-size: 14px;
   font-weight: bold;
   color: black;
   top: 30px;
-  margin: 2rem;
-  width: calc(100% - 4rem);
-  max-width: 100%;
+  margin: 1.5rem;
+  width: calc(25% - 1.5rem);
+  max-width: 25%;
 }
 
 .pivot-table {
@@ -361,21 +363,23 @@ select,
   border-radius: 5px;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  font-size: medium;
+  font-size: 12px;
   border: 1px solid rgba(0, 0, 0, 0.2);
 }
 
 .pivot-table th {
   background-color: rgba(0, 0, 0, 0.1);
   color: white;
-  padding: 12px 15px;
+  padding: 8px 12px;
   text-align: center;
+  font-size: 14px;
 }
 
 .pivot-table td {
   color: black;
-  padding: 12px 15px;
+  padding: 8px 12px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  font-size: 12px;
 }
 
 .grand-total {
@@ -399,7 +403,7 @@ select,
 }
 
 .chart-container h3 {
-  font-size: 1.2rem;
+  font-size: 14px;
   margin-top: 0;
   color: black;
   text-align: center;
@@ -407,10 +411,10 @@ select,
 
 .vendor-chart-container {
   width: 100%;
-  margin: 20px 0;
+  margin: 15px 0;
   border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  padding: 10px;
+  border-radius: 6px;
+  padding: 8px;
   background: rgba(0, 0, 0, 0.05);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -436,7 +440,7 @@ select,
   
   .pivot-table-container {
     margin: 1rem;
-    width: calc(100% - 2rem);
+    width: calc(25% - 1.5rem);
   }
   
   .pivot-table {

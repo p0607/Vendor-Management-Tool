@@ -2,7 +2,7 @@
 
 body {
   font-family: 'Montserrat', sans-serif;
-  background-color: var(--primary-bg);
+  background-color: #e8f4f8;
   color: var(--primary-text);
   background-size: cover;
   margin: 0;
@@ -74,7 +74,7 @@ body {
   text-align: center;
   margin-bottom: 2rem;
   color: white;
-  font-size: 1.8rem;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -87,15 +87,15 @@ body {
   margin-bottom: 0.5rem;
   font-weight: 500;
   color: white !important;
-  font-size: 0.95rem;
+  font-size: 12px;
 }
 
 .form-control {
   width: 100%;
-  padding: 0.85rem 1rem;
+  padding: 0.6rem 0.8rem;
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 12px;
   transition: all 0.2s ease;
   background-color: rgba(255,255,255,0.15);
   box-sizing: border-box; /* Added for proper width calculation */
@@ -124,12 +124,12 @@ select.form-control {
 
 .submit-btn {
   width: 100%;
-  padding: 1rem;
+  padding: 0.6rem;
   background-color: #4299e1;
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -193,7 +193,7 @@ select.form-control {
 }
 
 .signup-logo-top-left img {
-  height: 60px;
-  max-width: 120px;
+  height: 90px;
+  max-width: 180px;
   width: auto;
 }
