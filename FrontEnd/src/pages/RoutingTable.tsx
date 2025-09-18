@@ -1123,7 +1123,11 @@ const filteredData = useMemo(() => {
     // Format the data for export with proper billing month formatting
     const formattedData = routingTable.map(item => ({
       ...item,
-      'Billing Month': item['Billing Month'] ? formatBillingMonth(item['Billing Month']) : 'N/A'
+      'Billing Month': item['Billing Month'] ? formatBillingMonth(item['Billing Month']) : 'N/A',
+      'Alchemy Billing Value': item['Alchemy Billing Value'] ? Math.round(parseFloat(item['Alchemy Billing Value']) || 0).toLocaleString() : '0',
+      'Integrator Charges (Margin)': item['Integrator Charges (Margin)'] ? Math.round(parseFloat(item['Integrator Charges (Margin)']) || 0).toLocaleString() : '0',
+      'Funding cost': item['Funding cost'] ? Math.round(parseFloat(item['Funding cost']) || 0).toLocaleString() : '0',
+      'Net Margin': item['Net Margin'] ? Math.round(parseFloat(item['Net Margin']) || 0).toLocaleString() : '0'
     }));
     
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
@@ -1143,6 +1147,9 @@ const filteredData = useMemo(() => {
       headers.map(header => {
         if (header === 'Billing Month') {
           return item[header] ? formatBillingMonth(item[header]) : 'N/A';
+        }
+        if (['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(header)) {
+          return item[header] ? Math.round(parseFloat(item[header]) || 0).toLocaleString() : '0';
         }
         return item[header] || 'N/A';
       })
@@ -1356,6 +1363,8 @@ const filteredData = useMemo(() => {
           ? (item[field] ? formatDateOnly(item[field]) : 'No Date')
           : field === 'Billing Month'
           ? formatBillingMonth(item[field] || '')
+          : ['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field)
+          ? (item[field] ? Math.round(parseFloat(item[field]) || 0).toLocaleString() : '0')
           : item[field] || 'N/A'}
         {editingMode && (
           <button

@@ -3902,7 +3902,7 @@ const TeamReportCompare: React.FC = () => {
 
   return (
 
-    <div style={{ padding: 16, backgroundColor: '#e8f4f8', minHeight: '100vh', color: '#000000' }}>
+    <div style={{ padding: 8, backgroundColor: '#e8f4f8', minHeight: '100vh', color: '#000000' }}>
 
       <style>
 
@@ -4116,11 +4116,11 @@ const TeamReportCompare: React.FC = () => {
 
       </style>
 
-      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem 0 2rem' }}>
+      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.5rem 2rem 0 2rem' }}>
 
-        <div className="homepage-logo-top-left">
+        <div className="homepage-logo-top-left" style={{ transform: 'scale(0.8)' }}>
 
-          <img src={logo} alt="Alchemy Logo" />
+          <img src={logo} alt="Alchemy Logo" style={{ height: '60px', maxWidth: '120px' }} />
 
         </div>
 
@@ -4180,7 +4180,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "3rem 16px 16px 16px" }}>
+      <div style={{ margin: "0.5rem 8px 8px 8px" }}>
 
         {/* Filters Section */}
   <div style={{ 
@@ -5008,7 +5008,7 @@ const TeamReportCompare: React.FC = () => {
 
               <div style={{ marginTop: 20 }}>
 
-                <h2 style={{ color: '#000000', fontSize: '12px' }}>Growth Analysis Report</h2>
+                <h2 style={{ color: '#000000', fontSize: '10px' }}>Growth Analysis Report</h2>
 
 <p style={{ marginBottom: 8, color: '#000000', fontSize: '10px' }}>
 
@@ -5040,11 +5040,11 @@ const TeamReportCompare: React.FC = () => {
 
       <tr style={{ backgroundColor: '#d8e8f0' }}>
 
-        <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '12px' }}>Parameter</th>
+        <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Parameter</th>
 
         {comparisonValues.filter(Boolean).map((period, i) => (
 
-          <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '12px' }}>
+          <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
 
             {period}
 
@@ -5052,9 +5052,9 @@ const TeamReportCompare: React.FC = () => {
 
         ))}
 
-        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '12px' }}>Absolute Change</th>
+        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
 
-        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '12px' }}>Growth %</th>
+        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Growth %</th>
 
       </tr>
 
@@ -5750,11 +5750,11 @@ const TeamReportCompare: React.FC = () => {
 
               <tr style={{ backgroundColor: '#d8e8f0' }}>
 
-                <th style={{ padding: '6px 8px', textAlign: 'left', color: '#000000', fontSize: '12px' }}>Metric</th>
+                <th style={{ padding: '6px 8px', textAlign: 'left', color: '#000000', fontSize: '10px' }}>Metric</th>
 
                 {metrics.map((m, i) => (
 
-                  <th key={i} style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '12px' }}>
+                  <th key={i} style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
 
                     {m.period}
 
@@ -5764,9 +5764,9 @@ const TeamReportCompare: React.FC = () => {
 
                 ))}
 
-                <th style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '12px' }}>Change vs Baseline</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>Change vs Baseline</th>
 
-                <th style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '12px' }}>Trend</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>Trend</th>
 
               </tr>
 

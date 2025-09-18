@@ -222,17 +222,17 @@ body, html {
     border-right: 1px solid #e0e0e0;
     vertical-align: middle;
     text-align: center;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   /* Specific column widths for data cells */
   .routing-table td:nth-child(1) { width: 40px; } /* Checkbox column */
-  .routing-table td:nth-child(2) { width: 120px; } /* Costing Date */
-  .routing-table td:nth-child(3) { width: 250px; text-align: left; } /* Vendor Details - increased, left aligned */
-  .routing-table td:nth-child(4) { width: 150px; } /* Alchemy Billing Value */
-  .routing-table td:nth-child(5) { width: 150px; } /* Integrator Charges */
-  .routing-table td:nth-child(6) { width: 120px; } /* Funding cost */
-  .routing-table td:nth-child(7) { width: 120px; } /* Net Margin */
+  .routing-table td:nth-child(2) { width: 120px; text-align: left; } /* Costing Date - left aligned */
+  .routing-table td:nth-child(3) { width: 250px; text-align: left; } /* Vendor Details - left aligned */
+  .routing-table td:nth-child(4) { width: 150px; text-align: right; } /* Alchemy Billing Value - right aligned */
+  .routing-table td:nth-child(5) { width: 150px; text-align: right; } /* Integrator Charges - right aligned */
+  .routing-table td:nth-child(6) { width: 120px; text-align: right; } /* Funding cost - right aligned */
+  .routing-table td:nth-child(7) { width: 120px; text-align: right; } /* Net Margin - right aligned */
   .routing-table td:nth-child(8) { width: 80px; } /* Edit Data - decreased */
   
   .routing-table td:last-child {
