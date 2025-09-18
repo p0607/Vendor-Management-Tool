@@ -1148,7 +1148,7 @@ const filteredData = useMemo(() => {
         if (header === 'Billing Month') {
           return item[header] ? formatBillingMonth(item[header]) : 'N/A';
         }
-        if (['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(header)) {
+        if (['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(header as string)) {
           return item[header] ? Math.round(parseFloat(item[header]) || 0).toLocaleString() : '0';
         }
         return item[header] || 'N/A';
@@ -1363,7 +1363,7 @@ const filteredData = useMemo(() => {
           ? (item[field] ? formatDateOnly(item[field]) : 'No Date')
           : field === 'Billing Month'
           ? formatBillingMonth(item[field] || '')
-          : ['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field)
+          : ['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field as string)
           ? (item[field] ? Math.round(parseFloat(item[field]) || 0).toLocaleString() : '0')
           : item[field] || 'N/A'}
         {editingMode && (
