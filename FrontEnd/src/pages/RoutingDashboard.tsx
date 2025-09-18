@@ -1211,13 +1211,23 @@ const chartData = metricFields.map(({ field, label }) => {
   const comparisonResult = calculateDynamicComparison();
   const quarterComparisonData = comparisonResult.data;
   
-  // Generate comparison chart data
-  const comparisonChartData = quarterComparisonData.map(item => ({
-    parameter: item.parameter,
-    period1: item.currentQuarter,
-    period2: item.previousQuarter,
-    growth: item.growthPercentage
-  }));
+  // Generate comparison chart data in the format expected by the chart component
+  const comparisonChartData = [
+    {
+      billingMonth: comparisonResult.period1,
+      alchemyBilling: quarterComparisonData.find(item => item.parameter === 'Alchemy Billing Value')?.currentQuarter || 0,
+      integratorCharges: quarterComparisonData.find(item => item.parameter === 'Integrator Charges')?.currentQuarter || 0,
+      fundingCost: quarterComparisonData.find(item => item.parameter === 'Funding Cost')?.currentQuarter || 0,
+      netMargin: quarterComparisonData.find(item => item.parameter === 'Net Margin')?.currentQuarter || 0
+    },
+    {
+      billingMonth: comparisonResult.period2,
+      alchemyBilling: quarterComparisonData.find(item => item.parameter === 'Alchemy Billing Value')?.previousQuarter || 0,
+      integratorCharges: quarterComparisonData.find(item => item.parameter === 'Integrator Charges')?.previousQuarter || 0,
+      fundingCost: quarterComparisonData.find(item => item.parameter === 'Funding Cost')?.previousQuarter || 0,
+      netMargin: quarterComparisonData.find(item => item.parameter === 'Net Margin')?.previousQuarter || 0
+    }
+  ];
   const totals = {
     sum: summariesWithPercentages.reduce((acc: any, item: any) => acc + item.sum, 0),
     average: summariesWithPercentages.reduce((acc: any, item: any) => acc + item.average, 0) / summariesWithPercentages.length,
