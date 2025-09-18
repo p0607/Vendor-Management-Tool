@@ -38,17 +38,18 @@ const RoutingDashboardBarChart: React.FC<RoutingDashboardBarChartProps> = ({ dat
         wheelX: "panX",
         wheelY: "zoomX",
         paddingLeft: 0,
-        layout: root.verticalLayout
+        layout: root.verticalLayout,
+        height: 200
       })
     );
 
-    // Add scrollbar
-    chart.set(
-      "scrollbarX",
-      am5.Scrollbar.new(root, {
-        orientation: "horizontal"
-      })
-    );
+    // Remove scrollbar for compact display
+    // chart.set(
+    //   "scrollbarX",
+    //   am5.Scrollbar.new(root, {
+    //     orientation: "horizontal"
+    //   })
+    // );
 
     // Create X-axis
     const xRenderer = am5xy.AxisRendererX.new(root, {
@@ -58,7 +59,7 @@ const RoutingDashboardBarChart: React.FC<RoutingDashboardBarChartProps> = ({ dat
     });
     
     xRenderer.labels.template.setAll({
-      fontSize: "1rem",
+      fontSize: "8px",
       paddingTop: 5,
       fill: am5.color(0x000000) // Black color for X-axis labels
     });
@@ -79,7 +80,7 @@ const RoutingDashboardBarChart: React.FC<RoutingDashboardBarChartProps> = ({ dat
     });
     
     yRenderer.labels.template.setAll({
-      fontSize: "1rem",
+      fontSize: "8px",
       fill: am5.color(0x000000) // Black color for Y-axis labels
     });
 

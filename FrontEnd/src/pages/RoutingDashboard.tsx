@@ -91,6 +91,7 @@ const RoutingDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'summary' | 'datePivot'>('summary');
   const [pivotDateType, setPivotDateType] = useState<'month' | 'quarter' | 'year'>('month');
+  const [showPivotTable, setShowPivotTable] = useState<boolean>(false);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState<boolean>(false);
   const actionDropdownRef = useRef<HTMLDivElement>(null);
   const [billingDateFilter, setBillingDateFilter] = useState<string>('');
@@ -1139,7 +1140,7 @@ const chartData = metricFields.map(({ field, label }) => {
       const period2Total = period2Data.reduce((sum, item) => 
         sum + toNumber(item[param.key]), 0);
       
-      const absoluteChange = period1Total - period2Total;
+      const absoluteChange = period2Total - period1Total;
       const growthPercentage = period2Total > 0 ? ((period2Total - period1Total) / period2Total) * 100 : 0;
       
       return {
@@ -1759,12 +1760,28 @@ const chartData = metricFields.map(({ field, label }) => {
               </table>
             </div>
 
+            {/* Spacing between comparison analysis and charts */}
+            <div style={{ margin: '2rem 0' }}></div>
+
+            {/* Chart Controls */}
+            <div className="chart-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center' }}>
+              <button 
+                className="auth-button"
+                onClick={() => setShowPivotTable(!showPivotTable)}
+                style={{ fontSize: '10px', padding: '0.3rem 0.6rem' }}
+              >
+                {showPivotTable ? 'Hide Pivot Table' : 'Show Pivot Table'}
+              </button>
+            </div>
 
            <div className="dashboard-table-container">
-  <div className="pie-chart-container">
-    <MetricPieChart key={filteredData.length} data={domainData} />
-  </div>
+  {showPivotTable && (
+    <div className="pie-chart-container">
+      <MetricPieChart key={filteredData.length} data={domainData} />
+    </div>
+  )}
   <div className="chart-container">
+    <h3>Monthly Billing Overview</h3>
     <RoutingDashboard_gauge_chart data={comparisonChartData} />
   </div>
 </div>
