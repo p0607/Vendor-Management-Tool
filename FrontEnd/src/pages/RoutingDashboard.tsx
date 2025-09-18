@@ -1140,7 +1140,7 @@ const chartData = metricFields.map(({ field, label }) => {
         sum + toNumber(item[param.key]), 0);
       
       const absoluteChange = period1Total - period2Total;
-      const growthPercentage = period2Total > 0 ? (absoluteChange / period2Total) * 100 : 0;
+      const growthPercentage = period2Total > 0 ? ((period2Total - period1Total) / period2Total) * 100 : 0;
       
       return {
         parameter: param.label,
@@ -1600,41 +1600,6 @@ const chartData = metricFields.map(({ field, label }) => {
         </div>
       </div>
 
-      {/* Comparison Analysis Table in Header */}
-      <div className="comparison-header-container">
-        <table className="comparison-table">
-          <thead>
-            <tr>
-              <th>Parameter</th>
-              <th>{comparisonResult.period1}</th>
-              <th>{comparisonResult.period2}</th>
-              <th>Absolute Change</th>
-              <th>Growth %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {quarterComparisonData.map((item, index) => (
-              <tr key={index}>
-                <td style={{ textAlign: 'left', fontWeight: '600' }}>{item.parameter}</td>
-                <td>₹{item.currentQuarter.toLocaleString()}</td>
-                <td>₹{item.previousQuarter.toLocaleString()}</td>
-                <td style={{ 
-                  color: item.absoluteChange >= 0 ? '#28a745' : '#dc3545',
-                  fontWeight: '600'
-                }}>
-                  {item.absoluteChange >= 0 ? '+' : ''}₹{item.absoluteChange.toLocaleString()}
-                </td>
-                <td style={{ 
-                  color: item.growthPercentage >= 0 ? '#28a745' : '#dc3545',
-                  fontWeight: '600'
-                }}>
-                  {item.growthPercentage >= 0 ? '+' : ''}{item.growthPercentage.toFixed(2)}%
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
 
       {/* Display active filters */}
       {(vendorDetailsFilter || 
@@ -1756,6 +1721,42 @@ const chartData = metricFields.map(({ field, label }) => {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Comparison Analysis Table */}
+            <div className="comparison-header-container">
+              <table className="comparison-table">
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>{comparisonResult.period2}</th>
+                    <th>{comparisonResult.period1}</th>
+                    <th>Absolute Change</th>
+                    <th>Growth %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quarterComparisonData.map((item, index) => (
+                    <tr key={index}>
+                      <td style={{ textAlign: 'left', fontWeight: '600' }}>{item.parameter}</td>
+                      <td>₹{item.previousQuarter.toLocaleString()}</td>
+                      <td>₹{item.currentQuarter.toLocaleString()}</td>
+                      <td style={{ 
+                        color: item.absoluteChange >= 0 ? '#28a745' : '#dc3545',
+                        fontWeight: '600'
+                      }}>
+                        {item.absoluteChange >= 0 ? '+' : ''}₹{item.absoluteChange.toLocaleString()}
+                      </td>
+                      <td style={{ 
+                        color: item.growthPercentage >= 0 ? '#28a745' : '#dc3545',
+                        fontWeight: '600'
+                      }}>
+                        {item.growthPercentage >= 0 ? '+' : ''}{item.growthPercentage.toFixed(2)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
 
