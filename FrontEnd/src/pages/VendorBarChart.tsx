@@ -106,7 +106,7 @@ const VendorBarChart: React.FC<VendorBarChartProps> = ({ data, onVendorClick }) 
       valueXField: "value",
       categoryYField: "vendorName",
       tooltip: am5.Tooltip.new(root, {
-        labelText: "{vendorName}: ₹{valueX}"
+        labelText: "{vendorName}: {valueX}"
       })
     }));
 

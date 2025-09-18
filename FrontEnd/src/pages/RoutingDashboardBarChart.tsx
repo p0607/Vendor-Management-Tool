@@ -104,7 +104,7 @@ const RoutingDashboardBarChart: React.FC<RoutingDashboardBarChartProps> = ({ dat
           clustered: true,
           tooltip: am5.Tooltip.new(root, {
             pointerOrientation: "horizontal",
-            labelText: "{name}: ₹{valueY}"
+            labelText: "{name}: {valueY}"
           })
         })
       );

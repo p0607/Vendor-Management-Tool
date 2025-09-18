@@ -371,23 +371,23 @@ const [ganttMetric, setGanttMetric] = useState<'head_count' | 'payment_receive_f
                     {vendorSummaries.map((summary, index) => (
                       <tr key={index}>
                         <td>{summary.vendor}</td>
-                        <td>₹{summary.totalInvoiceAmount.toLocaleString()}</td>
-                        <td>₹{summary.baseAmount.toLocaleString()}</td>
-                        <td>₹{summary.netReceivable.toLocaleString()}</td>
-                        <td>₹{summary.paymentReceived.toLocaleString()}</td>
-                        <td>₹{summary.baseAmountTally.toLocaleString()}</td>
-                        <td>₹{summary.margin.toLocaleString()}</td>
+                        <td>{Math.round(summary.totalInvoiceAmount).toLocaleString()}</td>
+                        <td>{Math.round(summary.baseAmount).toLocaleString()}</td>
+                        <td>{Math.round(summary.netReceivable).toLocaleString()}</td>
+                        <td>{Math.round(summary.paymentReceived).toLocaleString()}</td>
+                        <td>{Math.round(summary.baseAmountTally).toLocaleString()}</td>
+                        <td>{Math.round(summary.margin).toLocaleString()}</td>
                         <td>{summary.resourceCount}</td>
                       </tr>
                     ))}
                     <tr className="grand-total">
                       <td><strong>Grand Total</strong></td>
-                      <td><strong>₹{grandTotals.totalInvoiceAmount.toLocaleString()}</strong></td>
-                      <td><strong>₹{grandTotals.baseAmount.toLocaleString()}</strong></td>
-                      <td><strong>₹{grandTotals.netReceivable.toLocaleString()}</strong></td>
-                      <td><strong>₹{grandTotals.paymentReceived.toLocaleString()}</strong></td>
-                      <td><strong>₹{grandTotals.baseAmountTally.toLocaleString()}</strong></td>
-                      <td><strong>₹{grandTotals.margin.toLocaleString()}</strong></td>
+                      <td><strong>{Math.round(grandTotals.totalInvoiceAmount).toLocaleString()}</strong></td>
+                      <td><strong>{Math.round(grandTotals.baseAmount).toLocaleString()}</strong></td>
+                      <td><strong>{Math.round(grandTotals.netReceivable).toLocaleString()}</strong></td>
+                      <td><strong>{Math.round(grandTotals.paymentReceived).toLocaleString()}</strong></td>
+                      <td><strong>{Math.round(grandTotals.baseAmountTally).toLocaleString()}</strong></td>
+                      <td><strong>{Math.round(grandTotals.margin).toLocaleString()}</strong></td>
                       <td><strong>{grandTotals.resourceCount}</strong></td>
                     </tr>
                   </tbody>
@@ -545,14 +545,14 @@ const [ganttMetric, setGanttMetric] = useState<'head_count' | 'payment_receive_f
                       borderRight: '1px solid #004a7a',
                       whiteSpace: 'nowrap',
                       color: '#ffffff'
-                    }}>₹{parseCurrency(item["base_amt_as_per_tally_vendor"]).toLocaleString('en-IN')}</td>
+                    }}>{Math.round(parseCurrency(item["base_amt_as_per_tally_vendor"])).toLocaleString('en-IN')}</td>
                     <td style={{ 
                       padding: '12px 8px', 
                       textAlign: 'center', 
                       borderRight: '1px solid #004a7a',
                       whiteSpace: 'nowrap',
                       color: '#ffffff'
-                    }}>₹{parseCurrency(item['payment_receive_from_client']).toLocaleString('en-IN')}</td>
+                    }}>{Math.round(parseCurrency(item['payment_receive_from_client'])).toLocaleString('en-IN')}</td>
                     <td style={{ 
                       padding: '12px 8px', 
                       textAlign: 'center', 
@@ -650,7 +650,7 @@ const [ganttMetric, setGanttMetric] = useState<'head_count' | 'payment_receive_f
    const xAxis = chart.xAxes.push(
     am5xy.ValueAxis.new(root, {
       renderer: am5xy.AxisRendererX.new(root, {}),
-      numberFormat: "₹#,##0.00"
+      numberFormat: "#,##0"
     })
   );
 
@@ -664,7 +664,7 @@ const [ganttMetric, setGanttMetric] = useState<'head_count' | 'payment_receive_f
       categoryYField: "vendor",
       tooltip: am5.Tooltip.new(root, {
         pointerOrientation: "horizontal",
-        labelText: "[bold]{categoryY}[/]\n{name}: [bold]₹{valueX.formatNumber('#,##0.00')}[/]"
+        labelText: "[bold]{categoryY}[/]\n{name}: [bold]{valueX.formatNumber('#,##0')}[/]"
       }),
       fill: am5.color("#8884d8")
     })
@@ -734,7 +734,7 @@ useEffect(() => {
   const xAxis = chart.xAxes.push(
     am5xy.ValueAxis.new(root, {
       renderer: am5xy.AxisRendererX.new(root, {}),
-      numberFormat: "₹#,##0.00"
+      numberFormat: "#,##0"
     })
   );
   // Create series
@@ -752,7 +752,7 @@ useEffect(() => {
   // Configure tooltip
   series.set("tooltip", am5.Tooltip.new(root, {
     pointerOrientation: "horizontal",
-    labelText: "[bold]{categoryY}[/]\nTotal Amount: [bold]₹{valueX.formatNumber('#,##0.00')}[/]"
+    labelText: "[bold]{categoryY}[/]\nTotal Amount: [bold]{valueX.formatNumber('#,##0')}[/]"
   }));
 
   series.columns.template.setAll({

@@ -3902,7 +3902,7 @@ const TeamReportCompare: React.FC = () => {
 
   return (
 
-    <div style={{ padding: 32, backgroundColor: '#ffffff', minHeight: '100vh', color: '#000000' }}>
+    <div style={{ padding: 16, backgroundColor: '#e8f4f8', minHeight: '100vh', color: '#000000' }}>
 
       <style>
 
@@ -4116,7 +4116,7 @@ const TeamReportCompare: React.FC = () => {
 
       </style>
 
-      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '2rem 2rem 0 2rem' }}>
+      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem 0 2rem' }}>
 
         <div className="homepage-logo-top-left">
 
@@ -4180,16 +4180,16 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "6rem 24px 24px 24px" }}>
+      <div style={{ margin: "3rem 16px 16px 16px" }}>
 
         {/* Filters Section */}
   <div style={{ 
 
           display: "grid", 
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 24,
-          marginBottom: 24,
-          padding: 20,
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: 12,
+          marginBottom: 16,
+          padding: 12,
           backgroundColor: '#f8f9fa',
           borderRadius: 8,
           border: '1px solid #e9ecef'
@@ -4201,8 +4201,8 @@ const TeamReportCompare: React.FC = () => {
             <div style={{ 
               color: '#000000', 
               fontWeight: 600, 
-              marginBottom: 8,
-              fontSize: '14px'
+              marginBottom: 4,
+              fontSize: '10px'
             }}>
               Business Unit
             </div>
@@ -4259,8 +4259,8 @@ const TeamReportCompare: React.FC = () => {
             <div style={{ 
               color: '#000000', 
               fontWeight: 600, 
-              marginBottom: 8,
-              fontSize: '14px'
+              marginBottom: 4,
+              fontSize: '10px'
             }}>
               {selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Project Name" : "Client Name"}
             </div>
@@ -4307,8 +4307,8 @@ const TeamReportCompare: React.FC = () => {
             <div style={{ 
               color: '#000000', 
               fontWeight: 600, 
-              marginBottom: 8,
-              fontSize: '14px'
+              marginBottom: 4,
+              fontSize: '10px'
             }}>
               BU Head
             </div>
@@ -4355,8 +4355,8 @@ const TeamReportCompare: React.FC = () => {
             <div style={{ 
               color: '#000000', 
               fontWeight: 600, 
-              marginBottom: 8,
-              fontSize: '14px'
+              marginBottom: 4,
+              fontSize: '10px'
             }}>
               Compare Parameters
             </div>
@@ -4405,8 +4405,8 @@ const TeamReportCompare: React.FC = () => {
             <div style={{ 
               color: '#000000', 
               fontWeight: 600, 
-              marginBottom: 8,
-              fontSize: '14px'
+              marginBottom: 4,
+              fontSize: '10px'
             }}>
               Chart Type
             </div>
@@ -4437,8 +4437,8 @@ const TeamReportCompare: React.FC = () => {
             <div style={{ 
               color: '#000000', 
               fontWeight: 600, 
-              marginBottom: 8,
-              fontSize: '14px'
+              marginBottom: 4,
+              fontSize: '10px'
             }}>
               Compare by
             </div>
@@ -4477,15 +4477,15 @@ const TeamReportCompare: React.FC = () => {
        
          {/* Period Selectors */}
 
-  <div style={{ marginBottom: 24 }}>
+  <div style={{ marginBottom: 16 }}>
 
-    <label style={{ color: '#000000' }}>Comparison Periods ({compareType}):</label>
+    <label style={{ color: '#000000', fontSize: '10px' }}>Comparison Periods ({compareType}):</label>
 
-    <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 4, alignItems: 'center' }}>
 
       {comparisonValues.map((value, index) => (
 
-        <div key={index} style={{ display: 'flex', alignItems: 'center', minWidth: 280, width: '280px' }}>
+        <div key={index} style={{ display: 'flex', alignItems: 'center', minWidth: 200, width: '200px' }}>
 
           <Select
 
@@ -5006,11 +5006,11 @@ const TeamReportCompare: React.FC = () => {
 
             {comparisonValues.filter(Boolean).length >= 2 && growthAnalysis.length > 0 && (
 
-              <div style={{ marginTop: 40 }}>
+              <div style={{ marginTop: 20 }}>
 
-                <h2 style={{ color: '#000000' }}>Growth Analysis Report</h2>
+                <h2 style={{ color: '#000000', fontSize: '12px' }}>Growth Analysis Report</h2>
 
-<p style={{ marginBottom: 16, color: '#000000' }}>
+<p style={{ marginBottom: 8, color: '#000000', fontSize: '10px' }}>
 
   Comparing {comparisonValues.filter(Boolean).join(' vs ')} for {selectedBusinessUnit || "All Business Units"}
 
@@ -5030,7 +5030,7 @@ const TeamReportCompare: React.FC = () => {
 
   overflow: 'hidden',
 
-  backgroundColor: '#ffffff'
+  backgroundColor: '#e8f4f8'
 
 }}>
 
@@ -5038,13 +5038,13 @@ const TeamReportCompare: React.FC = () => {
 
     <thead>
 
-      <tr style={{ backgroundColor: '#f5f5f5' }}>
+      <tr style={{ backgroundColor: '#d8e8f0' }}>
 
-        <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000' }}>Parameter</th>
+        <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '12px' }}>Parameter</th>
 
         {comparisonValues.filter(Boolean).map((period, i) => (
 
-          <th key={i} style={{ padding: '12px 16px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000' }}>
+          <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '12px' }}>
 
             {period}
 
@@ -5052,9 +5052,9 @@ const TeamReportCompare: React.FC = () => {
 
         ))}
 
-        <th style={{ padding: '12px 16px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000' }}>Absolute Change</th>
+        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '12px' }}>Absolute Change</th>
 
-        <th style={{ padding: '12px 16px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000' }}>Growth %</th>
+        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '12px' }}>Growth %</th>
 
       </tr>
 
@@ -5094,13 +5094,13 @@ const TeamReportCompare: React.FC = () => {
 
           }}>
 
-            <td style={{ padding: '12px 16px', fontWeight: 500, color: '#000000' }}>{item.parameter}</td>
+            <td style={{ padding: '6px 8px', fontWeight: 500, color: '#000000', fontSize: '10px' }}>{item.parameter}</td>
 
             {item.periodValues.filter(pv => pv.period).map((pv, i) => {
 
               return (
 
-                <td key={i} style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>
+                <td key={i} style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
 
                   {formatValueForTable(pv.amount, item.parameter)}
 
@@ -5112,11 +5112,12 @@ const TeamReportCompare: React.FC = () => {
 
             <td style={{ 
 
-              padding: '12px 16px', 
+              padding: '6px 8px', 
 
               textAlign: 'right',
 
-              color: isPositive ? '#4ade80' : '#f87171'
+              color: isPositive ? '#4ade80' : '#f87171',
+              fontSize: '10px'
 
             }}>
 
@@ -5128,13 +5129,14 @@ const TeamReportCompare: React.FC = () => {
 
             <td style={{ 
 
-              padding: '12px 16px', 
+              padding: '6px 8px', 
 
               textAlign: 'right',
 
               color: isPositive ? '#4ade80' : '#f87171',
 
-              fontWeight: 600
+              fontWeight: 600,
+              fontSize: '10px'
 
             }}>
 
@@ -5740,19 +5742,19 @@ const TeamReportCompare: React.FC = () => {
 
         {/* Detailed Comparison Table */}
 
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', backgroundColor: '#e8f4f8', border: '1px solid #d9d9d9', borderRadius: 4 }}>
 
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
 
             <thead>
 
-              <tr style={{ backgroundColor: '#f5f5f5' }}>
+              <tr style={{ backgroundColor: '#d8e8f0' }}>
 
-                <th style={{ padding: '12px 16px', textAlign: 'left', color: '#000000' }}>Metric</th>
+                <th style={{ padding: '6px 8px', textAlign: 'left', color: '#000000', fontSize: '12px' }}>Metric</th>
 
                 {metrics.map((m, i) => (
 
-                  <th key={i} style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>
+                  <th key={i} style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '12px' }}>
 
                     {m.period}
 
@@ -5762,9 +5764,9 @@ const TeamReportCompare: React.FC = () => {
 
                 ))}
 
-                <th style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>Change vs Baseline</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '12px' }}>Change vs Baseline</th>
 
-                <th style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>Trend</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '12px' }}>Trend</th>
 
               </tr>
 
@@ -5784,7 +5786,7 @@ const TeamReportCompare: React.FC = () => {
 
                 }}>
 
-                  <td style={{ padding: '12px 16px', fontWeight: 500, color: '#000000' }}>{metric.name}</td>
+                  <td style={{ padding: '6px 8px', fontWeight: 500, color: '#000000', fontSize: '10px' }}>{metric.name}</td>
 
                   
                   
@@ -5802,7 +5804,7 @@ const TeamReportCompare: React.FC = () => {
                     
                     return (
 
-                      <td key={j} style={{ padding: '12px 16px', textAlign: 'right', color: '#000000' }}>
+                      <td key={j} style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
 
                         <div style={{ color: '#000000' }}>
 
@@ -5848,7 +5850,7 @@ const TeamReportCompare: React.FC = () => {
 
                   
                   
-                  <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: '10px' }}>
 
                     {(() => {
 
@@ -5888,7 +5890,7 @@ const TeamReportCompare: React.FC = () => {
 
                   
                   
-                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                  <td style={{ padding: '6px 8px', textAlign: 'center', fontSize: '10px' }}>
 
                     {(() => {
 

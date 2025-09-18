@@ -72,7 +72,7 @@ const MetricPieChart: React.FC<{ data: { field: string; sum: number; percent: nu
     });
 
     series.slices.template.setAll({
-      tooltipText: "{category}: ₹{value.formatNumber('#,##0.00')} ({percent.formatNumber('0.0')}%)",
+      tooltipText: "{category}: {value.formatNumber('#,##0')} ({percent.formatNumber('0.0')}%)",
       cursorOverStyle: "pointer",
     });
 

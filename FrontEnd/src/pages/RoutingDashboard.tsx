@@ -1708,15 +1708,15 @@ const chartData = metricFields.map(({ field, label }) => {
               {summariesWithPercentages.map(summary => (
                 <div key={summary.field} className="summary-card">
                   <h3>{summary.field}</h3>
-                  <div className="card-value">₹{summary.sum.toLocaleString()}</div>
+                  <div className="card-value">{Math.round(summary.sum).toLocaleString()}</div>
                   <div className="card-stats">
                     {summary.showPercentage ? (
                       <span>Percentage: {summary.percentage.toFixed(2)}%</span>
                     ) : (
                       <>
-                        <span>Avg: ₹{summary.average.toLocaleString()}</span>
-                        <span>Min: ₹{summary.min.toLocaleString()}</span>
-                        <span>Max: ₹{summary.max.toLocaleString()}</span>
+                        <span>Avg: {Math.round(summary.average).toLocaleString()}</span>
+                        <span>Min: {Math.round(summary.min).toLocaleString()}</span>
+                        <span>Max: {Math.round(summary.max).toLocaleString()}</span>
                       </>
                     )}
                   </div>
@@ -1740,13 +1740,13 @@ const chartData = metricFields.map(({ field, label }) => {
                   {quarterComparisonData.map((item, index) => (
                     <tr key={index}>
                       <td style={{ textAlign: 'left', fontWeight: '600' }}>{item.parameter}</td>
-                      <td>₹{item.previousQuarter.toLocaleString()}</td>
-                      <td>₹{item.currentQuarter.toLocaleString()}</td>
+                      <td>{Math.round(item.previousQuarter).toLocaleString()}</td>
+                      <td>{Math.round(item.currentQuarter).toLocaleString()}</td>
                       <td style={{ 
                         color: item.absoluteChange >= 0 ? '#28a745' : '#dc3545',
                         fontWeight: '600'
                       }}>
-                        {item.absoluteChange >= 0 ? '+' : ''}₹{item.absoluteChange.toLocaleString()}
+                        {item.absoluteChange >= 0 ? '+' : ''}{Math.round(item.absoluteChange).toLocaleString()}
                       </td>
                       <td style={{ 
                         color: item.growthPercentage >= 0 ? '#28a745' : '#dc3545',
@@ -1828,20 +1828,20 @@ const chartData = metricFields.map(({ field, label }) => {
                 {datePivotSummaries.map((summary, index) => (
                   <tr key={index}>
                     <td>{summary.dateGroup}</td>
-                    <td>{summary.alchemyBilling.toLocaleString()}</td>
-                    <td>{summary.vendorInvoiceAmount.toLocaleString()}</td>
-                    <td>{summary.integratorCharges.toLocaleString()}</td>
-                    <td>{summary.fundingCost.toLocaleString()}</td>
-                    <td>{summary.netMargin.toLocaleString()}</td>
+                    <td>{Math.round(summary.alchemyBilling).toLocaleString()}</td>
+                    <td>{Math.round(summary.vendorInvoiceAmount).toLocaleString()}</td>
+                    <td>{Math.round(summary.integratorCharges).toLocaleString()}</td>
+                    <td>{Math.round(summary.fundingCost).toLocaleString()}</td>
+                    <td>{Math.round(summary.netMargin).toLocaleString()}</td>
                   </tr>
                 ))}
                 <tr className="grand-total">
                   <td><strong>Grand Total</strong></td>
-                  <td>{datePivotGrandTotals.alchemyBilling.toLocaleString()}</td>
-                  <td>{datePivotGrandTotals.vendorInvoiceAmount.toLocaleString()}</td>
-                  <td>{datePivotGrandTotals.integratorCharges.toLocaleString()}</td>
-                  <td>{datePivotGrandTotals.fundingCost.toLocaleString()}</td>
-                  <td>{datePivotGrandTotals.netMargin.toLocaleString()}</td>
+                  <td>{Math.round(datePivotGrandTotals.alchemyBilling).toLocaleString()}</td>
+                  <td>{Math.round(datePivotGrandTotals.vendorInvoiceAmount).toLocaleString()}</td>
+                  <td>{Math.round(datePivotGrandTotals.integratorCharges).toLocaleString()}</td>
+                  <td>{Math.round(datePivotGrandTotals.fundingCost).toLocaleString()}</td>
+                  <td>{Math.round(datePivotGrandTotals.netMargin).toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>
