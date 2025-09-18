@@ -990,80 +990,140 @@ const chartData = metricFields.map(({ field, label }) => {
     });
   };
 
-  // Calculate quarter comparison data
-  const calculateQuarterComparison = (): QuarterComparisonData[] => {
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1; // 1-12
-    
-    // Determine current financial quarter
-    let currentQuarter: string;
-    let currentQuarterYear: number;
-    
-    if (currentMonth >= 4 && currentMonth <= 6) {
-      currentQuarter = 'Q1(Apr-Jun)';
-      currentQuarterYear = currentYear;
-    } else if (currentMonth >= 7 && currentMonth <= 9) {
-      currentQuarter = 'Q2(Jul-Sep)';
-      currentQuarterYear = currentYear;
-    } else if (currentMonth >= 10 && currentMonth <= 12) {
-      currentQuarter = 'Q3(Oct-Dec)';
-      currentQuarterYear = currentYear;
+  // Calculate dynamic comparison data based on selected date filter
+  const calculateDynamicComparison = (): { data: QuarterComparisonData[], period1: string, period2: string } => {
+    let period1Data: RoutingTableItem[] = [];
+    let period2Data: RoutingTableItem[] = [];
+    let period1Label = '';
+    let period2Label = '';
+
+    // Determine comparison periods based on date filter type
+    if (dateFilterType === 'quarterRange' && startQuarter && endQuarter) {
+      // Quarter range comparison
+      const getQuarterMonths = (quarter: string) => {
+        if (quarter.includes('Q1')) return [4, 5, 6]; // Apr, May, Jun
+        if (quarter.includes('Q2')) return [7, 8, 9]; // Jul, Aug, Sep
+        if (quarter.includes('Q3')) return [10, 11, 12]; // Oct, Nov, Dec
+        if (quarter.includes('Q4')) return [1, 2, 3]; // Jan, Feb, Mar
+        return [];
+      };
+
+      const startQuarterMonths = getQuarterMonths(startQuarter);
+      const endQuarterMonths = getQuarterMonths(endQuarter);
+      
+      period1Data = filteredData.filter(item => {
+        const billingMonth = parseBillingMonth(item['Billing Month']);
+        if (!billingMonth) return false;
+        const itemYear = billingMonth.getFullYear();
+        const itemMonth = billingMonth.getMonth() + 1;
+        return itemYear === parseInt(startYear) && startQuarterMonths.includes(itemMonth);
+      });
+
+      period2Data = filteredData.filter(item => {
+        const billingMonth = parseBillingMonth(item['Billing Month']);
+        if (!billingMonth) return false;
+        const itemYear = billingMonth.getFullYear();
+        const itemMonth = billingMonth.getMonth() + 1;
+        return itemYear === parseInt(endYear) && endQuarterMonths.includes(itemMonth);
+      });
+
+      period1Label = `${startQuarter} ${startYear}`;
+      period2Label = `${endQuarter} ${endYear}`;
+    } else if (dateFilterType === 'monthRange' && startMonth && endMonth) {
+      // Month range comparison
+      const startMonthNum = parseInt(startMonth);
+      const endMonthNum = parseInt(endMonth);
+      
+      period1Data = filteredData.filter(item => {
+        const billingMonth = parseBillingMonth(item['Billing Month']);
+        if (!billingMonth) return false;
+        const itemYear = billingMonth.getFullYear();
+        const itemMonth = billingMonth.getMonth() + 1;
+        return itemYear === parseInt(startYear) && itemMonth === startMonthNum;
+      });
+
+      period2Data = filteredData.filter(item => {
+        const billingMonth = parseBillingMonth(item['Billing Month']);
+        if (!billingMonth) return false;
+        const itemYear = billingMonth.getFullYear();
+        const itemMonth = billingMonth.getMonth() + 1;
+        return itemYear === parseInt(endYear) && itemMonth === endMonthNum;
+      });
+
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      period1Label = `${monthNames[startMonthNum - 1]} ${startYear}`;
+      period2Label = `${monthNames[endMonthNum - 1]} ${endYear}`;
     } else {
-      currentQuarter = 'Q4(Jan-Mar)';
-      currentQuarterYear = currentYear;
+      // Default: Current quarter vs Previous quarter
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+      
+      let currentQuarter: string;
+      let currentQuarterYear: number;
+      
+      if (currentMonth >= 4 && currentMonth <= 6) {
+        currentQuarter = 'Q1(Apr-Jun)';
+        currentQuarterYear = currentYear;
+      } else if (currentMonth >= 7 && currentMonth <= 9) {
+        currentQuarter = 'Q2(Jul-Sep)';
+        currentQuarterYear = currentYear;
+      } else if (currentMonth >= 10 && currentMonth <= 12) {
+        currentQuarter = 'Q3(Oct-Dec)';
+        currentQuarterYear = currentYear;
+      } else {
+        currentQuarter = 'Q4(Jan-Mar)';
+        currentQuarterYear = currentYear;
+      }
+      
+      let previousQuarter: string;
+      let previousQuarterYear: number;
+      
+      if (currentQuarter === 'Q1(Apr-Jun)') {
+        previousQuarter = 'Q4(Jan-Mar)';
+        previousQuarterYear = currentYear - 1;
+      } else if (currentQuarter === 'Q2(Jul-Sep)') {
+        previousQuarter = 'Q1(Apr-Jun)';
+        previousQuarterYear = currentYear;
+      } else if (currentQuarter === 'Q3(Oct-Dec)') {
+        previousQuarter = 'Q2(Jul-Sep)';
+        previousQuarterYear = currentYear;
+      } else {
+        previousQuarter = 'Q3(Oct-Dec)';
+        previousQuarterYear = currentYear - 1;
+      }
+      
+      const getQuarterMonths = (quarter: string) => {
+        if (quarter.includes('Q1')) return [4, 5, 6];
+        if (quarter.includes('Q2')) return [7, 8, 9];
+        if (quarter.includes('Q3')) return [10, 11, 12];
+        if (quarter.includes('Q4')) return [1, 2, 3];
+        return [];
+      };
+      
+      const currentQuarterMonths = getQuarterMonths(currentQuarter);
+      const previousQuarterMonths = getQuarterMonths(previousQuarter);
+      
+      period1Data = filteredData.filter(item => {
+        const billingMonth = parseBillingMonth(item['Billing Month']);
+        if (!billingMonth) return false;
+        const itemYear = billingMonth.getFullYear();
+        const itemMonth = billingMonth.getMonth() + 1;
+        return itemYear === currentQuarterYear && currentQuarterMonths.includes(itemMonth);
+      });
+
+      period2Data = filteredData.filter(item => {
+        const billingMonth = parseBillingMonth(item['Billing Month']);
+        if (!billingMonth) return false;
+        const itemYear = billingMonth.getFullYear();
+        const itemMonth = billingMonth.getMonth() + 1;
+        return itemYear === previousQuarterYear && previousQuarterMonths.includes(itemMonth);
+      });
+
+      period1Label = currentQuarter;
+      period2Label = previousQuarter;
     }
-    
-    // Determine previous quarter
-    let previousQuarter: string;
-    let previousQuarterYear: number;
-    
-    if (currentQuarter === 'Q1(Apr-Jun)') {
-      previousQuarter = 'Q4(Jan-Mar)';
-      previousQuarterYear = currentYear - 1;
-    } else if (currentQuarter === 'Q2(Jul-Sep)') {
-      previousQuarter = 'Q1(Apr-Jun)';
-      previousQuarterYear = currentYear;
-    } else if (currentQuarter === 'Q3(Oct-Dec)') {
-      previousQuarter = 'Q2(Jul-Sep)';
-      previousQuarterYear = currentYear;
-    } else {
-      previousQuarter = 'Q3(Oct-Dec)';
-      previousQuarterYear = currentYear - 1;
-    }
-    
-    // Get quarter months
-    const getQuarterMonths = (quarter: string) => {
-      if (quarter.includes('Q1')) return [4, 5, 6]; // Apr, May, Jun
-      if (quarter.includes('Q2')) return [7, 8, 9]; // Jul, Aug, Sep
-      if (quarter.includes('Q3')) return [10, 11, 12]; // Oct, Nov, Dec
-      if (quarter.includes('Q4')) return [1, 2, 3]; // Jan, Feb, Mar
-      return [];
-    };
-    
-    // Calculate data for current quarter
-    const currentQuarterMonths = getQuarterMonths(currentQuarter);
-    const currentQuarterData = filteredData.filter(item => {
-      const billingMonth = parseBillingMonth(item['Billing Month']);
-      if (!billingMonth) return false;
-      
-      const itemYear = billingMonth.getFullYear();
-      const itemMonth = billingMonth.getMonth() + 1;
-      
-      return itemYear === currentQuarterYear && currentQuarterMonths.includes(itemMonth);
-    });
-    
-    // Calculate data for previous quarter
-    const previousQuarterMonths = getQuarterMonths(previousQuarter);
-    const previousQuarterData = filteredData.filter(item => {
-      const billingMonth = parseBillingMonth(item['Billing Month']);
-      if (!billingMonth) return false;
-      
-      const itemYear = billingMonth.getFullYear();
-      const itemMonth = billingMonth.getMonth() + 1;
-      
-      return itemYear === previousQuarterYear && previousQuarterMonths.includes(itemMonth);
-    });
     
     // Calculate totals for each parameter
     const parameters = [
@@ -1073,23 +1133,29 @@ const chartData = metricFields.map(({ field, label }) => {
       { key: 'Net Margin', label: 'Net Margin' }
     ];
     
-    return parameters.map(param => {
-      const currentTotal = currentQuarterData.reduce((sum, item) => 
+    const comparisonData = parameters.map(param => {
+      const period1Total = period1Data.reduce((sum, item) => 
         sum + toNumber(item[param.key]), 0);
-      const previousTotal = previousQuarterData.reduce((sum, item) => 
+      const period2Total = period2Data.reduce((sum, item) => 
         sum + toNumber(item[param.key]), 0);
       
-      const absoluteChange = currentTotal - previousTotal;
-      const growthPercentage = previousTotal > 0 ? (absoluteChange / previousTotal) * 100 : 0;
+      const absoluteChange = period1Total - period2Total;
+      const growthPercentage = period2Total > 0 ? (absoluteChange / period2Total) * 100 : 0;
       
       return {
         parameter: param.label,
-        currentQuarter: currentTotal,
-        previousQuarter: previousTotal,
+        currentQuarter: period1Total,
+        previousQuarter: period2Total,
         absoluteChange,
         growthPercentage
       };
     });
+
+    return {
+      data: comparisonData,
+      period1: period1Label,
+      period2: period2Label
+    };
   };
 
   const handleBillingDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1142,7 +1208,16 @@ const chartData = metricFields.map(({ field, label }) => {
   const summariesWithPercentages = calculatePercentageValues();
   const domainData = calculateDomainData();
   const monthlyBillingData = calculateMonthlyBillingData();
-  const quarterComparisonData = calculateQuarterComparison();
+  const comparisonResult = calculateDynamicComparison();
+  const quarterComparisonData = comparisonResult.data;
+  
+  // Generate comparison chart data
+  const comparisonChartData = quarterComparisonData.map(item => ({
+    parameter: item.parameter,
+    period1: item.currentQuarter,
+    period2: item.previousQuarter,
+    growth: item.growthPercentage
+  }));
   const totals = {
     sum: summariesWithPercentages.reduce((acc: any, item: any) => acc + item.sum, 0),
     average: summariesWithPercentages.reduce((acc: any, item: any) => acc + item.average, 0) / summariesWithPercentages.length,
@@ -1515,6 +1590,42 @@ const chartData = metricFields.map(({ field, label }) => {
         </div>
       </div>
 
+      {/* Comparison Analysis Table in Header */}
+      <div className="comparison-header-container">
+        <table className="comparison-table">
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>{comparisonResult.period1}</th>
+              <th>{comparisonResult.period2}</th>
+              <th>Absolute Change</th>
+              <th>Growth %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {quarterComparisonData.map((item, index) => (
+              <tr key={index}>
+                <td style={{ textAlign: 'left', fontWeight: '600' }}>{item.parameter}</td>
+                <td>₹{item.currentQuarter.toLocaleString()}</td>
+                <td>₹{item.previousQuarter.toLocaleString()}</td>
+                <td style={{ 
+                  color: item.absoluteChange >= 0 ? '#28a745' : '#dc3545',
+                  fontWeight: '600'
+                }}>
+                  {item.absoluteChange >= 0 ? '+' : ''}₹{item.absoluteChange.toLocaleString()}
+                </td>
+                <td style={{ 
+                  color: item.growthPercentage >= 0 ? '#28a745' : '#dc3545',
+                  fontWeight: '600'
+                }}>
+                  {item.growthPercentage >= 0 ? '+' : ''}{item.growthPercentage.toFixed(2)}%
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       {/* Display active filters */}
       {(vendorDetailsFilter || 
   startDate || endDate || selectedQuarter || selectedMonth || selectedYear ||
@@ -1637,59 +1748,13 @@ const chartData = metricFields.map(({ field, label }) => {
               ))}
             </div>
 
-            {/* Quarter Comparison Analysis Table */}
-            <div className="analysis-table-container" style={{ margin: '2rem 0' }}>
-              <h3 style={{ 
-                textAlign: 'center', 
-                marginBottom: '1rem',
-                backgroundColor: '#000000',
-                color: '#ffffff',
-                padding: '8px 12px',
-                borderRadius: '4px',
-                borderBottom: '3px solid #ff8c00'
-              }}>
-                Quarter Comparison Analysis
-              </h3>
-              <table className="pivot-table" style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
-                <thead>
-                  <tr>
-                    <th>Parameter</th>
-                    <th>Current Quarter</th>
-                    <th>Previous Quarter</th>
-                    <th>Absolute Change</th>
-                    <th>Growth %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {quarterComparisonData.map((item, index) => (
-                    <tr key={index}>
-                      <td style={{ textAlign: 'left', fontWeight: '600' }}>{item.parameter}</td>
-                      <td>₹{item.currentQuarter.toLocaleString()}</td>
-                      <td>₹{item.previousQuarter.toLocaleString()}</td>
-                      <td style={{ 
-                        color: item.absoluteChange >= 0 ? '#28a745' : '#dc3545',
-                        fontWeight: '600'
-                      }}>
-                        {item.absoluteChange >= 0 ? '+' : ''}₹{item.absoluteChange.toLocaleString()}
-                      </td>
-                      <td style={{ 
-                        color: item.growthPercentage >= 0 ? '#28a745' : '#dc3545',
-                        fontWeight: '600'
-                      }}>
-                        {item.growthPercentage >= 0 ? '+' : ''}{item.growthPercentage.toFixed(2)}%
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
 
            <div className="dashboard-table-container">
   <div className="pie-chart-container">
     <MetricPieChart key={filteredData.length} data={domainData} />
   </div>
   <div className="chart-container">
-    <RoutingDashboard_gauge_chart data={monthlyBillingData} />
+    <RoutingDashboard_gauge_chart data={comparisonChartData} />
   </div>
 </div>
             <div>
