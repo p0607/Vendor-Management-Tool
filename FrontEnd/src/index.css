@@ -33,11 +33,11 @@ button, .btn, .button {
   background-color: var(--button-bg) !important;
   color: var(--button-text) !important;
   border: none !important;
-  padding: 6px 12px !important;
+  padding: 5px 10px !important;
   border-radius: 4px !important;
   cursor: pointer !important;
   font-weight: 500 !important;
-  font-size: 12px !important;
+  font-size: 10px !important;
   transition: all 0.3s ease !important;
 }
 
@@ -51,12 +51,12 @@ button:hover, .btn:hover, .button:hover {
 h1, h2, h3, h4, h5, h6 {
   background-color: var(--heading-bg) !important;
   color: var(--heading-text) !important;
-  padding: 10px 15px !important;
-  margin: 15px 0 !important;
+  padding: 8px 12px !important;
+  margin: 12px 0 !important;
   border-bottom: 3px solid var(--heading-underline) !important;
   border-radius: 4px 4px 0 0 !important;
   font-weight: 600 !important;
-  font-size: 14px !important;
+  font-size: 12px !important;
 }
 
 /* Card styles */
@@ -75,8 +75,8 @@ input, select, textarea {
   color: var(--primary-text) !important;
   border: 1px solid var(--border-color) !important;
   border-radius: 4px !important;
-  padding: 6px 10px !important;
-  font-size: 12px !important;
+  padding: 5px 8px !important;
+  font-size: 10px !important;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -96,15 +96,15 @@ table {
 th {
   background-color: var(--heading-bg) !important;
   color: var(--heading-text) !important;
-  padding: 8px !important;
+  padding: 6px !important;
   border-bottom: 2px solid var(--heading-underline) !important;
-  font-size: 14px !important;
+  font-size: 12px !important;
 }
 
 td {
-  padding: 8px 10px !important;
+  padding: 6px 8px !important;
   border-bottom: 1px solid var(--border-color) !important;
-  font-size: 12px !important;
+  font-size: 10px !important;
 }
 
 tr:hover {

@@ -101,10 +101,10 @@ body, html {
   margin-bottom: 1.5rem;
   background-color: #000000;
   color: #ffffff;
-  padding: 0.8rem;
+  padding: 0.6rem;
   border-radius: 8px;
   border-bottom: 3px solid #ff8c00;
-  font-size: 14px !important;
+  font-size: 12px !important;
 }
 
 .login-error {

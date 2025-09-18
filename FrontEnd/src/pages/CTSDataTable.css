@@ -6,37 +6,37 @@
 
 /* Header styling */
 .routing-table th.data-header {
-    padding: 8px 6px;
+    padding: 6px 4px;
     text-align: center;
     font-weight: bold;
     color: #000000;
     border: 1px solid #000000;
     background-color: #f5f5f5;
-    min-width: 150px;
-    font-size: 14px;
+    min-width: 120px;
+    font-size: 12px;
     text-transform: uppercase;
 }
 
 .routing-table th.edit-header {
-    padding: 8px 6px;
+    padding: 6px 4px;
     text-align: center;
     font-weight: bold;
     color: #000000;
     border: 1px solid #000000;
     background-color: #f5f5f5;
-    width: 80px;
-    min-width: 80px;
-    max-width: 80px;
-    font-size: 14px;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    font-size: 12px;
 }
 
 /* Edit column styling */
 .routing-table td.edit-column {
-    width: 80px;
-    min-width: 80px;
-    max-width: 80px;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
     text-align: center;
-    padding: 8px 4px;
+    padding: 4px 2px;
     border: 1px solid #000000;
     background-color: white;
     vertical-align: middle;
@@ -44,8 +44,8 @@
 
 /* Action button styling */
 .routing-table .action-button {
-    padding: 6px 10px;
-    font-size: 11px;
+    padding: 4px 6px;
+    font-size: 9px;
     font-weight: 500;
     background-color: #808080;
     color: black;
@@ -57,7 +57,7 @@
     display: inline-block;
     text-align: center;
     width: 100%;
-    max-width: 70px;
+    max-width: 50px;
 }
 
 .routing-table .action-button:hover {
@@ -66,8 +66,8 @@
 
 /* Edit data button styling */
 .routing-table .edit-data-button {
-    padding: 6px 10px;
-    font-size: 11px;
+    padding: 4px 6px;
+    font-size: 9px;
     font-weight: 500;
     background-color: #808080 !important;
     color: white !important;
@@ -79,7 +79,7 @@
     display: inline-block;
     text-align: center;
     width: 100%;
-    max-width: 70px;
+    max-width: 50px;
     font-family: 'Montserrat', sans-serif;
 }
 
@@ -89,8 +89,8 @@
 
 /* Expand button styling */
 .routing-table .expand-button {
-    padding: 4px 6px;
-    font-size: 12px;
+    padding: 3px 4px;
+    font-size: 10px;
     font-weight: bold;
     background-color: #f5f5f5;
     color: black;
@@ -98,8 +98,8 @@
     border-radius: 3px;
     cursor: pointer;
     transition: background-color 0.2s;
-    min-width: 25px;
-    height: 25px;
+    min-width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -112,21 +112,21 @@
 
 /* Data cells styling */
 .routing-table td {
-    padding: 6px 10px;
+    padding: 4px 8px;
     text-align: center;
     border: 1px solid #000000;
     vertical-align: middle;
     background-color: white;
     color: #000000;
-    font-size: 12px;
+    font-size: 10px;
 }
 
 /* Table overall styling */
 .routing-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
+    margin-top: 10px;
     background-color: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    font-size: 12px;
+    font-size: 10px;
 }

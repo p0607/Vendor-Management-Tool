@@ -136,9 +136,9 @@ body, html {
 .routing-table-container {
     width: 100%;
     overflow-x: hidden;
-    margin: 1.5rem 0;
+    margin: 0.5rem 0;
     border-radius: 8px;
-    margin-top: 2.5rem;
+    margin-top: 1rem;
   }
   
   /* Main Table Styles */
@@ -193,12 +193,12 @@ body, html {
 
 
   .routing-table th {
-    padding: 8px 10px;
+    padding: 6px 8px;
     text-align: left;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    font-size: 14px;
+    font-size: 12px;
     border-bottom: 2px solid #e0e0e0;
     border-right: 1px solid #e0e0e0;
     text-align: center;
@@ -210,12 +210,12 @@ body, html {
   
   /* Table Body */
   .routing-table td {
-    padding: 6px 10px;
+    padding: 4px 8px;
     border-bottom: 1px solid #e0e0e0;
     border-right: 1px solid #e0e0e0;
     vertical-align: middle;
     text-align: center;
-    font-size: 12px;
+    font-size: 10px;
   }
   
   .routing-table td:last-child {
@@ -316,7 +316,7 @@ body, html {
   flex-wrap: wrap;
   align-items: center;
   gap: 1.5rem;
-  margin: 3rem 0 2.5rem 0;
+  margin: 2rem 0 1rem 0;
   padding: 0 1rem;
 }
 
@@ -360,11 +360,11 @@ body, html {
 .action-button {
   background-color: #808080;
   color: black;
-  padding: 6px 12px;
+  padding: 4px 8px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .action-button:hover {
@@ -375,11 +375,11 @@ body, html {
 .edit-data-button {
   background-color: #808080 !important;
   color: white !important;
-  padding: 6px 12px;
+  padding: 4px 8px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
   transition: background-color 0.2s ease;
@@ -476,8 +476,8 @@ body, html {
   color: white;
   border: none;
   border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: 3px 8px;
+  font-size: 10px;
   cursor: pointer;
   transition: background 0.2s;
   display: block;
