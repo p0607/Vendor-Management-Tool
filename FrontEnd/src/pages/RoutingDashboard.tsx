@@ -1770,7 +1770,7 @@ const chartData = metricFields.map(({ field, label }) => {
                 onClick={() => setShowPivotTable(!showPivotTable)}
                 style={{ fontSize: '10px', padding: '0.3rem 0.6rem' }}
               >
-                {showPivotTable ? 'Hide Pivot Table' : 'Show Pivot Table'}
+                {showPivotTable ? 'Hide Pie Chart' : 'Show Pie Chart'}
               </button>
             </div>
 
@@ -1781,7 +1781,6 @@ const chartData = metricFields.map(({ field, label }) => {
     </div>
   )}
   <div className="chart-container">
-    <h3>Monthly Billing Overview</h3>
     <RoutingDashboard_gauge_chart data={comparisonChartData} />
   </div>
 </div>

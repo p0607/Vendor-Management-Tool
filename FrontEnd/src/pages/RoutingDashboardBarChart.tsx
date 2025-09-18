@@ -39,7 +39,7 @@ const RoutingDashboardBarChart: React.FC<RoutingDashboardBarChartProps> = ({ dat
         wheelY: "zoomX",
         paddingLeft: 0,
         layout: root.verticalLayout,
-        height: 200
+        height: 400
       })
     );
 
