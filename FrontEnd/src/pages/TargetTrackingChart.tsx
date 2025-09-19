@@ -616,7 +616,8 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       })
     );
     xAxis.get("renderer").labels.template.setAll({
-      fill: am5.color(0x000000)
+      fill: am5.color(0x000000),
+      fontSize: "8px"
     });
 
     const yAxis = chart.yAxes.push(
@@ -626,7 +627,8 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       })
     );
     yAxis.get("renderer").labels.template.setAll({
-      fill: am5.color(0x000000)
+      fill: am5.color(0x000000),
+      fontSize: "8px"
     });
 
     // Generate chart data
@@ -809,14 +811,14 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   return (
     <Card 
       title={
-        <Title level={3} style={{ color: '#000000', margin: 0 }}>
+        <Title level={4} style={{ color: '#000000', margin: 0, fontSize: '12px' }}>
           Parameter Tracking Chart
         </Title>
       }
       style={{ 
         backgroundColor: '#ffffff', 
         border: '1px solid #d9d9d9',
-        marginTop: '2rem'
+        marginTop: '1rem'
       }}
     >
       <style>
@@ -837,10 +839,10 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         `}
       </style>
       
-      <Row gutter={16} style={{ marginBottom: '1rem', backgroundColor: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #d9d9d9' }}>
+      <Row gutter={16} style={{ marginBottom: '0.5rem', backgroundColor: '#ffffff', padding: '8px', borderRadius: '8px', border: '1px solid #d9d9d9' }}>
         <Col span={24}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ color: '#000000', display: 'block', marginBottom: '0.5rem' }}>
+          <div style={{ marginBottom: '0.5rem' }}>
+            <label style={{ color: '#000000', display: 'block', marginBottom: '0.25rem', fontSize: '10px' }}>
               Select Parameter:
             </label>
             <Select
@@ -857,7 +859,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       </Row>
 
 
-      <div id="forecastChart" style={{ width: "100%", height: "500px" }}></div>
+      <div id="forecastChart" style={{ width: "100%", height: "300px" }}></div>
     </Card>
   );
 };
