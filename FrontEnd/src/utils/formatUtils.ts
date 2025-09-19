@@ -62,17 +62,17 @@ export const formatValueForTable = (value: number | string | null | undefined, f
   
   // Handle null/undefined/empty values
   if (value === null || value === undefined || value === '') {
-    return field === 'HC' ? '0' : '0.00';
+    return field === 'HC' ? '0' : '0';
   }
   
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(numValue)) {
-    return field === 'HC' ? '0' : '0.00';
+    return field === 'HC' ? '0' : '0';
   }
   
   // HC (Head Count) should be displayed as a regular number
   if (field === 'HC') {
-    return numValue.toLocaleString('en-IN');
+    return Math.round(numValue).toLocaleString('en-IN');
   }
   
   // Percentage fields
@@ -80,6 +80,6 @@ export const formatValueForTable = (value: number | string | null | undefined, f
     return `${numValue.toFixed(2)}%`;
   }
   
-  // All other fields should be formatted as amount with 2 decimal places
-  return numValue.toFixed(2);
+  // All other fields should be formatted as amount without decimal places, with comma separators
+  return Math.round(numValue).toLocaleString('en-IN');
 };

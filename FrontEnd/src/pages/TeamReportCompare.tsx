@@ -4168,9 +4168,9 @@ const TeamReportCompare: React.FC = () => {
 
       </style>
 
-      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.2rem 2rem 0 2rem' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.1rem 2rem 0 2rem' }}>
 
-        <div className="homepage-logo-top-left" style={{ transform: 'scale(0.8)' }}>
+        <div style={{ transform: 'scale(0.8)', marginTop: '-10px' }}>
 
           <img src={logo} alt="Alchemy Logo" style={{ height: '60px', maxWidth: '120px' }} />
 
@@ -4245,7 +4245,7 @@ const TeamReportCompare: React.FC = () => {
           backgroundColor: '#f8f9fa',
           borderRadius: 8,
           border: '1px solid #e9ecef',
-          minHeight: '120px'
+          minHeight: '70px'
   }}>
 
     {/* Business Unit Filter */}
@@ -5332,9 +5332,9 @@ const TeamReportCompare: React.FC = () => {
 
               <div>
 
-                <div style={{ fontWeight: 500, color: '#000000' }}>{change.parameter}</div>
+                <div style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>{change.parameter}</div>
 
-                <div style={{ fontSize: 12, color: '#666666' }}>
+                <div style={{ fontSize: 10, color: '#666666' }}>
 
                   {change.fromPeriod} → {change.toPeriod}
 
@@ -5382,7 +5382,19 @@ const TeamReportCompare: React.FC = () => {
 
   }}>
 
-    <h3 style={{ marginTop: 0, color: '#000000' }}>Top Decline</h3>
+    <div style={{ 
+      backgroundColor: '#000000', 
+      color: '#ffffff', 
+      padding: '6px 12px', 
+      borderRadius: 4, 
+      fontSize: 12, 
+      fontWeight: 700,
+      display: 'inline-block',
+      marginBottom: 8,
+      borderBottom: '3px solid #ff8c00'
+    }}>
+      Top Decline
+    </div>
 
     {growthAnalysis
 
@@ -5422,9 +5434,9 @@ const TeamReportCompare: React.FC = () => {
 
               <div>
 
-                <div style={{ fontWeight: 500, color: '#000000' }}>{change.parameter}</div>
+                <div style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>{change.parameter}</div>
 
-                <div style={{ fontSize: 12, color: '#666666' }}>
+                <div style={{ fontSize: 10, color: '#666666' }}>
 
                   {change.fromPeriod} → {change.toPeriod}
 
@@ -5472,13 +5484,25 @@ const TeamReportCompare: React.FC = () => {
 
   }}>
 
-    <h3 style={{ marginTop: 0, color: '#000000' }}>Summary</h3>
+    <div style={{ 
+      backgroundColor: '#000000', 
+      color: '#ffffff', 
+      padding: '6px 12px', 
+      borderRadius: 4, 
+      fontSize: 12, 
+      fontWeight: 700,
+      display: 'inline-block',
+      marginBottom: 8,
+      borderBottom: '3px solid #ff8c00'
+    }}>
+      Summary
+    </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
 
-        <span style={{ color: '#000000' }}>Parameters Increased:</span>
+        <span style={{ color: '#000000', fontSize: '10px' }}>Parameters Increased:</span>
 
-        <span style={{ fontWeight: 500, color: '#000000' }}>
+        <span style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>
 
           {growthAnalysis
 
@@ -5492,9 +5516,9 @@ const TeamReportCompare: React.FC = () => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
 
-        <span style={{ color: '#000000' }}>Parameters Decreased:</span>
+        <span style={{ color: '#000000', fontSize: '10px' }}>Parameters Decreased:</span>
 
-        <span style={{ fontWeight: 500, color: '#000000' }}>
+        <span style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>
 
           {growthAnalysis
 
@@ -5508,9 +5532,9 @@ const TeamReportCompare: React.FC = () => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
 
-        <span style={{ color: '#000000' }}>Highest Growth:</span>
+        <span style={{ color: '#000000', fontSize: '10px' }}>Highest Growth:</span>
 
-        <span style={{ fontWeight: 500, color: '#000000' }}>
+        <span style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>
 
           {growthAnalysis.length > 0 
 

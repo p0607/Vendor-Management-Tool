@@ -673,24 +673,17 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         categoryXField: "period",
         tooltip: am5.Tooltip.new(root, {
           pointerOrientation: "horizontal",
-          labelText: `{categoryX} - ${selectedParameter} (Actual): ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+          labelText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
           autoTextColor: false,
           labelHTML: `
             <div style="
-              text-align: left; 
-              padding: 8px 12px; 
+              padding: 4px 6px; 
               background: #ffffff; 
-              color: #333333; 
-              border-radius: 6px; 
-              box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              font-size: 12px;
-              line-height: 1.4;
-              min-width: 120px;
+              color: #000000; 
+              font-size: 8px;
+              border: 1px solid #ccc;
             ">
-              <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
-              <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${selectedParameter} (Actual)</div>
-              <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
+              {categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}
             </div>
           `
         })
@@ -707,24 +700,17 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         categoryXField: "period",
         tooltip: am5.Tooltip.new(root, {
           pointerOrientation: "horizontal",
-          labelText: `{categoryX} - ${selectedParameter} (Forecast): ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+          labelText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
           autoTextColor: false,
           labelHTML: `
             <div style="
-              text-align: left; 
-              padding: 8px 12px; 
+              padding: 4px 6px; 
               background: #ffffff; 
-              color: #333333; 
-              border-radius: 6px; 
-              box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              font-size: 12px;
-              line-height: 1.4;
-              min-width: 120px;
+              color: #000000; 
+              font-size: 8px;
+              border: 1px solid #ccc;
             ">
-              <div style="font-weight: 600; margin-bottom: 4px; color: #ff6b35; font-size: 11px;">{categoryX}</div>
-              <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${selectedParameter} (Forecast)</div>
-              <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
+              {categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}
             </div>
           `
         })
