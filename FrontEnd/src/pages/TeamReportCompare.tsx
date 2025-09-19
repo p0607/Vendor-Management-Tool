@@ -4112,6 +4112,14 @@ const TeamReportCompare: React.FC = () => {
 
           }
 
+          body, html {
+
+            overflow-x: hidden !important;
+
+            max-width: 100vw !important;
+
+          }
+
           .ant-select {
 
             font-size: 10px !important;
@@ -4168,7 +4176,7 @@ const TeamReportCompare: React.FC = () => {
 
       </style>
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.1rem 2rem 0 2rem' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.1rem 1rem 0 1rem', maxWidth: '100vw', overflow: 'hidden' }}>
 
         <div style={{ transform: 'scale(0.8)', marginTop: '-10px' }}>
 
@@ -4184,17 +4192,22 @@ const TeamReportCompare: React.FC = () => {
 
           transform: 'translateX(-50%)', 
 
-          color: 'white', 
+          backgroundColor: '#000000', 
 
-          fontWeight: 700, 
+          color: '#ffffff', 
 
-          fontSize: '2rem', 
+          padding: '6px 12px', 
 
-          fontFamily: 'Montserrat, sans-serif', 
+          borderRadius: 4, 
+
+          fontSize: 12, 
+
+          fontWeight: 700,
 
           margin: 0, 
 
-          zIndex: 1 
+          zIndex: 1,
+          whiteSpace: 'nowrap'
 
         }}>MFS Comparison</h2>
 
@@ -4232,7 +4245,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "3rem 8px 8px 8px" }}>
+      <div style={{ margin: "1.5rem 8px 8px 8px" }}>
 
         {/* Filters Section */}
   <div style={{ 
@@ -5572,11 +5585,19 @@ const TeamReportCompare: React.FC = () => {
 
 }}>
 
-  <h3 style={{ marginTop: 0, borderBottom: '1px solid #d9d9d9', paddingBottom: 8, color: '#000000' }}>
-
+  <div style={{ 
+    backgroundColor: '#000000', 
+    color: '#ffffff', 
+    padding: '6px 12px', 
+    borderRadius: 4, 
+    fontSize: 10, 
+    fontWeight: 700,
+    display: 'inline-block',
+    marginBottom: 8,
+    borderBottom: '3px solid #ff8c00'
+  }}>
     Efficiency Dashboard
-
-  </h3>
+  </div>
 
   
   
@@ -5764,7 +5785,7 @@ const TeamReportCompare: React.FC = () => {
 
           fontWeight: 600, 
 
-          fontSize: 16,
+          fontSize: 10,
 
           marginBottom: 8,  // Added margin
 
@@ -5778,7 +5799,7 @@ const TeamReportCompare: React.FC = () => {
 
         <div style={{ 
 
-          fontSize: 20,  // Increased from 18px
+          fontSize: 10,  // Decreased to 10px
 
           fontWeight: 700,
 
@@ -5800,7 +5821,7 @@ const TeamReportCompare: React.FC = () => {
 
         <div style={{ 
 
-          fontSize: 14,  // Increased from 13px
+          fontSize: 10,  // Decreased to 10px
 
           color: isPositive ? '#4ade80' : '#f87171',
 
@@ -5812,7 +5833,7 @@ const TeamReportCompare: React.FC = () => {
 
         }}>
 
-          <span style={{ fontSize: 16 }}>
+          <span style={{ fontSize: 10 }}>
 
             {isPositive ? '↑' : '↓'}
 
@@ -5854,7 +5875,7 @@ const TeamReportCompare: React.FC = () => {
 
                     {m.period}
 
-                    {i === 0 && <div style={{ fontSize: 12, fontWeight: 400, color: '#000000' }}>(Baseline)</div>}
+                    {i === 0 && <div style={{ fontSize: 10, fontWeight: 400, color: '#000000' }}>(Baseline)</div>}
 
                   </th>
 
@@ -5918,7 +5939,7 @@ const TeamReportCompare: React.FC = () => {
 
                           <div style={{ 
 
-                            fontSize: 12,
+                            fontSize: 10,
 
                             color: isPositive ? '#4ade80' : '#f87171'
 
@@ -6036,11 +6057,19 @@ const TeamReportCompare: React.FC = () => {
 
         {/* Period-to-Period Changes */}
 
-        <h4 style={{ margin: '24px 0 12px 0', color: '#000000' }}>
-
+        <div style={{ 
+          backgroundColor: '#000000', 
+          color: '#ffffff', 
+          padding: '6px 12px', 
+          borderRadius: 4, 
+          fontSize: 10, 
+          fontWeight: 700,
+          display: 'inline-block',
+          marginBottom: 8,
+          borderBottom: '3px solid #ff8c00'
+        }}>
           Period-to-Period Changes
-
-        </h4>
+        </div>
 
         <div style={{ 
 
