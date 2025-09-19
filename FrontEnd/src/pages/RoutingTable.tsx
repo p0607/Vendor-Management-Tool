@@ -1316,7 +1316,9 @@ const filteredData = useMemo(() => {
           key={field}
           style={{ 
             verticalAlign: "middle",
-            fontSize: "12px"
+            fontSize: "12px",
+            textAlign: ['Costing Date', 'Vendor Details'].includes(field as string) ? "left" : 
+                      ['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field as string) ? "right" : "center"
           }}
         >
           {field}
@@ -1345,7 +1347,10 @@ const filteredData = useMemo(() => {
                   </td>
 {defaultVisibleFields.map(field => (
   <td key={field} style={{ 
-    fontSize: "12px"
+    verticalAlign: "middle",
+    fontSize: "12px",
+    textAlign: ['Costing Date', 'Vendor Details'].includes(field as string) ? "left" : 
+              ['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field as string) ? "right" : "center"
   }}>
     {editingMode && editingRow === index && editingField === field ? (
       <div className="edit-container">
