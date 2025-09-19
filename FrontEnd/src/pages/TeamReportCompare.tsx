@@ -5847,7 +5847,7 @@ const TeamReportCompare: React.FC = () => {
                     );
 
                   })}
-
+                  
                   
                   
                   <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: '10px' }}>
@@ -5887,7 +5887,7 @@ const TeamReportCompare: React.FC = () => {
                     })()}
 
                   </td>
-
+                  
                   
                   
                   <td style={{ padding: '6px 8px', textAlign: 'center', fontSize: '10px' }}>
