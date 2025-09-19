@@ -4168,11 +4168,11 @@ const TeamReportCompare: React.FC = () => {
 
       </style>
 
-      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem 0 2rem' }}>
+      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.5rem 2rem 0 2rem' }}>
 
-        <div className="homepage-logo-top-left" style={{ transform: 'scale(1.2)', marginTop: '10px' }}>
+        <div className="homepage-logo-top-left" style={{ transform: 'scale(0.8)' }}>
 
-          <img src={logo} alt="Alchemy Logo" style={{ height: '80px', maxWidth: '160px' }} />
+          <img src={logo} alt="Alchemy Logo" style={{ height: '60px', maxWidth: '120px' }} />
 
         </div>
 
@@ -4232,7 +4232,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "2rem 8px 8px 8px" }}>
+      <div style={{ margin: "3rem 8px 8px 8px" }}>
 
         {/* Filters Section */}
   <div style={{ 
@@ -4738,13 +4738,13 @@ const TeamReportCompare: React.FC = () => {
       {data.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           {/* KPI Dashboard Header */}
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 16 }}>
             <div style={{ 
               backgroundColor: '#000000', 
               color: '#ffffff', 
-              padding: '12px 20px', 
+              padding: '8px 16px', 
               borderRadius: 4, 
-              fontSize: 18, 
+              fontSize: 12, 
               fontWeight: 700,
               display: 'inline-block',
               marginBottom: 8
@@ -4787,7 +4787,7 @@ const TeamReportCompare: React.FC = () => {
                   <div key={kpiName} style={{
                     backgroundColor: '#ffffff',
                     borderRadius: 8,
-                    padding: 20,
+                    padding: 12,
                     border: '1px solid #d9d9d9',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                     position: 'relative'
@@ -4799,7 +4799,7 @@ const TeamReportCompare: React.FC = () => {
                         color: '#ffffff', 
                         padding: '6px 12px', 
                         borderRadius: 4, 
-                        fontSize: 12, 
+                        fontSize: 10, 
                         fontWeight: 600,
                         display: 'inline-block',
                         marginBottom: 4
@@ -4840,7 +4840,7 @@ const TeamReportCompare: React.FC = () => {
 
                     {/* Main Growth Percentage */}
                     <div style={{ 
-                      fontSize: 28, 
+                      fontSize: 16, 
                       fontWeight: 700, 
                       color: '#4ade80', 
                       marginBottom: 8,
@@ -4862,7 +4862,7 @@ const TeamReportCompare: React.FC = () => {
 
                     {/* vs FY 2024 */}
                     <div style={{ 
-                      fontSize: 12, 
+                      fontSize: 10, 
                       color: '#666666', 
                       marginBottom: 20,
                       textAlign: 'center'
@@ -4886,7 +4886,7 @@ const TeamReportCompare: React.FC = () => {
 
                     {/* Current FY Value */}
                     <div style={{ 
-                      fontSize: 20, 
+                      fontSize: 16, 
                       fontWeight: 700, 
                       color: '#333333', 
                       marginBottom: 4
@@ -4894,22 +4894,16 @@ const TeamReportCompare: React.FC = () => {
                       {formatValue(kpi.currentFY)}
                     </div>
 
-                    {/* FY 2025 Projected */}
+                    {/* FY Projected and Actual on same row */}
                     <div style={{ 
-                      fontSize: 12, 
+                      fontSize: 10, 
                       color: '#666666', 
-                      marginBottom: 2
+                      marginBottom: 16,
+                      display: 'flex',
+                      justifyContent: 'space-between'
                     }}>
-                      FY 2025 (Projected)
-                    </div>
-
-                    {/* Previous FY Actual */}
-                    <div style={{ 
-                      fontSize: 12, 
-                      color: '#666666', 
-                      marginBottom: 16
-                    }}>
-                      {formatValue(kpi.previousFY)} Actual
+                      <span>FY 2025 (Projected)</span>
+                      <span>{formatValue(kpi.previousFY)} Actual</span>
                     </div>
 
                     {/* Positive Trend */}
@@ -4926,7 +4920,7 @@ const TeamReportCompare: React.FC = () => {
                         backgroundColor: '#4ade80'
                       }} />
                       <div style={{ 
-                        fontSize: 12, 
+                        fontSize: 10, 
                         color: '#666666'
                       }}>
                         Positive Trend
@@ -4953,7 +4947,7 @@ const TeamReportCompare: React.FC = () => {
 
                     {/* Months Completed */}
                     <div style={{ 
-                      fontSize: 11, 
+                      fontSize: 10, 
                       color: '#666666',
                       textAlign: 'center'
                     }}>
