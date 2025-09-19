@@ -238,75 +238,13 @@ body, html {
     border-right: 2px solid #e0e0e0;
   }
   
-  /* Force alignment with maximum specificity to override global styles - only for routing table page */
-  .routing-table-page .routing-table th:nth-child(2) { text-align: left !important; }
-  .routing-table-page .routing-table th:nth-child(3) { text-align: left !important; }
-  .routing-table-page .routing-table th:nth-child(4) { text-align: right !important; }
-  .routing-table-page .routing-table th:nth-child(5) { text-align: right !important; }
-  .routing-table-page .routing-table th:nth-child(6) { text-align: right !important; }
-  .routing-table-page .routing-table th:nth-child(7) { text-align: right !important; }
-  
-  .routing-table-page .routing-table td:nth-child(2) { text-align: left !important; }
-  .routing-table-page .routing-table td:nth-child(3) { text-align: left !important; }
-  .routing-table-page .routing-table td:nth-child(4) { text-align: right !important; }
-  .routing-table-page .routing-table td:nth-child(5) { text-align: right !important; }
-  .routing-table-page .routing-table td:nth-child(6) { text-align: right !important; }
-  .routing-table-page .routing-table td:nth-child(7) { text-align: right !important; }
-  
-  /* CSS-in-JS style overrides with maximum specificity */
-  .routing-table-page .routing-table th[data-field="Costing Date"] { text-align: left !important; }
-  .routing-table-page .routing-table th[data-field="Vendor Details"] { text-align: left !important; }
-  .routing-table-page .routing-table th[data-field="Alchemy Billing Value"] { text-align: right !important; }
-  .routing-table-page .routing-table th[data-field="Integrator Charges (Margin)"] { text-align: right !important; }
-  .routing-table-page .routing-table th[data-field="Funding cost"] { text-align: right !important; }
-  .routing-table-page .routing-table th[data-field="Net Margin"] { text-align: right !important; }
-  
-  .routing-table-page .routing-table td[data-field="Costing Date"] { text-align: left !important; }
-  .routing-table-page .routing-table td[data-field="Vendor Details"] { text-align: left !important; }
-  .routing-table-page .routing-table td[data-field="Alchemy Billing Value"] { text-align: right !important; }
-  .routing-table-page .routing-table td[data-field="Integrator Charges (Margin)"] { text-align: right !important; }
-  .routing-table-page .routing-table td[data-field="Funding cost"] { text-align: right !important; }
-  .routing-table-page .routing-table td[data-field="Net Margin"] { text-align: right !important; }
-  
-  /* CSS Custom Properties override */
-  .routing-table-page {
-    --costing-date-align: left;
-    --vendor-details-align: left;
-    --alchemy-billing-align: right;
-    --integrator-charges-align: right;
-    --funding-cost-align: right;
-    --net-margin-align: right;
-  }
-  
-  .routing-table-page .routing-table th[data-field="Costing Date"],
-  .routing-table-page .routing-table td[data-field="Costing Date"] {
-    text-align: var(--costing-date-align) !important;
-  }
-  
-  .routing-table-page .routing-table th[data-field="Vendor Details"],
-  .routing-table-page .routing-table td[data-field="Vendor Details"] {
-    text-align: var(--vendor-details-align) !important;
-  }
-  
-  .routing-table-page .routing-table th[data-field="Alchemy Billing Value"],
-  .routing-table-page .routing-table td[data-field="Alchemy Billing Value"] {
-    text-align: var(--alchemy-billing-align) !important;
-  }
-  
-  .routing-table-page .routing-table th[data-field="Integrator Charges (Margin)"],
-  .routing-table-page .routing-table td[data-field="Integrator Charges (Margin)"] {
-    text-align: var(--integrator-charges-align) !important;
-  }
-  
-  .routing-table-page .routing-table th[data-field="Funding cost"],
-  .routing-table-page .routing-table td[data-field="Funding cost"] {
-    text-align: var(--funding-cost-align) !important;
-  }
-  
-  .routing-table-page .routing-table th[data-field="Net Margin"],
-  .routing-table-page .routing-table td[data-field="Net Margin"] {
-    text-align: var(--net-margin-align) !important;
-  }
+  /* Simple, clean alignment for table data */
+  .routing-table td:nth-child(2) { text-align: left !important; } /* Costing Date */
+  .routing-table td:nth-child(3) { text-align: left !important; } /* Vendor Details */
+  .routing-table td:nth-child(4) { text-align: right !important; } /* Alchemy Billing Value */
+  .routing-table td:nth-child(5) { text-align: right !important; } /* Integrator Charges */
+  .routing-table td:nth-child(6) { text-align: right !important; } /* Funding cost */
+  .routing-table td:nth-child(7) { text-align: right !important; } /* Net Margin */
   
   .routing-table tbody tr {
     background-color: #e8f4f8 !important;

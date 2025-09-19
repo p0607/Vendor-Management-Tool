@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import './RoutingTable.css';
-import styles from './RoutingTable.module.css';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -258,62 +257,6 @@ const RoutingTable: React.FC = () => {
     };
   }, []);
 
-  // Force alignment using DOM manipulation with debugging
-  useEffect(() => {
-    const forceAlignment = () => {
-      console.log('🔧 Forcing table alignment...');
-      
-      // Force header alignment
-      const headers = document.querySelectorAll('.routing-table th[data-field]');
-      console.log(`Found ${headers.length} headers`);
-      
-      headers.forEach((header, index) => {
-        const field = header.getAttribute('data-field');
-        const element = header as HTMLElement;
-        
-        console.log(`Header ${index}: ${field}`);
-        
-        if (['Costing Date', 'Vendor Details'].includes(field || '')) {
-          element.style.setProperty('text-align', 'left', 'important');
-          console.log(`✅ Set ${field} header to LEFT`);
-        } else if (['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field || '')) {
-          element.style.setProperty('text-align', 'right', 'important');
-          console.log(`✅ Set ${field} header to RIGHT`);
-        }
-      });
-
-      // Force data cell alignment
-      const dataCells = document.querySelectorAll('.routing-table td[data-field]');
-      console.log(`Found ${dataCells.length} data cells`);
-      
-      dataCells.forEach((cell, index) => {
-        const field = cell.getAttribute('data-field');
-        const element = cell as HTMLElement;
-        
-        if (['Costing Date', 'Vendor Details'].includes(field || '')) {
-          element.style.setProperty('text-align', 'left', 'important');
-          if (index < 5) console.log(`✅ Set ${field} data cell to LEFT`);
-        } else if (['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field || '')) {
-          element.style.setProperty('text-align', 'right', 'important');
-          if (index < 5) console.log(`✅ Set ${field} data cell to RIGHT`);
-        }
-      });
-      
-      console.log('🎯 Alignment forcing complete!');
-    };
-
-    // Run immediately and after delays to ensure DOM is ready
-    forceAlignment();
-    const timeoutId1 = setTimeout(forceAlignment, 100);
-    const timeoutId2 = setTimeout(forceAlignment, 500);
-    const timeoutId3 = setTimeout(forceAlignment, 1000);
-    
-    return () => {
-      clearTimeout(timeoutId1);
-      clearTimeout(timeoutId2);
-      clearTimeout(timeoutId3);
-    };
-  }, [visibleRoutingTable, editingMode]);
   // Define default visible fields (first 7 fields, excluding id)
   const defaultVisibleFields: (keyof RoutingTableItem)[] = [
     'Costing Date',
@@ -1244,7 +1187,7 @@ const filteredData = useMemo(() => {
   if (routingTable.length === 0) return <div className="empty">No records found</div>;
 
   return (
-    <div className="homepage routing-table-page">
+    <div className="homepage">
       <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '2rem 2rem 0 2rem' }}>
         <div className="logo">
           <img src={logo} alt="Alchemy Logo" />
@@ -1358,7 +1301,7 @@ const filteredData = useMemo(() => {
           </div>
         </div>
         
-        <table className="routing-table" style={{ textAlign: 'initial', all: 'initial' }}>
+        <table className="routing-table">
           <thead>
     <tr>
        <th style={{ width: "40px", textAlign: "left", verticalAlign: "middle" }}>
@@ -1370,28 +1313,9 @@ const filteredData = useMemo(() => {
                 />
       </th>
       {defaultVisibleFields.map(field => (
-        <th
-          key={field}
-          data-field={field}
-          className={`${styles.header} ${
-            field === 'Costing Date' ? styles.costingDateHeader :
-            field === 'Vendor Details' ? styles.vendorDetailsHeader :
-            field === 'Alchemy Billing Value' ? styles.alchemyBillingHeader :
-            field === 'Integrator Charges (Margin)' ? styles.integratorChargesHeader :
-            field === 'Funding cost' ? styles.fundingCostHeader :
-            field === 'Net Margin' ? styles.netMarginHeader : ''
-          }`}
-          style={{ 
-            verticalAlign: "middle",
-            fontSize: "12px",
-            textAlign: ['Costing Date', 'Vendor Details'].includes(field as string) ? "left" : 
-                      ['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field as string) ? "right" : "center"
-          }}
-          dangerouslySetInnerHTML={{
-            __html: `<span style="text-align: ${['Costing Date', 'Vendor Details'].includes(field as string) ? 'left' : 
-                      ['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field as string) ? 'right' : 'center'} !important; display: block;">${field}</span>`
-          }}
-        />
+        <th key={field}>
+          {field}
+        </th>
       ))}
       <th style={{ textAlign: "left", verticalAlign: "middle" }}>
         <button 
@@ -1415,19 +1339,7 @@ const filteredData = useMemo(() => {
                     />
                   </td>
 {defaultVisibleFields.map(field => (
-  <td key={field} data-field={field} className={`${styles.dataCell} ${
-    field === 'Costing Date' ? styles.costingDateData :
-    field === 'Vendor Details' ? styles.vendorDetailsData :
-    field === 'Alchemy Billing Value' ? styles.alchemyBillingData :
-    field === 'Integrator Charges (Margin)' ? styles.integratorChargesData :
-    field === 'Funding cost' ? styles.fundingCostData :
-    field === 'Net Margin' ? styles.netMarginData : ''
-  }`} style={{ 
-    verticalAlign: "middle",
-    fontSize: "12px",
-    textAlign: ['Costing Date', 'Vendor Details'].includes(field as string) ? "left" : 
-              ['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field as string) ? "right" : "center"
-  }}>
+  <td key={field}>
     {editingMode && editingRow === index && editingField === field ? (
       <div className="edit-container">
         <input
