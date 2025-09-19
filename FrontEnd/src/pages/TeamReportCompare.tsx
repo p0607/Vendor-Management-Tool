@@ -4112,15 +4112,67 @@ const TeamReportCompare: React.FC = () => {
 
           }
 
+          .ant-select {
+
+            font-size: 10px !important;
+
+          }
+
+          .ant-select-selector {
+
+            height: 28px !important;
+
+            min-height: 28px !important;
+
+          }
+
+          .ant-select-selection-item {
+
+            font-size: 10px !important;
+
+            line-height: 26px !important;
+
+          }
+
+          .ant-select-selection-placeholder {
+
+            font-size: 10px !important;
+
+            line-height: 26px !important;
+
+          }
+
+          .ant-input {
+
+            height: 28px !important;
+
+            font-size: 10px !important;
+
+          }
+
+          .ant-select-dropdown {
+
+            font-size: 10px !important;
+
+          }
+
+          .ant-select-item {
+
+            font-size: 10px !important;
+
+            padding: 4px 8px !important;
+
+          }
+
         `}
 
       </style>
 
-      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.5rem 2rem 0 2rem' }}>
+      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem 0 2rem' }}>
 
-        <div className="homepage-logo-top-left" style={{ transform: 'scale(0.8)' }}>
+        <div className="homepage-logo-top-left" style={{ transform: 'scale(1.2)', marginTop: '10px' }}>
 
-          <img src={logo} alt="Alchemy Logo" style={{ height: '60px', maxWidth: '120px' }} />
+          <img src={logo} alt="Alchemy Logo" style={{ height: '80px', maxWidth: '160px' }} />
 
         </div>
 
@@ -4180,7 +4232,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "0.5rem 8px 8px 8px" }}>
+      <div style={{ margin: "2rem 8px 8px 8px" }}>
 
         {/* Filters Section */}
   <div style={{ 
@@ -4189,7 +4241,7 @@ const TeamReportCompare: React.FC = () => {
           gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
           gap: 12,
           marginBottom: 16,
-          padding: 12,
+          padding: 8,
           backgroundColor: '#f8f9fa',
           borderRadius: 8,
           border: '1px solid #e9ecef'
