@@ -176,7 +176,7 @@ const BUSINESS_UNIT_OPTIONS = [
                 <input type="number" name="salary_cost" value={formData.salary_cost} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Sales</label>
+                <label>Revenue</label>
                 <input type="number" name="sales" value={formData.sales} onChange={handleChange} />
               </div>
               <div className="form-group">

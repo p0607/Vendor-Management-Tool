@@ -32,7 +32,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   data = [],
   availableParameters: propAvailableParameters = []
 }) => {
-  const [selectedParameter, setSelectedParameter] = useState<string>('Sales');
+  const [selectedParameter, setSelectedParameter] = useState<string>('Revenue');
   const [selectedTimeline, setSelectedTimeline] = useState<string>('month');
   const [selectedBusinessUnitFilter, setSelectedBusinessUnitFilter] = useState<string>('all');
   const [databaseData, setDatabaseData] = useState<any[]>([]);
@@ -40,7 +40,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
 
   // Use parameters from props or fallback to default
   const availableParameters = propAvailableParameters.length > 0 ? propAvailableParameters : [
-    'Sales', 
+    'Revenue', 
     'GPM', 
     'NP', 
     'Team Cost',
@@ -364,7 +364,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       
       // Map parameter names to database field names
       const parameterMapping: { [key: string]: string[] } = {
-        'Sales': ['sales', 'amount', 'revenue'],
+        'Revenue': ['sales', 'amount', 'revenue'],
         'GPM': ['gpm', 'gross_profit_margin'],
         'NP': ['np', 'net_profit', 'net_margin'],
         'Team Cost': ['team_cost', 'teamcost', 'teamCost'],

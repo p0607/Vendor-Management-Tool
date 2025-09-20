@@ -352,7 +352,7 @@ const TeamReportCompare: React.FC = () => {
       };
 
       return {
-        Sales: calculateParameterRaw('sales'),
+        Revenue: calculateParameterRaw('sales'),
         GPM: calculateParameterRaw('gpm'),
         'Team Cost': calculateParameterRaw('team_cost'),
         NP: calculateParameterRaw('np'),
@@ -471,7 +471,7 @@ const TeamReportCompare: React.FC = () => {
     };
 
     return {
-      Sales: calculateParameterRaw('sales'),
+      Revenue: calculateParameterRaw('sales'),
       GPM: calculateParameterRaw('gpm'),
       'Team Cost': calculateParameterRaw('team_cost'),
       NP: calculateParameterRaw('np'),
@@ -492,6 +492,8 @@ const TeamReportCompare: React.FC = () => {
     monthsCompleted: number;
     monthsRemaining: number;
     period: string;
+    currentFYActual: number;
+    projectedAmount: number;
   }> => {
     if (!data || data.length === 0) return {};
 
@@ -547,12 +549,14 @@ const TeamReportCompare: React.FC = () => {
           isPositive: growthPercentage >= 0,
           monthsCompleted: currentQuarterMonths.length,
           monthsRemaining: 0,
-          period: `${currentQuarter} vs ${previousQuarter}`
+          period: `${currentQuarter} vs ${previousQuarter}`,
+          currentFYActual: currentValue,
+          projectedAmount: 0
         };
       };
 
       return {
-        Sales: calculateParameterKPI('sales'),
+        Revenue: calculateParameterKPI('sales'),
         GPM: calculateParameterKPI('gpm'),
         'Team Cost': calculateParameterKPI('team_cost'),
         NP: calculateParameterKPI('np'),
@@ -653,6 +657,8 @@ const TeamReportCompare: React.FC = () => {
         calculation: `(${previousFYTotal} - ${currentFYProjected}) / ${currentFYProjected} * 100 = ${growthPercentage}%`
       });
 
+      const projectedAmount = currentFYProjected - currentFYActual;
+
       return {
         currentFY: currentFYProjected,
         previousFY: previousFYTotal,
@@ -660,12 +666,14 @@ const TeamReportCompare: React.FC = () => {
         isPositive: growthPercentage >= 0,
         monthsCompleted,
         monthsRemaining,
-        period: `FY ${currentFY} vs FY ${previousFY}`
+        period: `FY ${currentFY} vs FY ${previousFY}`,
+        currentFYActual,
+        projectedAmount
       };
     };
 
     return {
-      Sales: calculateParameterKPI('sales'),
+      Revenue: calculateParameterKPI('sales'),
       GPM: calculateParameterKPI('gpm'),
       'Team Cost': calculateParameterKPI('team_cost'),
       NP: calculateParameterKPI('np'),
@@ -726,7 +734,7 @@ const TeamReportCompare: React.FC = () => {
   const [selectedParameters, setSelectedParameters] = useState<string[]>(() => {
 
     // Force default parameters
-    const defaultParams = ['Sales', 'GPM', 'NP', 'Team Cost'];
+    const defaultParams = ['Revenue', 'GPM', 'NP', 'Team Cost'];
     console.log("🔍 Force using default parameters:", defaultParams);
     return defaultParams;
   });
@@ -751,6 +759,20 @@ const TeamReportCompare: React.FC = () => {
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
   const [showAllParameters, setShowAllParameters] = useState(false);
+
+  // Crore/Lakh toggle state
+  const [isCroreMode, setIsCroreMode] = useState(true);
+
+  // Utility function to format values based on toggle
+  const formatValueWithToggle = (value: number, isLargeValue: boolean = true) => {
+    if (!isLargeValue) return value.toFixed(0);
+    
+    if (isCroreMode) {
+      return `${(value / 10000000).toFixed(1)}Cr`;
+    } else {
+      return `${(value / 100000).toFixed(1)}L`;
+    }
+  };
 
   // Chart tab visibility state
   const [activeChartTab, setActiveChartTab] = useState<string>('none');
@@ -1717,7 +1739,7 @@ const TeamReportCompare: React.FC = () => {
 
       'Salary Cost',
 
-      'Sales',
+      'Revenue',
 
       'GPM',
 
@@ -2522,7 +2544,7 @@ const TeamReportCompare: React.FC = () => {
 
                   switch (parameter) {
 
-                    case 'Sales': value = item.sales || 0; break;
+                    case 'Revenue': value = item.sales || 0; break;
 
                     case 'GPM': value = item.gpm || 0; break;
 
@@ -2700,7 +2722,7 @@ const TeamReportCompare: React.FC = () => {
 
         switch (parameter) {
 
-          case 'Sales': value = item.sales || 0; break;
+          case 'Revenue': value = item.sales || 0; break;
 
           case 'GPM': value = item.gpm || 0; break;
 
@@ -2975,7 +2997,7 @@ const TeamReportCompare: React.FC = () => {
 
                   switch (param) {
 
-                    case 'Sales': value = item.sales || 0; break;
+                    case 'Revenue': value = item.sales || 0; break;
 
                     case 'GPM': value = item.gpm || 0; break;
 
@@ -3079,7 +3101,7 @@ const TeamReportCompare: React.FC = () => {
 
               switch (param) {
 
-                case 'Sales': value = item.sales || 0; break;
+                case 'Revenue': value = item.sales || 0; break;
 
                 case 'GPM': value = item.gpm || 0; break;
 
@@ -3182,7 +3204,7 @@ const TeamReportCompare: React.FC = () => {
       // Map parameter names to raw data keys
       let dataKey = '';
       switch (parameter) {
-        case 'Sales': dataKey = 'Sales'; break;
+        case 'Revenue': dataKey = 'Revenue'; break;
         case 'GPM': dataKey = 'GPM'; break;
         case 'GPM %': dataKey = 'GPM'; break; // Use same data for percentage
         case 'NP': dataKey = 'NP'; break;
@@ -3476,7 +3498,7 @@ const TeamReportCompare: React.FC = () => {
 
       // Helper function to get format for parameter (now showing actual values)
       const getParameterFormat = (param: string) => {
-        if (param === 'Sales' || param === 'GPM' || param === 'NP' || param === 'Team Cost' || 
+        if (param === 'Revenue' || param === 'GPM' || param === 'NP' || param === 'Team Cost' || 
             param === 'Salary Cost' || param === 'Opr Cost' || param === 'Funding Cost' || 
             param === 'Leave Encashment') {
           return {
@@ -4437,32 +4459,51 @@ const TeamReportCompare: React.FC = () => {
 
         }}>MFS Comparison</h2>
 
-        <div className="auth-buttons-container">
+        <div className="auth-buttons-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
 
-          <Dropdown
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Dropdown
 
-            menu={{ items: actionDropdownItems }}
+              menu={{ items: actionDropdownItems }}
 
-            trigger={['click']}
+              trigger={['click']}
 
-            open={isActionDropdownOpen}
+              open={isActionDropdownOpen}
 
-            onOpenChange={setIsActionDropdownOpen}
+              onOpenChange={setIsActionDropdownOpen}
 
-          >
+            >
 
-            <button className="auth-button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button className="auth-button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 
-              Actions <DownOutlined />
+                Actions <DownOutlined />
+
+              </button>
+
+            </Dropdown>
+
+            <button className="auth-button" onClick={() => navigate('/HomePage')}>
+
+              Home
 
             </button>
+          </div>
 
-          </Dropdown>
-
-          <button className="auth-button" onClick={() => navigate('/HomePage')}>
-
-            Home
-
+          {/* Crore/Lakh Toggle Button */}
+          <button 
+            onClick={() => setIsCroreMode(!isCroreMode)}
+            style={{
+              padding: '4px 8px',
+              fontSize: '10px',
+              backgroundColor: isCroreMode ? '#1890ff' : '#52c41a',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
+          >
+            {isCroreMode ? 'Crore' : 'Lakh'}
           </button>
 
         </div>
@@ -5007,7 +5048,7 @@ const TeamReportCompare: React.FC = () => {
           }}>
             {(() => {
               const kpis = calculateKPIs();
-              const mainKPIs = ['Sales', 'GPM', 'Team Cost', 'NP'];
+              const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP'];
               const additionalKPIs = ['HC', 'Salary Cost', 'OPR Cost', 'Funding Cost', 'Leave Encashment'];
               const displayKPIs = showAllKPIs ? [...mainKPIs, ...additionalKPIs] : mainKPIs;
               
@@ -5016,9 +5057,9 @@ const TeamReportCompare: React.FC = () => {
                 if (!kpi) return null;
                 
                 const formatValue = (value: number) => {
-                  if (kpiName === 'Sales' || kpiName === 'GPM' || kpiName === 'Team Cost' || kpiName === 'NP' || 
+                  if (kpiName === 'Revenue' || kpiName === 'GPM' || kpiName === 'Team Cost' || kpiName === 'NP' || 
                       kpiName === 'Salary Cost' || kpiName === 'OPR Cost' || kpiName === 'Funding Cost' || kpiName === 'Leave Encashment') {
-                    return `${(value / 100000).toFixed(1)}L`;
+                    return formatValueWithToggle(value, true);
                   }
                   return value.toFixed(0);
                 };
@@ -5039,7 +5080,7 @@ const TeamReportCompare: React.FC = () => {
                         color: '#ffffff', 
                         padding: '4px 8px', 
                         borderRadius: 4, 
-                        fontSize: 8, 
+                        fontSize: 12, 
                         fontWeight: 600,
                         display: 'inline-block',
                         marginBottom: 2
@@ -5136,7 +5177,7 @@ const TeamReportCompare: React.FC = () => {
 
                     {/* FY Projected and Actual on same row */}
                     <div style={{ 
-                      fontSize: 8, 
+                      fontSize: 10, 
                       color: '#666666', 
                       marginBottom: 8,
                       display: 'flex',
@@ -5146,12 +5187,12 @@ const TeamReportCompare: React.FC = () => {
                       <span>{formatValue(kpi.previousFY)} Actual</span>
                     </div>
 
-                    {/* Positive Trend */}
+                    {/* Projection Details */}
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
-                      marginBottom: 12
+                      marginBottom: 8
                     }}>
                       <div style={{ 
                         width: 8, 
@@ -5163,9 +5204,22 @@ const TeamReportCompare: React.FC = () => {
                         fontSize: 8, 
                         color: '#666666'
                       }}>
-                        Positive Trend
+                        {kpi.monthsRemaining > 0 ? `Projected for ${kpi.monthsRemaining} months` : 'Full year data'}
                       </div>
                     </div>
+
+                    {/* Original vs Projected Breakdown */}
+                    {kpi.monthsRemaining > 0 && (
+                      <div style={{ 
+                        fontSize: 8, 
+                        color: '#666666',
+                        marginBottom: 8,
+                        lineHeight: '1.2'
+                      }}>
+                        <div>Actual: {formatValue(kpi.currentFYActual)}</div>
+                        <div>+ Projected: {formatValue(kpi.projectedAmount)}</div>
+                      </div>
+                    )}
 
                     {/* Progress Bar */}
                     <div style={{ marginBottom: 4 }}>
@@ -5867,7 +5921,7 @@ const TeamReportCompare: React.FC = () => {
 
         teamCost: periodData.find(i => i.parameter === "Team Cost")?.amount || 0,
 
-        revenue: periodData.find(i => i.parameter === "Sales")?.amount || 0,
+        revenue: periodData.find(i => i.parameter === "Revenue")?.amount || 0,
 
         gpm: periodData.find(i => i.parameter === "GPM")?.amount || 0,
 
@@ -5901,7 +5955,7 @@ const TeamReportCompare: React.FC = () => {
 
       {
 
-        name: "Sales per HC",
+        name: "Revenue per HC",
 
         calculate: (m: typeof metrics[0]) => m.revenue / (m.hc || 1),
 
@@ -5925,7 +5979,7 @@ const TeamReportCompare: React.FC = () => {
 
       {
 
-        name: "Team Cost % of Sales",
+        name: "Team Cost % of Revenue",
 
         calculate: (m: typeof metrics[0]) => (m.teamCost / (m.revenue || 1)) * 100,
 
@@ -5945,6 +5999,18 @@ const TeamReportCompare: React.FC = () => {
 
         unit: '%'
 
+      },
+
+      {
+
+        name: "NP per HC",
+
+        calculate: (m: typeof metrics[0]) => m.netMargin / (m.hc || 1),
+
+        ideal: 'increase',
+
+        unit: ''
+
       }
 
     ];
@@ -5961,7 +6027,7 @@ const TeamReportCompare: React.FC = () => {
 
   display: 'grid',
 
-  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',  // Increased from 220px to 280px
+  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',  // Reduced to fit 6 metrics in one row
 
   gap: 8,  // Reduced gap from 16px to 8px
 
@@ -6035,7 +6101,7 @@ const TeamReportCompare: React.FC = () => {
 
         }}>
 
-          {metric.name === "Sales per HC" 
+          {metric.name === "Revenue per HC" 
 
             ? `${currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
@@ -6151,7 +6217,7 @@ const TeamReportCompare: React.FC = () => {
 
                         <div style={{ color: '#000000' }}>
 
-                          {metric.name === "Sales per HC" 
+                          {metric.name === "Revenue per HC" 
 
                             ? `${value.toFixed(2)}`
 
@@ -6173,7 +6239,7 @@ const TeamReportCompare: React.FC = () => {
 
                             {isPositive ? '+' : ''}
 
-                            {metric.name === "Sales per HC" 
+                            {metric.name === "Revenue per HC" 
 
                               ? `${change.toFixed(2)}`
 
@@ -6215,7 +6281,7 @@ const TeamReportCompare: React.FC = () => {
 
                           {isPositive ? '+' : ''}
 
-                          {metric.name === "Sales per HC" 
+                          {metric.name === "Revenue per HC" 
 
                             ? `${change.toFixed(2)}`
 
@@ -6365,7 +6431,7 @@ const TeamReportCompare: React.FC = () => {
 
                           {isPositive ? '+' : ''}
 
-                          {def.name === "Sales per HC" 
+                          {def.name === "Revenue per HC" 
 
                             ? `${change.toFixed(2)}`
 
@@ -6662,7 +6728,5 @@ const TeamReportCompare: React.FC = () => {
   );
 
 };
-
-
 
 export default TeamReportCompare;
