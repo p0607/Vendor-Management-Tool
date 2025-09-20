@@ -257,6 +257,232 @@ const TeamReportCompare: React.FC = () => {
     return null;
   };
 
+  // Calculate raw database values for Growth Analysis Report (no projections)
+  const calculateRawDatabaseValues = (): Record<string, {
+    currentFY: number;
+    previousFY: number;
+    growthPercentage: number;
+    isPositive: boolean;
+    period: string;
+  }> => {
+    if (!data || data.length === 0) return {};
+
+    // If comparing by quarters and we have selected quarters
+    if (compareType === 'quarter' && comparisonValues.some(v => v)) {
+      const currentQuarter = comparisonValues[0];
+      const previousQuarter = comparisonValues[1];
+      
+      if (!currentQuarter || !previousQuarter) return {};
+
+      const currentQuarterMonths = getQuarterMonths(currentQuarter);
+      const previousQuarterMonths = getQuarterMonths(previousQuarter);
+      
+      // Extract years from quarter strings
+      const currentYearMatch = currentQuarter.match(/(\d{4})/);
+      const previousYearMatch = previousQuarter.match(/(\d{4})/);
+      
+      if (!currentYearMatch || !previousYearMatch) return {};
+      
+      const currentYear = parseInt(currentYearMatch[1]);
+      const previousYear = parseInt(previousYearMatch[1]);
+
+      // Filter data for current quarter
+      const currentQuarterData = data.filter(item => {
+        const itemDate = new Date(item.month);
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        
+        return itemYear === currentYear && currentQuarterMonths.includes(itemMonth);
+      });
+
+      // Filter data for previous quarter
+      const previousQuarterData = data.filter(item => {
+        const itemDate = new Date(item.month);
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        
+        return itemYear === previousYear && previousQuarterMonths.includes(itemMonth);
+      });
+
+      const calculateParameterRaw = (parameter: string) => {
+        let currentValue, previousValue;
+
+        // Special handling for HC - use last month's value instead of sum
+        if (parameter === 'hc') {
+          // For current quarter: get the last month's HC value
+          if (currentQuarterData.length > 0) {
+            const lastMonthCurrent = currentQuarterData.reduce((latest, item) => {
+              const itemDate = new Date(item.month);
+              const latestDate = new Date(latest.month);
+              return itemDate > latestDate ? item : latest;
+            });
+            currentValue = lastMonthCurrent.hc || 0;
+          } else {
+            currentValue = 0;
+          }
+
+          // For previous quarter: get the last month's HC value
+          if (previousQuarterData.length > 0) {
+            const lastMonthPrevious = previousQuarterData.reduce((latest, item) => {
+              const itemDate = new Date(item.month);
+              const latestDate = new Date(latest.month);
+              return itemDate > latestDate ? item : latest;
+            });
+            previousValue = lastMonthPrevious.hc || 0;
+          } else {
+            previousValue = 0;
+          }
+        } else {
+          // For all other parameters: sum all months
+          currentValue = currentQuarterData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+          previousValue = previousQuarterData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        }
+
+        const growthPercentage = previousValue > 0 
+          ? ((currentValue - previousValue) / previousValue) * 100 
+          : 0;
+
+        return {
+          currentFY: currentValue,
+          previousFY: previousValue,
+          growthPercentage,
+          isPositive: growthPercentage >= 0,
+          period: `${currentQuarter} vs ${previousQuarter}`
+        };
+      };
+
+      return {
+        Sales: calculateParameterRaw('sales'),
+        GPM: calculateParameterRaw('gpm'),
+        'Team Cost': calculateParameterRaw('team_cost'),
+        NP: calculateParameterRaw('np'),
+        HC: calculateParameterRaw('hc'),
+        'Salary Cost': calculateParameterRaw('salary_cost'),
+        'Opr Cost': calculateParameterRaw('opr_cost'),
+        'Funding Cost': calculateParameterRaw('funding_cost'),
+        'Leave Encashment': calculateParameterRaw('leave_encashment')
+      };
+    }
+
+    // Default financial year calculation
+    let currentFY = getCurrentFinancialYear();
+    let previousFY = currentFY - 1;
+    
+    // If we have comparison values set, use them
+    if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
+      const currentFYMatch = comparisonValues[0].match(/FY (\d{4})/);
+      const previousFYMatch = comparisonValues[1].match(/FY (\d{4})/);
+      
+      if (currentFYMatch) currentFY = parseInt(currentFYMatch[1]);
+      if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
+    }
+
+    // Filter data for current and previous financial years
+    const currentFYData = data.filter(item => {
+      const itemDate = new Date(item.month);
+      const itemYear = itemDate.getFullYear();
+      const itemMonth = itemDate.getMonth() + 1;
+      
+      // Check if item belongs to current financial year
+      if (itemMonth >= 4) {
+        return itemYear === currentFY;
+      } else {
+        return itemYear === currentFY + 1;
+      }
+    });
+
+    const previousFYData = data.filter(item => {
+      const itemDate = new Date(item.month);
+      const itemYear = itemDate.getFullYear();
+      const itemMonth = itemDate.getMonth() + 1;
+      
+      // Check if item belongs to previous financial year
+      if (itemMonth >= 4) {
+        return itemYear === previousFY;
+      } else {
+        return itemYear === previousFY + 1;
+      }
+    });
+
+    const calculateParameterRaw = (parameter: string) => {
+      let currentFYActual, previousFYTotal;
+
+      // Special handling for HC - use last month's value instead of sum
+      if (parameter === 'hc') {
+        // For current FY: get the last month's HC value
+        if (currentFYData.length > 0) {
+          const lastMonthCurrent = currentFYData.reduce((latest, item) => {
+            const itemDate = new Date(item.month);
+            const latestDate = new Date(latest.month);
+            return itemDate > latestDate ? item : latest;
+          });
+          currentFYActual = lastMonthCurrent.hc || 0;
+        } else {
+          currentFYActual = 0;
+        }
+
+        // For previous FY: get the last month's HC value (should be March)
+        if (previousFYData.length > 0) {
+          const lastMonthPrevious = previousFYData.reduce((latest, item) => {
+            const itemDate = new Date(item.month);
+            const latestDate = new Date(latest.month);
+            return itemDate > latestDate ? item : latest;
+          });
+          previousFYTotal = lastMonthPrevious.hc || 0;
+        } else {
+          previousFYTotal = 0;
+        }
+
+        console.log(`🔍 HC Raw Database Values (Last Month Only):`, {
+          currentFY,
+          previousFY,
+          currentFYActual, // LAST MONTH HC VALUE
+          previousFYTotal, // LAST MONTH HC VALUE (March for previous FY)
+          currentFYDataLength: currentFYData.length,
+          previousFYDataLength: previousFYData.length,
+          calculation: `Last month HC values instead of sum`
+        });
+      } else {
+        // For all other parameters: sum all months (ACTUAL DATA ONLY - NO PROJECTIONS)
+        currentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+
+        console.log(`🔍 Raw Database Values for ${parameter}:`, {
+          currentFY,
+          previousFY,
+          currentFYActual, // NO PROJECTIONS
+          previousFYTotal,
+          calculation: `Sum of all months for ${parameter}`
+        });
+      }
+
+      // Calculate growth percentage (previous - current) / current * 100
+      const growthPercentage = currentFYActual > 0 
+        ? ((previousFYTotal - currentFYActual) / currentFYActual) * 100 
+        : 0;
+
+      return {
+        currentFY: currentFYActual, // RAW DATABASE VALUE (or last month for HC)
+        previousFY: previousFYTotal, // RAW DATABASE VALUE (or last month for HC)
+        growthPercentage,
+        isPositive: growthPercentage >= 0,
+        period: `FY ${currentFY} vs FY ${previousFY}`
+      };
+    };
+
+    return {
+      Sales: calculateParameterRaw('sales'),
+      GPM: calculateParameterRaw('gpm'),
+      'Team Cost': calculateParameterRaw('team_cost'),
+      NP: calculateParameterRaw('np'),
+      HC: calculateParameterRaw('hc'),
+      'Salary Cost': calculateParameterRaw('salary_cost'),
+      'Opr Cost': calculateParameterRaw('opr_cost'),
+      'Funding Cost': calculateParameterRaw('funding_cost'),
+      'Leave Encashment': calculateParameterRaw('leave_encashment')
+    };
+  };
+
   // KPI calculation function
   const calculateKPIs = (): Record<string, {
     currentFY: number;
@@ -2947,55 +3173,55 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-    // Use KPI calculation data for chart to ensure consistency
-    const kpiData = calculateKPIs();
-    console.log("🔍 KPI Data for chart:", kpiData);
+    // Use raw database values for Growth Analysis Report (no projections)
+    const rawData = calculateRawDatabaseValues();
+    console.log("🔍 Raw Database Data for Growth Analysis:", rawData);
 
-    // Convert KPI data to chart format for all available parameters
+    // Convert raw database data to chart format for all available parameters
     const chartData = availableParameters.map(parameter => {
-      // Map parameter names to KPI keys
-      let kpiKey = '';
+      // Map parameter names to raw data keys
+      let dataKey = '';
       switch (parameter) {
-        case 'Sales': kpiKey = 'Sales'; break;
-        case 'GPM': kpiKey = 'GPM'; break;
-        case 'GPM %': kpiKey = 'GPM'; break; // Use same data for percentage
-        case 'NP': kpiKey = 'NP'; break;
-        case 'NP %': kpiKey = 'NP'; break; // Use same data for percentage
-        case 'Team Cost': kpiKey = 'Team Cost'; break;
-        case 'Salary Cost': kpiKey = 'Salary Cost'; break;
-        case 'Opr Cost': kpiKey = 'Opr Cost'; break;
-        case 'Funding Cost': kpiKey = 'Funding Cost'; break;
-        case 'Leave Encashment': kpiKey = 'Leave Encashment'; break;
-        case 'HC': kpiKey = 'HC'; break;
-        default: kpiKey = parameter; break;
+        case 'Sales': dataKey = 'Sales'; break;
+        case 'GPM': dataKey = 'GPM'; break;
+        case 'GPM %': dataKey = 'GPM'; break; // Use same data for percentage
+        case 'NP': dataKey = 'NP'; break;
+        case 'NP %': dataKey = 'NP'; break; // Use same data for percentage
+        case 'Team Cost': dataKey = 'Team Cost'; break;
+        case 'Salary Cost': dataKey = 'Salary Cost'; break;
+        case 'Opr Cost': dataKey = 'Opr Cost'; break;
+        case 'Funding Cost': dataKey = 'Funding Cost'; break;
+        case 'Leave Encashment': dataKey = 'Leave Encashment'; break;
+        case 'HC': dataKey = 'HC'; break;
+        default: dataKey = parameter; break;
       }
       
-      const kpi = kpiData[kpiKey];
+      const rawValue = rawData[dataKey];
       
-      if (kpi) {
-        console.log(`🔍 Chart data for ${parameter}:`, {
-          currentValue: kpi.currentFY,
-          previousValue: kpi.previousFY,
-          growthPercentage: kpi.growthPercentage
+      if (rawValue) {
+        console.log(`🔍 Raw Database Chart data for ${parameter}:`, {
+          currentValue: rawValue.currentFY,
+          previousValue: rawValue.previousFY,
+          growthPercentage: rawValue.growthPercentage
         });
         
         return {
           parameter,
           periodValues: [
-            { period: comparisonValues[0] || 'Current', amount: kpi.currentFY },
-            { period: comparisonValues[1] || 'Previous', amount: kpi.previousFY }
+            { period: comparisonValues[0] || 'Current', amount: rawValue.currentFY },
+            { period: comparisonValues[1] || 'Previous', amount: rawValue.previousFY }
           ],
           changes: [{
             fromPeriod: comparisonValues[1] || 'Previous',
             toPeriod: comparisonValues[0] || 'Current',
-            absoluteChange: kpi.currentFY - kpi.previousFY,
-            percentageChange: kpi.growthPercentage,
-            isPositive: kpi.isPositive
+            absoluteChange: rawValue.currentFY - rawValue.previousFY,
+            percentageChange: rawValue.growthPercentage,
+            isPositive: rawValue.isPositive
           }]
         };
       }
       
-      console.log(`🔍 No KPI data found for ${parameter} (key: ${kpiKey})`);
+      console.log(`🔍 No raw data found for ${parameter} (key: ${dataKey})`);
       return {
         parameter,
         periodValues: [
@@ -3012,10 +3238,10 @@ const TeamReportCompare: React.FC = () => {
       };
     });
 
-    console.log("🔍 Final chart data from KPI calculations:", chartData);
+    console.log("🔍 Final chart data from raw database values:", chartData);
     console.log("🔍 Chart data length:", chartData.length);
     console.log("🔍 Chart data parameters:", chartData.map(item => item.parameter));
-    console.log("🔍 Setting growthAnalysis state with:", chartData.length, "items");
+    console.log("🔍 Setting growthAnalysis state with raw database data:", chartData.length, "items");
     setGrowthAnalysis(chartData);
   }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, showAllParameters]);
 
@@ -4202,7 +4428,7 @@ const TeamReportCompare: React.FC = () => {
 
           fontSize: 12, 
 
-          fontWeight: 700,
+          fontWeight: 700, 
 
           margin: 0, 
 
@@ -5737,9 +5963,9 @@ const TeamReportCompare: React.FC = () => {
 
   gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',  // Increased from 220px to 280px
 
-  gap: 16,  // Increased gap from 12px to 16px
+  gap: 8,  // Reduced gap from 16px to 8px
 
-  marginBottom: 24  // Increased margin from 20px to 24px
+  marginBottom: 12  // Reduced margin from 24px to 12px
 
 }}>
 
@@ -5765,11 +5991,11 @@ const TeamReportCompare: React.FC = () => {
 
         borderRadius: 8,  // Increased from 6px
 
-        padding: 16,  // Increased from 12px
+        padding: 8,  // Reduced from 16px
 
         borderLeft: `4px solid ${isPositive ? '#4ade80' : '#f87171'}`,
 
-        minHeight: '100px',  // Added fixed height
+        minHeight: '60px',  // Reduced from 100px
 
         display: 'flex',
 
@@ -5787,7 +6013,7 @@ const TeamReportCompare: React.FC = () => {
 
           fontSize: 10,
 
-          marginBottom: 8,  // Added margin
+          marginBottom: 4,  // Reduced margin
 
           color: '#000000'
 
@@ -5803,7 +6029,7 @@ const TeamReportCompare: React.FC = () => {
 
           fontWeight: 700,
 
-          margin: '8px 0',  // Increased margin
+          margin: '4px 0',  // Reduced margin
 
           color: '#000000'
 
@@ -5829,7 +6055,7 @@ const TeamReportCompare: React.FC = () => {
 
           alignItems: 'center',
 
-          gap: 10
+          gap: 4
 
         }}>
 
@@ -6062,7 +6288,7 @@ const TeamReportCompare: React.FC = () => {
           color: '#ffffff', 
           padding: '6px 12px', 
           borderRadius: 4, 
-          fontSize: 10, 
+          fontSize: 12, 
           fontWeight: 700,
           display: 'inline-block',
           marginBottom: 8,
@@ -6099,7 +6325,7 @@ const TeamReportCompare: React.FC = () => {
 
               }}>
 
-                <h4 style={{ marginTop: 0, borderBottom: '1px solid #d9d9d9', paddingBottom: 8, color: '#000000' }}>
+                <h4 style={{ marginTop: 0, borderBottom: '1px solid #d9d9d9', paddingBottom: 8, color: '#000000', fontSize: 12 }}>
 
                   {prevMetric.period} → {metric.period}
 
@@ -6125,13 +6351,15 @@ const TeamReportCompare: React.FC = () => {
 
                       <div key={j} style={{ display: 'flex', justifyContent: 'space-between' }}>
 
-                        <span style={{ color: '#000000' }}>{def.name}:</span>
+                        <span style={{ color: '#000000', fontSize: 10 }}>{def.name}:</span>
 
                         <span style={{ 
 
                           fontWeight: 600,
 
-                          color: isPositive ? '#4ade80' : '#f87171'
+                          color: isPositive ? '#4ade80' : '#f87171',
+
+                          fontSize: 10
 
                         }}>
 
