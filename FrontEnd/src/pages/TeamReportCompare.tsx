@@ -4150,7 +4150,7 @@ const TeamReportCompare: React.FC = () => {
 
   return (
 
-    <div style={{ padding: 8, backgroundColor: '#e8f4f8', minHeight: '100vh', color: '#000000' }}>
+    <div style={{ padding: '4px 8px', backgroundColor: '#e8f4f8', minHeight: '100vh', color: '#000000' }}>
 
       <style>
 
@@ -4424,9 +4424,9 @@ const TeamReportCompare: React.FC = () => {
 
       </style>
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.1rem 1rem 0 1rem', maxWidth: '100vw', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.05rem 0.5rem 0 0.5rem', maxWidth: '100vw', overflow: 'hidden' }}>
 
-        <div style={{ transform: 'scale(0.8)', marginTop: '-10px' }}>
+        <div style={{ transform: 'scale(0.8)', marginTop: '-20px' }}>
 
           <img src={logo} alt="Alchemy Logo" style={{ height: '60px', maxWidth: '120px' }} />
 
@@ -4459,7 +4459,7 @@ const TeamReportCompare: React.FC = () => {
 
         }}>MFS Comparison</h2>
 
-        <div className="auth-buttons-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+        <div className="auth-buttons-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginRight: '20px' }}>
 
           <div style={{ display: 'flex', gap: '8px' }}>
             <Dropdown
@@ -4512,7 +4512,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "1.5rem 8px 8px 8px" }}>
+      <div style={{ margin: "0.5rem 8px 8px 8px" }}>
 
         {/* Filters Section */}
   <div style={{ 
@@ -4521,11 +4521,11 @@ const TeamReportCompare: React.FC = () => {
           gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
           gap: 12,
           marginBottom: 16,
-          padding: 12,
+          padding: 8,
           backgroundColor: '#f8f9fa',
           borderRadius: 8,
           border: '1px solid #e9ecef',
-          minHeight: '70px'
+          minHeight: '60px'
   }}>
 
     {/* Business Unit Filter */}
