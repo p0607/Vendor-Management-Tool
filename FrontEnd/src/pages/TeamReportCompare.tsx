@@ -4150,7 +4150,7 @@ const TeamReportCompare: React.FC = () => {
 
   return (
 
-    <div style={{ padding: '4px 8px', backgroundColor: '#e8f4f8', minHeight: '100vh', color: '#000000' }}>
+    <div style={{ padding: '0 8px', backgroundColor: '#e8f4f8', minHeight: '100vh', color: '#000000' }}>
 
       <style>
 
@@ -4489,22 +4489,6 @@ const TeamReportCompare: React.FC = () => {
             </button>
           </div>
 
-          {/* Crore/Lakh Toggle Button */}
-          <button 
-            onClick={() => setIsCroreMode(!isCroreMode)}
-            style={{
-              padding: '4px 8px',
-              fontSize: '10px',
-              backgroundColor: isCroreMode ? '#1890ff' : '#52c41a',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            {isCroreMode ? 'Crore' : 'Lakh'}
-          </button>
 
         </div>
 
@@ -5019,25 +5003,45 @@ const TeamReportCompare: React.FC = () => {
       {data.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           {/* KPI Dashboard Header */}
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ 
-              backgroundColor: '#000000', 
-              color: '#ffffff', 
-              padding: '6px 12px', 
-              borderRadius: 4, 
-              fontSize: 10, 
-              fontWeight: 700,
-              display: 'inline-block',
-              marginBottom: 4
-            }}>
-              KPI Dashboard
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div>
+              <div style={{ 
+                backgroundColor: '#000000', 
+                color: '#ffffff', 
+                padding: '6px 12px', 
+                borderRadius: 4, 
+                fontSize: 10, 
+                fontWeight: 700,
+                display: 'inline-block',
+                marginBottom: 4
+              }}>
+                KPI Dashboard
+              </div>
+              <div style={{ 
+                width: 100, 
+                height: 3, 
+                backgroundColor: '#ff6b35',
+                borderRadius: 2
+              }} />
             </div>
-            <div style={{ 
-              width: 100, 
-              height: 3, 
-              backgroundColor: '#ff6b35',
-              borderRadius: 2
-            }} />
+            
+            {/* Crore/Lakh Toggle Button */}
+            <button 
+              onClick={() => setIsCroreMode(!isCroreMode)}
+              style={{
+                padding: '4px 8px',
+                fontSize: '10px',
+                backgroundColor: isCroreMode ? '#1890ff' : '#52c41a',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                height: 'fit-content'
+              }}
+            >
+              {isCroreMode ? 'Crore' : 'Lakh'}
+            </button>
           </div>
 
           <div style={{ 

@@ -324,9 +324,13 @@ const RoutingDashboard: React.FC = () => {
     label: new Date(0, i).toLocaleString('default', { month: 'long' })
   }));
 
-  const yearOptions = Array.from({ length: 10 }, (_, i) => ({
-    value: (new Date().getFullYear() - i).toString(),
-    label: (new Date().getFullYear() - i).toString()
+  // Generate year options: always include current year + 1, and go back to 2020
+  const currentYear = new Date().getFullYear();
+  const maxYear = Math.max(currentYear + 1, 2026); // At least 2026, but can be higher
+  const minYear = 2020;
+  const yearOptions = Array.from({ length: maxYear - minYear + 1 }, (_, i) => ({
+    value: (maxYear - i).toString(),
+    label: (maxYear - i).toString()
   }));
 
   // Fetch data when component mounts
@@ -849,6 +853,13 @@ const chartData = metricFields.map(({ field, label }) => {
             month = 0;
           }
           return new Date(yearNum, month, 1);
+        } else if (dateGroup.includes('-') && dateGroup.length === 6) {
+          // Month format: "Apr-25", "May-25" (MMM-YY format)
+          const [monthName, yearStr] = dateGroup.split('-');
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const monthIndex = monthNames.indexOf(monthName);
+          const yearNum = 2000 + parseInt(yearStr); // Convert YY to full year
+          return new Date(yearNum, monthIndex, 1);
         } else if (dateGroup.includes(' ')) {
           // Month format: "Jan 2024"
           const [monthName, year] = dateGroup.split(' ');
