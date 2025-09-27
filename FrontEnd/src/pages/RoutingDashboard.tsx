@@ -877,10 +877,10 @@ const chartData = metricFields.map(({ field, label }) => {
       try {
         const dateA = parseDateGroup(a.dateGroup);
         const dateB = parseDateGroup(b.dateGroup);
-        return dateA.getTime() - dateB.getTime();
+        return dateB.getTime() - dateA.getTime(); // Reverse order: newest first
       } catch (error) {
-        // If parsing fails, sort alphabetically
-        return a.dateGroup.localeCompare(b.dateGroup);
+        // If parsing fails, sort alphabetically in reverse
+        return b.dateGroup.localeCompare(a.dateGroup);
       }
     });
     
