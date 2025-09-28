@@ -329,7 +329,7 @@ const TeamReportCompare: React.FC = () => {
           // For current quarter: get the last month's HC value
           if (currentQuarterData.length > 0) {
             const lastMonthCurrent = currentQuarterData.reduce((latest, item) => {
-              const itemDate = new Date(item.month);
+              const itemDate = parseDate(item.month, item.year);
               const latestDate = new Date(latest.month);
               return itemDate > latestDate ? item : latest;
             });
@@ -341,7 +341,7 @@ const TeamReportCompare: React.FC = () => {
           // For previous quarter: get the last month's HC value
           if (previousQuarterData.length > 0) {
             const lastMonthPrevious = previousQuarterData.reduce((latest, item) => {
-              const itemDate = new Date(item.month);
+              const itemDate = parseDate(item.month, item.year);
               const latestDate = new Date(latest.month);
               return itemDate > latestDate ? item : latest;
             });
@@ -410,15 +410,8 @@ const TeamReportCompare: React.FC = () => {
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
-      // Check if item belongs to current financial year
-      // FY 2025 = April 2025 to March 2026
-      if (itemMonth >= 4) {
-        // April to December: belongs to same FY year
-        return itemYear === currentFY;
-      } else {
-        // January to March: belongs to next calendar year of same FY
-        return itemYear === currentFY + 1;
-      }
+      // Simple calendar year filtering: 2025 = Jan 2025 to Dec 2025
+      return itemYear === currentFY;
     });
 
     const previousFYData = data.filter(item => {
@@ -428,15 +421,8 @@ const TeamReportCompare: React.FC = () => {
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
-      // Check if item belongs to previous financial year
-      // FY 2024 = April 2024 to March 2025
-      if (itemMonth >= 4) {
-        // April to December: belongs to same FY year
-        return itemYear === previousFY;
-      } else {
-        // January to March: belongs to next calendar year of same FY
-        return itemYear === previousFY + 1;
-      }
+      // Simple calendar year filtering: 2024 = Jan 2024 to Dec 2024
+      return itemYear === previousFY;
     });
 
     // Debug logging to see what data we're getting
@@ -665,15 +651,8 @@ const TeamReportCompare: React.FC = () => {
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
-      // Check if item belongs to current financial year
-      // FY 2025 = April 2025 to March 2026
-      if (itemMonth >= 4) {
-        // April to December: belongs to same FY year
-        return itemYear === currentFY;
-      } else {
-        // January to March: belongs to next calendar year of same FY
-        return itemYear === currentFY + 1;
-      }
+      // Simple calendar year filtering: 2025 = Jan 2025 to Dec 2025
+      return itemYear === currentFY;
     });
 
     const previousFYData = data.filter(item => {
@@ -683,15 +662,8 @@ const TeamReportCompare: React.FC = () => {
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
-      // Check if item belongs to previous financial year
-      // FY 2024 = April 2024 to March 2025
-      if (itemMonth >= 4) {
-        // April to December: belongs to same FY year
-        return itemYear === previousFY;
-      } else {
-        // January to March: belongs to next calendar year of same FY
-        return itemYear === previousFY + 1;
-      }
+      // Simple calendar year filtering: 2024 = Jan 2024 to Dec 2024
+      return itemYear === previousFY;
     });
 
     const calculateParameterKPI = (parameter: string) => {
@@ -3861,7 +3833,7 @@ const TeamReportCompare: React.FC = () => {
             const year = yearMatch ? parseInt(yearMatch[1]) : currentFY;
             
             filteredData = data.filter(item => {
-              const itemDate = new Date(item.month);
+              const itemDate = parseDate(item.month, item.year);
               const itemYear = itemDate.getFullYear();
               const itemMonth = itemDate.getMonth() + 1;
               
@@ -3882,19 +3854,12 @@ const TeamReportCompare: React.FC = () => {
             const year = yearMatch ? parseInt(yearMatch[1]) : currentFY;
             
             filteredData = data.filter(item => {
-              const itemDate = new Date(item.month);
+              const itemDate = parseDate(item.month, item.year);
               const itemYear = itemDate.getFullYear();
               const itemMonth = itemDate.getMonth() + 1;
               
-              // Check if item belongs to the financial year
-              // FY 2025 = April 2025 to March 2026
-              if (itemMonth >= 4) {
-                // April to December: belongs to same FY year
-                return itemYear === year;
-              } else {
-                // January to March: belongs to next calendar year of same FY
-                return itemYear === year + 1;
-              }
+              // Simple calendar year filtering
+              return itemYear === year;
             });
           }
           
@@ -4533,7 +4498,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "1rem 8px 8px 8px", paddingTop: "0.5rem" }}>
+      <div style={{ margin: "0.5rem 8px 8px 8px", paddingTop: "0.25rem" }}>
 
         {/* Crore/Lakh Toggle Button */}
         <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'flex-end' }}>
