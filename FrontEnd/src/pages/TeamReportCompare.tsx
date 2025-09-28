@@ -394,6 +394,14 @@ const TeamReportCompare: React.FC = () => {
       if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
     }
 
+    console.log("🔍 Financial Year Setup:", {
+      compareType,
+      comparisonValues,
+      currentFY,
+      previousFY,
+      totalDataRecords: data.length
+    });
+
     // Filter data for current and previous financial years
     const currentFYData = data.filter(item => {
       const itemDate = new Date(item.month);
@@ -425,6 +433,21 @@ const TeamReportCompare: React.FC = () => {
         // January to March: belongs to next calendar year of same FY
         return itemYear === previousFY + 1;
       }
+    });
+
+    // Debug logging to see what data we're getting
+    console.log("🔍 Financial Year Filtering Debug:", {
+      currentFY,
+      previousFY,
+      currentFYDataLength: currentFYData.length,
+      previousFYDataLength: previousFYData.length,
+      totalDataLength: data.length,
+      sampleData: data.slice(0, 3).map(item => ({
+        month: item.month,
+        year: item.year,
+        sales: item.sales,
+        gpm: item.gpm
+      }))
     });
 
     const calculateParameterRaw = (parameter: string) => {
@@ -4493,7 +4516,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "1.5rem 8px 8px 8px" }}>
+      <div style={{ margin: "3rem 8px 8px 8px", paddingTop: "1.5rem" }}>
 
         {/* Filters Section */}
   <div style={{ 
