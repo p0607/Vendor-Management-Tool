@@ -404,7 +404,9 @@ const TeamReportCompare: React.FC = () => {
 
     // Filter data for current and previous financial years
     const currentFYData = data.filter(item => {
-      const itemDate = new Date(item.month);
+      const itemDate = parseDate(item.month);
+      if (isNaN(itemDate.getTime())) return false;
+      
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
@@ -420,7 +422,9 @@ const TeamReportCompare: React.FC = () => {
     });
 
     const previousFYData = data.filter(item => {
-      const itemDate = new Date(item.month);
+      const itemDate = parseDate(item.month);
+      if (isNaN(itemDate.getTime())) return false;
+      
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
@@ -442,12 +446,19 @@ const TeamReportCompare: React.FC = () => {
       currentFYDataLength: currentFYData.length,
       previousFYDataLength: previousFYData.length,
       totalDataLength: data.length,
-      sampleData: data.slice(0, 3).map(item => ({
-        month: item.month,
-        year: item.year,
-        sales: item.sales,
-        gpm: item.gpm
-      }))
+      sampleData: data.slice(0, 5).map(item => {
+        const itemDate = parseDate(item.month);
+        return {
+          month: item.month,
+          year: item.year,
+          parsedDate: itemDate,
+          parsedYear: itemDate.getFullYear(),
+          parsedMonth: itemDate.getMonth() + 1,
+          isValidDate: !isNaN(itemDate.getTime()),
+          sales: item.sales,
+          gpm: item.gpm
+        };
+      })
     });
 
     const calculateParameterRaw = (parameter: string) => {
@@ -648,7 +659,9 @@ const TeamReportCompare: React.FC = () => {
 
     // Filter data for current and previous financial years
     const currentFYData = data.filter(item => {
-      const itemDate = new Date(item.month);
+      const itemDate = parseDate(item.month);
+      if (isNaN(itemDate.getTime())) return false;
+      
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
@@ -664,7 +677,9 @@ const TeamReportCompare: React.FC = () => {
     });
 
     const previousFYData = data.filter(item => {
-      const itemDate = new Date(item.month);
+      const itemDate = parseDate(item.month);
+      if (isNaN(itemDate.getTime())) return false;
+      
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
@@ -4444,9 +4459,9 @@ const TeamReportCompare: React.FC = () => {
 
       </style>
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.05rem 0.5rem 0 0.5rem', maxWidth: '100vw', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 0.5rem 1rem 0.5rem', maxWidth: '100vw', overflow: 'hidden', minHeight: '100px' }}>
 
-        <div style={{ transform: 'scale(0.8)', marginTop: '-20px' }}>
+        <div style={{ transform: 'scale(0.8)', marginTop: '0px' }}>
 
           <img src={logo} alt="Alchemy Logo" style={{ height: '60px', maxWidth: '120px' }} />
 
