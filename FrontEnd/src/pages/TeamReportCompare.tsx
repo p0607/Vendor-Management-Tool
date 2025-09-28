@@ -289,7 +289,7 @@ const TeamReportCompare: React.FC = () => {
 
       // Filter data for current quarter
       const currentQuarterData = data.filter(item => {
-        const itemDate = new Date(item.month);
+        const itemDate = parseDate(item.month, item.year);
         const itemYear = itemDate.getFullYear();
         const itemMonth = itemDate.getMonth() + 1;
         
@@ -307,7 +307,7 @@ const TeamReportCompare: React.FC = () => {
 
       // Filter data for previous quarter
       const previousQuarterData = data.filter(item => {
-        const itemDate = new Date(item.month);
+        const itemDate = parseDate(item.month, item.year);
         const itemYear = itemDate.getFullYear();
         const itemMonth = itemDate.getMonth() + 1;
         
@@ -330,7 +330,7 @@ const TeamReportCompare: React.FC = () => {
           if (currentQuarterData.length > 0) {
             const lastMonthCurrent = currentQuarterData.reduce((latest, item) => {
               const itemDate = parseDate(item.month, item.year);
-              const latestDate = new Date(latest.month);
+              const latestDate = parseDate(latest.month, latest.year);
               return itemDate > latestDate ? item : latest;
             });
             currentValue = lastMonthCurrent.hc || 0;
@@ -342,7 +342,7 @@ const TeamReportCompare: React.FC = () => {
           if (previousQuarterData.length > 0) {
             const lastMonthPrevious = previousQuarterData.reduce((latest, item) => {
               const itemDate = parseDate(item.month, item.year);
-              const latestDate = new Date(latest.month);
+              const latestDate = parseDate(latest.month, latest.year);
               return itemDate > latestDate ? item : latest;
             });
             previousValue = lastMonthPrevious.hc || 0;
@@ -399,7 +399,11 @@ const TeamReportCompare: React.FC = () => {
       comparisonValues,
       currentFY,
       previousFY,
-      totalDataRecords: data.length
+      totalDataRecords: data.length,
+      regexMatch: {
+        currentFYMatch: comparisonValues[0]?.match(/FY (\d{4})/),
+        previousFYMatch: comparisonValues[1]?.match(/FY (\d{4})/)
+      }
     });
 
     // Filter data for current and previous financial years
@@ -441,10 +445,16 @@ const TeamReportCompare: React.FC = () => {
           parsedYear: itemDate.getFullYear(),
           parsedMonth: itemDate.getMonth() + 1,
           isValidDate: !isNaN(itemDate.getTime()),
+          matchesCurrentFY: itemDate.getFullYear() === currentFY,
+          matchesPreviousFY: itemDate.getFullYear() === previousFY,
           sales: item.sales,
           gpm: item.gpm
         };
-      })
+      }),
+      uniqueYears: Array.from(new Set(data.map(item => {
+        const itemDate = parseDate(item.month, item.year);
+        return itemDate.getFullYear();
+      })))
     });
 
     const calculateParameterRaw = (parameter: string) => {
@@ -455,8 +465,8 @@ const TeamReportCompare: React.FC = () => {
         // For current FY: get the last month's HC value
         if (currentFYData.length > 0) {
           const lastMonthCurrent = currentFYData.reduce((latest, item) => {
-            const itemDate = new Date(item.month);
-            const latestDate = new Date(latest.month);
+            const itemDate = parseDate(item.month, item.year);
+            const latestDate = parseDate(latest.month, latest.year);
             return itemDate > latestDate ? item : latest;
           });
           currentFYActual = lastMonthCurrent.hc || 0;
@@ -467,8 +477,8 @@ const TeamReportCompare: React.FC = () => {
         // For previous FY: get the last month's HC value (should be March)
         if (previousFYData.length > 0) {
           const lastMonthPrevious = previousFYData.reduce((latest, item) => {
-            const itemDate = new Date(item.month);
-            const latestDate = new Date(latest.month);
+            const itemDate = parseDate(item.month, item.year);
+            const latestDate = parseDate(latest.month, latest.year);
             return itemDate > latestDate ? item : latest;
           });
           previousFYTotal = lastMonthPrevious.hc || 0;
@@ -493,9 +503,21 @@ const TeamReportCompare: React.FC = () => {
         console.log(`🔍 Raw Database Values for ${parameter}:`, {
           currentFY,
           previousFY,
-          currentFYActual, // NO PROJECTIONS
-          previousFYTotal,
-          calculation: `Sum of all months for ${parameter}`
+          currentFYActual, // RAW DATABASE VALUE
+          previousFYTotal, // RAW DATABASE VALUE
+          currentFYDataLength: currentFYData.length,
+          previousFYDataLength: previousFYData.length,
+          calculation: `Sum of all months for ${parameter}`,
+          sampleCurrentFYData: currentFYData.slice(0, 3).map(item => ({
+            month: item.month,
+            year: item.year,
+            [parameter]: item[parameter]
+          })),
+          samplePreviousFYData: previousFYData.slice(0, 3).map(item => ({
+            month: item.month,
+            year: item.year,
+            [parameter]: item[parameter]
+          }))
         });
       }
 
@@ -561,7 +583,7 @@ const TeamReportCompare: React.FC = () => {
 
       // Filter data for current quarter
       const currentQuarterData = data.filter(item => {
-        const itemDate = new Date(item.month);
+        const itemDate = parseDate(item.month, item.year);
         const itemYear = itemDate.getFullYear();
         const itemMonth = itemDate.getMonth() + 1;
         
@@ -579,7 +601,7 @@ const TeamReportCompare: React.FC = () => {
 
       // Filter data for previous quarter
       const previousQuarterData = data.filter(item => {
-        const itemDate = new Date(item.month);
+        const itemDate = parseDate(item.month, item.year);
         const itemYear = itemDate.getFullYear();
         const itemMonth = itemDate.getMonth() + 1;
         
@@ -675,8 +697,8 @@ const TeamReportCompare: React.FC = () => {
       if (currentFYData.length > 0 && monthsRemaining > 0) {
         // Find the last available month's data
         const lastMonthData = currentFYData.reduce((latest, item) => {
-          const itemDate = new Date(item.month);
-          const latestDate = new Date(latest.month);
+          const itemDate = parseDate(item.month, item.year);
+          const latestDate = parseDate(latest.month, latest.year);
           return itemDate > latestDate ? item : latest;
         });
         
@@ -4498,7 +4520,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "0.5rem 8px 8px 8px", paddingTop: "0.25rem" }}>
+      <div style={{ margin: "0.1rem 8px 8px 8px", paddingTop: "0.1rem" }}>
 
         {/* Crore/Lakh Toggle Button */}
         <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'flex-end' }}>
