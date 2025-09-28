@@ -404,7 +404,7 @@ const TeamReportCompare: React.FC = () => {
 
     // Filter data for current and previous financial years
     const currentFYData = data.filter(item => {
-      const itemDate = parseDate(item.month);
+      const itemDate = parseDate(item.month, item.year);
       if (isNaN(itemDate.getTime())) return false;
       
       const itemYear = itemDate.getFullYear();
@@ -422,7 +422,7 @@ const TeamReportCompare: React.FC = () => {
     });
 
     const previousFYData = data.filter(item => {
-      const itemDate = parseDate(item.month);
+      const itemDate = parseDate(item.month, item.year);
       if (isNaN(itemDate.getTime())) return false;
       
       const itemYear = itemDate.getFullYear();
@@ -447,7 +447,7 @@ const TeamReportCompare: React.FC = () => {
       previousFYDataLength: previousFYData.length,
       totalDataLength: data.length,
       sampleData: data.slice(0, 5).map(item => {
-        const itemDate = parseDate(item.month);
+        const itemDate = parseDate(item.month, item.year);
         return {
           month: item.month,
           year: item.year,
@@ -659,7 +659,7 @@ const TeamReportCompare: React.FC = () => {
 
     // Filter data for current and previous financial years
     const currentFYData = data.filter(item => {
-      const itemDate = parseDate(item.month);
+      const itemDate = parseDate(item.month, item.year);
       if (isNaN(itemDate.getTime())) return false;
       
       const itemYear = itemDate.getFullYear();
@@ -677,7 +677,7 @@ const TeamReportCompare: React.FC = () => {
     });
 
     const previousFYData = data.filter(item => {
-      const itemDate = parseDate(item.month);
+      const itemDate = parseDate(item.month, item.year);
       if (isNaN(itemDate.getTime())) return false;
       
       const itemYear = itemDate.getFullYear();
@@ -864,7 +864,7 @@ const TeamReportCompare: React.FC = () => {
 
   // Enhanced date parser to handle various date formats
 
-  const parseDate = (dateStr: string): Date => {
+  const parseDate = (dateStr: string, year?: number): Date => {
 
     if (!dateStr) return new Date();
 
@@ -894,9 +894,11 @@ const TeamReportCompare: React.FC = () => {
 
       // If we find a month name, create a date for the 1st of that month
 
-      // We'll use the year from the year field or current year
+      // Use the provided year or current year as fallback
 
-      return new Date(new Date().getFullYear(), monthIndex, 1);
+      const targetYear = year || new Date().getFullYear();
+
+      return new Date(targetYear, monthIndex, 1);
 
     }
 
@@ -1864,7 +1866,7 @@ const TeamReportCompare: React.FC = () => {
 
     data.forEach(item => {
 
-      const date = parseDate(item.month);
+      const date = parseDate(item.month, item.year);
 
       if (isNaN(date.getTime())) return;
 
@@ -2579,7 +2581,7 @@ const TeamReportCompare: React.FC = () => {
 
             
             
-            const date = parseDate(item.month);
+            const date = parseDate(item.month, item.year);
 
             if (isNaN(date.getTime())) return false;
 
@@ -2711,7 +2713,7 @@ const TeamReportCompare: React.FC = () => {
       
       // Date parsing and period matching
 
-      const date = parseDate(item.month);
+      const date = parseDate(item.month, item.year);
 
       if (isNaN(date.getTime())) {
 
@@ -3046,7 +3048,7 @@ const TeamReportCompare: React.FC = () => {
 
                   
                   
-                  const date = parseDate(item.month);
+                  const date = parseDate(item.month, item.year);
 
                   if (isNaN(date.getTime())) return false;
 
@@ -3150,7 +3152,7 @@ const TeamReportCompare: React.FC = () => {
 
               
               
-              const date = parseDate(item.month);
+              const date = parseDate(item.month, item.year);
 
               if (isNaN(date.getTime())) return false;
 
@@ -4531,7 +4533,27 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "3rem 8px 8px 8px", paddingTop: "1.5rem" }}>
+      <div style={{ margin: "1rem 8px 8px 8px", paddingTop: "0.5rem" }}>
+
+        {/* Crore/Lakh Toggle Button */}
+        <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => setIsCroreMode(!isCroreMode)}
+            style={{
+              padding: '6px 12px',
+              fontSize: '11px',
+              backgroundColor: isCroreMode ? '#1890ff' : '#52c41a',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              height: 'fit-content'
+            }}
+          >
+            {isCroreMode ? 'Crore' : 'Lakh'}
+          </button>
+        </div>
 
         {/* Filters Section */}
   <div style={{ 
