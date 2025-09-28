@@ -211,6 +211,7 @@ const TeamReportCompare: React.FC = () => {
     const currentYear = currentDate.getFullYear();
     
     // Financial year starts from April (month 4)
+    // FY 2025 = April 2025 to March 2026
     if (currentMonth >= 4) {
       return currentYear;
     } else {
@@ -292,7 +293,16 @@ const TeamReportCompare: React.FC = () => {
         const itemYear = itemDate.getFullYear();
         const itemMonth = itemDate.getMonth() + 1;
         
-        return itemYear === currentYear && currentQuarterMonths.includes(itemMonth);
+        // For quarters, we need to handle financial year logic
+        // Q1(Apr-Jun) 2025 = April 2025 to June 2025
+        // Q4(Jan-Mar) 2025 = January 2026 to March 2026
+        if (currentQuarterMonths.includes(1) || currentQuarterMonths.includes(2) || currentQuarterMonths.includes(3)) {
+          // Q4: Jan-Mar belongs to next calendar year
+          return itemYear === currentYear + 1 && currentQuarterMonths.includes(itemMonth);
+        } else {
+          // Q1, Q2, Q3: Apr-Dec belongs to same calendar year
+          return itemYear === currentYear && currentQuarterMonths.includes(itemMonth);
+        }
       });
 
       // Filter data for previous quarter
@@ -301,7 +311,14 @@ const TeamReportCompare: React.FC = () => {
         const itemYear = itemDate.getFullYear();
         const itemMonth = itemDate.getMonth() + 1;
         
-        return itemYear === previousYear && previousQuarterMonths.includes(itemMonth);
+        // For quarters, we need to handle financial year logic
+        if (previousQuarterMonths.includes(1) || previousQuarterMonths.includes(2) || previousQuarterMonths.includes(3)) {
+          // Q4: Jan-Mar belongs to next calendar year
+          return itemYear === previousYear + 1 && previousQuarterMonths.includes(itemMonth);
+        } else {
+          // Q1, Q2, Q3: Apr-Dec belongs to same calendar year
+          return itemYear === previousYear && previousQuarterMonths.includes(itemMonth);
+        }
       });
 
       const calculateParameterRaw = (parameter: string) => {
@@ -384,9 +401,12 @@ const TeamReportCompare: React.FC = () => {
       const itemMonth = itemDate.getMonth() + 1;
       
       // Check if item belongs to current financial year
+      // FY 2025 = April 2025 to March 2026
       if (itemMonth >= 4) {
+        // April to December: belongs to same FY year
         return itemYear === currentFY;
       } else {
+        // January to March: belongs to next calendar year of same FY
         return itemYear === currentFY + 1;
       }
     });
@@ -397,9 +417,12 @@ const TeamReportCompare: React.FC = () => {
       const itemMonth = itemDate.getMonth() + 1;
       
       // Check if item belongs to previous financial year
+      // FY 2024 = April 2024 to March 2025
       if (itemMonth >= 4) {
+        // April to December: belongs to same FY year
         return itemYear === previousFY;
       } else {
+        // January to March: belongs to next calendar year of same FY
         return itemYear === previousFY + 1;
       }
     });
@@ -522,7 +545,16 @@ const TeamReportCompare: React.FC = () => {
         const itemYear = itemDate.getFullYear();
         const itemMonth = itemDate.getMonth() + 1;
         
-        return itemYear === currentYear && currentQuarterMonths.includes(itemMonth);
+        // For quarters, we need to handle financial year logic
+        // Q1(Apr-Jun) 2025 = April 2025 to June 2025
+        // Q4(Jan-Mar) 2025 = January 2026 to March 2026
+        if (currentQuarterMonths.includes(1) || currentQuarterMonths.includes(2) || currentQuarterMonths.includes(3)) {
+          // Q4: Jan-Mar belongs to next calendar year
+          return itemYear === currentYear + 1 && currentQuarterMonths.includes(itemMonth);
+        } else {
+          // Q1, Q2, Q3: Apr-Dec belongs to same calendar year
+          return itemYear === currentYear && currentQuarterMonths.includes(itemMonth);
+        }
       });
 
       // Filter data for previous quarter
@@ -531,7 +563,14 @@ const TeamReportCompare: React.FC = () => {
         const itemYear = itemDate.getFullYear();
         const itemMonth = itemDate.getMonth() + 1;
         
-        return itemYear === previousYear && previousQuarterMonths.includes(itemMonth);
+        // For quarters, we need to handle financial year logic
+        if (previousQuarterMonths.includes(1) || previousQuarterMonths.includes(2) || previousQuarterMonths.includes(3)) {
+          // Q4: Jan-Mar belongs to next calendar year
+          return itemYear === previousYear + 1 && previousQuarterMonths.includes(itemMonth);
+        } else {
+          // Q1, Q2, Q3: Apr-Dec belongs to same calendar year
+          return itemYear === previousYear && previousQuarterMonths.includes(itemMonth);
+        }
       });
 
       const calculateParameterKPI = (parameter: string) => {
@@ -591,9 +630,12 @@ const TeamReportCompare: React.FC = () => {
       const itemMonth = itemDate.getMonth() + 1;
       
       // Check if item belongs to current financial year
+      // FY 2025 = April 2025 to March 2026
       if (itemMonth >= 4) {
+        // April to December: belongs to same FY year
         return itemYear === currentFY;
       } else {
+        // January to March: belongs to next calendar year of same FY
         return itemYear === currentFY + 1;
       }
     });
@@ -604,9 +646,12 @@ const TeamReportCompare: React.FC = () => {
       const itemMonth = itemDate.getMonth() + 1;
       
       // Check if item belongs to previous financial year
+      // FY 2024 = April 2024 to March 2025
       if (itemMonth >= 4) {
+        // April to December: belongs to same FY year
         return itemYear === previousFY;
       } else {
+        // January to March: belongs to next calendar year of same FY
         return itemYear === previousFY + 1;
       }
     });
@@ -889,7 +934,7 @@ const TeamReportCompare: React.FC = () => {
 
       quarterRange = "Jan-Mar";
 
-      financialYear = year - 1; // Q4 belongs to previous financial year
+      financialYear = year; // Q4 belongs to same financial year (Jan-Mar of next calendar year)
 
     }
 
@@ -3195,75 +3240,14 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-    // Use raw database values for Growth Analysis Report (no projections)
-    const rawData = calculateRawDatabaseValues();
-    console.log("🔍 Raw Database Data for Growth Analysis:", rawData);
+    // Use the calculateGrowth function which properly handles multiple periods
+    const chartData = calculateGrowth();
+    console.log("🔍 Growth Analysis Chart data (multi-period):", chartData);
 
-    // Convert raw database data to chart format for all available parameters
-    const chartData = availableParameters.map(parameter => {
-      // Map parameter names to raw data keys
-      let dataKey = '';
-      switch (parameter) {
-        case 'Revenue': dataKey = 'Revenue'; break;
-        case 'GPM': dataKey = 'GPM'; break;
-        case 'GPM %': dataKey = 'GPM'; break; // Use same data for percentage
-        case 'NP': dataKey = 'NP'; break;
-        case 'NP %': dataKey = 'NP'; break; // Use same data for percentage
-        case 'Team Cost': dataKey = 'Team Cost'; break;
-        case 'Salary Cost': dataKey = 'Salary Cost'; break;
-        case 'Opr Cost': dataKey = 'Opr Cost'; break;
-        case 'Funding Cost': dataKey = 'Funding Cost'; break;
-        case 'Leave Encashment': dataKey = 'Leave Encashment'; break;
-        case 'HC': dataKey = 'HC'; break;
-        default: dataKey = parameter; break;
-      }
-      
-      const rawValue = rawData[dataKey];
-      
-      if (rawValue) {
-        console.log(`🔍 Raw Database Chart data for ${parameter}:`, {
-          currentValue: rawValue.currentFY,
-          previousValue: rawValue.previousFY,
-          growthPercentage: rawValue.growthPercentage
-        });
-        
-        return {
-          parameter,
-          periodValues: [
-            { period: comparisonValues[0] || 'Current', amount: rawValue.currentFY },
-            { period: comparisonValues[1] || 'Previous', amount: rawValue.previousFY }
-          ],
-          changes: [{
-            fromPeriod: comparisonValues[1] || 'Previous',
-            toPeriod: comparisonValues[0] || 'Current',
-            absoluteChange: rawValue.currentFY - rawValue.previousFY,
-            percentageChange: rawValue.growthPercentage,
-            isPositive: rawValue.isPositive
-          }]
-        };
-      }
-      
-      console.log(`🔍 No raw data found for ${parameter} (key: ${dataKey})`);
-      return {
-        parameter,
-        periodValues: [
-          { period: comparisonValues[0] || 'Current', amount: 0 },
-          { period: comparisonValues[1] || 'Previous', amount: 0 }
-        ],
-        changes: [{
-          fromPeriod: comparisonValues[1] || 'Previous',
-          toPeriod: comparisonValues[0] || 'Current',
-          absoluteChange: 0,
-          percentageChange: 0,
-          isPositive: true
-        }]
-      };
-    });
-
-    console.log("🔍 Final chart data from raw database values:", chartData);
+    console.log("🔍 Final growth analysis data (multi-period):", chartData);
     console.log("🔍 Chart data length:", chartData.length);
     console.log("🔍 Chart data parameters:", chartData.map(item => item.parameter));
-    console.log("🔍 Setting growthAnalysis state with raw database data:", chartData.length, "items");
+    console.log("🔍 Setting growthAnalysis state with multi-period data:", chartData.length, "items");
     setGrowthAnalysis(chartData);
   }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, showAllParameters]);
 
@@ -3840,7 +3824,17 @@ const TeamReportCompare: React.FC = () => {
               const itemDate = new Date(item.month);
               const itemYear = itemDate.getFullYear();
               const itemMonth = itemDate.getMonth() + 1;
-              return itemYear === year && quarterMonths.includes(itemMonth);
+              
+              // For quarters, we need to handle financial year logic
+              // Q1(Apr-Jun) 2025 = April 2025 to June 2025
+              // Q4(Jan-Mar) 2025 = January 2026 to March 2026
+              if (quarterMonths.includes(1) || quarterMonths.includes(2) || quarterMonths.includes(3)) {
+                // Q4: Jan-Mar belongs to next calendar year
+                return itemYear === year + 1 && quarterMonths.includes(itemMonth);
+              } else {
+                // Q1, Q2, Q3: Apr-Dec belongs to same calendar year
+                return itemYear === year && quarterMonths.includes(itemMonth);
+              }
             });
           } else {
             // Year comparison (default)
@@ -3853,9 +3847,12 @@ const TeamReportCompare: React.FC = () => {
               const itemMonth = itemDate.getMonth() + 1;
               
               // Check if item belongs to the financial year
+              // FY 2025 = April 2025 to March 2026
               if (itemMonth >= 4) {
+                // April to December: belongs to same FY year
                 return itemYear === year;
               } else {
+                // January to March: belongs to next calendar year of same FY
                 return itemYear === year + 1;
               }
             });
@@ -4496,7 +4493,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "0.5rem 8px 8px 8px" }}>
+      <div style={{ margin: "1.5rem 8px 8px 8px" }}>
 
         {/* Filters Section */}
   <div style={{ 
