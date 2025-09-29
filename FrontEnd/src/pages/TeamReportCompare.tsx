@@ -860,7 +860,10 @@ const TeamReportCompare: React.FC = () => {
 
   const parseDate = (dateStr: string, year?: number): Date => {
 
-    if (!dateStr) return new Date();
+    if (!dateStr) {
+      console.warn("⚠️ parseDate: No dateStr provided, returning invalid date");
+      return new Date(NaN);
+    }
 
     
     
@@ -888,11 +891,17 @@ const TeamReportCompare: React.FC = () => {
 
       // If we find a month name, create a date for the 1st of that month
 
-      // Use the provided year or current year as fallback
+      // Use the provided year - DO NOT use current year as fallback to prevent automatic data generation
 
-      const targetYear = year || new Date().getFullYear();
+      if (!year) {
 
-      return new Date(targetYear, monthIndex, 1);
+        console.warn("⚠️ parseDate: No year provided for month:", dateStr, "Returning invalid date");
+
+        return new Date(NaN); // Return invalid date instead of current year
+
+      }
+
+      return new Date(year, monthIndex, 1);
 
     }
 
@@ -910,9 +919,9 @@ const TeamReportCompare: React.FC = () => {
 
     
     
-    // Fallback to current date
-
-    return new Date();
+    // Fallback - return invalid date instead of current date to prevent automatic data generation
+    console.warn("⚠️ parseDate: Unable to parse date:", dateStr, "Returning invalid date");
+    return new Date(NaN);
 
   };
 
@@ -2586,10 +2595,12 @@ const TeamReportCompare: React.FC = () => {
             switch (compareType) {
 
               case "year":
-
-                itemValue = date.getFullYear().toString();
-
-                break;
+                // Handle both "2025" and "FY 2025" formats
+                const yearStr = date.getFullYear().toString();
+                const fyYearStr = `FY ${yearStr}`;
+                itemValue = yearStr;
+                // Check if period matches either format
+                return period === yearStr || period === fyYearStr;
 
               case "month":
 
@@ -2611,6 +2622,7 @@ const TeamReportCompare: React.FC = () => {
 
             
             
+            // For non-year comparisons, use the original logic
             return itemValue === period;
 
           })
@@ -2724,10 +2736,13 @@ const TeamReportCompare: React.FC = () => {
       switch (compareType) {
 
         case "year":
-
-          itemValue = date.getFullYear().toString();
-
-          break;
+          // Handle both "2025" and "FY 2025" formats
+          const yearStr = date.getFullYear().toString();
+          const fyYearStr = `FY ${yearStr}`;
+          itemValue = yearStr;
+          // Check if periodValue matches either format
+          const matches = periodValue === yearStr || periodValue === fyYearStr;
+          return matches;
 
         case "month":
 
@@ -2749,6 +2764,7 @@ const TeamReportCompare: React.FC = () => {
 
       
       
+      // For non-year comparisons, use the original logic
       const matches = itemValue === periodValue;
 
       if (matches) {
@@ -2992,6 +3008,8 @@ const TeamReportCompare: React.FC = () => {
 
           if (!periodValue) return null;
 
+          console.log(`🔍 Processing period ${index}: "${periodValue}" for parameter: ${param}`);
+
           
           
           // Handle calculated metrics - these are now direct fields in our new structure
@@ -3052,7 +3070,13 @@ const TeamReportCompare: React.FC = () => {
 
                   switch (compareType) {
 
-                    case "year": itemValue = date.getFullYear().toString(); break;
+                    case "year": 
+                      // Handle both "2025" and "FY 2025" formats
+                      const yearStr = date.getFullYear().toString();
+                      const fyYearStr = `FY ${yearStr}`;
+                      itemValue = yearStr; 
+                      // Check if period matches either format
+                      return period === yearStr || period === fyYearStr;
 
                     case "month": itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`; break;
 
@@ -3064,6 +3088,7 @@ const TeamReportCompare: React.FC = () => {
 
                   
                   
+                  // For non-year comparisons, use the original logic
                   return itemValue === period;
 
                 })
@@ -3114,9 +3139,7 @@ const TeamReportCompare: React.FC = () => {
           
           // Single period calculation
 
-          return data
-
-            .filter(item => {
+          const filteredData = data.filter(item => {
 
               if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
 
@@ -3156,7 +3179,13 @@ const TeamReportCompare: React.FC = () => {
 
               switch (compareType) {
 
-                case "year": itemValue = date.getFullYear().toString(); break;
+                case "year": 
+                  // Handle both "2025" and "FY 2025" formats
+                  const yearStr = date.getFullYear().toString();
+                  const fyYearStr = `FY ${yearStr}`;
+                  itemValue = yearStr; 
+                  // Check if periodValue matches either format
+                  return periodValue === yearStr || periodValue === fyYearStr;
 
                 case "month": itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`; break;
 
@@ -3168,11 +3197,14 @@ const TeamReportCompare: React.FC = () => {
 
               
               
+              // For non-year comparisons, use the original logic
               return itemValue === periodValue;
 
-            })
+            });
 
-            .reduce((sum, item) => {
+          console.log(`🔍 Filtered data for period "${periodValue}":`, filteredData.length, "items");
+
+          return filteredData.reduce((sum, item) => {
 
               // Get the value based on the selected parameter
 
@@ -3209,6 +3241,25 @@ const TeamReportCompare: React.FC = () => {
               return sum + value;
 
             }, 0);
+
+          console.log(`🔍 Final amount for period "${periodValue}" and parameter "${param}":`, filteredData.reduce((sum, item) => {
+            let value = 0;
+            switch (param) {
+              case 'Revenue': value = item.sales || 0; break;
+              case 'GPM': value = item.gpm || 0; break;
+              case 'GPM %': value = item.gpm_percentage || 0; break;
+              case 'NP': value = item.np || 0; break;
+              case 'NP %': value = item.np_percentage || 0; break;
+              case 'Salary Cost': value = item.salary_cost || 0; break;
+              case 'Team Cost': value = item.team_cost || 0; break;
+              case 'Opr Cost': value = item.opr_cost || 0; break;
+              case 'Funding Cost': value = item.funding_cost || 0; break;
+              case 'Leave Encashment': value = item.leave_encashment || 0; break;
+              case 'HC': value = item.hc || 0; break;
+              default: value = 0;
+            }
+            return sum + value;
+          }, 0));
 
         }).filter(amount => amount !== null);
 
