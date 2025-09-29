@@ -870,8 +870,14 @@ const TeamReportCompare: React.FC = () => {
       return new Date(NaN);
     }
 
-    
-    
+    // Handle ISO date format (YYYY-MM-DD) - this is what the database returns
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+
     // Handle month name format (e.g., "April")
 
     const monthNames = [
@@ -884,11 +890,20 @@ const TeamReportCompare: React.FC = () => {
 
     
     
-    const monthIndex = monthNames.findIndex(month => 
-
-      dateStr.toLowerCase().includes(month.toLowerCase())
-
-    );
+    const monthIndex = monthNames.findIndex(month => {
+      const lowerDateStr = dateStr.toLowerCase();
+      const lowerMonth = month.toLowerCase();
+      
+      // Exact match or word boundary match to avoid false positives
+      return lowerDateStr === lowerMonth || 
+             lowerDateStr.includes(` ${lowerMonth} `) ||
+             lowerDateStr.startsWith(`${lowerMonth} `) ||
+             lowerDateStr.endsWith(` ${lowerMonth}`) ||
+             lowerDateStr.includes(`${lowerMonth}-`) ||
+             lowerDateStr.includes(`-${lowerMonth}`) ||
+             lowerDateStr.includes(`${lowerMonth}_`) ||
+             lowerDateStr.includes(`_${lowerMonth}`);
+    });
 
     
     
@@ -2270,37 +2285,69 @@ const TeamReportCompare: React.FC = () => {
         
         console.log("🔍 Raw data received:", res.data?.length || 0, "records");
         
-        // Debug: Check for July data issues (comprehensive)
+        // Debug: Show ALL month data to understand the issue
         if (res.data && Array.isArray(res.data)) {
-          const julyRecords = res.data.filter((item: any) => {
-            const monthStr = item.month || '';
-            return monthStr.toLowerCase().includes('july');
+          console.warn(`🔍 TOTAL RECORDS: ${res.data.length}`);
+          
+          // Show all unique month values
+          const uniqueMonths = Array.from(new Set(res.data.map(item => item.month)));
+          console.warn(`🔍 UNIQUE MONTHS:`, uniqueMonths);
+          
+          // Check a few months to see if the issue is July-specific
+          const testMonths = ['2023-06-01', '2023-07-01', '2023-08-01', '2024-06-01', '2024-07-01', '2024-08-01'];
+          
+          testMonths.forEach(testMonth => {
+            const monthRecords = res.data.filter((item: any) => item.month === testMonth);
+            if (monthRecords.length > 0) {
+              const totalSales = monthRecords.reduce((sum: number, item: any) => sum + (item.sales || 0), 0);
+              console.warn(`🔍 ${testMonth}: ${monthRecords.length} records, total sales: ${totalSales}`);
+            }
           });
+          
+          // Show July records specifically (handle both DATE format and text format)
+          const julyRecords = res.data.filter((item: any) => {
+            const month = item.month || '';
+            // Handle DATE format (YYYY-MM-DD)
+            if (month.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              return month.includes('-07-01'); // July 1st
+            }
+            // Handle text format
+            return month.toLowerCase().includes('july');
+          });
+          console.warn(`🔍 JULY RECORDS FOUND: ${julyRecords.length}`);
+          
           if (julyRecords.length > 0) {
-            console.warn(`🔍 Found ${julyRecords.length} July records in raw data`);
+            julyRecords.forEach((record, index) => {
+              console.warn(`🔍 July Record ${index + 1}:`, {
+                month: record.month,
+                year: record.year,
+                sales: record.sales,
+                business_unit: record.business_unit,
+                client_name: record.client_name
+              });
+            });
+            
+            // Calculate totals by year
             const julyByYear = julyRecords.reduce((acc: any, item: any) => {
               const year = item.year;
-              if (!acc[year]) acc[year] = [];
-              acc[year].push(item);
+              if (!acc[year]) acc[year] = { records: [], total: 0 };
+              acc[year].records.push(item);
+              acc[year].total += item.sales || 0;
               return acc;
             }, {});
+            
             Object.keys(julyByYear).forEach(year => {
-              const count = julyByYear[year].length;
-              const totalSales = julyByYear[year].reduce((sum: number, item: any) => sum + (item.sales || 0), 0);
-              console.warn(`🔍 July ${year}: ${count} records, total sales: ${totalSales}`);
-              if (count > 1) {
-                console.warn(`⚠️ MULTIPLE July ${year} records detected!`);
-                // Log individual records for debugging
-                julyByYear[year].forEach((record: any, index: number) => {
-                  console.warn(`  Record ${index + 1}:`, {
-                    month: record.month,
-                    year: record.year,
-                    sales: record.sales,
-                    business_unit: record.business_unit,
-                    client_name: record.client_name,
-                    project_name: record.project_name
-                  });
-                });
+              console.warn(`🔍 July ${year}: ${julyByYear[year].records.length} records, total: ${julyByYear[year].total}`);
+              
+              // Check for duplicate business units or clients
+              const businessUnits = Array.from(new Set(julyByYear[year].records.map((r: any) => r.business_unit)));
+              const clients = Array.from(new Set(julyByYear[year].records.map((r: any) => r.client_name)));
+              
+              if (businessUnits.length > 1) {
+                console.warn(`🔍 July ${year} has multiple business units:`, businessUnits);
+              }
+              if (clients.length > 1) {
+                console.warn(`🔍 July ${year} has multiple clients:`, clients);
               }
             });
           }
@@ -2395,44 +2442,6 @@ const TeamReportCompare: React.FC = () => {
         }).filter((year: any) => year !== null))).sort();
         console.log("🔍 Years found in filtered data:", yearsInData);
         
-        // Debug: Check July data aggregation (comprehensive)
-        const julyData = filteredData.filter((item: any) => {
-          const date = parseDate(item.month, item.year);
-          if (!date) return false;
-          const month = date.getMonth() + 1;
-          return month === 7; // July is month 7
-        });
-        if (julyData.length > 0) {
-          console.warn(`🔍 Found ${julyData.length} July records in filtered data`);
-          const julyByYear = julyData.reduce((acc: any, item: any) => {
-            const date = parseDate(item.month, item.year);
-            if (!date) return acc;
-            const year = date.getFullYear();
-            if (!acc[year]) acc[year] = [];
-            acc[year].push(item);
-            return acc;
-          }, {});
-          
-          Object.keys(julyByYear).forEach(year => {
-            const yearData = julyByYear[year];
-            const totalRevenue = yearData.reduce((sum: number, item: any) => sum + (item.sales || 0), 0);
-            console.warn(`🔍 July ${year} filtered: ${yearData.length} records, total: ${totalRevenue}`);
-            if (yearData.length > 1) {
-              console.warn(`⚠️ MULTIPLE July ${year} records in filtered data!`);
-              // Log individual records for debugging
-              yearData.forEach((record: any, index: number) => {
-                console.warn(`  Filtered Record ${index + 1}:`, {
-                  month: record.month,
-                  year: record.year,
-                  sales: record.sales,
-                  business_unit: record.business_unit,
-                  client_name: record.client_name,
-                  project_name: record.project_name
-                });
-              });
-            }
-          });
-        }
 
         
         
@@ -3321,52 +3330,6 @@ const TeamReportCompare: React.FC = () => {
 
             }, 0);
 
-          // Debug: Only log July issues
-          const periodStr = String(periodValue || '');
-          if (periodStr.includes('July')) {
-            console.warn(`🔍 Calculating July ${periodStr} ${param} with ${filteredData.length} records`);
-            const julyTotal = filteredData.reduce((sum, item) => {
-              let value = 0;
-              switch (param) {
-                case 'Revenue': value = item.sales || 0; break;
-                case 'GPM': value = item.gpm || 0; break;
-                case 'GPM %': value = item.gpm_percentage || 0; break;
-                case 'NP': value = item.np || 0; break;
-                case 'NP %': value = item.np_percentage || 0; break;
-                case 'Salary Cost': value = item.salary_cost || 0; break;
-                case 'Team Cost': value = item.team_cost || 0; break;
-                case 'Opr Cost': value = item.opr_cost || 0; break;
-                case 'Funding Cost': value = item.funding_cost || 0; break;
-                case 'Leave Encashment': value = item.leave_encashment || 0; break;
-                case 'HC': value = item.hc || 0; break;
-                default: value = 0;
-              }
-              return sum + value;
-            }, 0);
-            console.warn(`⚠️ July ${periodStr} ${param}: ${julyTotal} (${filteredData.length} records)`);
-            
-            // Log individual records being summed
-            filteredData.forEach((item: any, index: number) => {
-              let value = 0;
-              switch (param) {
-                case 'Revenue': value = item.sales || 0; break;
-                case 'GPM': value = item.gpm || 0; break;
-                case 'GPM %': value = item.gpm_percentage || 0; break;
-                case 'NP': value = item.np || 0; break;
-                case 'NP %': value = item.np_percentage || 0; break;
-                case 'Salary Cost': value = item.salary_cost || 0; break;
-                case 'Team Cost': value = item.team_cost || 0; break;
-                case 'Opr Cost': value = item.opr_cost || 0; break;
-                case 'Funding Cost': value = item.funding_cost || 0; break;
-                case 'Leave Encashment': value = item.leave_encashment || 0; break;
-                case 'HC': value = item.hc || 0; break;
-                default: value = 0;
-              }
-              if (value > 0) {
-                console.warn(`  Record ${index + 1}: ${value} (${item.business_unit} - ${item.client_name})`);
-              }
-            });
-          }
 
         }).filter(amount => amount !== null);
 
