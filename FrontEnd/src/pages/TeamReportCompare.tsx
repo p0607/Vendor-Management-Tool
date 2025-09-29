@@ -902,6 +902,11 @@ const TeamReportCompare: React.FC = () => {
 
       }
 
+      // Debug: Log July parsing issues only
+      if (monthIndex === 6 && (!year || year < 2020 || year > 2030)) { // July is at index 6
+        console.warn("⚠️ parseDate: July with invalid year:", { dateStr, year });
+      }
+
       return new Date(year, monthIndex, 1);
 
     }
@@ -2258,6 +2263,30 @@ const TeamReportCompare: React.FC = () => {
         
         
         console.log("🔍 Raw data received:", res.data?.length || 0, "records");
+        
+        // Debug: Check for July data issues (lightweight)
+        if (res.data && Array.isArray(res.data)) {
+          const julyRecords = res.data.filter((item: any) => {
+            const monthStr = item.month || '';
+            return monthStr.toLowerCase().includes('july');
+          });
+          if (julyRecords.length > 0) {
+            console.log("🔍 July records found:", julyRecords.length);
+            // Check for potential duplicates
+            const julyByYear = julyRecords.reduce((acc: any, item: any) => {
+              const year = item.year;
+              if (!acc[year]) acc[year] = [];
+              acc[year].push(item);
+              return acc;
+            }, {});
+            Object.keys(julyByYear).forEach(year => {
+              const count = julyByYear[year].length;
+              if (count > 1) {
+                console.warn(`⚠️ Multiple July ${year} records found:`, count);
+              }
+            });
+          }
+        }
 
         
         
@@ -2347,6 +2376,31 @@ const TeamReportCompare: React.FC = () => {
           return date.getFullYear();
         }))).sort();
         console.log("🔍 Years found in filtered data:", yearsInData);
+        
+        // Debug: Check July data aggregation (lightweight)
+        const julyData = filteredData.filter((item: any) => {
+          const date = parseDate(item.month, item.year);
+          const month = date.getMonth() + 1;
+          return month === 7; // July is month 7
+        });
+        if (julyData.length > 0) {
+          // Check for aggregation issues
+          const julyByYear = julyData.reduce((acc: any, item: any) => {
+            const date = parseDate(item.month, item.year);
+            const year = date.getFullYear();
+            if (!acc[year]) acc[year] = [];
+            acc[year].push(item);
+            return acc;
+          }, {});
+          
+          Object.keys(julyByYear).forEach(year => {
+            const yearData = julyByYear[year];
+            const totalRevenue = yearData.reduce((sum: number, item: any) => sum + (item.sales || 0), 0);
+            if (yearData.length > 1) {
+              console.warn(`⚠️ July ${year} has ${yearData.length} records, total: ${totalRevenue}`);
+            }
+          });
+        }
 
         
         
@@ -2528,25 +2582,10 @@ const TeamReportCompare: React.FC = () => {
 
     
     
-    console.log(`🔍 getBaseParameterValue called:`, {
-
-      periodValue,
-
-      index,
-
-      parameter,
-
-      dataLength: data.length,
-
-      selectedBusinessUnit,
-
-      selectedClientName,
-
-      selectedBUHead,
-
-      compareType
-
-    });
+    // Debug: Only log for July issues
+    if (periodValue && periodValue.includes('July')) {
+      console.log(`🔍 Processing July period: ${periodValue} for parameter: ${parameter}`);
+    }
 
     
     
@@ -3014,13 +3053,9 @@ const TeamReportCompare: React.FC = () => {
       console.log("🔍 calculateGrowth called with availableParameters:", availableParameters);
       
       return availableParameters.map(param => {
-        console.log("🔍 Processing parameter:", param);
-
         const periodAmounts = comparisonValues.map((periodValue, index) => {
 
           if (!periodValue) return null;
-
-          console.log(`🔍 Processing period ${index}: "${periodValue}" for parameter: ${param}`);
 
           
           
@@ -3214,8 +3249,6 @@ const TeamReportCompare: React.FC = () => {
 
             });
 
-          console.log(`🔍 Filtered data for period "${periodValue}":`, filteredData.length, "items");
-
           return filteredData.reduce((sum, item) => {
 
               // Get the value based on the selected parameter
@@ -3254,24 +3287,29 @@ const TeamReportCompare: React.FC = () => {
 
             }, 0);
 
-          console.log(`🔍 Final amount for period "${periodValue}" and parameter "${param}":`, filteredData.reduce((sum, item) => {
-            let value = 0;
-            switch (param) {
-              case 'Revenue': value = item.sales || 0; break;
-              case 'GPM': value = item.gpm || 0; break;
-              case 'GPM %': value = item.gpm_percentage || 0; break;
-              case 'NP': value = item.np || 0; break;
-              case 'NP %': value = item.np_percentage || 0; break;
-              case 'Salary Cost': value = item.salary_cost || 0; break;
-              case 'Team Cost': value = item.team_cost || 0; break;
-              case 'Opr Cost': value = item.opr_cost || 0; break;
-              case 'Funding Cost': value = item.funding_cost || 0; break;
-              case 'Leave Encashment': value = item.leave_encashment || 0; break;
-              case 'HC': value = item.hc || 0; break;
-              default: value = 0;
-            }
-            return sum + value;
-          }, 0));
+          // Debug: Only log July issues
+          const periodStr = String(periodValue || '');
+          if (periodStr.includes('July')) {
+            const julyTotal = filteredData.reduce((sum, item) => {
+              let value = 0;
+              switch (param) {
+                case 'Revenue': value = item.sales || 0; break;
+                case 'GPM': value = item.gpm || 0; break;
+                case 'GPM %': value = item.gpm_percentage || 0; break;
+                case 'NP': value = item.np || 0; break;
+                case 'NP %': value = item.np_percentage || 0; break;
+                case 'Salary Cost': value = item.salary_cost || 0; break;
+                case 'Team Cost': value = item.team_cost || 0; break;
+                case 'Opr Cost': value = item.opr_cost || 0; break;
+                case 'Funding Cost': value = item.funding_cost || 0; break;
+                case 'Leave Encashment': value = item.leave_encashment || 0; break;
+                case 'HC': value = item.hc || 0; break;
+                default: value = 0;
+              }
+              return sum + value;
+            }, 0);
+            console.log(`🔍 July ${periodStr} ${param}: ${julyTotal} (${filteredData.length} records)`);
+          }
 
         }).filter(amount => amount !== null);
 
