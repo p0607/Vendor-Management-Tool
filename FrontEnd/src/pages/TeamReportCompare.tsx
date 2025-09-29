@@ -795,6 +795,7 @@ const TeamReportCompare: React.FC = () => {
     const previousFY = currentFY - 1;
     const yearValues = [`FY ${currentFY}`, `FY ${previousFY}`];
     console.log("🔍 Force using year defaults:", yearValues);
+    console.log("🔍 Current FY:", currentFY, "Previous FY:", previousFY);
     return yearValues;
   });
 
@@ -1225,7 +1226,7 @@ const TeamReportCompare: React.FC = () => {
 
           month: stringOrNull(row['Month'] || row.month),
 
-          year: parseNumericValue(row['Year'] || row.year) || new Date().getFullYear(),
+          year: parseNumericValue(row['Year'] || row.year) || null,
 
         };
 
@@ -2339,6 +2340,13 @@ const TeamReportCompare: React.FC = () => {
         console.log("🔍 Final filtered data:", filteredData.length, "records");
 
         console.log("🔍 Sample filtered data:", filteredData.slice(0, 3));
+        
+        // Debug: Check what years are in the data
+        const yearsInData = Array.from(new Set(filteredData.map((item: any) => {
+          const date = parseDate(item.month, item.year);
+          return date.getFullYear();
+        }))).sort();
+        console.log("🔍 Years found in filtered data:", yearsInData);
 
         
         
@@ -2402,7 +2410,11 @@ const TeamReportCompare: React.FC = () => {
 
               // Create a proper date string using the year from the data
 
-              const year = processedItem.year || new Date().getFullYear();
+              const year = processedItem.year;
+              if (!year) {
+                console.warn("⚠️ No year provided for month processing, skipping");
+                return;
+              }
 
               processedItem.month = `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`;
 
@@ -3400,8 +3412,8 @@ const TeamReportCompare: React.FC = () => {
               growthData[parameter] = growthPercentage;
             }
           } else {
-            // Fallback to default year calculation
-            const currentYear = new Date().getFullYear();
+            // Fallback to default year calculation - use actual comparison values
+            const currentYear = getCurrentFinancialYear();
             const previousYear = currentYear - 1;
             
             // Find previous year data
