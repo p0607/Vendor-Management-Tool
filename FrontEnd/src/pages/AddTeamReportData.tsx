@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../config/api';
-import logo from '../assets/Logo.jpg';
 import './AddTeamReportData.css';
 
 interface TeamReportData {
@@ -127,13 +126,46 @@ const BUSINESS_UNIT_OPTIONS = [
 
   return (
     <div className="homepage">
-      <header className="header">
-        <div className="logo">
-          <img src={logo} alt="Alchemy Logo" />
-        </div>
-        <div className="tabs">
-          <button className="tab-button" onClick={() => navigate('/HomePage')}>Home</button>
-          <button className="tab-button" onClick={() => navigate(-1)}>Back</button>
+      <header style={{ 
+        display: 'flex', 
+        justifyContent: 'flex-end', 
+        alignItems: 'center', 
+        padding: '0.5rem 1rem', 
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #e9ecef',
+        minHeight: '50px'
+      }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#ff8c00',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+            onClick={() => navigate('/HomePage')}
+          >
+            Home
+          </button>
+          <button 
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#ff8c00',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}
+            onClick={() => navigate(-1)}
+          >
+            Back
+          </button>
         </div>
       </header>
       <div className="add-routing-container">
