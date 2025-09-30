@@ -1,28 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-
 import { useNavigate, useLocation } from "react-router-dom";
-
 import { Select, Button, Dropdown, Tabs, message, AutoComplete } from "antd";
-
-const { TabPane } = Tabs;
-
 import { PlusOutlined, CloseOutlined, DownOutlined } from "@ant-design/icons";
-
-
-import styles from './TeamReportDashboard.module.css';
-
-
-import ForecastChart from './TargetTrackingChart';
-
-
-import apiClient from '../config/api';
-
-import logo from '../assets/logo_1.png';
-
 import * as XLSX from 'xlsx';
 
+import styles from './TeamReportDashboard.module.css';
+import ForecastChart from './TargetTrackingChart';
+import apiClient from '../config/api';
+import logo from '../assets/logo_1.png';
 
-
+const { TabPane } = Tabs;
 const { Option } = Select;
 
 
