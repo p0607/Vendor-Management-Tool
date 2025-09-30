@@ -56,6 +56,8 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   // Update databaseData when data prop changes
   useEffect(() => {
     if (data && data.length > 0) {
+      console.log('🔍 Data prop received:', data.length, 'items');
+      console.log('🔍 Sample data item:', data[0]);
       setDatabaseData(data);
     }
   }, [data]);
@@ -72,6 +74,63 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
     'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'
   ];
+
+  // Enhanced date parser to handle various date formats (same as TeamReportCompare)
+  const parseDate = (dateStr: string, year?: number): Date => {
+    if (!dateStr || dateStr.trim() === '') {
+      console.warn("⚠️ parseDate: No dateStr provided, returning invalid date");
+      return new Date(NaN);
+    }
+
+    // Handle ISO date format (YYYY-MM-DD) - this is what the database returns
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+
+    // Handle month name format (e.g., "April")
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    const monthIndex = monthNames.findIndex(month => {
+      const lowerDateStr = dateStr.toLowerCase();
+      const lowerMonth = month.toLowerCase();
+      
+      // Exact match or word boundary match to avoid false positives
+      return lowerDateStr === lowerMonth || 
+             lowerDateStr.includes(` ${lowerMonth} `) ||
+             lowerDateStr.startsWith(`${lowerMonth} `) ||
+             lowerDateStr.endsWith(` ${lowerMonth}`) ||
+             lowerDateStr.includes(`${lowerMonth}-`) ||
+             lowerDateStr.includes(`-${lowerMonth}`) ||
+             lowerDateStr.includes(`${lowerMonth}_`) ||
+             lowerDateStr.includes(`_${lowerMonth}`);
+    });
+    
+    if (monthIndex !== -1) {
+      // If we find a month name, create a date for the 1st of that month
+      // Use the provided year - DO NOT use current year as fallback to prevent automatic data generation
+      if (!year) {
+        console.warn("⚠️ parseDate: No year provided for month:", dateStr, "Returning invalid date");
+        return new Date(NaN); // Return invalid date instead of current year
+      }
+      return new Date(year, monthIndex, 1);
+    }
+    
+    // Handle ISO format (YYYY-MM-DD) or other standard formats
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+    
+    // Fallback - return invalid date instead of current date to prevent automatic data generation
+    console.warn("⚠️ parseDate: Unable to parse date:", dateStr, "Returning invalid date");
+    return new Date(NaN);
+  };
 
   // Get current financial year and month
   const getCurrentFinancialYear = () => {
@@ -361,21 +420,30 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     console.log('🔍 Current FY:', currentFY);
     console.log('🔍 Current month index:', currentMonthIndex);
 
+    // Filter data for current financial year (same logic as KPI Dashboard)
+    const currentFYData = databaseData.filter(item => {
+      const itemDate = parseDate(item.month, item.year);
+      if (isNaN(itemDate.getTime())) return false;
+      
+      const itemYear = itemDate.getFullYear();
+      const itemMonth = itemDate.getMonth() + 1;
+      
+      // Check if it's in current FY (April to March)
+      if (itemMonth >= 4) {
+        return itemYear === currentFY;
+      } else {
+        return itemYear === currentFY + 1;
+      }
+    });
+
+    console.log('🔍 Current FY data length:', currentFYData.length);
+
     // Get actual data for current FY months (April to current month)
     const actualData: { [key: string]: number } = {};
     
-    // Process database data to get monthly totals for the selected parameter
-    databaseData.forEach(item => {
-      console.log('🔍 Processing database item:', item);
-      console.log('🔍 Item month:', item.month);
-      console.log('🔍 Item selectedParameter:', item[selectedParameter]);
-      
-      if (!item.month) {
-        console.log('🔍 Skipping item - missing month data');
-        return;
-      }
-      
-      // Map parameter names to database field names
+    // Process data to get monthly totals for the selected parameter (same logic as KPI Dashboard)
+    currentFYData.forEach(item => {
+      // Map parameter names to database field names (same as KPI Dashboard)
       const parameterMapping: { [key: string]: string[] } = {
         'Revenue': ['sales', 'amount', 'revenue'],
         'GPM': ['gpm', 'gross_profit_margin'],
@@ -393,60 +461,21 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       // Find the actual field name in the database
       const possibleFields = parameterMapping[selectedParameter] || [selectedParameter.toLowerCase()];
       let parameterValue: number | null = null;
-      let foundField: string | null = null;
       
       for (const field of possibleFields) {
         if (item[field] !== undefined && item[field] !== null) {
           parameterValue = parseFloat(item[field]) || 0;
-          foundField = field;
           break;
         }
       }
       
-      if (parameterValue === null) {
-        console.log('🔍 Skipping item - parameter not found in database fields:', possibleFields);
-        console.log('🔍 Available fields in this item:', Object.keys(item));
-        console.log('🔍 Item values:', item);
-        return;
-      }
+      if (parameterValue === null) return;
       
-      console.log(`🔍 Found parameter value: ${parameterValue} in field: ${foundField}`);
-      console.log(`🔍 Raw parameter value from database:`, foundField ? item[foundField] : 'N/A');
+      // Parse month using same logic as KPI Dashboard
+      const itemDate = parseDate(item.month, item.year);
+      if (isNaN(itemDate.getTime())) return;
       
-      // Handle month - could be date string, month name, or number
-      let monthValue: number;
-      if (typeof item.month === 'string') {
-        // Check if it's a date string (like "2025-01-01T00:00:00.000Z")
-        if (item.month.includes('-') || item.month.includes('T')) {
-          const date = new Date(item.month);
-          if (!isNaN(date.getTime())) {
-            monthValue = date.getMonth() + 1; // Convert to 1-12
-          } else {
-            console.log('🔍 Could not parse date string:', item.month);
-            return;
-          }
-        } else {
-          // Check if it's a month name
-          const monthNames = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-          ];
-          const monthIndex = monthNames.findIndex(month => 
-            item.month.toLowerCase().includes(month.toLowerCase())
-          );
-          if (monthIndex === -1) {
-            console.log('🔍 Could not parse month:', item.month);
-            return;
-          }
-          monthValue = monthIndex + 1; // Convert to 1-12
-        }
-      } else {
-        monthValue = parseFloat(item.month);
-        if (isNaN(monthValue)) {
-          console.log('🔍 Invalid month value:', item.month);
-          return;
-        }
-      }
+      const monthValue = itemDate.getMonth() + 1; // 1-12
       
       // Convert month to FY month index (1-12 to 0-11, April=0)
       let fyMonthIndex: number;
@@ -457,19 +486,17 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       }
       
       const monthKey = financialYearMonths[fyMonthIndex];
-      const value = parameterValue;
-      
-      console.log('🔍 Processed - Month:', monthKey, 'Value:', value, 'MonthValue:', monthValue, 'FYIndex:', fyMonthIndex);
       
       if (!actualData[monthKey]) {
         actualData[monthKey] = 0;
       }
-      actualData[monthKey] += value;
+      actualData[monthKey] += parameterValue;
     });
 
     console.log('🔍 Actual data by month:', actualData);
     console.log('🔍 Database data length:', databaseData.length);
     console.log('🔍 Sample database data:', databaseData.slice(0, 3));
+    console.log('🔍 Financial year months:', financialYearMonths);
 
     // Calculate forecasting
     const forecastData: { [key: string]: number } = {};
@@ -551,6 +578,8 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       // Check if this month has actual data in the database
       const hasActualData = actualData[month] && actualData[month] > 0;
       
+      console.log(`🔍 Checking ${month} (index ${index}): hasActualData=${hasActualData}, value=${actualData[month]}`);
+      
       if (hasActualData) {
         // Use actual data from database for months that have data
         value = actualData[month];
@@ -586,6 +615,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     });
 
     console.log('🔍 Final forecast chart data:', chartData);
+    console.log('🔍 Chart data summary:', chartData.map(item => ({ period: item.period, value: item.value, isForecast: item.isForecast })));
       return chartData;
     };
 
