@@ -324,28 +324,44 @@ const TeamReportCompare: React.FC = () => {
       const calculateParameterRaw = (parameter: string) => {
         let currentValue, previousValue;
 
-        // Special handling for HC - use last month's value instead of sum
+        // Special handling for HC - use sum of last available month's HC data
         if (parameter === 'hc') {
-          // For current quarter: get the last month's HC value
+          // For current quarter: get the last month's HC value and sum it
           if (currentQuarterData.length > 0) {
             const lastMonthCurrent = currentQuarterData.reduce((latest, item) => {
               const itemDate = parseDate(item.month, item.year);
               const latestDate = parseDate(latest.month, latest.year);
               return itemDate > latestDate ? item : latest;
             });
-            currentValue = lastMonthCurrent.hc || 0;
+            // Sum all HC values from that last month
+            const lastMonthDate = parseDate(lastMonthCurrent.month, lastMonthCurrent.year);
+            currentValue = currentQuarterData
+              .filter(item => {
+                const itemDate = parseDate(item.month, item.year);
+                return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                       itemDate.getFullYear() === lastMonthDate.getFullYear();
+              })
+              .reduce((sum, item) => sum + (item.hc || 0), 0);
           } else {
             currentValue = 0;
           }
 
-          // For previous quarter: get the last month's HC value
+          // For previous quarter: get the last month's HC value and sum it
           if (previousQuarterData.length > 0) {
             const lastMonthPrevious = previousQuarterData.reduce((latest, item) => {
               const itemDate = parseDate(item.month, item.year);
               const latestDate = parseDate(latest.month, latest.year);
               return itemDate > latestDate ? item : latest;
             });
-            previousValue = lastMonthPrevious.hc || 0;
+            // Sum all HC values from that last month
+            const lastMonthDate = parseDate(lastMonthPrevious.month, lastMonthPrevious.year);
+            previousValue = previousQuarterData
+              .filter(item => {
+                const itemDate = parseDate(item.month, item.year);
+                return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                       itemDate.getFullYear() === lastMonthDate.getFullYear();
+              })
+              .reduce((sum, item) => sum + (item.hc || 0), 0);
           } else {
             previousValue = 0;
           }
@@ -423,40 +439,56 @@ const TeamReportCompare: React.FC = () => {
     const calculateParameterRaw = (parameter: string) => {
       let currentFYActual, previousFYTotal;
 
-      // Special handling for HC - use last month's value instead of sum
+      // Special handling for HC - use sum of last available month's HC data for each FY
       if (parameter === 'hc') {
-        // For current FY: get the last month's HC value
+        // For current FY: get the last month's HC value and sum it
         if (currentFYData.length > 0) {
           const lastMonthCurrent = currentFYData.reduce((latest, item) => {
             const itemDate = parseDate(item.month, item.year);
             const latestDate = parseDate(latest.month, latest.year);
             return itemDate > latestDate ? item : latest;
           });
-          currentFYActual = lastMonthCurrent.hc || 0;
+          // Sum all HC values from that last month
+          const lastMonthDate = parseDate(lastMonthCurrent.month, lastMonthCurrent.year);
+          currentFYActual = currentFYData
+            .filter(item => {
+              const itemDate = parseDate(item.month, item.year);
+              return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                     itemDate.getFullYear() === lastMonthDate.getFullYear();
+            })
+            .reduce((sum, item) => sum + (item.hc || 0), 0);
         } else {
           currentFYActual = 0;
         }
 
-        // For previous FY: get the last month's HC value (should be March)
+        // For previous FY: get the last month's HC value and sum it (March of next year for complete FY)
         if (previousFYData.length > 0) {
           const lastMonthPrevious = previousFYData.reduce((latest, item) => {
             const itemDate = parseDate(item.month, item.year);
             const latestDate = parseDate(latest.month, latest.year);
             return itemDate > latestDate ? item : latest;
           });
-          previousFYTotal = lastMonthPrevious.hc || 0;
+          // Sum all HC values from that last month
+          const lastMonthDate = parseDate(lastMonthPrevious.month, lastMonthPrevious.year);
+          previousFYTotal = previousFYData
+            .filter(item => {
+              const itemDate = parseDate(item.month, item.year);
+              return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                     itemDate.getFullYear() === lastMonthDate.getFullYear();
+            })
+            .reduce((sum, item) => sum + (item.hc || 0), 0);
         } else {
           previousFYTotal = 0;
         }
 
-        console.log(`🔍 HC Raw Database Values (Last Month Only):`, {
+        console.log(`🔍 HC Raw Database Values (Sum of Last Available Month):`, {
           currentFY,
           previousFY,
-          currentFYActual, // LAST MONTH HC VALUE
-          previousFYTotal, // LAST MONTH HC VALUE (March for previous FY)
+          currentFYActual, // SUM OF LAST MONTH HC VALUE
+          previousFYTotal, // SUM OF LAST MONTH HC VALUE (March for complete FY)
           currentFYDataLength: currentFYData.length,
           previousFYDataLength: previousFYData.length,
-          calculation: `Last month HC values instead of sum`
+          calculation: `Sum of last available month HC data for each FY`
         });
       } else {
         // For all other parameters: sum all months (ACTUAL DATA ONLY - NO PROJECTIONS)
@@ -652,33 +684,78 @@ const TeamReportCompare: React.FC = () => {
     });
 
     const calculateParameterKPI = (parameter: string) => {
-      // Calculate current FY total (actual + projected)
-      const currentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
-      
-      // If we have data for current FY, project it for remaining months
-      let currentFYProjected = currentFYActual;
-      if (currentFYData.length > 0 && monthsRemaining > 0) {
-        // Find the last available month's data
-        const lastMonthData = currentFYData.reduce((latest, item) => {
-          const itemDate = parseDate(item.month, item.year);
-          const latestDate = parseDate(latest.month, latest.year);
-          return itemDate > latestDate ? item : latest;
-        });
-        
-        const lastMonthValue = lastMonthData[parameter] || 0;
-        // Multiply last month's value by remaining months
-        currentFYProjected = currentFYActual + (lastMonthValue * monthsRemaining);
-        
-      }
+      let currentFYActual, currentFYProjected, previousFYTotal;
 
-      // Calculate previous FY total
-      const previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+      // Special handling for HC - use sum of last available month's HC data for each FY
+      if (parameter === 'hc') {
+        // For current FY: get the last month's HC value and sum it
+        if (currentFYData.length > 0) {
+          const lastMonthCurrent = currentFYData.reduce((latest, item) => {
+            const itemDate = parseDate(item.month, item.year);
+            const latestDate = parseDate(latest.month, latest.year);
+            return itemDate > latestDate ? item : latest;
+          });
+          // Sum all HC values from that last month
+          const lastMonthDate = parseDate(lastMonthCurrent.month, lastMonthCurrent.year);
+          currentFYActual = currentFYData
+            .filter(item => {
+              const itemDate = parseDate(item.month, item.year);
+              return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                     itemDate.getFullYear() === lastMonthDate.getFullYear();
+            })
+            .reduce((sum, item) => sum + (item.hc || 0), 0);
+          currentFYProjected = currentFYActual; // HC doesn't need projection
+        } else {
+          currentFYActual = 0;
+          currentFYProjected = 0;
+        }
+
+        // For previous FY: get the last month's HC value and sum it (March of next year for complete FY)
+        if (previousFYData.length > 0) {
+          const lastMonthPrevious = previousFYData.reduce((latest, item) => {
+            const itemDate = parseDate(item.month, item.year);
+            const latestDate = parseDate(latest.month, latest.year);
+            return itemDate > latestDate ? item : latest;
+          });
+          // Sum all HC values from that last month
+          const lastMonthDate = parseDate(lastMonthPrevious.month, lastMonthPrevious.year);
+          previousFYTotal = previousFYData
+            .filter(item => {
+              const itemDate = parseDate(item.month, item.year);
+              return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                     itemDate.getFullYear() === lastMonthDate.getFullYear();
+            })
+            .reduce((sum, item) => sum + (item.hc || 0), 0);
+        } else {
+          previousFYTotal = 0;
+        }
+      } else {
+        // For all other parameters: sum all months and apply projection
+        currentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        
+        // If we have data for current FY, project it for remaining months
+        currentFYProjected = currentFYActual;
+        if (currentFYData.length > 0 && monthsRemaining > 0) {
+          // Find the last available month's data
+          const lastMonthData = currentFYData.reduce((latest, item) => {
+            const itemDate = parseDate(item.month, item.year);
+            const latestDate = parseDate(latest.month, latest.year);
+            return itemDate > latestDate ? item : latest;
+          });
+          
+          const lastMonthValue = lastMonthData[parameter] || 0;
+          // Multiply last month's value by remaining months
+          currentFYProjected = currentFYActual + (lastMonthValue * monthsRemaining);
+        }
+
+        // Calculate previous FY total
+        previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+      }
 
       // Calculate growth percentage (current - previous) / previous * 100
       const growthPercentage = previousFYTotal > 0 
         ? ((currentFYProjected - previousFYTotal) / previousFYTotal) * 100 
         : 0;
-
 
       const projectedAmount = currentFYProjected - currentFYActual;
 
@@ -2998,8 +3075,59 @@ const TeamReportCompare: React.FC = () => {
 
           if (combinedPeriod && combinedPeriod.label === periodValue) {
 
-            // Calculate total for combined periods
+            // Special handling for HC - use sum of last available month's HC data
+            if (param === 'HC') {
+              const allPeriodData = combinedPeriod.periods.flatMap(period => 
+                data.filter(item => {
+                  if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+                  if (selectedClientName) {
+                    if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+                      if (item.project_name !== selectedClientName) return false;
+                    } else {
+                      if (item.client_name !== selectedClientName) return false;
+                    }
+                  }
+                  if (selectedBUHead && item.bu_head !== selectedBUHead) return false;
+                  
+                  const date = parseDate(item.month, item.year);
+                  if (isNaN(date.getTime())) return false;
+                  
+                  let itemValue = "";
+                  switch (compareType) {
+                    case "year": 
+                      const yearStr = date.getFullYear().toString();
+                      const fyYearStr = `FY ${yearStr}`;
+                      itemValue = yearStr; 
+                      return period === yearStr || period === fyYearStr;
+                    case "month": itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`; break;
+                    case "quarter": itemValue = getFiscalQuarter(date).label; break;
+                    default: return false;
+                  }
+                  return itemValue === period;
+                })
+              );
+              
+              // Find the last month's HC value across all periods
+              if (allPeriodData.length > 0) {
+                const lastMonthData = allPeriodData.reduce((latest, item) => {
+                  const itemDate = parseDate(item.month, item.year);
+                  const latestDate = parseDate(latest.month, latest.year);
+                  return itemDate > latestDate ? item : latest;
+                });
+                // Sum all HC values from that last month
+                const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
+                return allPeriodData
+                  .filter(item => {
+                    const itemDate = parseDate(item.month, item.year);
+                    return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                           itemDate.getFullYear() === lastMonthDate.getFullYear();
+                  })
+                  .reduce((sum, item) => sum + (item.hc || 0), 0);
+              }
+              return 0;
+            }
 
+            // For all other parameters: sum all months
             return combinedPeriod.periods.reduce((total, period) => {
 
               return total + data
@@ -3069,51 +3197,39 @@ const TeamReportCompare: React.FC = () => {
 
                 .reduce((sum, item) => {
 
-                  // Special handling for HC - use last month's value instead of sum
+                  // Get the value based on the selected parameter
 
-                  if (param === 'HC') {
+                  let value = 0;
 
-                    // For HC, we need to find the last month in this period
+                  switch (param) {
 
-                    // This is a simplified approach - in practice, we should find the last month
+                    case 'Revenue': value = item.sales || 0; break;
 
-                    return item.hc || 0;
+                    case 'GPM': value = item.gpm || 0; break;
 
-                  } else {
+                    case 'GPM %': value = item.gpm_percentage || 0; break;
 
-                    // Get the value based on the selected parameter
+                    case 'NP': value = item.np || 0; break;
 
-                    let value = 0;
+                    case 'NP %': value = item.np_percentage || 0; break;
 
-                    switch (param) {
+                    case 'Salary Cost': value = item.salary_cost || 0; break;
 
-                      case 'Revenue': value = item.sales || 0; break;
+                    case 'Team Cost': value = item.team_cost || 0; break;
 
-                      case 'GPM': value = item.gpm || 0; break;
+                    case 'Opr Cost': value = item.opr_cost || 0; break;
 
-                      case 'GPM %': value = item.gpm_percentage || 0; break;
+                    case 'Funding Cost': value = item.funding_cost || 0; break;
 
-                      case 'NP': value = item.np || 0; break;
+                    case 'Leave Encashment': value = item.leave_encashment || 0; break;
 
-                      case 'NP %': value = item.np_percentage || 0; break;
+                    case 'HC': value = item.hc || 0; break;
 
-                      case 'Salary Cost': value = item.salary_cost || 0; break;
-
-                      case 'Team Cost': value = item.team_cost || 0; break;
-
-                      case 'Opr Cost': value = item.opr_cost || 0; break;
-
-                      case 'Funding Cost': value = item.funding_cost || 0; break;
-
-                      case 'Leave Encashment': value = item.leave_encashment || 0; break;
-
-                      default: value = 0;
-
-                    }
-
-                    return sum + value;
+                    default: value = 0;
 
                   }
+
+                  return sum + value;
 
                 }, 0);
 
@@ -3188,35 +3304,29 @@ const TeamReportCompare: React.FC = () => {
 
             });
 
-          // Special handling for HC - use last month's value instead of sum
-
+          // Special handling for HC - use sum of last available month's HC data
           if (param === 'HC') {
-
             if (filteredData.length > 0) {
-
-              const lastMonth = filteredData.reduce((latest, item) => {
-
+              const lastMonthData = filteredData.reduce((latest, item) => {
                 const itemDate = parseDate(item.month, item.year);
-
                 const latestDate = parseDate(latest.month, latest.year);
-
                 return itemDate > latestDate ? item : latest;
-
               });
-
-              return lastMonth.hc || 0;
-
-            } else {
-
-              return 0;
-
+              // Sum all HC values from that last month
+              const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
+              return filteredData
+                .filter(item => {
+                  const itemDate = parseDate(item.month, item.year);
+                  return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                         itemDate.getFullYear() === lastMonthDate.getFullYear();
+                })
+                .reduce((sum, item) => sum + (item.hc || 0), 0);
             }
+            return 0;
+          }
 
-          } else {
-
-            // For all other parameters: sum all months
-
-            return filteredData.reduce((sum, item) => {
+          // For all other parameters: sum all months
+          return filteredData.reduce((sum, item) => {
 
               // Get the value based on the selected parameter
 
@@ -3244,6 +3354,8 @@ const TeamReportCompare: React.FC = () => {
 
                 case 'Leave Encashment': value = item.leave_encashment || 0; break;
 
+                case 'HC': value = item.hc || 0; break;
+
                 default: value = 0;
 
               }
@@ -3251,8 +3363,6 @@ const TeamReportCompare: React.FC = () => {
               return sum + value;
 
             }, 0);
-
-          }
 
 
         }).filter(amount => amount !== null);
@@ -5519,7 +5629,7 @@ const TeamReportCompare: React.FC = () => {
 
         const growthPercentage = firstPeriodAmount !== 0 
 
-          ? ((absoluteChange) / Math.abs(firstPeriodAmount)) * 100 
+          ? ((absoluteChange) / firstPeriodAmount) * 100 
 
           : lastPeriodAmount !== 0 ? Infinity : 0;
 

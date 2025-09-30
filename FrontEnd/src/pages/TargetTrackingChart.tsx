@@ -35,7 +35,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   const [selectedParameter, setSelectedParameter] = useState<string>('Revenue');
   const [selectedTimeline, setSelectedTimeline] = useState<string>('month');
   const [selectedBusinessUnitFilter, setSelectedBusinessUnitFilter] = useState<string>('all');
-  const [databaseData, setDatabaseData] = useState<any[]>([]);
+  const [databaseData, setDatabaseData] = useState<any[]>(data || []);
   const [isLoading, setIsLoading] = useState(false);
 
   // Use parameters from props or fallback to default
@@ -43,15 +43,22 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     'Revenue', 
     'GPM', 
     'NP', 
-    'Team Cost',
-    'Salary Cost',
-    'Opr Cost',
-    'Funding Cost',
-    'Leave Encashment',
-    'HC',
-    'GPM %',
+    'Team Cost', 
+    'Salary Cost', 
+    'Opr Cost', 
+    'Funding Cost', 
+    'Leave Encashment', 
+    'HC', 
+    'GPM %', 
     'NP %'
   ];
+
+  // Update databaseData when data prop changes
+  useEffect(() => {
+    if (data && data.length > 0) {
+      setDatabaseData(data);
+    }
+  }, [data]);
 
   // Timeline options
   const timelineOptions = [
@@ -89,6 +96,12 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
 
   // Fetch data from database
   const fetchDataFromDatabase = async () => {
+    // If data is provided via props, don't fetch from API
+    if (data && data.length > 0) {
+      console.log('🔍 Using data from props, skipping API call');
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const params: any = {};
@@ -177,7 +190,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   // Fetch data when dependencies change
   useEffect(() => {
     fetchDataFromDatabase();
-  }, [selectedBusinessUnit, selectedBusinessUnitFilter, selectedParameter]);
+  }, [selectedBusinessUnit, selectedBusinessUnitFilter, selectedParameter, data]);
 
   // Process data based on selected timeline
   const processDataForTimeline = (data: any[]) => {
@@ -472,10 +485,15 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       
       // Create sample data for demonstration
       const sampleData = financialYearMonths.map((month, index) => {
-        const isForecast = index > 5; // Assume current month is June (index 2)
+        // Find the last month with actual data in the database
+        const lastActualMonthIndex = Math.max(...Object.keys(actualData)
+          .map(monthKey => financialYearMonths.indexOf(monthKey))
+          .filter(idx => idx >= 0 && actualData[financialYearMonths[idx]] > 0));
+        
+        const isForecast = index > lastActualMonthIndex;
         const baseValue = 1000000; // 1M base value
         const value = isForecast 
-          ? baseValue + (index - 5) * 100000 // Growing forecast
+          ? baseValue + (index - lastActualMonthIndex) * 100000 // Growing forecast
           : baseValue + index * 50000; // Actual data with some growth
         
         return {
