@@ -17,10 +17,10 @@ export const useTeamReportData = () => {
     
     try {
       const response = await apiClient.get('/team-report');
-      if (response.data.success) {
-        setData(response.data.data || []);
+      if (response.data && Array.isArray(response.data)) {
+        setData(response.data);
       } else {
-        setError(response.data.error || 'Failed to fetch data');
+        setError('No data received from API or data is not an array');
       }
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Failed to fetch data');
