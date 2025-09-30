@@ -9,7 +9,7 @@ import * as am5 from '@amcharts/amcharts5';
 import * as am5xy from '@amcharts/amcharts5/xy';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
 import styles from '../TeamReportDashboard.module.css';
-import logo from '../../../assets/logo_1.png';
+// import logo from '../../../assets/logo_1.png'; // Temporarily disabled due to path issue
 import ForecastChart from '../TargetTrackingChart';
 
 // Import components
@@ -199,7 +199,20 @@ const TeamReportCompare: React.FC = () => {
         marginBottom: '16px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src={logo} alt="Logo" style={{ height: '32px' }} />
+          <div style={{ 
+            height: '32px', 
+            width: '32px', 
+            backgroundColor: '#ff6b35', 
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: '14px'
+          }}>
+            VMT
+          </div>
           <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Team Report Dashboard</h1>
         </div>
         <ImportExport data={data} onDataUpdate={refreshData} />
