@@ -2,7 +2,7 @@
 // Handles growth analysis data processing and calculations
 
 import { useMemo } from 'react';
-import { ReportData, GrowthAnalysis, PeriodChange, CompareType } from '../types';
+import { ReportData, GrowthAnalysis, PeriodChange, CompareType, CombinedPeriod } from '../types';
 import { parseDate, getFiscalQuarter } from '../utils/calculations';
 import { 
   filterByBusinessUnit, 
