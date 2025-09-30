@@ -5176,22 +5176,22 @@ const TeamReportCompare: React.FC = () => {
                     <div style={{ 
                       fontSize: 12, 
                       fontWeight: 700, 
-                      color: '#4ade80', 
+                      color: kpi.growthPercentage >= 0 ? '#4ade80' : '#ff4d4f', 
                       marginBottom: 4,
                       textAlign: 'center'
                     }}>
-                      +{kpi.growthPercentage.toFixed(1)}% Growth
+                      {kpi.growthPercentage >= 0 ? '+' : ''}{kpi.growthPercentage.toFixed(1)}% Growth
                     </div>
 
                     {/* Change in Value */}
                     <div style={{ 
                       fontSize: 12, 
                       fontWeight: 600, 
-                      color: '#4ade80', 
+                      color: kpi.currentFY - kpi.previousFY >= 0 ? '#4ade80' : '#ff4d4f', 
                       marginBottom: 4,
                       textAlign: 'center'
                     }}>
-                      +{formatValue(kpi.currentFY - kpi.previousFY)}
+                      {kpi.currentFY - kpi.previousFY >= 0 ? '+' : ''}{formatValue(kpi.currentFY - kpi.previousFY)}
                     </div>
 
                     {/* vs FY 2024 */}
