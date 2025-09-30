@@ -24,7 +24,20 @@ const ImportExport: React.FC<ImportExportProps> = ({
     if (!file) return;
 
     try {
-      const workbook = XLSX.readFile(file);
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            resolve(e.target.result as string);
+          } else {
+            reject(new Error('Failed to read file'));
+          }
+        };
+        reader.onerror = () => reject(new Error('File reading failed'));
+        reader.readAsArrayBuffer(file);
+      });
+
+      const workbook = XLSX.read(data, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
