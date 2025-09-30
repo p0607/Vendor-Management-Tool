@@ -5,7 +5,7 @@ import React from 'react';
 import { Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { GrowthAnalysis as GrowthAnalysisType, CompareType } from '../types';
-import { formatValueForTable } from '../../../utils/formatUtils';
+import { formatValueForTable } from '../../utils/formatUtils';
 
 interface GrowthAnalysisProps {
   growthAnalysis: GrowthAnalysisType[];
