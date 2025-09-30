@@ -18,7 +18,7 @@ interface UseGrowthAnalysisProps {
   compareType: CompareType;
   comparisonValues: (string | null)[];
   availableParameters: string[];
-  combinedPeriods: any[];
+  combinedPeriods: CombinedPeriod[];
 }
 
 export const useGrowthAnalysis = ({
@@ -225,10 +225,12 @@ export const useGrowthAnalysis = ({
 
         return {
           parameter: param,
-          periodValues: comparisonValues.map((period, i) => ({
-            period,
-            amount: periodAmounts[i] || 0
-          })),
+          periodValues: comparisonValues
+            .map((period, i) => ({
+              period: period || '',
+              amount: periodAmounts[i] || 0
+            }))
+            .filter(item => item.period !== ''),
           changes
         };
       });

@@ -135,7 +135,17 @@ export const getAvailablePeriods = (data: ReportData[], compareType: CompareType
 // Process Excel data for import
 export const processExcelData = (data: any[]): ReportData[] => {
   return data.map((row, index) => {
-    const processedItem: any = {
+    const yearValue = row['Year'] || row.year;
+    if (!yearValue) {
+      throw new Error(`Row ${index + 1}: Year is required but missing`);
+    }
+    
+    const monthValue = row['Month'] || row.month;
+    if (!monthValue) {
+      throw new Error(`Row ${index + 1}: Month is required but missing`);
+    }
+
+    const processedItem: ReportData = {
       tower: row['Tower'] || row.tower || '',
       client_name: row['Client_name'] || row['Client name'] || row.client_name || '',
       project_name: row['Project_name'] || row['Project name'] || row.project_name || '',
@@ -152,14 +162,14 @@ export const processExcelData = (data: any[]): ReportData[] => {
       funding_cost: parseNumericValue(row['Funding Cost'] || row.funding_cost),
       np: parseNumericValue(row['NP'] || row.np),
       np_percentage: parseNumericValue(row['NP %'] || row.np_percentage),
-      month: row['Month'] || row.month || '',
-      year: parseInt(row['Year'] || row.year || new Date().getFullYear())
+      month: monthValue,
+      year: parseInt(String(yearValue))
     };
 
     // Convert empty strings to null for optional fields
     Object.keys(processedItem).forEach(key => {
-      if (processedItem[key] === '') {
-        processedItem[key] = null;
+      if (processedItem[key as keyof ReportData] === '') {
+        (processedItem as any)[key] = null;
       }
     });
 
