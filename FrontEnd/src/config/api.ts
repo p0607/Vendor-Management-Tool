@@ -1,18 +1,20 @@
 import axios from 'axios';
 
 // Environment-based API configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://40.67.147.19';
+const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? 'http://40.67.147.19' : 'http://localhost:5001');
+
+// Handle the case where the server might already have /api prefix
+const baseURL = API_BASE_URL.includes('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
 
 console.log('🔧 API Configuration:', {
   NODE_ENV: process.env.NODE_ENV,
   REACT_APP_API_URL: process.env.REACT_APP_API_URL,
   API_BASE_URL: API_BASE_URL,
-  Full_API_URL: `${API_BASE_URL}/api`
+  Final_BaseURL: baseURL
 });
 
-// Create axios instance
 const apiClient = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  baseURL: baseURL,
   timeout: 30000,
   withCredentials: true,
   headers: {
