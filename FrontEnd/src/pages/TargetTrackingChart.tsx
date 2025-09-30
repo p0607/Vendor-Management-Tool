@@ -530,23 +530,22 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       let value: number;
       let isForecast = false;
       
-      // Check if this month has actual data AND is within the current financial year up to current month
+      // Check if this month has actual data in the database
       const hasActualData = actualData[month] && actualData[month] > 0;
-      const isCurrentOrPastMonth = index <= currentMonthIndex;
       
-      if (hasActualData && isCurrentOrPastMonth) {
-        // Use actual data from database for current/past months
+      if (hasActualData) {
+        // Use actual data from database for months that have data
         value = actualData[month];
         isForecast = false;
         console.log(`🔍 Using actual data for ${month}: ${value}`);
-      } else if (isCurrentOrPastMonth && !hasActualData) {
-        // Past months with no data - use 0
-        value = 0;
-        isForecast = false;
-        console.log(`🔍 No data for past month ${month}: ${value}`);
       } else {
-        // Future months - apply advanced forecasting
-        const monthsAhead = index - currentMonthIndex;
+        // Months without actual data - apply forecasting
+        // Find the last month with actual data to base forecast on
+        const lastActualMonthIndex = Math.max(...Object.keys(actualData)
+          .map(monthKey => financialYearMonths.indexOf(monthKey))
+          .filter(idx => idx >= 0 && actualData[financialYearMonths[idx]] > 0));
+        
+        const monthsAhead = index - lastActualMonthIndex;
         
         // Use weighted average as base and apply growth trend
         const baseForecast = weightedAverage;
@@ -618,6 +617,12 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     xAxis.get("renderer").labels.template.setAll({
       fill: am5.color(0x000000),
       fontSize: "8px"
+    });
+    
+    // Ensure all category labels are shown
+    xAxis.get("renderer").grid.template.setAll({
+      stroke: am5.color(0xe0e0e0),
+      strokeWidth: 1
     });
 
     const yAxis = chart.yAxes.push(
@@ -747,16 +752,22 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       });
     });
 
-    // Prepare data for each series separately (like the working charts)
-    const actualData = chartData.map(item => ({
-      period: item.period,
-      value: item.isForecast ? null : item.value
-    }));
+    // Prepare data for each series separately - ensure all 12 months are included
+    const actualData = financialYearMonths.map(month => {
+      const chartItem = chartData.find(item => item.period === month);
+      return {
+        period: month,
+        value: chartItem && !chartItem.isForecast ? chartItem.value : null
+      };
+    });
 
-    const forecastData = chartData.map(item => ({
-      period: item.period,
-      value: item.isForecast ? item.value : null
-    }));
+    const forecastData = financialYearMonths.map(month => {
+      const chartItem = chartData.find(item => item.period === month);
+      return {
+        period: month,
+        value: chartItem && chartItem.isForecast ? chartItem.value : null
+      };
+    });
 
     console.log('🔍 Setting actual series data:', actualData);
     console.log('🔍 Setting forecast series data:', forecastData);
@@ -767,9 +778,10 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     forecastSeries.data.setAll(forecastData);
     console.log('🔍 Series data set successfully');
     
-    // Set x-axis data - use the full chart data to ensure all months are labeled
-    console.log('🔍 Setting x-axis data with full chart data:', chartData);
-    xAxis.data.setAll(chartData);
+    // Set x-axis data - ensure all 12 months are always displayed
+    const allMonthsData = financialYearMonths.map(month => ({ period: month }));
+    console.log('🔍 Setting x-axis data with all months:', allMonthsData);
+    xAxis.data.setAll(allMonthsData);
 
     // Add legend
     const legend = chart.children.push(
