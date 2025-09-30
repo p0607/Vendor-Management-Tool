@@ -4675,10 +4675,10 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "0rem 8px 8px 8px", paddingTop: "0rem" }}>
+      <div style={{ margin: "-0.30rem 8px 8px 8px", paddingTop: "0rem" }}>
 
         {/* Crore/Lakh Toggle Button */}
-        <div style={{ marginBottom: '2px', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginBottom: '0px', display: 'flex', justifyContent: 'flex-end' }}>
           <button 
             onClick={() => setIsCroreMode(!isCroreMode)}
             style={{
@@ -4702,9 +4702,9 @@ const TeamReportCompare: React.FC = () => {
 
           display: "grid", 
           gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 8,
+          gap: 4,
           marginBottom: 16,
-          padding: 6,
+          padding: 4,
           backgroundColor: '#f8f9fa',
           borderRadius: 8,
           border: '1px solid #e9ecef',
