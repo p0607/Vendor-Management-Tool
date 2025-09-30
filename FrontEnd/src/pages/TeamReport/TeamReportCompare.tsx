@@ -350,11 +350,11 @@ const TeamReportCompare: React.FC = () => {
             selectedBusinessUnit={selectedBusinessUnit}
             selectedPeriod={comparisonValues[0]}
             compareType={compareType}
-            actualData={{
+            actualData={[{
               revenue: 0,
               netMargin: 0,
               period: comparisonValues[0] || ''
-            }}
+            }]}
           />
         </TabPane>
       </Tabs>
