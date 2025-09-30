@@ -394,17 +394,6 @@ const TeamReportCompare: React.FC = () => {
       if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
     }
 
-    console.log("🔍 Financial Year Setup:", {
-      compareType,
-      comparisonValues,
-      currentFY,
-      previousFY,
-      totalDataRecords: data.length,
-      regexMatch: {
-        currentFYMatch: comparisonValues[0]?.match(/FY (\d{4})/),
-        previousFYMatch: comparisonValues[1]?.match(/FY (\d{4})/)
-      }
-    });
 
     // Filter data for current and previous financial years
     const currentFYData = data.filter(item => {
@@ -430,32 +419,6 @@ const TeamReportCompare: React.FC = () => {
     });
 
     // Debug logging to see what data we're getting
-    console.log("🔍 Financial Year Filtering Debug:", {
-      currentFY,
-      previousFY,
-      currentFYDataLength: currentFYData.length,
-      previousFYDataLength: previousFYData.length,
-      totalDataLength: data.length,
-      sampleData: data.slice(0, 5).map(item => {
-        const itemDate = parseDate(item.month, item.year);
-        return {
-          month: item.month,
-          year: item.year,
-          parsedDate: itemDate,
-          parsedYear: itemDate.getFullYear(),
-          parsedMonth: itemDate.getMonth() + 1,
-          isValidDate: !isNaN(itemDate.getTime()),
-          matchesCurrentFY: itemDate.getFullYear() === currentFY,
-          matchesPreviousFY: itemDate.getFullYear() === previousFY,
-          sales: item.sales,
-          gpm: item.gpm
-        };
-      }),
-      uniqueYears: Array.from(new Set(data.map(item => {
-        const itemDate = parseDate(item.month, item.year);
-        return itemDate.getFullYear();
-      })))
-    });
 
     const calculateParameterRaw = (parameter: string) => {
       let currentFYActual, previousFYTotal;
@@ -706,15 +669,6 @@ const TeamReportCompare: React.FC = () => {
         // Multiply last month's value by remaining months
         currentFYProjected = currentFYActual + (lastMonthValue * monthsRemaining);
         
-        console.log(`🔍 KPI Calculation for ${parameter}:`, {
-          currentFY,
-          monthsCompleted,
-          monthsRemaining,
-          currentFYActual,
-          lastMonthValue,
-          currentFYProjected,
-          projectionFormula: `${currentFYActual} + (${lastMonthValue} × ${monthsRemaining})`
-        });
       }
 
       // Calculate previous FY total
@@ -725,14 +679,6 @@ const TeamReportCompare: React.FC = () => {
         ? ((previousFYTotal - currentFYProjected) / currentFYProjected) * 100 
         : 0;
 
-      console.log(`🔍 KPI Calculation for ${parameter}:`, {
-        currentFY,
-        previousFY,
-        currentFYProjected,
-        previousFYTotal,
-        growthPercentage,
-        calculation: `(${previousFYTotal} - ${currentFYProjected}) / ${currentFYProjected} * 100 = ${growthPercentage}%`
-      });
 
       const projectedAmount = currentFYProjected - currentFYActual;
 
@@ -785,7 +731,6 @@ const TeamReportCompare: React.FC = () => {
 
   const [compareType, setCompareType] = useState<CompareType>(() => {
     // Force year comparison regardless of URL
-    console.log("🔍 Force setting compareType to: year");
     return "year";
   });
   const [comparisonValues, setComparisonValues] = useState<(string | null)[]>(() => {
@@ -794,8 +739,6 @@ const TeamReportCompare: React.FC = () => {
     const currentFY = getCurrentFinancialYear();
     const previousFY = currentFY - 1;
     const yearValues = [`FY ${currentFY}`, `FY ${previousFY}`];
-    console.log("🔍 Force using year defaults:", yearValues);
-    console.log("🔍 Current FY:", currentFY, "Previous FY:", previousFY);
     return yearValues;
   });
 
@@ -813,12 +756,10 @@ const TeamReportCompare: React.FC = () => {
 
     // Force default parameters
     const defaultParams = ['Revenue', 'GPM', 'NP', 'Team Cost'];
-    console.log("🔍 Force using default parameters:", defaultParams);
     return defaultParams;
   });
   const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(() => {
     // Force line chart
-    console.log("🔍 Force setting chartType to: line");
     return 'line';
   });
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
@@ -1186,17 +1127,6 @@ const TeamReportCompare: React.FC = () => {
       
       // Debug: Log the first few rows and column names
 
-      console.log("🔍 Excel file loaded successfully");
-
-      console.log("🔍 Total rows in Excel:", jsonData.length);
-
-      if (jsonData.length > 0) {
-
-        console.log("🔍 Available columns in Excel:", Object.keys(jsonData[0] as any));
-
-        console.log("🔍 First 3 rows of Excel data:", jsonData.slice(0, 3));
-
-      }
 
       
       
@@ -1260,9 +1190,6 @@ const TeamReportCompare: React.FC = () => {
 
       try {
 
-        console.log(`Importing ${mappedData.length} records in batches...`);
-
-        console.log("🔍 Sample mapped data (first 3 records):", mappedData.slice(0, 3));
 
         
         
@@ -1292,7 +1219,6 @@ const TeamReportCompare: React.FC = () => {
           
           try {
 
-            console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} records)`);
 
             await apiClient.post("/team-report/bulk", { data: batch });
 
@@ -1352,13 +1278,8 @@ const TeamReportCompare: React.FC = () => {
 
         
         
-        // Refresh data
-
-        const res = await apiClient.get<ReportData[]>("/team-report");
-
-        // Filter out records with invalid month data
-        const validData = (res.data || []).filter(hasValidMonth);
-        setData(validData);
+        // Refresh data - let the main fetchData function handle data processing
+        // This ensures consistent data processing and avoids duplicate processing
         
         
         
@@ -1962,31 +1883,16 @@ const TeamReportCompare: React.FC = () => {
 
     try {
 
-      console.log("🔍 Fetching business units from API...");
-
-      console.log("🔍 API URL being called:", `${apiClient.defaults.baseURL}/team-report`);
 
       
       
       const res = await apiClient.get("/team-report");
 
-      console.log("🔍 Raw API response:", res.data);
-
-      console.log("🔍 Response status:", res.status);
-
-      console.log("🔍 Response headers:", res.headers);
 
       
       
       if (res.data && Array.isArray(res.data)) {
 
-        console.log("🔍 Total records received:", res.data.length);
-
-        
-        
-        // Log all records to see what's actually in the database
-
-        console.log("🔍 All records from database:", res.data);
 
         
         
@@ -2000,13 +1906,11 @@ const TeamReportCompare: React.FC = () => {
         
         
         
-        console.log("🔍 Business units from data:", businessUnitsFromData);
 
         
         
         const uniqueBusinessUnits = Array.from(new Set(businessUnitsFromData)) as string[];
 
-        console.log("🔍 Unique business units:", uniqueBusinessUnits);
 
         
         
@@ -2246,11 +2150,7 @@ const TeamReportCompare: React.FC = () => {
 
   // Log initial state for debugging
   useEffect(() => {
-    console.log("🔍 Component mounted with forced defaults:");
-    console.log("🔍 compareType:", compareType);
-    console.log("🔍 selectedParameters:", selectedParameters);
-    console.log("🔍 chartType:", chartType);
-    console.log("🔍 comparisonValues:", comparisonValues);
+    // Component mounted with forced defaults
   }, []); // Run only on mount
 
   useEffect(() => {
@@ -2261,19 +2161,6 @@ const TeamReportCompare: React.FC = () => {
 
       try {
 
-        console.log("🔍 Fetching data with filters:", {
-
-          selectedBusinessUnit,
-
-          selectedClientName,
-
-          selectedBUHead,
-
-          isBUHead,
-
-          userBusinessUnit: user.business_unit
-
-        });
 
         
         
@@ -2283,7 +2170,6 @@ const TeamReportCompare: React.FC = () => {
 
         
         
-        console.log("🔍 Raw data received:", res.data?.length || 0, "records");
         
         // Debug: Show ALL month data to understand the issue
         if (res.data && Array.isArray(res.data)) {
@@ -2369,7 +2255,6 @@ const TeamReportCompare: React.FC = () => {
 
           );
 
-          console.log(`🔍 After business unit filter (${selectedBusinessUnit}):`, filteredData.length, "records");
 
         }
 
@@ -2385,7 +2270,6 @@ const TeamReportCompare: React.FC = () => {
 
             );
 
-            console.log(`🔍 After project name filter (${selectedClientName}):`, filteredData.length, "records");
 
           } else {
 
@@ -2395,7 +2279,6 @@ const TeamReportCompare: React.FC = () => {
 
             );
 
-            console.log(`🔍 After client name filter (${selectedClientName}):`, filteredData.length, "records");
 
           }
 
@@ -2411,7 +2294,6 @@ const TeamReportCompare: React.FC = () => {
 
           );
 
-          console.log(`🔍 After BU head filter (${selectedBUHead}):`, filteredData.length, "records");
 
         }
 
@@ -2425,22 +2307,17 @@ const TeamReportCompare: React.FC = () => {
 
           );
 
-          console.log(`🔍 After user BU filter (${user.business_unit}):`, filteredData.length, "records");
 
         }
 
         
         
-        console.log("🔍 Final filtered data:", filteredData.length, "records");
-
-        console.log("🔍 Sample filtered data:", filteredData.slice(0, 3));
         
         // Debug: Check what years are in the data
         const yearsInData = Array.from(new Set(filteredData.map((item: any) => {
           const date = parseDate(item.month, item.year);
           return date ? date.getFullYear() : null;
         }).filter((year: any) => year !== null))).sort();
-        console.log("🔍 Years found in filtered data:", yearsInData);
         
 
         
@@ -2479,9 +2356,10 @@ const TeamReportCompare: React.FC = () => {
 
           
           
-          // Create a proper date string for month field if it's just a month name
+          // Month processing is handled by the backend during import - no need to process here
 
-          if (processedItem.month && typeof processedItem.month === 'string') {
+          // Commented out - backend already handles month processing
+          if (false && processedItem.month && typeof processedItem.month === 'string') {
 
             const monthNames = [
 
@@ -2493,11 +2371,20 @@ const TeamReportCompare: React.FC = () => {
 
             
             
-            const monthIndex = monthNames.findIndex(month => 
-
-              processedItem.month.toLowerCase().includes(month.toLowerCase())
-
-            );
+            const monthIndex = monthNames.findIndex(month => {
+              const lowerMonthStr = processedItem.month.toLowerCase();
+              const lowerMonth = month.toLowerCase();
+              
+              // Exact match or word boundary match to avoid false positives
+              return lowerMonthStr === lowerMonth || 
+                     lowerMonthStr.includes(` ${lowerMonth} `) ||
+                     lowerMonthStr.startsWith(`${lowerMonth} `) ||
+                     lowerMonthStr.endsWith(` ${lowerMonth}`) ||
+                     lowerMonthStr.includes(`${lowerMonth}-`) ||
+                     lowerMonthStr.includes(`-${lowerMonth}`) ||
+                     lowerMonthStr.includes(`${lowerMonth}_`) ||
+                     lowerMonthStr.includes(`_${lowerMonth}`);
+            });
 
             
             
@@ -2553,9 +2440,6 @@ const TeamReportCompare: React.FC = () => {
 
   useEffect(() => {
 
-    console.log("🚀 Component mounted, fetching business units...");
-
-    console.log("🚀 Current businessUnits state:", businessUnits);
 
     fetchBusinessUnits();
 

@@ -986,29 +986,15 @@ app.get('/api/team-report', async (req, res, next) => {
     let query = 'SELECT * FROM team_report';
     let params = [];
 
-    console.log('🔍 GET /api/team-report called with query params:', req.query);
-
     if (designation === 'BU HEAD' && business_unit) {
       query += ' WHERE business_unit = $1';
       params.push(business_unit);
     }
 
-    console.log('🔍 Executing query:', query);
-    console.log('🔍 Query params:', params);
-
     const result = await executeQuery(query, params);
-    
-    console.log('🔍 Query result count:', result.rows.length);
-    console.log('🔍 Sample records:', result.rows.slice(0, 3));
-    
-    if (result.rows.length > 0) {
-      console.log('🔍 Available columns:', Object.keys(result.rows[0]));
-      console.log('🔍 Business units in result:', result.rows.map(row => row.business_unit));
-    }
     
     res.json(result.rows);
   } catch (err) {
-    console.error('❌ Error in GET /api/team-report:', err);
     next(err);
   }
 });
@@ -1021,19 +1007,36 @@ app.post('/api/team-report', async (req, res, next) => {
         team_cost, opr_cost, funding_cost, np, np_percentage, month, year 
       } = req.body;
       
-      // Convert month name to date format (YYYY-MM-01)
-      let monthDate = null;
-      if (month && month !== '') {
-        const monthNames = {
-          'January': '01', 'February': '02', 'March': '03', 'April': '04',
-          'May': '05', 'June': '06', 'July': '07', 'August': '08',
-          'September': '09', 'October': '10', 'November': '11', 'December': '12'
-        };
-        const monthNum = monthNames[month];
-        if (monthNum) {
-          monthDate = `${year || new Date().getFullYear()}-${monthNum}-01`;
-        }
+      // Validate required fields: month and year are compulsory
+      if (!month || month === '') {
+        return res.status(400).json({
+          success: false,
+          error: 'Month is missing or empty. Month is required.'
+        });
       }
+      
+      if (!year || year === 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Year is missing or invalid. Year is required. Month: ${month}, Year: ${year}`
+        });
+      }
+      
+      // Convert month name to date format (YYYY-MM-01)
+      // Month and year are already validated above
+      const monthNames = {
+        'January': '01', 'February': '02', 'March': '03', 'April': '04',
+        'May': '05', 'June': '06', 'July': '07', 'August': '08',
+        'September': '09', 'October': '10', 'November': '11', 'December': '12'
+      };
+      const monthNum = monthNames[month];
+      if (!monthNum) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid month name "${month}". Valid months: January, February, March, April, May, June, July, August, September, October, November, December`
+        });
+      }
+      const monthDate = `${year}-${monthNum}-01`;
 
       // Log the incoming data for debugging
       logger.info('Creating team report', { 
@@ -1042,6 +1045,43 @@ app.post('/api/team-report', async (req, res, next) => {
         team_cost, opr_cost, funding_cost, np, np_percentage, month, year, monthDate 
       });
       
+      // Check for exact duplicate (all columns match)
+      const duplicateCheck = await executeQuery(
+        `SELECT id FROM team_report WHERE 
+         tower = $1 AND client_name = $2 AND project_name = $3 AND business_unit = $4 AND bu_head = $5 AND 
+         hc = $6 AND salary_cost = $7 AND sales = $8 AND gpm = $9 AND gpm_percentage = $10 AND 
+         leave_encashment = $11 AND team_cost = $12 AND opr_cost = $13 AND funding_cost = $14 AND 
+         np = $15 AND np_percentage = $16 AND month = $17 AND year = $18`,
+        [
+          tower === '' ? null : tower,
+          client_name === '' ? null : client_name,
+          project_name === '' ? null : project_name,
+          business_unit === '' ? null : business_unit,
+          bu_head === '' ? null : bu_head,
+          hc || 0,
+          salary_cost || 0,
+          sales || 0,
+          gpm || 0,
+          gpm_percentage || 0,
+          leave_encashment || 0,
+          team_cost || 0,
+          opr_cost || 0,
+          funding_cost || 0,
+          np || 0,
+          np_percentage || 0,
+          monthDate,
+          year
+        ]
+      );
+
+      if (duplicateCheck.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Duplicate record detected. A record with identical data already exists.',
+          duplicateId: duplicateCheck.rows[0].id
+        });
+      }
+
       const result = await executeQuery(
         `INSERT INTO team_report (
           tower, client_name, project_name, business_unit, bu_head, hc,
@@ -1066,7 +1106,7 @@ app.post('/api/team-report', async (req, res, next) => {
           np || 0,
           np_percentage || 0,
           monthDate,
-          year || new Date().getFullYear()
+          year
         ]
       );
       
@@ -1114,7 +1154,14 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         logger.info('Processing record', { recordIndex: i, record: record });
       }
       
-      // All fields are optional - no required field validation
+      // Validate required fields: month and year are compulsory
+      if (!record.month || record.month === '') {
+        throw new Error(`Record ${i + 1}: Month is missing or empty. Month is required.`);
+      }
+      
+      if (!record.year || record.year === 0) {
+        throw new Error(`Record ${i + 1}: Year is missing or invalid. Year is required. Month: ${record.month}, Year: ${record.year}`);
+      }
       
       // Convert numeric fields to numbers
       const numericFields = ['hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'year'];
@@ -1129,19 +1176,17 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       }
 
       // Convert month name to date format (YYYY-MM-01)
-      let monthDate = null;
-      if (record.month && record.month !== '') {
-        const monthNames = {
-          'January': '01', 'February': '02', 'March': '03', 'April': '04',
-          'May': '05', 'June': '06', 'July': '07', 'August': '08',
-          'September': '09', 'October': '10', 'November': '11', 'December': '12'
-        };
-        const monthNum = monthNames[record.month];
-        if (monthNum) {
-          monthDate = `${record.year || new Date().getFullYear()}-${monthNum}-01`;
-        }
+      // Month and year are already validated above
+      const monthNames = {
+        'January': '01', 'February': '02', 'March': '03', 'April': '04',
+        'May': '05', 'June': '06', 'July': '07', 'August': '08',
+        'September': '09', 'October': '10', 'November': '11', 'December': '12'
+      };
+      const monthNum = monthNames[record.month];
+      if (!monthNum) {
+        throw new Error(`Record ${i + 1}: Invalid month name "${record.month}". Valid months: January, February, March, April, May, June, July, August, September, October, November, December`);
       }
-      record.monthDate = monthDate;
+      record.monthDate = `${record.year}-${monthNum}-01`;
       
       // Convert empty strings to null for all fields
       const allFields = ['tower', 'client_name', 'project_name', 'business_unit', 'bu_head', 'month'];
@@ -1163,10 +1208,42 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         team_cost, opr_cost, funding_cost, np, np_percentage, month, year
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`;
       
+      const duplicateCheckQuery = `SELECT id FROM team_report WHERE 
+        tower = $1 AND client_name = $2 AND project_name = $3 AND business_unit = $4 AND bu_head = $5 AND 
+        hc = $6 AND salary_cost = $7 AND sales = $8 AND gpm = $9 AND gpm_percentage = $10 AND 
+        leave_encashment = $11 AND team_cost = $12 AND opr_cost = $13 AND funding_cost = $14 AND 
+        np = $15 AND np_percentage = $16 AND month = $17 AND year = $18`;
+      
       for (let i = 0; i < data.length; i++) {
         const record = data[i];
         try {
-        await client.query(insertQuery, [
+          // Check for exact duplicate (all columns match)
+          const duplicateCheck = await client.query(duplicateCheckQuery, [
+            record.tower === '' ? null : record.tower,
+            record.client_name === '' ? null : record.client_name,
+            record.project_name === '' ? null : record.project_name,
+            record.business_unit === '' ? null : record.business_unit,
+            record.bu_head === '' ? null : record.bu_head,
+            record.hc || 0,
+            record.salary_cost || 0,
+            record.sales || 0,
+            record.gpm || 0,
+            record.gpm_percentage || 0,
+            record.leave_encashment || 0,
+            record.team_cost || 0,
+            record.opr_cost || 0,
+            record.funding_cost || 0,
+            record.np || 0,
+            record.np_percentage || 0,
+            record.monthDate,
+            record.year
+          ]);
+
+          if (duplicateCheck.rows.length > 0) {
+            throw new Error(`Record ${i + 1}: Duplicate record detected. A record with identical data already exists (ID: ${duplicateCheck.rows[0].id})`);
+          }
+
+          await client.query(insertQuery, [
           record.tower === '' ? null : record.tower,
           record.client_name === '' ? null : record.client_name,
           record.project_name === '' ? null : record.project_name,
@@ -1184,7 +1261,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             record.np || 0,
             record.np_percentage || 0,
             record.monthDate,
-            record.year || new Date().getFullYear()
+            record.year
           ]);
         } catch (insertErr) {
           logger.error('Failed to insert record', { 
