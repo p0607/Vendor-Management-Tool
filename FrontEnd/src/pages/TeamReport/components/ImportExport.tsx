@@ -7,7 +7,7 @@ import { DownOutlined } from '@ant-design/icons';
 import { ReportData } from '../types';
 import { processExcelData } from '../utils/dataProcessing';
 import * as XLSX from 'xlsx';
-import apiClient from '../../config/api';
+import apiClient from '../../../config/api';
 
 interface ImportExportProps {
   data: ReportData[];

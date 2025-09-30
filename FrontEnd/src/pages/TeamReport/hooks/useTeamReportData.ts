@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ReportData } from '../types';
-import apiClient from '../../config/api';
+import apiClient from '../../../config/api';
 
 export const useTeamReportData = () => {
   const [data, setData] = useState<ReportData[]>([]);

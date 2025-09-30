@@ -9,7 +9,7 @@ import * as am5 from '@amcharts/amcharts5';
 import * as am5xy from '@amcharts/amcharts5/xy';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
 import styles from '../TeamReportDashboard.module.css';
-import logo from '../../assets/logo_1.png';
+import logo from '../../../assets/logo_1.png';
 import ForecastChart from '../TargetTrackingChart';
 
 // Import components
