@@ -22,7 +22,6 @@ import { formatValueForTable } from '../utils/formatUtils';
 
 import apiClient from '../config/api';
 
-import logo from '../assets/logo_1.png';
 
 import * as XLSX from 'xlsx';
 
@@ -4603,21 +4602,9 @@ const TeamReportCompare: React.FC = () => {
 
       </style>
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 0.5rem 1rem 0.5rem', maxWidth: '100vw', overflow: 'hidden', minHeight: '100px' }}>
-
-        <div style={{ transform: 'scale(0.8)', marginTop: '0px' }}>
-
-          <img src={logo} alt="Alchemy Logo" style={{ height: '60px', maxWidth: '120px' }} />
-
-        </div>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0.5rem 0.5rem 0.5rem 0.5rem', maxWidth: '100vw', overflow: 'hidden', minHeight: '60px' }}>
 
         <h2 style={{ 
-
-          position: 'absolute', 
-
-          left: '50%', 
-
-          transform: 'translateX(-50%)', 
 
           backgroundColor: '#000000', 
 
@@ -4675,7 +4662,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "-0.30rem 8px 8px 8px", paddingTop: "0rem" }}>
+      <div style={{ margin: "20px 8px 8px 8px", paddingTop: "0rem" }}>
 
         {/* Crore/Lakh Toggle Button */}
         <div style={{ marginBottom: '0px', display: 'flex', justifyContent: 'flex-end' }}>
