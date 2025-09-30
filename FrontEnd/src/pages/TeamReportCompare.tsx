@@ -484,9 +484,9 @@ const TeamReportCompare: React.FC = () => {
         });
       }
 
-      // Calculate growth percentage (previous - current) / current * 100
-      const growthPercentage = currentFYActual > 0 
-        ? ((previousFYTotal - currentFYActual) / currentFYActual) * 100 
+      // Calculate growth percentage (current - previous) / previous * 100
+      const growthPercentage = previousFYTotal > 0 
+        ? ((currentFYActual - previousFYTotal) / previousFYTotal) * 100 
         : 0;
 
       return {
@@ -674,9 +674,9 @@ const TeamReportCompare: React.FC = () => {
       // Calculate previous FY total
       const previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
 
-      // Calculate growth percentage (previous - current) / current * 100
-      const growthPercentage = currentFYProjected > 0 
-        ? ((previousFYTotal - currentFYProjected) / currentFYProjected) * 100 
+      // Calculate growth percentage (current - previous) / previous * 100
+      const growthPercentage = previousFYTotal > 0 
+        ? ((currentFYProjected - previousFYTotal) / previousFYTotal) * 100 
         : 0;
 
 
