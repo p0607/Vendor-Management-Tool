@@ -35,13 +35,13 @@ export const useKPICalculations = ({
 }: UseKPICalculationsProps) => {
 
   // Calculate KPIs for quarter comparison
-  const calculateQuarterKPIs = useMemo(() => {
-    if (compareType !== 'quarter' || comparisonValues.length < 2) return {};
+  const calculateQuarterKPIs = useMemo((): Record<string, KPIData> => {
+    if (compareType !== 'quarter' || comparisonValues.length < 2) return {} as Record<string, KPIData>;
 
     const currentQuarter = comparisonValues[0];
     const previousQuarter = comparisonValues[1];
 
-    if (!currentQuarter || !previousQuarter) return {};
+    if (!currentQuarter || !previousQuarter) return {} as Record<string, KPIData>;
 
     // Filter data for current and previous quarters
     const currentQuarterData = data.filter(item => {
@@ -108,13 +108,13 @@ export const useKPICalculations = ({
   }, [data, selectedBusinessUnit, selectedClientName, selectedBUHead, compareType, comparisonValues]);
 
   // Calculate KPIs for year comparison
-  const calculateYearKPIs = useMemo(() => {
-    if (compareType !== 'year' || comparisonValues.length < 2) return {};
+  const calculateYearKPIs = useMemo((): Record<string, KPIData> => {
+    if (compareType !== 'year' || comparisonValues.length < 2) return {} as Record<string, KPIData>;
 
     const currentFY = parseInt(comparisonValues[0]?.replace('FY ', '') || '0');
     const previousFY = parseInt(comparisonValues[1]?.replace('FY ', '') || '0');
 
-    if (!currentFY || !previousFY) return {};
+    if (!currentFY || !previousFY) return {} as Record<string, KPIData>;
 
     // Filter data for current and previous financial years
     const currentFYData = data.filter(item => {
@@ -251,13 +251,13 @@ export const useKPICalculations = ({
   }, [data, selectedBusinessUnit, selectedClientName, selectedBUHead, compareType, comparisonValues]);
 
   // Return appropriate KPI calculations based on comparison type
-  const kpiData = useMemo(() => {
+  const kpiData = useMemo((): Record<string, KPIData> => {
     if (compareType === 'quarter') {
       return calculateQuarterKPIs;
     } else if (compareType === 'year') {
       return calculateYearKPIs;
     }
-    return {};
+    return {} as Record<string, KPIData>;
   }, [compareType, calculateQuarterKPIs, calculateYearKPIs]);
 
   return {
