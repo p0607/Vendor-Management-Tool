@@ -73,7 +73,7 @@ const ImportExport: React.FC<ImportExportProps> = ({
         const batchNumber = Math.floor(i / batchSize) + 1;
 
         try {
-          const response = await apiClient.post('/api/team-report/bulk', {
+          const response = await apiClient.post('/team-report/bulk', {
             data: batch
           });
 

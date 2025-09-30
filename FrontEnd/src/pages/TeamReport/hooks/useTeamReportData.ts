@@ -16,7 +16,7 @@ export const useTeamReportData = () => {
     setError(null);
     
     try {
-      const response = await apiClient.get('/api/team-report');
+      const response = await apiClient.get('/team-report');
       if (response.data.success) {
         setData(response.data.data || []);
       } else {
