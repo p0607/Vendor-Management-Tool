@@ -1180,11 +1180,39 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       const monthNames = {
         'January': '01', 'February': '02', 'March': '03', 'April': '04',
         'May': '05', 'June': '06', 'July': '07', 'August': '08',
-        'September': '09', 'October': '10', 'November': '11', 'December': '12'
+        'September': '09', 'October': '10', 'November': '11', 'December': '12',
+        'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+        'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+        'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
       };
-      const monthNum = monthNames[record.month];
+      
+      // Handle different month formats
+      let monthNum = monthNames[record.month];
       if (!monthNum) {
-        throw new Error(`Record ${i + 1}: Invalid month name "${record.month}". Valid months: January, February, March, April, May, June, July, August, September, October, November, December`);
+        // Try to extract month from date strings like "2023-07-01" or "July 2023"
+        const monthStr = String(record.month).toLowerCase();
+        if (monthStr.includes('jan')) monthNum = '01';
+        else if (monthStr.includes('feb')) monthNum = '02';
+        else if (monthStr.includes('mar')) monthNum = '03';
+        else if (monthStr.includes('apr')) monthNum = '04';
+        else if (monthStr.includes('may')) monthNum = '05';
+        else if (monthStr.includes('jun')) monthNum = '06';
+        else if (monthStr.includes('jul')) monthNum = '07';
+        else if (monthStr.includes('aug')) monthNum = '08';
+        else if (monthStr.includes('sep')) monthNum = '09';
+        else if (monthStr.includes('oct')) monthNum = '10';
+        else if (monthStr.includes('nov')) monthNum = '11';
+        else if (monthStr.includes('dec')) monthNum = '12';
+        else if (monthStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // Already in YYYY-MM-DD format
+          record.monthDate = record.month;
+          continue;
+        }
+      }
+      
+      if (!monthNum) {
+        logger.error('Invalid month format', { recordIndex: i, month: record.month, record: record });
+        throw new Error(`Record ${i + 1}: Invalid month format "${record.month}". Expected month names like "January", "July", etc. or date format "YYYY-MM-DD"`);
       }
       record.monthDate = `${record.year}-${monthNum}-01`;
       
@@ -1208,41 +1236,9 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         team_cost, opr_cost, funding_cost, np, np_percentage, month, year
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`;
       
-      const duplicateCheckQuery = `SELECT id FROM team_report WHERE 
-        tower = $1 AND client_name = $2 AND project_name = $3 AND business_unit = $4 AND bu_head = $5 AND 
-        hc = $6 AND salary_cost = $7 AND sales = $8 AND gpm = $9 AND gpm_percentage = $10 AND 
-        leave_encashment = $11 AND team_cost = $12 AND opr_cost = $13 AND funding_cost = $14 AND 
-        np = $15 AND np_percentage = $16 AND month = $17 AND year = $18`;
-      
       for (let i = 0; i < data.length; i++) {
         const record = data[i];
         try {
-          // Check for exact duplicate (all columns match)
-          const duplicateCheck = await client.query(duplicateCheckQuery, [
-            record.tower === '' ? null : record.tower,
-            record.client_name === '' ? null : record.client_name,
-            record.project_name === '' ? null : record.project_name,
-            record.business_unit === '' ? null : record.business_unit,
-            record.bu_head === '' ? null : record.bu_head,
-            record.hc || 0,
-            record.salary_cost || 0,
-            record.sales || 0,
-            record.gpm || 0,
-            record.gpm_percentage || 0,
-            record.leave_encashment || 0,
-            record.team_cost || 0,
-            record.opr_cost || 0,
-            record.funding_cost || 0,
-            record.np || 0,
-            record.np_percentage || 0,
-            record.monthDate,
-            record.year
-          ]);
-
-          if (duplicateCheck.rows.length > 0) {
-            throw new Error(`Record ${i + 1}: Duplicate record detected. A record with identical data already exists (ID: ${duplicateCheck.rows[0].id})`);
-          }
-
           await client.query(insertQuery, [
           record.tower === '' ? null : record.tower,
           record.client_name === '' ? null : record.client_name,
@@ -1294,6 +1290,11 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       client.release();
     }
   } catch (err) {
+    logger.error('Bulk import error', { 
+      error: err.message, 
+      stack: err.stack,
+      dataLength: data ? data.length : 0
+    });
     next(err);
   }
 });
