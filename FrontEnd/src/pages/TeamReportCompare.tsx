@@ -886,9 +886,18 @@ const TeamReportCompare: React.FC = () => {
 
     ];
 
+    const abbreviatedMonthNames = [
+
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+
+    ];
+
     
     
-    const monthIndex = monthNames.findIndex(month => {
+    // First try full month names
+    let monthIndex = monthNames.findIndex(month => {
       const lowerDateStr = dateStr.toLowerCase();
       const lowerMonth = month.toLowerCase();
       
@@ -902,6 +911,23 @@ const TeamReportCompare: React.FC = () => {
              lowerDateStr.includes(`${lowerMonth}_`) ||
              lowerDateStr.includes(`_${lowerMonth}`);
     });
+
+    // If not found, try abbreviated month names
+    if (monthIndex === -1) {
+      monthIndex = abbreviatedMonthNames.findIndex(month => {
+        const lowerDateStr = dateStr.toLowerCase();
+        const lowerMonth = month.toLowerCase();
+        
+        // Exact match for abbreviated names
+        return lowerDateStr === lowerMonth || 
+               lowerDateStr.startsWith(`${lowerMonth} `) ||
+               lowerDateStr.endsWith(` ${lowerMonth}`) ||
+               lowerDateStr.includes(`${lowerMonth}-`) ||
+               lowerDateStr.includes(`-${lowerMonth}`) ||
+               lowerDateStr.includes(`${lowerMonth}_`) ||
+               lowerDateStr.includes(`_${lowerMonth}`);
+      });
+    }
 
     
     
@@ -919,9 +945,10 @@ const TeamReportCompare: React.FC = () => {
 
       }
 
-      // Debug: Log July parsing issues only
-      if (monthIndex === 6 && (!year || year < 2020 || year > 2030)) { // July is at index 6
-        console.warn("⚠️ parseDate: July with invalid year:", { dateStr, year });
+      // Debug: Log parsing issues for any month with invalid year
+      if (!year || year < 2020 || year > 2030) {
+        console.warn("⚠️ parseDate: Invalid year for month:", { dateStr, year, monthIndex });
+        return new Date(NaN); // Return invalid date for invalid years
       }
 
       return new Date(year, monthIndex, 1);
@@ -943,7 +970,7 @@ const TeamReportCompare: React.FC = () => {
     
     
     // Fallback - return invalid date instead of current date to prevent automatic data generation
-    console.warn("⚠️ parseDate: Unable to parse date:", dateStr, "Returning invalid date");
+    console.warn("⚠️ parseDate: Unable to parse date:", dateStr, "Available month names:", monthNames.join(", "), "Available abbreviated:", abbreviatedMonthNames.join(", "));
     return new Date(NaN);
 
   };
@@ -2179,6 +2206,12 @@ const TeamReportCompare: React.FC = () => {
         // Debug: Show ALL month data to understand the issue
         if (res.data && Array.isArray(res.data)) {
           console.warn(`🔍 TOTAL RECORDS: ${res.data.length}`);
+          console.log("🔍 Raw API response:", res.data);
+          console.log("🔍 Number of records:", res.data?.length || 0);
+          if (res.data.length > 0) {
+            console.log("🔍 First record sample:", res.data[0]);
+            console.log("🔍 Year values in data:", res.data.map((item: any) => item.year));
+          }
           
           // Show all unique month values
           const uniqueMonths = Array.from(new Set(res.data.map(item => item.month)));
@@ -2359,8 +2392,24 @@ const TeamReportCompare: React.FC = () => {
 
           }
 
+          // Handle 2-digit year conversion (e.g., 23 -> 2023, 24 -> 2024)
+          if (processedItem.year && processedItem.year < 100) {
+            console.log(`🔍 Converting 2-digit year: ${processedItem.year} -> ${2000 + processedItem.year}`);
+            if (processedItem.year >= 0 && processedItem.year <= 99) {
+              // Assume years 0-99 map to 2000-2099
+              processedItem.year = 2000 + processedItem.year;
+            }
+          }
+
+          // Debug: Log processed item after year conversion
+          console.log(`🔍 Processed item after conversion:`, {
+            month: processedItem.month,
+            year: processedItem.year,
+            business_unit: processedItem.business_unit
+          });
+
           
-          
+
           // Month processing is handled by the backend during import - no need to process here
 
           // Commented out - backend already handles month processing
