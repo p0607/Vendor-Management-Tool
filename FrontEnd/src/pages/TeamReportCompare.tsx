@@ -1222,41 +1222,21 @@ const TeamReportCompare: React.FC = () => {
 
         return {
 
-          tower: stringOrNull(row['Tower'] || row.tower),
-
-          client_name: stringOrNull(row['Client_Name'] || row['Client Name'] || row.client_name),
-
-          project_name: stringOrNull(row['Project_Name'] || row.project_name),
-
-          business_unit: stringOrNull(row['Business_unit'] || row['Business unit'] || row.business_unit),
-
-          bu_head: stringOrNull(row['BU_Head'] || row['BU Head'] || row.bu_head),
-
-          hc: parseNumericValue(row['HC'] || row.hc),
-
-          salary_cost: parseNumericValue(row['Salary Cost'] || row.salary_cost),
-
-          sales: parseNumericValue(row['SALES'] || row.sales),
-
-          gpm: parseNumericValue(row['GPM'] || row.gpm),
-
-          gpm_percentage: parseNumericValue(row['GPM %'] || row.gpm_percentage),
-
-          leave_encashment: parseNumericValue(row['Loan Encash'] || row['Leav Encsh'] || row.leave_encashment),
-
-          team_cost: parseNumericValue(row['Team Cost'] || row.team_cost),
-
-          opr_cost: parseNumericValue(row['Opr Cost'] || row.opr_cost),
-
-          funding_cost: parseNumericValue(row['Funding Cost'] || row.funding_cost),
-
-          np: parseNumericValue(row['NP'] || row.np),
-
-          np_percentage: parseNumericValue(row['NP %'] || row.np_percentage),
+          business_unit: stringOrNull(row['Business_Unit'] || row['Business Unit'] || row.business_unit),
 
           month: stringOrNull(row['Month'] || row.month),
 
           year: parseNumericValue(row['Year'] || row.year) || null,
+
+          hc: parseNumericValue(row['HC'] || row.hc),
+
+          revenue: parseNumericValue(row['Revenue'] || row.revenue),
+
+          gpm: parseNumericValue(row['GPM'] || row.gpm),
+
+          team_cost: parseNumericValue(row['Team Cost'] || row['Team_Cost'] || row.team_cost),
+
+          net_margin: parseNumericValue(row['Net Margin'] || row['Net_Margin'] || row.net_margin),
 
         };
 
@@ -1296,7 +1276,7 @@ const TeamReportCompare: React.FC = () => {
           try {
 
 
-            await apiClient.post("/team-report/bulk", { data: batch });
+            await apiClient.post("/team-summary-report/bulk", { data: batch });
 
             successCount += batch.length;
 
@@ -1437,51 +1417,31 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-  // Handle Excel template download
+  // Handle Excel template download for team_summary_report
 
   const handleDownloadTemplate = () => {
 
-    // Create a template with only headers (no sample data)
+    // Create a template with only headers for the new simplified structure
 
     const templateData = [
 
       {
 
-        'Tower': '',
-
-        'Client_Name': '',
-
-        'Project_Name': '',
-
-        'Business_unit': '',
-
-        'BU_Head': '',
-
-        'HC': '',
-
-        'Salary Cost': '',
-
-        'SALES': '',
-
-        'GPM': '',
-
-        'GPM %': '',
-
-        'Loan Encash': '',
-
-        'Team Cost': '',
-
-        'Opr Cost': '',
-
-        'Funding Cost': '',
-
-        'NP': '',
-
-        'NP %': '',
+        'Business_Unit': '',
 
         'Month': '',
 
         'Year': '',
+
+        'HC': '',
+
+        'Revenue': '',
+
+        'GPM': '',
+
+        'Team Cost': '',
+
+        'Net Margin': '',
 
       }
 
@@ -1493,9 +1453,9 @@ const TeamReportCompare: React.FC = () => {
 
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "MFS_Summary_Template");
 
-    XLSX.writeFile(workbook, "TeamReport_Template.xlsx");
+    XLSX.writeFile(workbook, "MFS_Summary_Template.xlsx");
 
   };
 
@@ -1519,7 +1479,7 @@ const TeamReportCompare: React.FC = () => {
 
       key: 'template',
 
-      label: 'Download Template',
+      label: 'Download Summary Sheet Template',
 
       onClick: handleDownloadTemplate
 
@@ -1529,7 +1489,7 @@ const TeamReportCompare: React.FC = () => {
 
       key: 'import',
 
-      label: 'Import Excel',
+      label: 'Upload Summary Sheet',
 
       onClick: () => {
 

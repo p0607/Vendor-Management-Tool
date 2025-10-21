@@ -1299,6 +1299,220 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
   }
 });
 
+// Team Summary Report Routes (New simplified structure)
+app.get('/api/team-summary-report', async (req, res, next) => {
+  try {
+    const { business_unit } = req.query;
+    let query = 'SELECT * FROM team_summary_report';
+    let params = [];
+
+    if (business_unit) {
+      query += ' WHERE business_unit = $1';
+      params.push(business_unit);
+    }
+
+    query += ' ORDER BY year DESC, month, business_unit';
+
+    const result = await executeQuery(query, params);
+    
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/team-summary-report', async (req, res, next) => {
+  try {
+    const { 
+      business_unit, month, year, hc, revenue, gpm, team_cost, net_margin
+    } = req.body;
+    
+    // Validate required fields
+    if (!business_unit || business_unit === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Business Unit is required.'
+      });
+    }
+    
+    if (!month || month === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Month is required.'
+      });
+    }
+    
+    if (!year || year === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Year is required.'
+      });
+    }
+
+    // Check for duplicate
+    const duplicateCheck = await executeQuery(
+      `SELECT id FROM team_summary_report WHERE business_unit = $1 AND month = $2 AND year = $3`,
+      [business_unit, month, year]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Duplicate record detected. A record with identical business unit, month, and year already exists.',
+        duplicateId: duplicateCheck.rows[0].id
+      });
+    }
+
+    const result = await executeQuery(
+      `INSERT INTO team_summary_report (
+        business_unit, month, year, hc, revenue, gpm, team_cost, net_margin
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        business_unit,
+        month,
+        year,
+        hc || 0,
+        revenue || 0,
+        gpm || 0,
+        team_cost || 0,
+        net_margin || 0
+      ]
+    );
+    
+    logger.info('Team summary report created', { recordId: result.rows[0].id });
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    logger.error('Failed to create team summary report', { 
+      error: err.message, 
+      stack: err.stack,
+      body: req.body 
+    });
+    next(err);
+  }
+});
+
+// Bulk import endpoint for team summary report
+app.post('/api/team-summary-report/bulk', async (req, res, next) => {
+  try {
+    const { data } = req.body;
+    
+    if (!Array.isArray(data) || data.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid data format. Expected non-empty array.'
+      });
+    }
+
+    // Limit batch size to prevent server overload
+    if (data.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        error: `Batch size too large. Maximum 1000 records per batch. Received ${data.length} records.`
+      });
+    }
+
+    // Process and validate each record
+    for (let i = 0; i < data.length; i++) {
+      const record = data[i];
+      
+      // Validate required fields
+      if (!record.business_unit || record.business_unit === '') {
+        throw new Error(`Record ${i + 1}: Business Unit is required.`);
+      }
+      
+      if (!record.month || record.month === '') {
+        throw new Error(`Record ${i + 1}: Month is required.`);
+      }
+      
+      if (!record.year || record.year === 0) {
+        throw new Error(`Record ${i + 1}: Year is required.`);
+      }
+      
+      // Convert numeric fields to numbers
+      const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'year'];
+      for (const field of numericFields) {
+        if (record[field] !== null && record[field] !== undefined && record[field] !== '') {
+          if (typeof record[field] === 'string') {
+            record[field] = parseFloat(record[field]) || 0;
+          }
+        } else {
+          record[field] = 0; // Default to 0 for numeric fields
+        }
+      }
+    }
+
+    // Use transaction for bulk insert
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      let insertedCount = 0;
+      
+      for (const record of data) {
+        // Check for duplicates and insert or update
+        const existingRecord = await client.query(
+          `SELECT id FROM team_summary_report WHERE business_unit = $1 AND month = $2 AND year = $3`,
+          [record.business_unit, record.month, record.year]
+        );
+        
+        if (existingRecord.rows.length > 0) {
+          // Update existing record
+          await client.query(
+            `UPDATE team_summary_report SET 
+             hc = $4, revenue = $5, gpm = $6, team_cost = $7, net_margin = $8, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $9`,
+            [
+              record.hc, record.revenue, record.gpm, record.team_cost, record.net_margin,
+              existingRecord.rows[0].id
+            ]
+          );
+        } else {
+          // Insert new record
+          await client.query(
+            `INSERT INTO team_summary_report (
+              business_unit, month, year, hc, revenue, gpm, team_cost, net_margin
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              record.business_unit, record.month, record.year,
+              record.hc, record.revenue, record.gpm, record.team_cost, record.net_margin
+            ]
+          );
+        }
+        
+        insertedCount++;
+      }
+      
+      await client.query('COMMIT');
+      
+      logger.info('Team summary report bulk import completed', { 
+        totalRecords: data.length,
+        insertedCount: insertedCount
+      });
+      
+      res.json({
+        success: true,
+        message: `Successfully imported ${insertedCount} records.`,
+        insertedCount: insertedCount,
+        totalRecords: data.length
+      });
+      
+    } catch (transactionError) {
+      await client.query('ROLLBACK');
+      throw transactionError;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Team summary report bulk import error', { 
+      error: err.message, 
+      stack: err.stack,
+      dataLength: data ? data.length : 0
+    });
+    next(err);
+  }
+});
+
 // HRMS Data Routes
 app.post('/api/hrms_data', async (req, res, next) => {
   try {
