@@ -1439,6 +1439,14 @@ app.post('/api/team-summary-report/bulk', async (req, res, next) => {
           record[field] = 0; // Default to 0 for numeric fields
         }
       }
+      
+      // Handle 2-digit year conversion (e.g., 24 -> 2024, 25 -> 2025)
+      if (record.year && record.year < 100) {
+        if (record.year >= 0 && record.year <= 99) {
+          // Assume years 0-99 map to 2000-2099
+          record.year = 2000 + record.year;
+        }
+      }
     }
 
     // Use transaction for bulk insert

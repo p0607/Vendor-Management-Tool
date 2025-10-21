@@ -35,43 +35,25 @@ interface ReportData {
 
   id?: number;
 
-  tower: string;
-
-  client_name: string;
-
-  project_name: string;
-
   business_unit: string;
-
-  bu_head: string;
-
-  hc: number;
-
-  salary_cost: number;
-
-  sales: number;
-
-  gpm: number;
-
-  gpm_percentage: number;
-
-  leave_encashment: number;
-
-  team_cost: number;
-
-  opr_cost: number;
-
-  funding_cost: number;
-
-  np: number;
-
-  np_percentage: number;
 
   month: string;
 
   year: number;
 
+  hc: number;
+
+  revenue: number;
+
+  gpm: number;
+
+  team_cost: number;
+
+  net_margin: number;
+
   created_at?: string;
+
+  updated_at?: string;
 
   [key: string]: any; // Add index signature for dynamic property access
 }
@@ -384,12 +366,11 @@ const TeamReportCompare: React.FC = () => {
       };
 
       return {
-        Revenue: calculateParameterRaw('sales'),
+        Revenue: calculateParameterRaw('revenue'),
         GPM: calculateParameterRaw('gpm'),
         'Team Cost': calculateParameterRaw('team_cost'),
-        NP: calculateParameterRaw('np'),
+        'Net Margin': calculateParameterRaw('net_margin'),
         HC: calculateParameterRaw('hc'),
-        'Salary Cost': calculateParameterRaw('salary_cost'),
         'Opr Cost': calculateParameterRaw('opr_cost'),
         'Funding Cost': calculateParameterRaw('funding_cost'),
         'Leave Encashment': calculateParameterRaw('leave_encashment')
@@ -1019,7 +1000,7 @@ const TeamReportCompare: React.FC = () => {
 
       quarterRange = "Jan-Mar";
 
-      financialYear = year; // Q4 belongs to same financial year (Jan-Mar of next calendar year)
+      financialYear = year - 1; // Q4 belongs to previous financial year (Jan-Mar of current calendar year belongs to previous FY)
 
     }
 
@@ -1809,25 +1790,13 @@ const TeamReportCompare: React.FC = () => {
 
       'HC',
 
-      'Salary Cost',
-
       'Revenue',
 
       'GPM',
 
-      'GPM %',
-
-      'Leave Encashment',
-
       'Team Cost',
 
-      'Opr Cost',
-
-      'Funding Cost',
-
-      'NP',
-
-      'NP %'
+      'Net Margin'
 
     ];
 
@@ -1922,7 +1891,7 @@ const TeamReportCompare: React.FC = () => {
 
       
       
-      const res = await apiClient.get("/team-report");
+      const res = await apiClient.get("/team-summary-report");
 
 
       
@@ -2010,7 +1979,7 @@ const TeamReportCompare: React.FC = () => {
 
       console.log(`🔍 Fetching client names for business unit: ${businessUnit}`);
 
-      const res = await apiClient.get("/team-report");
+      const res = await apiClient.get("/team-summary-report");
 
       
       
@@ -2116,7 +2085,7 @@ const TeamReportCompare: React.FC = () => {
 
       console.log(`🔍 Fetching BU heads for business unit: ${businessUnit}`);
 
-      const res = await apiClient.get("/team-report");
+      const res = await apiClient.get("/team-summary-report");
 
       
       
@@ -2202,7 +2171,7 @@ const TeamReportCompare: React.FC = () => {
         
         // Always fetch all data and filter on frontend for better control
 
-        const res = await apiClient.get("/team-report");
+        const res = await apiClient.get("/team-summary-report");
 
         
         
@@ -2221,8 +2190,8 @@ const TeamReportCompare: React.FC = () => {
           testMonths.forEach(testMonth => {
             const monthRecords = res.data.filter((item: any) => item.month === testMonth);
             if (monthRecords.length > 0) {
-              const totalSales = monthRecords.reduce((sum: number, item: any) => sum + (item.sales || 0), 0);
-              console.warn(`🔍 ${testMonth}: ${monthRecords.length} records, total sales: ${totalSales}`);
+              const totalRevenue = monthRecords.reduce((sum: number, item: any) => sum + (item.revenue || 0), 0);
+              console.warn(`🔍 ${testMonth}: ${monthRecords.length} records, total revenue: ${totalRevenue}`);
             }
           });
           
@@ -2254,7 +2223,7 @@ const TeamReportCompare: React.FC = () => {
               const year = item.year;
               if (!acc[year]) acc[year] = { records: [], total: 0 };
               acc[year].records.push(item);
-              acc[year].total += item.sales || 0;
+              acc[year].total += item.revenue || 0;
               return acc;
             }, {});
             
@@ -2364,7 +2333,7 @@ const TeamReportCompare: React.FC = () => {
 
           // Convert numeric fields to numbers
 
-          const numericFields = ['hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'year'];
+          const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'year'];
 
           
           
@@ -2572,29 +2541,19 @@ const TeamReportCompare: React.FC = () => {
 
             }
 
-            // Filter by client name/project name if selected
+            // Client name/project name filter disabled for team_summary_report (fields don't exist)
+            // if (selectedClientName) {
+            //   if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+            //     if (item.project_name !== selectedClientName) return false;
+            //   } else {
+            //     if (item.client_name !== selectedClientName) return false;
+            //   }
+            // }
 
-            if (selectedClientName) {
-
-              if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-
-                if (item.project_name !== selectedClientName) return false;
-
-              } else {
-
-                if (item.client_name !== selectedClientName) return false;
-
-              }
-
-            }
-
-            // Filter by BU head if selected
-
-            if (selectedBUHead && item.bu_head !== selectedBUHead) {
-
-              return false;
-
-            }
+            // BU head filter disabled for team_summary_report (field doesn't exist)
+            // if (selectedBUHead && item.bu_head !== selectedBUHead) {
+            //   return false;
+            // }
 
             
             
@@ -2649,25 +2608,18 @@ const TeamReportCompare: React.FC = () => {
 
                   switch (parameter) {
 
-                    case 'Revenue': value = item.sales || 0; break;
+                    case 'Revenue': value = item.revenue || 0; break;
 
                     case 'GPM': value = item.gpm || 0; break;
 
-                    case 'GPM %': value = item.gpm_percentage || 0; break;
-
-                    case 'NP': value = item.np || 0; break;
-
-                    case 'NP %': value = item.np_percentage || 0; break;
-
-                    case 'Salary Cost': value = item.salary_cost || 0; break;
+                    case 'Net Margin': value = item.net_margin || 0; break;
 
                     case 'Team Cost': value = item.team_cost || 0; break;
 
-                    case 'Opr Cost': value = item.opr_cost || 0; break;
-
-                    case 'Funding Cost': value = item.funding_cost || 0; break;
-
-                    case 'Leave Encashment': value = item.leave_encashment || 0; break;
+                    // Old fields removed for team_summary_report structure
+                    // case 'Opr Cost': value = item.opr_cost || 0; break;
+                    // case 'Funding Cost': value = item.funding_cost || 0; break;
+                    // case 'Leave Encashment': value = item.leave_encashment || 0; break;
 
                     case 'HC': value = item.hc || 0; break;
 
@@ -2703,31 +2655,21 @@ const TeamReportCompare: React.FC = () => {
 
       
       
-      // Client/Project name filter
-
-      if (selectedClientName) {
-
-        if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-
-          if (item.project_name !== selectedClientName) return false;
-
-        } else {
-
-          if (item.client_name !== selectedClientName) return false;
-
-        }
-
-      }
+      // Client name/project name filter disabled for team_summary_report (fields don't exist)
+      // if (selectedClientName) {
+      //   if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+      //     if (item.project_name !== selectedClientName) return false;
+      //   } else {
+      //     if (item.client_name !== selectedClientName) return false;
+      //   }
+      // }
 
       
       
-      // BU head filter
-
-      if (selectedBUHead && item.bu_head !== selectedBUHead) {
-
-        return false;
-
-      }
+      // BU head filter disabled for team_summary_report (field doesn't exist)
+      // if (selectedBUHead && item.bu_head !== selectedBUHead) {
+      //   return false;
+      // }
 
       
       
@@ -2831,25 +2773,18 @@ const TeamReportCompare: React.FC = () => {
 
         switch (parameter) {
 
-          case 'Revenue': value = item.sales || 0; break;
+          case 'Revenue': value = item.revenue || 0; break;
 
           case 'GPM': value = item.gpm || 0; break;
 
-          case 'GPM %': value = item.gpm_percentage || 0; break;
-
-          case 'NP': value = item.np || 0; break;
-
-          case 'NP %': value = item.np_percentage || 0; break;
-
-          case 'Salary Cost': value = item.salary_cost || 0; break;
+          case 'Net Margin': value = item.net_margin || 0; break;
 
           case 'Team Cost': value = item.team_cost || 0; break;
 
-          case 'Opr Cost': value = item.opr_cost || 0; break;
-
-          case 'Funding Cost': value = item.funding_cost || 0; break;
-
-          case 'Leave Encashment': value = item.leave_encashment || 0; break;
+          // Old fields removed for team_summary_report structure
+          // case 'Opr Cost': value = item.opr_cost || 0; break;
+          // case 'Funding Cost': value = item.funding_cost || 0; break;
+          // case 'Leave Encashment': value = item.leave_encashment || 0; break;
 
           case 'HC': value = item.hc || 0; break;
 
@@ -3039,14 +2974,16 @@ const TeamReportCompare: React.FC = () => {
               const allPeriodData = combinedPeriod.periods.flatMap(period => 
                 data.filter(item => {
                   if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
-                  if (selectedClientName) {
-                    if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-                      if (item.project_name !== selectedClientName) return false;
-                    } else {
-                      if (item.client_name !== selectedClientName) return false;
-                    }
-                  }
-                  if (selectedBUHead && item.bu_head !== selectedBUHead) return false;
+                  // Client name/project name filter disabled for team_summary_report (fields don't exist)
+                  // if (selectedClientName) {
+                  //   if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+                  //     if (item.project_name !== selectedClientName) return false;
+                  //   } else {
+                  //     if (item.client_name !== selectedClientName) return false;
+                  //   }
+                  // }
+                  // BU head filter disabled for team_summary_report (field doesn't exist)
+                  // if (selectedBUHead && item.bu_head !== selectedBUHead) return false;
                   
                   const date = parseDate(item.month, item.year);
                   if (isNaN(date.getTime())) return false;
@@ -3111,13 +3048,10 @@ const TeamReportCompare: React.FC = () => {
 
                   }
 
-                  // Filter by BU head if selected
-
-                  if (selectedBUHead && item.bu_head !== selectedBUHead) {
-
-                    return false;
-
-                  }
+                  // BU head filter disabled for team_summary_report (field doesn't exist)
+                  // if (selectedBUHead && item.bu_head !== selectedBUHead) {
+                  //   return false;
+                  // }
 
                   
                   
@@ -3162,25 +3096,18 @@ const TeamReportCompare: React.FC = () => {
 
                   switch (param) {
 
-                    case 'Revenue': value = item.sales || 0; break;
+                    case 'Revenue': value = item.revenue || 0; break;
 
                     case 'GPM': value = item.gpm || 0; break;
 
-                    case 'GPM %': value = item.gpm_percentage || 0; break;
-
-                    case 'NP': value = item.np || 0; break;
-
-                    case 'NP %': value = item.np_percentage || 0; break;
-
-                    case 'Salary Cost': value = item.salary_cost || 0; break;
+                    case 'Net Margin': value = item.net_margin || 0; break;
 
                     case 'Team Cost': value = item.team_cost || 0; break;
 
-                    case 'Opr Cost': value = item.opr_cost || 0; break;
-
-                    case 'Funding Cost': value = item.funding_cost || 0; break;
-
-                    case 'Leave Encashment': value = item.leave_encashment || 0; break;
+                    // Old fields removed for team_summary_report structure
+                    // case 'Opr Cost': value = item.opr_cost || 0; break;
+                    // case 'Funding Cost': value = item.funding_cost || 0; break;
+                    // case 'Leave Encashment': value = item.leave_encashment || 0; break;
 
                     case 'HC': value = item.hc || 0; break;
 
@@ -3220,13 +3147,10 @@ const TeamReportCompare: React.FC = () => {
 
               }
 
-              // Filter by BU head if selected
-
-              if (selectedBUHead && item.bu_head !== selectedBUHead) {
-
-                return false;
-
-              }
+              // BU head filter disabled for team_summary_report (field doesn't exist)
+              // if (selectedBUHead && item.bu_head !== selectedBUHead) {
+              //   return false;
+              // }
 
               
               
@@ -3293,25 +3217,18 @@ const TeamReportCompare: React.FC = () => {
 
               switch (param) {
 
-                case 'Revenue': value = item.sales || 0; break;
+                case 'Revenue': value = item.revenue || 0; break;
 
                 case 'GPM': value = item.gpm || 0; break;
 
-                case 'GPM %': value = item.gpm_percentage || 0; break;
-
-                case 'NP': value = item.np || 0; break;
-
-                case 'NP %': value = item.np_percentage || 0; break;
-
-                case 'Salary Cost': value = item.salary_cost || 0; break;
+                case 'Net Margin': value = item.net_margin || 0; break;
 
                 case 'Team Cost': value = item.team_cost || 0; break;
 
-                case 'Opr Cost': value = item.opr_cost || 0; break;
-
-                case 'Funding Cost': value = item.funding_cost || 0; break;
-
-                case 'Leave Encashment': value = item.leave_encashment || 0; break;
+                // Old fields removed for team_summary_report structure
+                // case 'Opr Cost': value = item.opr_cost || 0; break;
+                // case 'Funding Cost': value = item.funding_cost || 0; break;
+                // case 'Leave Encashment': value = item.leave_encashment || 0; break;
 
                 case 'HC': value = item.hc || 0; break;
 
@@ -4716,8 +4633,8 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-    {/* Client Name / Project Name Filter */}
-
+    {/* Client Name / Project Name Filter - DISABLED for team_summary_report */}
+    {/* 
           <div>
             <div style={{ 
               color: '#000000', 
@@ -4761,11 +4678,12 @@ const TeamReportCompare: React.FC = () => {
       />
 
     </div>
+    */}
 
 
 
-    {/* BU Head Filter */}
-
+    {/* BU Head Filter - DISABLED for team_summary_report */}
+    {/* 
           <div>
             <div style={{ 
               color: '#000000', 
@@ -4809,6 +4727,7 @@ const TeamReportCompare: React.FC = () => {
       </Select>
 
     </div>
+    */}
 
     
     
@@ -6075,7 +5994,7 @@ const TeamReportCompare: React.FC = () => {
 
         gpm: periodData.find(i => i.parameter === "GPM")?.amount || 0,
 
-        netMargin: periodData.find(i => i.parameter === "NP")?.amount || 0
+        netMargin: periodData.find(i => i.parameter === "Net Margin")?.amount || 0
 
       };
 
@@ -6141,7 +6060,7 @@ const TeamReportCompare: React.FC = () => {
 
       {
 
-        name: "NP %",
+        name: "Net Margin %",
 
         calculate: (m: typeof metrics[0]) => (m.netMargin / (m.revenue || 1)) * 100,
 
@@ -6153,7 +6072,7 @@ const TeamReportCompare: React.FC = () => {
 
       {
 
-        name: "NP per HC",
+        name: "Net Margin per HC",
 
         calculate: (m: typeof metrics[0]) => m.netMargin / (m.hc || 1),
 
