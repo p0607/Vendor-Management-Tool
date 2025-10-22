@@ -756,6 +756,25 @@ const TeamReportCompare: React.FC = () => {
     if (april2024Data.length > 0) {
       console.log("🔍 April 2024 Sample:", april2024Data[0]);
     }
+    
+    // Debug what months are actually in the data
+    const allMonthsInData = Array.from(new Set(data.map(item => `${item.month} ${item.year}`))).sort();
+    console.log("🔍 All months in database:", allMonthsInData);
+    
+    // Debug what months are in previousFYData
+    const previousFYMonthsInData = Array.from(new Set(previousFYData.map(item => `${item.month} ${item.year}`))).sort();
+    console.log("🔍 Previous FY months in filtered data:", previousFYMonthsInData);
+    
+    // Debug what months are in currentFYData
+    const currentFYMonthsInData = Array.from(new Set(currentFYData.map(item => `${item.month} ${item.year}`))).sort();
+    console.log("🔍 Current FY months in filtered data:", currentFYMonthsInData);
+    
+    // Debug what months are in previousFYData with HC values
+    const previousFYMonthsWithHC = previousFYData
+      .filter(item => item.hc && item.hc > 0)
+      .map(item => `${item.month} ${item.year} (HC: ${item.hc})`)
+      .sort();
+    console.log("🔍 Previous FY months with HC data:", previousFYMonthsWithHC);
 
     const calculateParameterKPI = (parameter: string) => {
       let currentFYActual, currentFYProjected, previousFYTotal;
@@ -764,63 +783,76 @@ const TeamReportCompare: React.FC = () => {
       if (parameter === 'hc') {
         // For current FY: get the last month's HC value and sum it
         if (currentFYData.length > 0) {
-          const lastMonthCurrent = currentFYData.reduce((latest, item) => {
+          // Filter out items with invalid dates first
+          const validCurrentFYData = currentFYData.filter(item => {
             const itemDate = parseDate(item.month, item.year);
-            const latestDate = parseDate(latest.month, latest.year);
-            return itemDate > latestDate ? item : latest;
+            return !isNaN(itemDate.getTime());
           });
-          // Sum all HC values from that last month
-          const lastMonthDate = parseDate(lastMonthCurrent.month, lastMonthCurrent.year);
-          currentFYActual = currentFYData
-            .filter(item => {
+          
+          if (validCurrentFYData.length === 0) {
+            currentFYActual = 0;
+            currentFYProjected = 0;
+          } else {
+            const lastMonthCurrent = validCurrentFYData.reduce((latest, item) => {
               const itemDate = parseDate(item.month, item.year);
-              return itemDate.getMonth() === lastMonthDate.getMonth() && 
-                     itemDate.getFullYear() === lastMonthDate.getFullYear();
-            })
-            .reduce((sum, item) => sum + (item.hc || 0), 0);
-          currentFYProjected = currentFYActual; // HC doesn't need projection
+              const latestDate = parseDate(latest.month, latest.year);
+              return itemDate > latestDate ? item : latest;
+            });
+            // Sum all HC values from that last month
+            const lastMonthDate = parseDate(lastMonthCurrent.month, lastMonthCurrent.year);
+            currentFYActual = validCurrentFYData
+              .filter(item => {
+                const itemDate = parseDate(item.month, item.year);
+                return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                       itemDate.getFullYear() === lastMonthDate.getFullYear();
+              })
+              .reduce((sum, item) => sum + (item.hc || 0), 0);
+            currentFYProjected = currentFYActual; // HC doesn't need projection
+          }
        
           console.log(`🔍 KPI HC Debug for Current FY ${currentFY}:`, {
-            lastMonth: `${lastMonthCurrent.month} ${lastMonthCurrent.year}`,
             currentFYActual,
             currentFYDataCount: currentFYData.length,
-            lastMonthDataCount: currentFYData.filter(item => {
-              const itemDate = parseDate(item.month, item.year);
-              return itemDate.getMonth() === lastMonthDate.getMonth() && 
-                     itemDate.getFullYear() === lastMonthDate.getFullYear();
-            }).length
-          });        } else {
+            validCurrentFYDataCount: validCurrentFYData.length
+          });
+        } else {
           currentFYActual = 0;
           currentFYProjected = 0;
         }
 
         // For previous FY: get the last month's HC value and sum it (March of next year for complete FY)
         if (previousFYData.length > 0) {
-          const lastMonthPrevious = previousFYData.reduce((latest, item) => {
+          // Filter out items with invalid dates first
+          const validPreviousFYData = previousFYData.filter(item => {
             const itemDate = parseDate(item.month, item.year);
-            const latestDate = parseDate(latest.month, latest.year);
-            return itemDate > latestDate ? item : latest;
+            return !isNaN(itemDate.getTime());
           });
-          // Sum all HC values from that last month
-          const lastMonthDate = parseDate(lastMonthPrevious.month, lastMonthPrevious.year);
-          previousFYTotal = previousFYData
-            .filter(item => {
+          
+          if (validPreviousFYData.length === 0) {
+            previousFYTotal = 0;
+          } else {
+            const lastMonthPrevious = validPreviousFYData.reduce((latest, item) => {
               const itemDate = parseDate(item.month, item.year);
-              return itemDate.getMonth() === lastMonthDate.getMonth() && 
-                     itemDate.getFullYear() === lastMonthDate.getFullYear();
-            })
-            .reduce((sum, item) => sum + (item.hc || 0), 0);
-            
-          console.log(`🔍 KPI HC Debug for Previous FY ${previousFY}:`, {
-            lastMonth: `${lastMonthPrevious.month} ${lastMonthPrevious.year}`,
-            previousFYTotal,
-            previousFYDataCount: previousFYData.length,
-            lastMonthDataCount: previousFYData.filter(item => {
-              const itemDate = parseDate(item.month, item.year);
-              return itemDate.getMonth() === lastMonthDate.getMonth() && 
-                     itemDate.getFullYear() === lastMonthDate.getFullYear();
-            }).length
-          });
+              const latestDate = parseDate(latest.month, latest.year);
+              return itemDate > latestDate ? item : latest;
+            });
+            // Sum all HC values from that last month
+            const lastMonthDate = parseDate(lastMonthPrevious.month, lastMonthPrevious.year);
+            previousFYTotal = validPreviousFYData
+              .filter(item => {
+                const itemDate = parseDate(item.month, item.year);
+                return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                       itemDate.getFullYear() === lastMonthDate.getFullYear();
+              })
+              .reduce((sum, item) => sum + (item.hc || 0), 0);
+              
+            console.log(`🔍 KPI HC Debug for Previous FY ${previousFY}:`, {
+              lastMonth: `${lastMonthPrevious.month} ${lastMonthPrevious.year}`,
+              previousFYTotal,
+              previousFYDataCount: previousFYData.length,
+              validPreviousFYDataCount: validPreviousFYData.length
+            });
+          }
         } else {
           previousFYTotal = 0;
         }
@@ -833,7 +865,18 @@ const TeamReportCompare: React.FC = () => {
           if (!monthlyTotals[monthKey]) {
             monthlyTotals[monthKey] = 0;
           }
-          monthlyTotals[monthKey] += (item[parameter] || 0);
+          
+          // Get the value based on the parameter name
+          let value = 0;
+          switch (parameter) {
+            case 'revenue': value = item.revenue || 0; break;
+            case 'gpm': value = item.gpm || 0; break;
+            case 'team_cost': value = item.team_cost || 0; break;
+            case 'net_margin': value = item.net_margin || 0; break;
+            default: value = 0;
+          }
+          
+          monthlyTotals[monthKey] += value;
         });
         
         // Sum the monthly totals instead of all individual records
@@ -949,10 +992,31 @@ const TeamReportCompare: React.FC = () => {
           if (!previousMonthlyTotals[monthKey]) {
             previousMonthlyTotals[monthKey] = 0;
           }
-          previousMonthlyTotals[monthKey] += (item[parameter] || 0);
+          
+          // Get the value based on the parameter name
+          let value = 0;
+          switch (parameter) {
+            case 'revenue': value = item.revenue || 0; break;
+            case 'gpm': value = item.gpm || 0; break;
+            case 'team_cost': value = item.team_cost || 0; break;
+            case 'net_margin': value = item.net_margin || 0; break;
+            default: value = 0;
+          }
+          
+          previousMonthlyTotals[monthKey] += value;
         });
         
         previousFYTotal = Object.values(previousMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+        
+        console.log(`🔍 ${parameter} KPI Dashboard Previous FY Debug:`, {
+          parameter,
+          previousFYTotal,
+          monthlyBreakdown: Object.entries(previousMonthlyTotals).map(([month, total]) => ({
+            month,
+            total: total.toFixed(2)
+          })),
+          totalRecords: previousFYData.length
+        });
         
         // Previous FY calculation working correctly
       }
@@ -3312,14 +3376,24 @@ const TeamReportCompare: React.FC = () => {
               
               // Find the last month's HC value across all periods
               if (allPeriodData.length > 0) {
-                const lastMonthData = allPeriodData.reduce((latest, item) => {
+                // Filter out items with invalid dates first
+                const validAllPeriodData = allPeriodData.filter(item => {
+                  const itemDate = parseDate(item.month, item.year);
+                  return !isNaN(itemDate.getTime());
+                });
+                
+                if (validAllPeriodData.length === 0) {
+                  return 0;
+                }
+                
+                const lastMonthData = validAllPeriodData.reduce((latest, item) => {
                   const itemDate = parseDate(item.month, item.year);
                   const latestDate = parseDate(latest.month, latest.year);
                   return itemDate > latestDate ? item : latest;
                 });
                 // Sum all HC values from that last month
                 const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
-                const hcValue = allPeriodData
+                const hcValue = validAllPeriodData
                   .filter(item => {
                     const itemDate = parseDate(item.month, item.year);
                     return itemDate.getMonth() === lastMonthDate.getMonth() && 
@@ -3544,14 +3618,24 @@ const TeamReportCompare: React.FC = () => {
           // Special handling for HC - use sum of last available month's HC data
           if (param === 'HC') {
             if (filteredData.length > 0) {
-              const lastMonthData = filteredData.reduce((latest, item) => {
+              // Filter out items with invalid dates first
+              const validData = filteredData.filter(item => {
+                const itemDate = parseDate(item.month, item.year);
+                return !isNaN(itemDate.getTime());
+              });
+              
+              if (validData.length === 0) {
+                return 0;
+              }
+              
+              const lastMonthData = validData.reduce((latest, item) => {
                 const itemDate = parseDate(item.month, item.year);
                 const latestDate = parseDate(latest.month, latest.year);
                 return itemDate > latestDate ? item : latest;
               });
               // Sum all HC values from that last month
               const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
-              const hcValue = filteredData
+              const hcValue = validData
                 .filter(item => {
                   const itemDate = parseDate(item.month, item.year);
                   return itemDate.getMonth() === lastMonthDate.getMonth() && 
@@ -3563,17 +3647,25 @@ const TeamReportCompare: React.FC = () => {
                 lastMonth: `${lastMonthData.month} ${lastMonthData.year}`,
                 hcValue,
                 filteredDataCount: filteredData.length,
-                lastMonthDataCount: filteredData.filter(item => {
+                validDataCount: validData.length,
+                lastMonthDataCount: validData.filter(item => {
                   const itemDate = parseDate(item.month, item.year);
                   return itemDate.getMonth() === lastMonthDate.getMonth() && 
                          itemDate.getFullYear() === lastMonthDate.getFullYear();
                 }).length,
-                sampleFilteredData: filteredData.slice(0, 3).map(item => ({
+                sampleValidData: validData.slice(0, 3).map(item => ({
                   month: item.month,
                   year: item.year,
                   business_unit: item.business_unit,
                   hc: item.hc
-                }))
+                })),
+                allMonthsInValidData: Array.from(new Set(validData.map(item => `${item.month} ${item.year}`))).sort(),
+                hcDataByMonth: validData.reduce((acc: {[key: string]: number}, item) => {
+                  const monthKey = `${item.month} ${item.year}`;
+                  if (!acc[monthKey]) acc[monthKey] = 0;
+                  acc[monthKey] += (item.hc || 0);
+                  return acc;
+                }, {})
               });
               
               return hcValue;
@@ -3605,7 +3697,19 @@ const TeamReportCompare: React.FC = () => {
           });
           
           // Sum the monthly totals instead of all individual records
-          return Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+          const total = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+          
+          console.log(`🔍 ${param} Growth Analysis Debug for ${periodValue}:`, {
+            parameter: param,
+            total,
+            monthlyBreakdown: Object.entries(monthlyTotals).map(([month, total]) => ({
+              month,
+              total: total.toFixed(2)
+            })),
+            totalRecords: filteredData.length
+          });
+          
+          return total;
 
 
         }).filter(amount => amount !== null);
