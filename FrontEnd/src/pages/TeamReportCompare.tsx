@@ -390,9 +390,8 @@ const TeamReportCompare: React.FC = () => {
         Revenue: calculateParameterRaw('revenue'),
         GPM: calculateParameterRaw('gpm'),
         'Team Cost': calculateParameterRaw('team_cost'),
-        NP: calculateParameterRaw('net_margin'),
-        HC: calculateParameterRaw('hc')
-        // Removed unused KPIs: 'Opr Cost', 'Funding Cost', 'Leave Encashment'
+        NP: calculateParameterRaw('net_margin')
+        // Removed unused KPIs: 'Opr Cost', 'Funding Cost', 'Leave Encashment', 'HC'
       };
     }
 
@@ -573,9 +572,8 @@ const TeamReportCompare: React.FC = () => {
         Revenue: calculateParameterRaw('revenue'),
         GPM: calculateParameterRaw('gpm'),
         'Team Cost': calculateParameterRaw('team_cost'),
-        NP: calculateParameterRaw('net_margin'),
-        HC: calculateParameterRaw('hc')
-        // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment'
+        NP: calculateParameterRaw('net_margin')
+        // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment', 'HC'
       };
   };
 
@@ -671,9 +669,8 @@ const TeamReportCompare: React.FC = () => {
         Revenue: calculateParameterKPI('revenue'),
         GPM: calculateParameterKPI('gpm'),
         'Team Cost': calculateParameterKPI('team_cost'),
-        NP: calculateParameterKPI('net_margin'),
-        HC: calculateParameterKPI('hc')
-        // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment'
+        NP: calculateParameterKPI('net_margin')
+        // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment', 'HC'
       };
     }
 
@@ -956,9 +953,8 @@ const TeamReportCompare: React.FC = () => {
       Revenue: calculateParameterKPI('revenue'),
       GPM: calculateParameterKPI('gpm'),
       'Team Cost': calculateParameterKPI('team_cost'),
-      NP: calculateParameterKPI('net_margin'),
-      HC: calculateParameterKPI('hc')
-      // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment'
+      NP: calculateParameterKPI('net_margin')
+      // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment', 'HC'
     };
   };
 
@@ -3295,13 +3291,26 @@ const TeamReportCompare: React.FC = () => {
                 });
                 // Sum all HC values from that last month
                 const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
-                return allPeriodData
+                const hcValue = allPeriodData
                   .filter(item => {
                     const itemDate = parseDate(item.month, item.year);
                     return itemDate.getMonth() === lastMonthDate.getMonth() && 
                            itemDate.getFullYear() === lastMonthDate.getFullYear();
                   })
                   .reduce((sum, item) => sum + (item.hc || 0), 0);
+                
+                console.log(`🔍 Growth Analysis Combined Period HC Debug for ${periodValue}:`, {
+                  lastMonth: `${lastMonthData.month} ${lastMonthData.year}`,
+                  hcValue,
+                  allPeriodDataCount: allPeriodData.length,
+                  lastMonthDataCount: allPeriodData.filter(item => {
+                    const itemDate = parseDate(item.month, item.year);
+                    return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                           itemDate.getFullYear() === lastMonthDate.getFullYear();
+                  }).length
+                });
+                
+                return hcValue;
               }
               return 0;
             }
@@ -3466,8 +3475,22 @@ const TeamReportCompare: React.FC = () => {
                   const yearStr = date.getFullYear().toString();
                   const fyYearStr = `FY ${yearStr}`;
                   itemValue = yearStr; 
-                  // Check if periodValue matches either format
-                  return periodValue === yearStr || periodValue === fyYearStr;
+                  
+                  // Financial year filtering: FY 2025 = April 2025 to March 2026
+                  if (periodValue === yearStr || periodValue === fyYearStr) {
+                    const itemYear = date.getFullYear();
+                    const itemMonth = date.getMonth() + 1;
+                    const targetYear = parseInt(yearStr);
+                    
+                    if (itemMonth >= 4) {
+                      // April to December: same calendar year
+                      return itemYear === targetYear;
+                    } else {
+                      // January to March: next calendar year
+                      return itemYear === targetYear + 1;
+                    }
+                  }
+                  return false;
 
                 case "month": itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`; break;
 
@@ -3494,48 +3517,55 @@ const TeamReportCompare: React.FC = () => {
               });
               // Sum all HC values from that last month
               const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
-              return filteredData
+              const hcValue = filteredData
                 .filter(item => {
                   const itemDate = parseDate(item.month, item.year);
                   return itemDate.getMonth() === lastMonthDate.getMonth() && 
                          itemDate.getFullYear() === lastMonthDate.getFullYear();
                 })
                 .reduce((sum, item) => sum + (item.hc || 0), 0);
+              
+              console.log(`🔍 Growth Analysis HC Debug for ${periodValue}:`, {
+                lastMonth: `${lastMonthData.month} ${lastMonthData.year}`,
+                hcValue,
+                filteredDataCount: filteredData.length,
+                lastMonthDataCount: filteredData.filter(item => {
+                  const itemDate = parseDate(item.month, item.year);
+                  return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                         itemDate.getFullYear() === lastMonthDate.getFullYear();
+                }).length
+              });
+              
+              return hcValue;
             }
             return 0;
           }
 
-          // For all other parameters: sum all months
-          return filteredData.reduce((sum, item) => {
-
-              // Get the value based on the selected parameter
-
-              let value = 0;
-
-              switch (param) {
-
-                case 'Revenue': value = item.revenue || 0; break;
-
-                case 'GPM': value = item.gpm || 0; break;
-
-                case 'Net Margin': value = item.net_margin || 0; break;
-
-                case 'Team Cost': value = item.team_cost || 0; break;
-
-                // Old fields removed for team_summary_report structure
-                // case 'Opr Cost': value = item.opr_cost || 0; break;
-                // case 'Funding Cost': value = item.funding_cost || 0; break;
-                // case 'Leave Encashment': value = item.leave_encashment || 0; break;
-
-                case 'HC': value = item.hc || 0; break;
-
-                default: value = 0;
-
-              }
-
-              return sum + value;
-
-            }, 0);
+          // For all other parameters: aggregate by month first, then sum
+          // This prevents double-counting when there are multiple records per month
+          const monthlyTotals: {[key: string]: number} = {};
+          filteredData.forEach(item => {
+            const monthKey = `${item.month} ${item.year}`;
+            if (!monthlyTotals[monthKey]) {
+              monthlyTotals[monthKey] = 0;
+            }
+            
+            // Get the value based on the selected parameter
+            let value = 0;
+            switch (param) {
+              case 'Revenue': value = item.revenue || 0; break;
+              case 'GPM': value = item.gpm || 0; break;
+              case 'Net Margin': value = item.net_margin || 0; break;
+              case 'Team Cost': value = item.team_cost || 0; break;
+              case 'HC': value = item.hc || 0; break;
+              default: value = 0;
+            }
+            
+            monthlyTotals[monthKey] += value;
+          });
+          
+          // Sum the monthly totals instead of all individual records
+          return Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
 
 
         }).filter(amount => amount !== null);
@@ -5420,7 +5450,7 @@ const TeamReportCompare: React.FC = () => {
           }}>
             {(() => {
               const kpis = calculateKPIs();
-              const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP', 'HC'];
+              const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP'];
               const additionalKPIs = []; // No additional KPIs available
               const displayKPIs = mainKPIs; // Only show the 5 available KPIs
               
@@ -5575,7 +5605,7 @@ const TeamReportCompare: React.FC = () => {
                         fontSize: 8, 
                         color: '#666666'
                       }}>
-                        {kpi.monthsRemaining > 0 ? `Projected for ${kpi.monthsRemaining} months` : 'Full year data'}
+                        {kpi.monthsRemaining > 0 ? `Projected for 7 months` : 'Full year data'}
                       </div>
                     </div>
 
@@ -5616,7 +5646,6 @@ const TeamReportCompare: React.FC = () => {
                       color: '#666666',
                       textAlign: 'center'
                     }}>
-                      {kpi.monthsCompleted}/12 months completed
                     </div>
                   </div>
                 );
