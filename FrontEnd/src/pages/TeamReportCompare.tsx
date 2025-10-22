@@ -849,30 +849,72 @@ const TeamReportCompare: React.FC = () => {
         
         // If we have data for current FY, project it for remaining months
         currentFYProjected = currentFYActual;
-        if (Object.keys(monthlyTotals).length > 0 && monthsRemaining > 0) {
-          // Find the last available month's total value
+        if (Object.keys(monthlyTotals).length > 0) {
+          // Find the last month with actual data (non-zero value)
           const monthKeys = Object.keys(monthlyTotals);
-          const lastMonthKey = monthKeys.reduce((latest, monthKey) => {
-            const [month, year] = monthKey.split(' ');
-            const itemDate = parseDate(month, parseInt(year));
-            const [latestMonth, latestYear] = latest.split(' ');
-            const latestDate = parseDate(latestMonth, parseInt(latestYear));
-            return itemDate > latestDate ? monthKey : latest;
-          }, monthKeys[0]); // Provide initial value
+          let lastMonthWithData = null;
+          let lastMonthValue = 0;
           
-          const lastMonthValue = monthlyTotals[lastMonthKey] || 0;
-          // Multiply last month's total value by remaining months
-          currentFYProjected = currentFYActual + (lastMonthValue * monthsRemaining);
+          // Sort months chronologically and find the last one with data
+          const sortedMonths = monthKeys.sort((a, b) => {
+            const [monthA, yearA] = a.split(' ');
+            const [monthB, yearB] = b.split(' ');
+            const dateA = parseDate(monthA, parseInt(yearA));
+            const dateB = parseDate(monthB, parseInt(yearB));
+            return dateA.getTime() - dateB.getTime();
+          });
           
-        console.log(`🔍 ${parameter} PROJECTION DEBUG:`, {
-          availableMonths: Object.keys(monthlyTotals),
-          lastMonthKey,
-          lastMonthValue,
-          monthsRemaining,
-          currentFYActual,
-          currentFYProjected,
-          projectionAmount: lastMonthValue * monthsRemaining
-        });
+          // Find the last month with non-zero value
+          for (let i = sortedMonths.length - 1; i >= 0; i--) {
+            const monthKey = sortedMonths[i];
+            const value = monthlyTotals[monthKey] || 0;
+            if (value > 0) {
+              lastMonthWithData = monthKey;
+              lastMonthValue = value;
+              break;
+            }
+          }
+          
+          if (lastMonthWithData && lastMonthValue > 0) {
+            // Calculate actual remaining months based on data
+            // Financial year months: Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Jan, Feb, Mar
+            const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+            const fullMonthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
+            
+            // Find the index of the last month with data
+            const [lastMonth, lastYear] = lastMonthWithData.split(' ');
+            let lastMonthIndex = financialYearMonths.indexOf(lastMonth);
+            
+            // If not found in abbreviated names, try full names
+            if (lastMonthIndex === -1) {
+              lastMonthIndex = fullMonthNames.indexOf(lastMonth);
+            }
+            
+            // Calculate remaining months from the last month with data
+            let actualMonthsRemaining = 12 - (lastMonthIndex + 1); // +1 because index is 0-based
+            
+            // Fallback: if month not found, use the old calculation
+            if (lastMonthIndex === -1) {
+              console.warn(`⚠️ Month "${lastMonth}" not found in financial year months, using fallback calculation`);
+              actualMonthsRemaining = monthsRemaining;
+            }
+            
+            // Multiply last month's total value by actual remaining months
+            currentFYProjected = currentFYActual + (lastMonthValue * actualMonthsRemaining);
+            
+            console.log(`🔍 ${parameter} PROJECTION DEBUG:`, {
+              availableMonths: Object.keys(monthlyTotals),
+              sortedMonths,
+              lastMonthWithData,
+              lastMonthValue,
+              lastMonthIndex,
+              actualMonthsRemaining,
+              monthsRemaining, // Old calculation
+              currentFYActual,
+              currentFYProjected,
+              projectionAmount: lastMonthValue * actualMonthsRemaining
+            });
+          }
         }
 
         // Calculate previous FY total - also aggregate by month first
@@ -3220,7 +3262,22 @@ const TeamReportCompare: React.FC = () => {
                       const yearStr = date.getFullYear().toString();
                       const fyYearStr = `FY ${yearStr}`;
                       itemValue = yearStr; 
-                      return period === yearStr || period === fyYearStr;
+                      
+                      // Financial year filtering: FY 2025 = April 2025 to March 2026
+                      if (period === yearStr || period === fyYearStr) {
+                        const itemYear = date.getFullYear();
+                        const itemMonth = date.getMonth() + 1;
+                        const targetYear = parseInt(yearStr);
+                        
+                        if (itemMonth >= 4) {
+                          // April to December: same calendar year
+                          return itemYear === targetYear;
+                        } else {
+                          // January to March: next calendar year
+                          return itemYear === targetYear + 1;
+                        }
+                      }
+                      return false;
                     case "month": itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`; break;
                     case "quarter": itemValue = getFiscalQuarter(date).label; break;
                     default: return false;
@@ -3296,8 +3353,22 @@ const TeamReportCompare: React.FC = () => {
                       const yearStr = date.getFullYear().toString();
                       const fyYearStr = `FY ${yearStr}`;
                       itemValue = yearStr; 
-                      // Check if period matches either format
-                      return period === yearStr || period === fyYearStr;
+                      
+                      // Financial year filtering: FY 2025 = April 2025 to March 2026
+                      if (period === yearStr || period === fyYearStr) {
+                        const itemYear = date.getFullYear();
+                        const itemMonth = date.getMonth() + 1;
+                        const targetYear = parseInt(yearStr);
+                        
+                        if (itemMonth >= 4) {
+                          // April to December: same calendar year
+                          return itemYear === targetYear;
+                        } else {
+                          // January to March: next calendar year
+                          return itemYear === targetYear + 1;
+                        }
+                      }
+                      return false;
 
                     case "month": itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`; break;
 
