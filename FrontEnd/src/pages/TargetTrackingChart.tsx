@@ -91,13 +91,34 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     }
 
     // Handle month name format (e.g., "April")
+    
+    // Fix common misspellings first
+    const fixedDateStr = dateStr
+      .replace(/^apri$/i, 'April')  // Fix "Apri" -> "April"
+      .replace(/^janu$/i, 'January') // Fix "Janu" -> "January"
+      .replace(/^febr$/i, 'February') // Fix "Febr" -> "February"
+      .replace(/^marc$/i, 'March')   // Fix "Marc" -> "March"
+      .replace(/^may$/i, 'May')      // Ensure "May" is correct
+      .replace(/^june$/i, 'June')    // Ensure "June" is correct
+      .replace(/^july$/i, 'July')   // Ensure "July" is correct
+      .replace(/^augu$/i, 'August')  // Fix "Augu" -> "August"
+      .replace(/^sept$/i, 'September') // Fix "Sept" -> "September"
+      .replace(/^octo$/i, 'October') // Fix "Octo" -> "October"
+      .replace(/^novem$/i, 'November') // Fix "Novem" -> "November"
+      .replace(/^decem$/i, 'December'); // Fix "Decem" -> "December"
+    
+    // Log when we fix a misspelling
+    if (fixedDateStr !== dateStr) {
+      console.log(`🔧 TargetTrackingChart parseDate: Fixed misspelling "${dateStr}" -> "${fixedDateStr}"`);
+    }
+
     const monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     
     const monthIndex = monthNames.findIndex(month => {
-      const lowerDateStr = dateStr.toLowerCase();
+      const lowerDateStr = fixedDateStr.toLowerCase();
       const lowerMonth = month.toLowerCase();
       
       // Exact match or word boundary match to avoid false positives
@@ -119,6 +140,34 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         return new Date(NaN); // Return invalid date instead of current year
       }
       return new Date(year, monthIndex, 1);
+    }
+    
+    // Try abbreviated month names
+    const abbreviatedMonthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    const abbreviatedIndex = abbreviatedMonthNames.findIndex(month => {
+      const lowerDateStr = fixedDateStr.toLowerCase();
+      const lowerMonth = month.toLowerCase();
+      
+      // Exact match for abbreviated names
+      return lowerDateStr === lowerMonth || 
+             lowerDateStr.startsWith(`${lowerMonth} `) ||
+             lowerDateStr.endsWith(` ${lowerMonth}`) ||
+             lowerDateStr.includes(`${lowerMonth}-`) ||
+             lowerDateStr.includes(`-${lowerMonth}`) ||
+             lowerDateStr.includes(`${lowerMonth}_`) ||
+             lowerDateStr.includes(`_${lowerMonth}`);
+    });
+    
+    if (abbreviatedIndex !== -1) {
+      if (!year) {
+        console.warn("⚠️ parseDate: No year provided for abbreviated month:", dateStr, "Returning invalid date");
+        return new Date(NaN);
+      }
+      return new Date(year, abbreviatedIndex, 1);
     }
     
     // Handle ISO format (YYYY-MM-DD) or other standard formats

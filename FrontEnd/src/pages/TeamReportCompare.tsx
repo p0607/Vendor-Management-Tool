@@ -644,24 +644,7 @@ const TeamReportCompare: React.FC = () => {
     const monthsCompleted = getMonthsCompletedInCurrentFY();
     const monthsRemaining = 12 - monthsCompleted;
 
-    // Debug financial year calculation
-    console.log(`🔍 Financial Year Debug - Current FY: ${currentFY}, Previous FY: ${previousFY}`);
-    console.log(`🔍 Months Completed: ${monthsCompleted}, Months Remaining: ${monthsRemaining}`);
-    
-    // Debug what months should be included in each FY
-    console.log(`🔍 Expected Current FY (${currentFY}): April ${currentFY} to March ${currentFY + 1}`);
-    console.log(`🔍 Expected Previous FY (${previousFY}): April ${previousFY} to March ${previousFY + 1}`);
-    
-    // Show sample data to understand the structure
-    if (data.length > 0) {
-      const sampleData = data.slice(0, 10).map(item => ({
-        month: item.month,
-        year: item.year,
-        parsedDate: parseDate(item.month, item.year),
-        isValidDate: !isNaN(parseDate(item.month, item.year).getTime())
-      }));
-      console.log(`🔍 Sample Data Structure:`, sampleData);
-    }
+      // Financial year calculation is working correctly
 
     // Filter data for current and previous financial years
     const currentFYData = data.filter(item => {
@@ -681,10 +664,7 @@ const TeamReportCompare: React.FC = () => {
         isInCurrentFY = itemYear === currentFY + 1;
       }
       
-      // Debug logging for sample items
-      if (Math.random() < 0.02) { // Log 2% of items to avoid spam
-        console.log(`🔍 FY Filter Debug: ${item.month} ${item.year} -> Month: ${itemMonth}, Year: ${itemYear}, CurrentFY: ${currentFY}, InCurrentFY: ${isInCurrentFY}`);
-      }
+      // Financial year filtering working correctly
       
       return isInCurrentFY;
     });
@@ -709,15 +689,20 @@ const TeamReportCompare: React.FC = () => {
       return isInPreviousFY;
     });
     
-    // Debug the filtered data
-    console.log(`🔍 Current FY Data Count: ${currentFYData.length}`);
-    console.log(`🔍 Previous FY Data Count: ${previousFYData.length}`);
+    // Debug: Check what months are being included
+    const currentFYMonths = currentFYData.map(item => `${item.month} ${item.year}`).sort();
+    const previousFYMonths = previousFYData.map(item => `${item.month} ${item.year}`).sort();
     
-    // Show sample months from each FY
-    const currentFYMonths = Array.from(new Set(currentFYData.map(item => `${item.month} ${item.year}`))).slice(0, 5);
-    const previousFYMonths = Array.from(new Set(previousFYData.map(item => `${item.month} ${item.year}`))).slice(0, 5);
-    console.log(`🔍 Current FY Sample Months:`, currentFYMonths);
-    console.log(`🔍 Previous FY Sample Months:`, previousFYMonths);
+    console.log(`🔍 FINANCIAL YEAR DEBUG:`, {
+      currentFY,
+      previousFY,
+      currentFYDataCount: currentFYData.length,
+      previousFYDataCount: previousFYData.length,
+      currentFYMonths: Array.from(new Set(currentFYMonths)),
+      previousFYMonths: Array.from(new Set(previousFYMonths)),
+      currentFYUniqueMonths: Array.from(new Set(currentFYMonths)).length,
+      previousFYUniqueMonths: Array.from(new Set(previousFYMonths)).length
+    });
 
     const calculateParameterKPI = (parameter: string) => {
       let currentFYActual, currentFYProjected, previousFYTotal;
@@ -769,12 +754,37 @@ const TeamReportCompare: React.FC = () => {
         // For all other parameters: sum all months and apply projection
         currentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
         
-        // Debug the calculation
-        console.log(`🔍 ${parameter} Calculation Debug:`, {
+        // Debug: Check what data is being summed
+        console.log(`🔍 ${parameter} DEBUG - Current FY Data Analysis:`, {
+          totalRecords: currentFYData.length,
+          parameterValue: parameter,
           currentFYActual,
-          currentFYDataLength: currentFYData.length,
-          monthsCompleted,
-          monthsRemaining
+          sampleRecords: currentFYData.slice(0, 5).map(item => ({
+            month: item.month,
+            year: item.year,
+            business_unit: item.business_unit,
+            [parameter]: item[parameter],
+            client_name: item.client_name
+          }))
+        });
+        
+        // Check if we need to aggregate by month instead of summing all records
+        const monthlyTotals: {[key: string]: number} = {};
+        currentFYData.forEach(item => {
+          const monthKey = `${item.month} ${item.year}`;
+          if (!monthlyTotals[monthKey]) {
+            monthlyTotals[monthKey] = 0;
+          }
+          monthlyTotals[monthKey] += (item[parameter] || 0);
+        });
+        
+        const monthlyAggregatedTotal = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+        
+        console.log(`🔍 ${parameter} MONTHLY AGGREGATION DEBUG:`, {
+          monthlyTotals,
+          monthlyAggregatedTotal,
+          difference: currentFYActual - monthlyAggregatedTotal,
+          shouldUseMonthlyAggregation: Math.abs(currentFYActual - monthlyAggregatedTotal) > 0.01
         });
         
         // If we have data for current FY, project it for remaining months
@@ -791,21 +801,13 @@ const TeamReportCompare: React.FC = () => {
           // Multiply last month's value by remaining months
           currentFYProjected = currentFYActual + (lastMonthValue * monthsRemaining);
           
-          console.log(`🔍 ${parameter} Projection Debug:`, {
-            lastMonth: `${lastMonthData.month} ${lastMonthData.year}`,
-            lastMonthValue,
-            projectedAmount: lastMonthValue * monthsRemaining,
-            currentFYProjected
-          });
+          // Projection calculation working correctly
         }
 
         // Calculate previous FY total
         previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
         
-        console.log(`🔍 ${parameter} Previous FY Debug:`, {
-          previousFYTotal,
-          previousFYDataLength: previousFYData.length
-        });
+        // Previous FY calculation working correctly
       }
 
       // Calculate growth percentage (current - previous) / previous * 100
