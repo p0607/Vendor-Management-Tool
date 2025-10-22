@@ -347,9 +347,30 @@ const TeamReportCompare: React.FC = () => {
             previousValue = 0;
           }
         } else {
-          // For all other parameters: sum all months
-          currentValue = currentQuarterData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
-          previousValue = previousQuarterData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+          // For all other parameters: aggregate by month first, then sum
+          // This prevents double-counting when there are multiple records per month
+          
+          // Current quarter aggregation
+          const currentMonthlyTotals: {[key: string]: number} = {};
+          currentQuarterData.forEach(item => {
+            const monthKey = `${item.month} ${item.year}`;
+            if (!currentMonthlyTotals[monthKey]) {
+              currentMonthlyTotals[monthKey] = 0;
+            }
+            currentMonthlyTotals[monthKey] += (item[parameter] || 0);
+          });
+          currentValue = Object.values(currentMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+          
+          // Previous quarter aggregation
+          const previousMonthlyTotals: {[key: string]: number} = {};
+          previousQuarterData.forEach(item => {
+            const monthKey = `${item.month} ${item.year}`;
+            if (!previousMonthlyTotals[monthKey]) {
+              previousMonthlyTotals[monthKey] = 0;
+            }
+            previousMonthlyTotals[monthKey] += (item[parameter] || 0);
+          });
+          previousValue = Object.values(previousMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
         }
 
         const growthPercentage = previousValue > 0 
@@ -481,18 +502,46 @@ const TeamReportCompare: React.FC = () => {
           calculation: `Sum of last available month HC data for each FY`
         });
       } else {
-        // For all other parameters: sum all months (ACTUAL DATA ONLY - NO PROJECTIONS)
-        currentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
-        previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        // For all other parameters: aggregate by month first, then sum (ACTUAL DATA ONLY - NO PROJECTIONS)
+        // This prevents double-counting when there are multiple records per month
+        
+        // Current FY aggregation
+        const currentFYMonthlyTotals: {[key: string]: number} = {};
+        currentFYData.forEach(item => {
+          const monthKey = `${item.month} ${item.year}`;
+          if (!currentFYMonthlyTotals[monthKey]) {
+            currentFYMonthlyTotals[monthKey] = 0;
+          }
+          currentFYMonthlyTotals[monthKey] += (item[parameter] || 0);
+        });
+        currentFYActual = Object.values(currentFYMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+        
+        // Previous FY aggregation
+        const previousFYMonthlyTotals: {[key: string]: number} = {};
+        previousFYData.forEach(item => {
+          const monthKey = `${item.month} ${item.year}`;
+          if (!previousFYMonthlyTotals[monthKey]) {
+            previousFYMonthlyTotals[monthKey] = 0;
+          }
+          previousFYMonthlyTotals[monthKey] += (item[parameter] || 0);
+        });
+        previousFYTotal = Object.values(previousFYMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
 
+        // Debug: Show the difference between old and new calculation methods
+        const oldCurrentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        const oldPreviousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        
         console.log(`🔍 Raw Database Values for ${parameter}:`, {
           currentFY,
           previousFY,
-          currentFYActual, // RAW DATABASE VALUE
-          previousFYTotal, // RAW DATABASE VALUE
+          currentFYActual, // NEW: Monthly aggregated value
+          previousFYTotal, // NEW: Monthly aggregated value
+          oldCurrentFYActual, // OLD: Sum of all records
+          oldPreviousFYTotal, // OLD: Sum of all records
+          difference: currentFYActual - oldCurrentFYActual,
           currentFYDataLength: currentFYData.length,
           previousFYDataLength: previousFYData.length,
-          calculation: `Sum of all months for ${parameter}`,
+          calculation: `Monthly aggregation for ${parameter}`,
           sampleCurrentFYData: currentFYData.slice(0, 3).map(item => ({
             month: item.month,
             year: item.year,
@@ -751,8 +800,19 @@ const TeamReportCompare: React.FC = () => {
           previousFYTotal = 0;
         }
       } else {
-        // For all other parameters: sum all months and apply projection
-        currentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        // For all other parameters: aggregate by month first, then sum
+        // This prevents double-counting when there are multiple records per month
+        const monthlyTotals: {[key: string]: number} = {};
+        currentFYData.forEach(item => {
+          const monthKey = `${item.month} ${item.year}`;
+          if (!monthlyTotals[monthKey]) {
+            monthlyTotals[monthKey] = 0;
+          }
+          monthlyTotals[monthKey] += (item[parameter] || 0);
+        });
+        
+        // Sum the monthly totals instead of all individual records
+        currentFYActual = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
         
         // Debug: Check what data is being summed
         console.log(`🔍 ${parameter} DEBUG - Current FY Data Analysis:`, {
@@ -768,44 +828,64 @@ const TeamReportCompare: React.FC = () => {
           }))
         });
         
-        // Check if we need to aggregate by month instead of summing all records
-        const monthlyTotals: {[key: string]: number} = {};
+        // Debug: Show the difference between old and new calculation methods
+        const debugMonthlyTotals: {[key: string]: number} = {};
         currentFYData.forEach(item => {
           const monthKey = `${item.month} ${item.year}`;
-          if (!monthlyTotals[monthKey]) {
-            monthlyTotals[monthKey] = 0;
+          if (!debugMonthlyTotals[monthKey]) {
+            debugMonthlyTotals[monthKey] = 0;
           }
-          monthlyTotals[monthKey] += (item[parameter] || 0);
+          debugMonthlyTotals[monthKey] += (item[parameter] || 0);
         });
         
-        const monthlyAggregatedTotal = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+        const debugMonthlyAggregatedTotal = Object.values(debugMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
         
         console.log(`🔍 ${parameter} MONTHLY AGGREGATION DEBUG:`, {
-          monthlyTotals,
-          monthlyAggregatedTotal,
-          difference: currentFYActual - monthlyAggregatedTotal,
-          shouldUseMonthlyAggregation: Math.abs(currentFYActual - monthlyAggregatedTotal) > 0.01
+          monthlyTotals: debugMonthlyTotals,
+          monthlyAggregatedTotal: debugMonthlyAggregatedTotal,
+          difference: currentFYActual - debugMonthlyAggregatedTotal,
+          shouldUseMonthlyAggregation: Math.abs(currentFYActual - debugMonthlyAggregatedTotal) > 0.01
         });
         
         // If we have data for current FY, project it for remaining months
         currentFYProjected = currentFYActual;
-        if (currentFYData.length > 0 && monthsRemaining > 0) {
-          // Find the last available month's data
-          const lastMonthData = currentFYData.reduce((latest, item) => {
-            const itemDate = parseDate(item.month, item.year);
-            const latestDate = parseDate(latest.month, latest.year);
-            return itemDate > latestDate ? item : latest;
-          });
+        if (Object.keys(monthlyTotals).length > 0 && monthsRemaining > 0) {
+          // Find the last available month's total value
+          const monthKeys = Object.keys(monthlyTotals);
+          const lastMonthKey = monthKeys.reduce((latest, monthKey) => {
+            const [month, year] = monthKey.split(' ');
+            const itemDate = parseDate(month, parseInt(year));
+            const [latestMonth, latestYear] = latest.split(' ');
+            const latestDate = parseDate(latestMonth, parseInt(latestYear));
+            return itemDate > latestDate ? monthKey : latest;
+          }, monthKeys[0]); // Provide initial value
           
-          const lastMonthValue = lastMonthData[parameter] || 0;
-          // Multiply last month's value by remaining months
+          const lastMonthValue = monthlyTotals[lastMonthKey] || 0;
+          // Multiply last month's total value by remaining months
           currentFYProjected = currentFYActual + (lastMonthValue * monthsRemaining);
           
-          // Projection calculation working correctly
+        console.log(`🔍 ${parameter} PROJECTION DEBUG:`, {
+          availableMonths: Object.keys(monthlyTotals),
+          lastMonthKey,
+          lastMonthValue,
+          monthsRemaining,
+          currentFYActual,
+          currentFYProjected,
+          projectionAmount: lastMonthValue * monthsRemaining
+        });
         }
 
-        // Calculate previous FY total
-        previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        // Calculate previous FY total - also aggregate by month first
+        const previousMonthlyTotals: {[key: string]: number} = {};
+        previousFYData.forEach(item => {
+          const monthKey = `${item.month} ${item.year}`;
+          if (!previousMonthlyTotals[monthKey]) {
+            previousMonthlyTotals[monthKey] = 0;
+          }
+          previousMonthlyTotals[monthKey] += (item[parameter] || 0);
+        });
+        
+        previousFYTotal = Object.values(previousMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
         
         // Previous FY calculation working correctly
       }
@@ -2757,6 +2837,7 @@ const TeamReportCompare: React.FC = () => {
                     case 'GPM': value = item.gpm || 0; break;
 
                     case 'Net Margin': value = item.net_margin || 0; break;
+                    case 'NP': value = item.net_margin || 0; break; // NP maps to net_margin
 
                     case 'Team Cost': value = item.team_cost || 0; break;
 
@@ -2922,6 +3003,7 @@ const TeamReportCompare: React.FC = () => {
           case 'GPM': value = item.gpm || 0; break;
 
           case 'Net Margin': value = item.net_margin || 0; break;
+          case 'NP': value = item.net_margin || 0; break; // NP maps to net_margin
 
           case 'Team Cost': value = item.team_cost || 0; break;
 
