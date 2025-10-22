@@ -369,11 +369,9 @@ const TeamReportCompare: React.FC = () => {
         Revenue: calculateParameterRaw('revenue'),
         GPM: calculateParameterRaw('gpm'),
         'Team Cost': calculateParameterRaw('team_cost'),
-        'Net Margin': calculateParameterRaw('net_margin'),
-        HC: calculateParameterRaw('hc'),
-        'Opr Cost': calculateParameterRaw('opr_cost'),
-        'Funding Cost': calculateParameterRaw('funding_cost'),
-        'Leave Encashment': calculateParameterRaw('leave_encashment')
+        NP: calculateParameterRaw('net_margin'),
+        HC: calculateParameterRaw('hc')
+        // Removed unused KPIs: 'Opr Cost', 'Funding Cost', 'Leave Encashment'
       };
     }
 
@@ -399,8 +397,14 @@ const TeamReportCompare: React.FC = () => {
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
-      // Simple calendar year filtering: 2025 = Jan 2025 to Dec 2025
-      return itemYear === currentFY;
+      // Financial year filtering: FY 2025 = April 2025 to March 2026
+      if (itemMonth >= 4) {
+        // April to December: same calendar year
+        return itemYear === currentFY;
+      } else {
+        // January to March: next calendar year
+        return itemYear === currentFY + 1;
+      }
     });
 
     const previousFYData = data.filter(item => {
@@ -410,8 +414,14 @@ const TeamReportCompare: React.FC = () => {
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
-      // Simple calendar year filtering: 2024 = Jan 2024 to Dec 2024
-      return itemYear === previousFY;
+      // Financial year filtering: FY 2024 = April 2024 to March 2025
+      if (itemMonth >= 4) {
+        // April to December: same calendar year
+        return itemYear === previousFY;
+      } else {
+        // January to March: next calendar year
+        return itemYear === previousFY + 1;
+      }
     });
 
     // Debug logging to see what data we're getting
@@ -510,17 +520,14 @@ const TeamReportCompare: React.FC = () => {
       };
     };
 
-    return {
-      Revenue: calculateParameterRaw('sales'),
-      GPM: calculateParameterRaw('gpm'),
-      'Team Cost': calculateParameterRaw('team_cost'),
-      NP: calculateParameterRaw('np'),
-      HC: calculateParameterRaw('hc'),
-      'Salary Cost': calculateParameterRaw('salary_cost'),
-      'Opr Cost': calculateParameterRaw('opr_cost'),
-      'Funding Cost': calculateParameterRaw('funding_cost'),
-      'Leave Encashment': calculateParameterRaw('leave_encashment')
-    };
+      return {
+        Revenue: calculateParameterRaw('revenue'),
+        GPM: calculateParameterRaw('gpm'),
+        'Team Cost': calculateParameterRaw('team_cost'),
+        NP: calculateParameterRaw('net_margin'),
+        HC: calculateParameterRaw('hc')
+        // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment'
+      };
   };
 
   // KPI calculation function
@@ -612,15 +619,12 @@ const TeamReportCompare: React.FC = () => {
       };
 
       return {
-        Revenue: calculateParameterKPI('sales'),
+        Revenue: calculateParameterKPI('revenue'),
         GPM: calculateParameterKPI('gpm'),
         'Team Cost': calculateParameterKPI('team_cost'),
-        NP: calculateParameterKPI('np'),
-        HC: calculateParameterKPI('hc'),
-        'Salary Cost': calculateParameterKPI('salary_cost'),
-        'Opr Cost': calculateParameterKPI('opr_cost'),
-        'Funding Cost': calculateParameterKPI('funding_cost'),
-        'Leave Encashment': calculateParameterKPI('leave_encashment')
+        NP: calculateParameterKPI('net_margin'),
+        HC: calculateParameterKPI('hc')
+        // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment'
       };
     }
 
@@ -648,8 +652,14 @@ const TeamReportCompare: React.FC = () => {
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
-      // Simple calendar year filtering: 2025 = Jan 2025 to Dec 2025
-      return itemYear === currentFY;
+      // Financial year filtering: FY 2025 = April 2025 to March 2026
+      if (itemMonth >= 4) {
+        // April to December: same calendar year
+        return itemYear === currentFY;
+      } else {
+        // January to March: next calendar year
+        return itemYear === currentFY + 1;
+      }
     });
 
     const previousFYData = data.filter(item => {
@@ -659,8 +669,14 @@ const TeamReportCompare: React.FC = () => {
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       
-      // Simple calendar year filtering: 2024 = Jan 2024 to Dec 2024
-      return itemYear === previousFY;
+      // Financial year filtering: FY 2024 = April 2024 to March 2025
+      if (itemMonth >= 4) {
+        // April to December: same calendar year
+        return itemYear === previousFY;
+      } else {
+        // January to March: next calendar year
+        return itemYear === previousFY + 1;
+      }
     });
 
     const calculateParameterKPI = (parameter: string) => {
@@ -753,15 +769,12 @@ const TeamReportCompare: React.FC = () => {
     };
 
     return {
-      Revenue: calculateParameterKPI('sales'),
+      Revenue: calculateParameterKPI('revenue'),
       GPM: calculateParameterKPI('gpm'),
       'Team Cost': calculateParameterKPI('team_cost'),
-      NP: calculateParameterKPI('np'),
-      HC: calculateParameterKPI('hc'),
-      'Salary Cost': calculateParameterKPI('salary_cost'),
-      'Opr Cost': calculateParameterKPI('opr_cost'),
-      'Funding Cost': calculateParameterKPI('funding_cost'),
-      'Leave Encashment': calculateParameterKPI('leave_encashment')
+      NP: calculateParameterKPI('net_margin'),
+      HC: calculateParameterKPI('hc')
+      // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment'
     };
   };
 
@@ -821,7 +834,7 @@ const TeamReportCompare: React.FC = () => {
   });
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
 
-  const [showAllKPIs, setShowAllKPIs] = useState(false);
+  // Removed showAllKPIs state - only 5 KPIs available
   const [comparisonData, setComparisonData] = useState<{[key: string]: any}[]>([]);
 
   const [growthAnalysis, setGrowthAnalysis] = useState<GrowthAnalysis[]>([]);
@@ -1387,7 +1400,7 @@ const TeamReportCompare: React.FC = () => {
 
       'Salary Cost': row.salary_cost,
 
-      'SALES': row.sales,
+      'Revenue': row.revenue,
 
       'GPM': row.gpm,
 
@@ -1401,7 +1414,7 @@ const TeamReportCompare: React.FC = () => {
 
       'Funding Cost': row.funding_cost,
 
-      'NP': row.np,
+      'Net Margin': row.net_margin,
 
       'NP %': row.np_percentage,
 
@@ -2245,7 +2258,7 @@ const TeamReportCompare: React.FC = () => {
               console.warn(`🔍 July Record ${index + 1}:`, {
                 month: record.month,
                 year: record.year,
-                sales: record.sales,
+                revenue: record.revenue,
                 business_unit: record.business_unit,
                 client_name: record.client_name
               });
@@ -3960,8 +3973,14 @@ const TeamReportCompare: React.FC = () => {
               const itemYear = itemDate.getFullYear();
               const itemMonth = itemDate.getMonth() + 1;
               
-              // Simple calendar year filtering
-              return itemYear === year;
+              // Financial year filtering: FY 2025 = April 2025 to March 2026
+              if (itemMonth >= 4) {
+                // April to December: same calendar year
+                return itemYear === year;
+              } else {
+                // January to March: next calendar year
+                return itemYear === year + 1;
+              }
             });
           }
           
@@ -5160,23 +5179,22 @@ const TeamReportCompare: React.FC = () => {
 
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: showAllKPIs ? 'repeat(auto-fit, minmax(280px, 1fr))' : 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: 16,
             marginBottom: 16
           }}>
             {(() => {
               const kpis = calculateKPIs();
-              const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP'];
-              const additionalKPIs = ['HC', 'Salary Cost', 'OPR Cost', 'Funding Cost', 'Leave Encashment'];
-              const displayKPIs = showAllKPIs ? [...mainKPIs, ...additionalKPIs] : mainKPIs;
+              const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP', 'HC'];
+              const additionalKPIs = []; // No additional KPIs available
+              const displayKPIs = mainKPIs; // Only show the 5 available KPIs
               
               return displayKPIs.map((kpiName) => {
                 const kpi = kpis[kpiName];
                 if (!kpi) return null;
                 
                 const formatValue = (value: number) => {
-                  if (kpiName === 'Revenue' || kpiName === 'GPM' || kpiName === 'Team Cost' || kpiName === 'NP' || 
-                      kpiName === 'Salary Cost' || kpiName === 'OPR Cost' || kpiName === 'Funding Cost' || kpiName === 'Leave Encashment') {
+                  if (kpiName === 'Revenue' || kpiName === 'GPM' || kpiName === 'Team Cost' || kpiName === 'NP' || kpiName === 'HC') {
                     return formatValueWithToggle(value, true);
                   }
                   return value.toFixed(0);
@@ -5373,18 +5391,7 @@ const TeamReportCompare: React.FC = () => {
           
           {/* Show More/Less Button */}
           <div style={{ textAlign: 'center' }}>
-            <Button
-              type="dashed"
-              icon={<PlusOutlined />}
-              onClick={() => setShowAllKPIs(!showAllKPIs)}
-              style={{
-                color: '#000000',
-                borderColor: '#004a7a',
-                backgroundColor: '#ffffff'
-              }}
-            >
-              {showAllKPIs ? 'Show Less' : '+ Show More KPIs'}
-            </Button>
+            {/* Removed Show More KPIs button - only 5 KPIs available */}
           </div>
         </div>
       )}
