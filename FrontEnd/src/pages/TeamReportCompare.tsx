@@ -3307,7 +3307,13 @@ const TeamReportCompare: React.FC = () => {
                     const itemDate = parseDate(item.month, item.year);
                     return itemDate.getMonth() === lastMonthDate.getMonth() && 
                            itemDate.getFullYear() === lastMonthDate.getFullYear();
-                  }).length
+                  }).length,
+                  sampleAllPeriodData: allPeriodData.slice(0, 3).map(item => ({
+                    month: item.month,
+                    year: item.year,
+                    business_unit: item.business_unit,
+                    hc: item.hc
+                  }))
                 });
                 
                 return hcValue;
@@ -3533,7 +3539,13 @@ const TeamReportCompare: React.FC = () => {
                   const itemDate = parseDate(item.month, item.year);
                   return itemDate.getMonth() === lastMonthDate.getMonth() && 
                          itemDate.getFullYear() === lastMonthDate.getFullYear();
-                }).length
+                }).length,
+                sampleFilteredData: filteredData.slice(0, 3).map(item => ({
+                  month: item.month,
+                  year: item.year,
+                  business_unit: item.business_unit,
+                  hc: item.hc
+                }))
               });
               
               return hcValue;
