@@ -749,6 +749,13 @@ const TeamReportCompare: React.FC = () => {
       currentFYUniqueMonths: Array.from(new Set(currentFYMonths)).length,
       previousFYUniqueMonths: Array.from(new Set(previousFYMonths)).length
     });
+    
+    // Debug April 2024 data specifically
+    const april2024Data = data.filter(item => item.month === 'April' && item.year === 2024);
+    console.log("🔍 April 2024 Data:", april2024Data.length, "records");
+    if (april2024Data.length > 0) {
+      console.log("🔍 April 2024 Sample:", april2024Data[0]);
+    }
 
     const calculateParameterKPI = (parameter: string) => {
       let currentFYActual, currentFYProjected, previousFYTotal;
@@ -772,7 +779,17 @@ const TeamReportCompare: React.FC = () => {
             })
             .reduce((sum, item) => sum + (item.hc || 0), 0);
           currentFYProjected = currentFYActual; // HC doesn't need projection
-        } else {
+       
+          console.log(`🔍 KPI HC Debug for Current FY ${currentFY}:`, {
+            lastMonth: `${lastMonthCurrent.month} ${lastMonthCurrent.year}`,
+            currentFYActual,
+            currentFYDataCount: currentFYData.length,
+            lastMonthDataCount: currentFYData.filter(item => {
+              const itemDate = parseDate(item.month, item.year);
+              return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                     itemDate.getFullYear() === lastMonthDate.getFullYear();
+            }).length
+          });        } else {
           currentFYActual = 0;
           currentFYProjected = 0;
         }
@@ -793,6 +810,17 @@ const TeamReportCompare: React.FC = () => {
                      itemDate.getFullYear() === lastMonthDate.getFullYear();
             })
             .reduce((sum, item) => sum + (item.hc || 0), 0);
+            
+          console.log(`🔍 KPI HC Debug for Previous FY ${previousFY}:`, {
+            lastMonth: `${lastMonthPrevious.month} ${lastMonthPrevious.year}`,
+            previousFYTotal,
+            previousFYDataCount: previousFYData.length,
+            lastMonthDataCount: previousFYData.filter(item => {
+              const itemDate = parseDate(item.month, item.year);
+              return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                     itemDate.getFullYear() === lastMonthDate.getFullYear();
+            }).length
+          });
         } else {
           previousFYTotal = 0;
         }
