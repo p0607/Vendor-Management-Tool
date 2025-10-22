@@ -644,6 +644,25 @@ const TeamReportCompare: React.FC = () => {
     const monthsCompleted = getMonthsCompletedInCurrentFY();
     const monthsRemaining = 12 - monthsCompleted;
 
+    // Debug financial year calculation
+    console.log(`🔍 Financial Year Debug - Current FY: ${currentFY}, Previous FY: ${previousFY}`);
+    console.log(`🔍 Months Completed: ${monthsCompleted}, Months Remaining: ${monthsRemaining}`);
+    
+    // Debug what months should be included in each FY
+    console.log(`🔍 Expected Current FY (${currentFY}): April ${currentFY} to March ${currentFY + 1}`);
+    console.log(`🔍 Expected Previous FY (${previousFY}): April ${previousFY} to March ${previousFY + 1}`);
+    
+    // Show sample data to understand the structure
+    if (data.length > 0) {
+      const sampleData = data.slice(0, 10).map(item => ({
+        month: item.month,
+        year: item.year,
+        parsedDate: parseDate(item.month, item.year),
+        isValidDate: !isNaN(parseDate(item.month, item.year).getTime())
+      }));
+      console.log(`🔍 Sample Data Structure:`, sampleData);
+    }
+
     // Filter data for current and previous financial years
     const currentFYData = data.filter(item => {
       const itemDate = parseDate(item.month, item.year);
@@ -653,13 +672,21 @@ const TeamReportCompare: React.FC = () => {
       const itemMonth = itemDate.getMonth() + 1;
       
       // Financial year filtering: FY 2025 = April 2025 to March 2026
+      let isInCurrentFY = false;
       if (itemMonth >= 4) {
         // April to December: same calendar year
-        return itemYear === currentFY;
+        isInCurrentFY = itemYear === currentFY;
       } else {
         // January to March: next calendar year
-        return itemYear === currentFY + 1;
+        isInCurrentFY = itemYear === currentFY + 1;
       }
+      
+      // Debug logging for sample items
+      if (Math.random() < 0.02) { // Log 2% of items to avoid spam
+        console.log(`🔍 FY Filter Debug: ${item.month} ${item.year} -> Month: ${itemMonth}, Year: ${itemYear}, CurrentFY: ${currentFY}, InCurrentFY: ${isInCurrentFY}`);
+      }
+      
+      return isInCurrentFY;
     });
 
     const previousFYData = data.filter(item => {
@@ -670,14 +697,27 @@ const TeamReportCompare: React.FC = () => {
       const itemMonth = itemDate.getMonth() + 1;
       
       // Financial year filtering: FY 2024 = April 2024 to March 2025
+      let isInPreviousFY = false;
       if (itemMonth >= 4) {
         // April to December: same calendar year
-        return itemYear === previousFY;
+        isInPreviousFY = itemYear === previousFY;
       } else {
         // January to March: next calendar year
-        return itemYear === previousFY + 1;
+        isInPreviousFY = itemYear === previousFY + 1;
       }
+      
+      return isInPreviousFY;
     });
+    
+    // Debug the filtered data
+    console.log(`🔍 Current FY Data Count: ${currentFYData.length}`);
+    console.log(`🔍 Previous FY Data Count: ${previousFYData.length}`);
+    
+    // Show sample months from each FY
+    const currentFYMonths = Array.from(new Set(currentFYData.map(item => `${item.month} ${item.year}`))).slice(0, 5);
+    const previousFYMonths = Array.from(new Set(previousFYData.map(item => `${item.month} ${item.year}`))).slice(0, 5);
+    console.log(`🔍 Current FY Sample Months:`, currentFYMonths);
+    console.log(`🔍 Previous FY Sample Months:`, previousFYMonths);
 
     const calculateParameterKPI = (parameter: string) => {
       let currentFYActual, currentFYProjected, previousFYTotal;
@@ -729,6 +769,14 @@ const TeamReportCompare: React.FC = () => {
         // For all other parameters: sum all months and apply projection
         currentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
         
+        // Debug the calculation
+        console.log(`🔍 ${parameter} Calculation Debug:`, {
+          currentFYActual,
+          currentFYDataLength: currentFYData.length,
+          monthsCompleted,
+          monthsRemaining
+        });
+        
         // If we have data for current FY, project it for remaining months
         currentFYProjected = currentFYActual;
         if (currentFYData.length > 0 && monthsRemaining > 0) {
@@ -742,10 +790,22 @@ const TeamReportCompare: React.FC = () => {
           const lastMonthValue = lastMonthData[parameter] || 0;
           // Multiply last month's value by remaining months
           currentFYProjected = currentFYActual + (lastMonthValue * monthsRemaining);
+          
+          console.log(`🔍 ${parameter} Projection Debug:`, {
+            lastMonth: `${lastMonthData.month} ${lastMonthData.year}`,
+            lastMonthValue,
+            projectedAmount: lastMonthValue * monthsRemaining,
+            currentFYProjected
+          });
         }
 
         // Calculate previous FY total
         previousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        
+        console.log(`🔍 ${parameter} Previous FY Debug:`, {
+          previousFYTotal,
+          previousFYDataLength: previousFYData.length
+        });
       }
 
       // Calculate growth percentage (current - previous) / previous * 100
@@ -890,6 +950,26 @@ const TeamReportCompare: React.FC = () => {
     }
 
     // Handle month name format (e.g., "April")
+    
+    // Fix common misspellings first
+    const fixedDateStr = dateStr
+      .replace(/^apri$/i, 'April')  // Fix "Apri" -> "April"
+      .replace(/^janu$/i, 'January') // Fix "Janu" -> "January"
+      .replace(/^febr$/i, 'February') // Fix "Febr" -> "February"
+      .replace(/^marc$/i, 'March')   // Fix "Marc" -> "March"
+      .replace(/^may$/i, 'May')      // Ensure "May" is correct
+      .replace(/^june$/i, 'June')    // Ensure "June" is correct
+      .replace(/^july$/i, 'July')   // Ensure "July" is correct
+      .replace(/^augu$/i, 'August')  // Fix "Augu" -> "August"
+      .replace(/^sept$/i, 'September') // Fix "Sept" -> "September"
+      .replace(/^octo$/i, 'October') // Fix "Octo" -> "October"
+      .replace(/^novem$/i, 'November') // Fix "Novem" -> "November"
+      .replace(/^decem$/i, 'December'); // Fix "Decem" -> "December"
+    
+    // Log when we fix a misspelling
+    if (fixedDateStr !== dateStr) {
+      console.log(`🔧 parseDate: Fixed misspelling "${dateStr}" -> "${fixedDateStr}"`);
+    }
 
     const monthNames = [
 
@@ -911,7 +991,7 @@ const TeamReportCompare: React.FC = () => {
     
     // First try full month names
     let monthIndex = monthNames.findIndex(month => {
-      const lowerDateStr = dateStr.toLowerCase();
+      const lowerDateStr = fixedDateStr.toLowerCase();
       const lowerMonth = month.toLowerCase();
       
       // Exact match or word boundary match to avoid false positives
@@ -928,7 +1008,7 @@ const TeamReportCompare: React.FC = () => {
     // If not found, try abbreviated month names
     if (monthIndex === -1) {
       monthIndex = abbreviatedMonthNames.findIndex(month => {
-        const lowerDateStr = dateStr.toLowerCase();
+        const lowerDateStr = fixedDateStr.toLowerCase();
         const lowerMonth = month.toLowerCase();
         
         // Exact match for abbreviated names
