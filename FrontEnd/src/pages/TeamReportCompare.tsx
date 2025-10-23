@@ -3057,7 +3057,7 @@ const TeamReportCompare: React.FC = () => {
     
     const targetYear = parseInt(yearMatch[1]);
     
-    // Get all months for this FY
+    // Get all months for this FY that actually have data
     const fyMonths = data.filter(item => {
       const itemDate = parseDate(item.month, item.year);
       if (isNaN(itemDate.getTime())) return false;
@@ -6443,25 +6443,13 @@ const TeamReportCompare: React.FC = () => {
                   { name: 'HC', current: summary.currentPeriod.hc, previous: summary.previousPeriod.hc, change: summary.hcChange, growth: summary.hcGrowth }
                 ];
                 
-                // Define light colors for business units that match the Growth Analysis
-                const businessUnitColors = [
-                  '#f0f8ff', // Light blue
-                  '#f0fff0', // Light green
-                  '#fff8f0', // Light orange
-                  '#f8f0ff', // Light purple
-                  '#fff0f8', // Light pink
-                  '#f0f0f8', // Light lavender
-                  '#f8fff0', // Light mint
-                  '#fff0f0', // Light rose
-                  '#f0f8f0', // Light sage
-                  '#f8f8f0'  // Light cream
-                ];
+                // Use alternating grey pattern like Growth Analysis
                 
-                const businessUnitColor = businessUnitColors[index % businessUnitColors.length];
-                
-                return parameters.map((param, paramIndex) => (
+                return parameters.map((param, paramIndex) => {
+                  const isEvenRow = (index * 4 + paramIndex) % 2 === 0;
+                  return (
                   <tr key={`${summary.businessUnit}-${param.name}`} style={{ 
-                    backgroundColor: businessUnitColor,
+                    backgroundColor: isEvenRow ? '#ffffff' : '#f9f9f9',
                     borderBottom: paramIndex === parameters.length - 1 ? '2px solid #004a7a' : '1px solid #d9d9d9',
                     color: '#000000'
                   }}>
@@ -6544,14 +6532,9 @@ const TeamReportCompare: React.FC = () => {
                       {param.change >= 0 ? '+' : ''}
                       {param.growth.toFixed(2)}%
                     </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 'bold' }}>
-                      {param.name === 'GPM' ? `${((param.current / summary.currentPeriod.revenue) * 100).toFixed(2)}%` : '-'}
-                    </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 'bold' }}>
-                      {param.name === 'Net Margin' ? `${((param.current / summary.currentPeriod.revenue) * 100).toFixed(2)}%` : '-'}
-                    </td>
                   </tr>
-                ));
+                  );
+                });
               })}
             </tbody>
           </table>
