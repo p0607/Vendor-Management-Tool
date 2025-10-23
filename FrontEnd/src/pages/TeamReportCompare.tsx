@@ -1139,7 +1139,7 @@ const TeamReportCompare: React.FC = () => {
 
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
-  const [showAllParameters, setShowAllParameters] = useState(false);
+  // Removed showAllParameters state - always show all parameters
 
   // Crore/Lakh toggle state
   const [isCroreMode, setIsCroreMode] = useState(true);
@@ -3025,9 +3025,19 @@ const TeamReportCompare: React.FC = () => {
         // Map parameter names to database field names
         let fieldName = parameter.toLowerCase();
         if (parameter === 'Team Cost') fieldName = 'team_cost';
-        if (parameter === 'NP') fieldName = 'net_margin';
+        if (parameter === 'NP' || parameter === 'Net Margin') fieldName = 'net_margin';
         if (parameter === 'GPM') fieldName = 'gpm';
         if (parameter === 'Revenue') fieldName = 'revenue';
+        
+        // Debug Net Margin mapping
+        if (parameter === 'Net Margin') {
+          console.log(`🔍 Net Margin Debug:`, {
+            parameter,
+            fieldName,
+            itemValue: item[fieldName],
+            monthKey
+          });
+        }
         
         monthlyTotals[monthKey] += (item[fieldName] || 0);
       });
@@ -3474,7 +3484,7 @@ const TeamReportCompare: React.FC = () => {
     console.log("🔍 availableParameters length:", availableParameters.length);
     console.log("🔍 selectedParameters:", selectedParameters);
     console.log("🔍 selectedParameters length:", selectedParameters.length);
-    console.log("🔍 showAllParameters:", showAllParameters);
+    // Removed showAllParameters logging
     console.log("🔍 comparisonValues:", comparisonValues);
     console.log("🔍 data length:", data.length);
 
@@ -3881,7 +3891,7 @@ const TeamReportCompare: React.FC = () => {
     console.log("🔍 Chart data parameters:", chartData.map(item => item.parameter));
     console.log("🔍 Setting growthAnalysis state with multi-period data:", chartData.length, "items");
     setGrowthAnalysis(chartData);
-  }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, showAllParameters]);
+  }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
 
   // Calculate KPIs when data or comparison values change
   useEffect(() => {
@@ -6076,7 +6086,7 @@ const TeamReportCompare: React.FC = () => {
 
     <tbody>
 
-      {(showAllParameters ? growthAnalysis : growthAnalysis.filter(item => selectedParameters.includes(item.parameter))).map((item, index) => {
+      {growthAnalysis.map((item, index) => {
 
         // Calculate growth between first and last period for each parameter
 
@@ -6175,33 +6185,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-{/* Expand/Collapse Button */}
-
-<div style={{ textAlign: 'center', marginTop: 16 }}>
-
-  <Button
-
-    type="dashed"
-
-    onClick={() => setShowAllParameters(!showAllParameters)}
-
-    style={{ 
-
-      color: '#000000',
-
-      borderColor: '#004a7a',
-
-      backgroundColor: '#ffffff'
-
-    }}
-
-  >
-
-    {showAllParameters ? 'Show Only Selected Parameters' : 'Show All Parameters'}
-
-  </Button>
-
-</div>
+{/* Removed Show All Parameters button - always show all parameters */}
 
 
 
