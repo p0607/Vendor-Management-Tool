@@ -6443,7 +6443,7 @@ const TeamReportCompare: React.FC = () => {
                   { name: 'HC', current: summary.currentPeriod.hc, previous: summary.previousPeriod.hc, change: summary.hcChange, growth: summary.hcGrowth }
                 ];
                 
-                // Define light colors for business units that match the overall tool design
+                // Define light colors for business units that match the Growth Analysis
                 const businessUnitColors = [
                   '#f0f8ff', // Light blue
                   '#f0fff0', // Light green
@@ -6481,10 +6481,50 @@ const TeamReportCompare: React.FC = () => {
                       {param.name}
                     </td>
                     <td style={{ padding: '6px 8px', textAlign: 'right' }}>
-                      {formatValueForTable(param.current, param.name)}
+                      <div>
+                        {formatValueForTable(param.current, param.name)}
+                      </div>
+                      {param.name === 'GPM' && (
+                        <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                          {(() => {
+                            const revenue = summary.currentPeriod.revenue;
+                            const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
+                            return `${percentage}%`;
+                          })()}
+                        </div>
+                      )}
+                      {param.name === 'Net Margin' && (
+                        <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                          {(() => {
+                            const revenue = summary.currentPeriod.revenue;
+                            const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
+                            return `${percentage}%`;
+                          })()}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '6px 8px', textAlign: 'right' }}>
-                      {formatValueForTable(param.previous, param.name)}
+                      <div>
+                        {formatValueForTable(param.previous, param.name)}
+                      </div>
+                      {param.name === 'GPM' && (
+                        <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                          {(() => {
+                            const revenue = summary.previousPeriod.revenue;
+                            const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
+                            return `${percentage}%`;
+                          })()}
+                        </div>
+                      )}
+                      {param.name === 'Net Margin' && (
+                        <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                          {(() => {
+                            const revenue = summary.previousPeriod.revenue;
+                            const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
+                            return `${percentage}%`;
+                          })()}
+                        </div>
+                      )}
                     </td>
                     <td style={{ 
                       padding: '6px 8px', 
