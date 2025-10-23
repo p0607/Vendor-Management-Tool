@@ -6131,9 +6131,6 @@ const TeamReportCompare: React.FC = () => {
 
         <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Growth %</th>
 
-        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>GPM %</th>
-
-        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Net Margin %</th>
 
       </tr>
 
@@ -6159,21 +6156,6 @@ const TeamReportCompare: React.FC = () => {
 
         const isPositive = absoluteChange >= 0;
         
-        // Calculate GPM% and Net Margin% for each period
-        const getRevenueForPeriod = (periodIndex: number) => {
-          const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
-          return revenueItem?.periodValues[periodIndex]?.amount || 0;
-        };
-        
-        const currentRevenue = getRevenueForPeriod(0);
-        const previousRevenue = getRevenueForPeriod(item.periodValues.length - 1);
-        
-        // Calculate percentages for current and previous periods
-        const currentGPMPercentage = currentRevenue > 0 ? ((item.parameter === 'GPM' ? currentPeriodAmount : 0) / currentRevenue) * 100 : 0;
-        const previousGPMPercentage = previousRevenue > 0 ? ((item.parameter === 'GPM' ? previousPeriodAmount : 0) / previousRevenue) * 100 : 0;
-        
-        const currentNetMarginPercentage = currentRevenue > 0 ? ((item.parameter === 'Net Margin' ? currentPeriodAmount : 0) / currentRevenue) * 100 : 0;
-        const previousNetMarginPercentage = previousRevenue > 0 ? ((item.parameter === 'Net Margin' ? previousPeriodAmount : 0) / previousRevenue) * 100 : 0;
         
         // Debug absolute change calculation
         console.log(`🔍 Absolute Change Debug for ${item.parameter}:`, {
@@ -6183,12 +6165,6 @@ const TeamReportCompare: React.FC = () => {
           absoluteChange,
           growthPercentage,
           isPositive,
-          currentRevenue,
-          previousRevenue,
-          currentGPMPercentage,
-          previousGPMPercentage,
-          currentNetMarginPercentage,
-          previousNetMarginPercentage,
           periodValues: item.periodValues.map(pv => ({ period: pv.period, amount: pv.amount }))
         });
 
@@ -6213,9 +6189,29 @@ const TeamReportCompare: React.FC = () => {
               return (
 
                 <td key={i} style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
-
-                  {formatValueForTable(pv.amount, item.parameter)}
-
+                  <div>
+                    {formatValueForTable(pv.amount, item.parameter)}
+                  </div>
+                  {item.parameter === 'GPM' && (
+                    <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                      {(() => {
+                        const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
+                        const revenue = revenueItem?.periodValues[i]?.amount || 0;
+                        const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
+                        return `${percentage}%`;
+                      })()}
+                    </div>
+                  )}
+                  {item.parameter === 'Net Margin' && (
+                    <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                      {(() => {
+                        const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
+                        const revenue = revenueItem?.periodValues[i]?.amount || 0;
+                        const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
+                        return `${percentage}%`;
+                      })()}
+                    </div>
+                  )}
                 </td>
 
               );
@@ -6259,27 +6255,6 @@ const TeamReportCompare: React.FC = () => {
 
             </td>
 
-            {/* GPM% column */}
-            <td style={{ 
-              padding: '6px 8px', 
-              textAlign: 'right',
-              color: '#000000',
-              fontSize: '10px',
-              fontWeight: 'bold'
-            }}>
-              {item.parameter === 'GPM' ? `${currentGPMPercentage.toFixed(2)}%` : '-'}
-            </td>
-
-            {/* Net Margin% column */}
-            <td style={{ 
-              padding: '6px 8px', 
-              textAlign: 'right',
-              color: '#000000',
-              fontSize: '10px',
-              fontWeight: 'bold'
-            }}>
-              {item.parameter === 'Net Margin' ? `${currentNetMarginPercentage.toFixed(2)}%` : '-'}
-            </td>
 
           </tr>
 
@@ -6442,8 +6417,9 @@ const TeamReportCompare: React.FC = () => {
             width: '100%', 
             borderCollapse: 'collapse', 
             backgroundColor: '#ffffff',
-            border: '1px solid #d9d9d9',
-            fontSize: '10px'
+            border: '2px solid #004a7a',
+            fontSize: '10px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
           }}>
             <thead>
               <tr style={{ backgroundColor: '#d8e8f0' }}>
@@ -6456,8 +6432,6 @@ const TeamReportCompare: React.FC = () => {
                 ))}
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Growth %</th>
-                <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>GPM %</th>
-                <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Net Margin %</th>
               </tr>
             </thead>
             <tbody>
@@ -6469,10 +6443,26 @@ const TeamReportCompare: React.FC = () => {
                   { name: 'HC', current: summary.currentPeriod.hc, previous: summary.previousPeriod.hc, change: summary.hcChange, growth: summary.hcGrowth }
                 ];
                 
+                // Define light colors for business units that match the overall tool design
+                const businessUnitColors = [
+                  '#f0f8ff', // Light blue
+                  '#f0fff0', // Light green
+                  '#fff8f0', // Light orange
+                  '#f8f0ff', // Light purple
+                  '#fff0f8', // Light pink
+                  '#f0f0f8', // Light lavender
+                  '#f8fff0', // Light mint
+                  '#fff0f0', // Light rose
+                  '#f0f8f0', // Light sage
+                  '#f8f8f0'  // Light cream
+                ];
+                
+                const businessUnitColor = businessUnitColors[index % businessUnitColors.length];
+                
                 return parameters.map((param, paramIndex) => (
                   <tr key={`${summary.businessUnit}-${param.name}`} style={{ 
-                    backgroundColor: (index + paramIndex) % 2 === 0 ? '#ffffff' : '#f9f9f9',
-                    borderBottom: '1px solid #d9d9d9',
+                    backgroundColor: businessUnitColor,
+                    borderBottom: paramIndex === parameters.length - 1 ? '2px solid #004a7a' : '1px solid #d9d9d9',
                     color: '#000000'
                   }}>
                     {paramIndex === 0 && (
@@ -6480,7 +6470,9 @@ const TeamReportCompare: React.FC = () => {
                         padding: '6px 8px', 
                         textAlign: 'left',
                         fontWeight: 'bold',
-                        verticalAlign: 'top'
+                        verticalAlign: 'top',
+                        backgroundColor: '#e6f3ff',
+                        borderRight: '2px solid #004a7a'
                       }}>
                         {summary.businessUnit}
                       </td>
