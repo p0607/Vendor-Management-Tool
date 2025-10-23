@@ -565,7 +565,15 @@ const TeamReportCompare: React.FC = () => {
         previousFY: previousFYTotal, // RAW DATABASE VALUE (or last month for HC)
         growthPercentage,
         isPositive: growthPercentage >= 0,
-        period: `FY ${currentFY} vs FY ${previousFY}`
+        period: (() => {
+          if (compareType === 'quarter' && comparisonValues[0] && comparisonValues[1]) {
+            return `${comparisonValues[0]} vs ${comparisonValues[1]}`;
+          } else if (compareType === 'year' && comparisonValues[0] && comparisonValues[1]) {
+            return `${comparisonValues[0]} vs ${comparisonValues[1]}`;
+          } else {
+            return `FY ${currentFY} vs FY ${previousFY}`;
+          }
+        })()
       };
     };
 
@@ -1028,7 +1036,15 @@ const TeamReportCompare: React.FC = () => {
         isPositive: growthPercentage >= 0,
         monthsCompleted,
         monthsRemaining,
-        period: `FY ${currentFY} vs FY ${previousFY}`,
+        period: (() => {
+          if (compareType === 'quarter' && comparisonValues[0] && comparisonValues[1]) {
+            return `${comparisonValues[0]} vs ${comparisonValues[1]}`;
+          } else if (compareType === 'year' && comparisonValues[0] && comparisonValues[1]) {
+            return `${comparisonValues[0]} vs ${comparisonValues[1]}`;
+          } else {
+            return `FY ${currentFY} vs FY ${previousFY}`;
+          }
+        })(),
         currentFYActual,
         projectedAmount
       };
@@ -2952,13 +2968,21 @@ const TeamReportCompare: React.FC = () => {
                 const itemMonth = date.getMonth() + 1;
                 
                 // Financial year filtering: FY 2025 = April 2025 to March 2026
-                if (itemMonth >= 4) {
-                  // April to December: same calendar year
-                  return itemYear === targetYear;
-                } else {
-                  // January to March: next calendar year
-                  return itemYear === targetYear + 1;
+                const isInTargetFY = itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
+                
+                // Debug logging for FY 2024
+                if (targetYear === 2024 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3)) {
+                  console.log(`🔍 FY 2024 Q4 Debug (Combined):`, {
+                    itemMonth,
+                    itemYear,
+                    targetYear,
+                    isInTargetFY,
+                    period,
+                    item: { month: item.month, year: item.year }
+                  });
                 }
+                
+                return isInTargetFY;
 
               case "month":
 
@@ -3092,13 +3116,21 @@ const TeamReportCompare: React.FC = () => {
           const itemMonth = date.getMonth() + 1;
           
           // Financial year filtering: FY 2025 = April 2025 to March 2026
-          if (itemMonth >= 4) {
-            // April to December: same calendar year
-            return itemYear === targetYear;
-          } else {
-            // January to March: next calendar year
-            return itemYear === targetYear + 1;
+          const isInTargetFY = itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
+          
+          // Debug logging for FY 2024
+          if (targetYear === 2024 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3)) {
+            console.log(`🔍 FY 2024 Q4 Debug:`, {
+              itemMonth,
+              itemYear,
+              targetYear,
+              isInTargetFY,
+              periodValue,
+              item: { month: item.month, year: item.year }
+            });
           }
+          
+          return isInTargetFY;
 
         case "month":
 
@@ -5748,14 +5780,22 @@ const TeamReportCompare: React.FC = () => {
                       {kpi.currentFY - kpi.previousFY >= 0 ? '+' : ''}{formatValue(kpi.currentFY - kpi.previousFY)}
                     </div>
 
-                    {/* vs FY 2024 */}
+                    {/* Dynamic comparison period text */}
                     <div style={{ 
                       fontSize: 8, 
                       color: '#666666', 
                       marginBottom: 8,
                       textAlign: 'center'
                     }}>
-                      vs FY 2024
+                      {(() => {
+                        if (compareType === 'quarter' && comparisonValues[1]) {
+                          return `vs ${comparisonValues[1]}`;
+                        } else if (compareType === 'year' && comparisonValues[1]) {
+                          return `vs ${comparisonValues[1]}`;
+                        } else {
+                          return `vs ${comparisonValues[1] || 'Previous Period'}`;
+                        }
+                      })()}
                     </div>
 
                     {/* KPI Label */}
@@ -5811,7 +5851,15 @@ const TeamReportCompare: React.FC = () => {
                         fontSize: 8, 
                         color: '#666666'
                       }}>
-                        {kpi.monthsRemaining > 0 ? `Projected for 7 months` : 'Full year data'}
+                        {(() => {
+                          if (compareType === 'quarter') {
+                            return comparisonValues[0] || 'Quarter data';
+                          } else if (compareType === 'year') {
+                            return comparisonValues[0] || 'Year data';
+                          } else {
+                            return kpi.monthsRemaining > 0 ? `Projected for 7 months` : 'Full year data';
+                          }
+                        })()}
                       </div>
                     </div>
 
