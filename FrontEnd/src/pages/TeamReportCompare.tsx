@@ -2924,13 +2924,22 @@ const TeamReportCompare: React.FC = () => {
           const itemMonth = date.getMonth() + 1;
           
           // Financial year filtering: FY 2025 = April 2025 to March 2026
-          if (itemMonth >= 4) {
-            // April to December: same calendar year
-            return itemYear === targetYear;
-          } else {
-            // January to March: next calendar year
-            return itemYear === targetYear + 1;
+          const isInTargetFY = itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
+          
+          // Debug Q4 2025 data for FY 2024
+          if (targetYear === 2024 && itemYear === 2025 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3)) {
+            console.log(`🔍 Q4 2025 Filtering Debug:`, {
+              itemMonth,
+              itemYear,
+              targetYear,
+              isInTargetFY,
+              periodValue,
+              item: { month: item.month, year: item.year },
+              shouldInclude: isInTargetFY
+            });
           }
+          
+          return isInTargetFY;
           
         case "month":
           itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
@@ -2951,6 +2960,22 @@ const TeamReportCompare: React.FC = () => {
     if (!periodValue) return 0;
     
     const filteredData = getFilteredDataByPeriod(periodValue, compareType);
+    
+    // Debug Q4 2025 data specifically for FY 2024
+    if (periodValue === 'FY 2024' && parameter === 'Revenue') {
+      console.log(`🔍 Q4 2025 Debug for FY 2024:`, {
+        periodValue,
+        parameter,
+        filteredDataCount: filteredData.length,
+        q4Data: filteredData.filter(item => {
+          const itemDate = parseDate(item.month, item.year);
+          const itemYear = itemDate.getFullYear();
+          const itemMonth = itemDate.getMonth() + 1;
+          return itemYear === 2025 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3);
+        }),
+        allMonths: filteredData.map(item => `${item.month} ${item.year}`).sort()
+      });
+    }
     
     if (filteredData.length === 0) return 0;
     
@@ -2987,7 +3012,14 @@ const TeamReportCompare: React.FC = () => {
         if (!monthlyTotals[monthKey]) {
           monthlyTotals[monthKey] = 0;
         }
-        monthlyTotals[monthKey] += (item[parameter.toLowerCase()] || 0);
+        // Map parameter names to database field names
+        let fieldName = parameter.toLowerCase();
+        if (parameter === 'Team Cost') fieldName = 'team_cost';
+        if (parameter === 'NP') fieldName = 'net_margin';
+        if (parameter === 'GPM') fieldName = 'gpm';
+        if (parameter === 'Revenue') fieldName = 'revenue';
+        
+        monthlyTotals[monthKey] += (item[fieldName] || 0);
       });
       return Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
     }
