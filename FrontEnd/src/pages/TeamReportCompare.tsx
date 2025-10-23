@@ -1136,6 +1136,8 @@ const TeamReportCompare: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('chart');
 
   const [showGrowthAnalysis, setShowGrowthAnalysis] = useState<boolean>(false);
+  const [showSummaryReport, setShowSummaryReport] = useState<boolean>(false);
+  const [useCurrentYearAsBaseline, setUseCurrentYearAsBaseline] = useState<boolean>(false);
 
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
@@ -3044,6 +3046,55 @@ const TeamReportCompare: React.FC = () => {
       return Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
     }
   }, [getFilteredDataByPeriod, compareType]);
+
+  // Helper function to get month range for a given FY
+  const getMonthRangeForFY = useCallback((fyPeriod: string) => {
+    if (!fyPeriod || !data.length) return '';
+    
+    // Extract year from FY period (e.g., "FY 2025" -> 2025)
+    const yearMatch = fyPeriod.match(/FY (\d{4})/);
+    if (!yearMatch) return fyPeriod;
+    
+    const targetYear = parseInt(yearMatch[1]);
+    
+    // Get all months for this FY
+    const fyMonths = data.filter(item => {
+      const itemDate = parseDate(item.month, item.year);
+      if (isNaN(itemDate.getTime())) return false;
+      
+      const itemYear = itemDate.getFullYear();
+      const itemMonth = itemDate.getMonth() + 1;
+      
+      // Financial year filtering: FY 2025 = April 2025 to March 2026
+      if (itemMonth >= 4) {
+        return itemYear === targetYear;
+      } else {
+        return itemYear === targetYear + 1;
+      }
+    }).map(item => {
+      const itemDate = parseDate(item.month, item.year);
+      return itemDate.toLocaleString('default', { month: 'short' });
+    });
+    
+    // Get unique months and sort them
+    const uniqueMonths = Array.from(new Set(fyMonths));
+    
+    if (uniqueMonths.length === 0) return fyPeriod;
+    
+    // Sort months according to financial year order
+    const monthOrder = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+    const sortedMonths = uniqueMonths.sort((a, b) => {
+      const aIndex = monthOrder.indexOf(a);
+      const bIndex = monthOrder.indexOf(b);
+      return aIndex - bIndex;
+    });
+    
+    if (sortedMonths.length <= 2) {
+      return `${fyPeriod} (${sortedMonths.join(', ')})`;
+    } else {
+      return `${fyPeriod} (${sortedMonths[0]} - ${sortedMonths[sortedMonths.length - 1]})`;
+    }
+  }, [data]);
 
   // Helper function to get base parameter value - moved to component level
 
@@ -6070,7 +6121,7 @@ const TeamReportCompare: React.FC = () => {
 
           <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
 
-            {period}
+            {getMonthRangeForFY(period || '')}
 
           </th>
 
@@ -6080,29 +6131,66 @@ const TeamReportCompare: React.FC = () => {
 
         <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Growth %</th>
 
+        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>GPM %</th>
+
+        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Net Margin %</th>
+
       </tr>
 
     </thead>
 
     <tbody>
 
-      {growthAnalysis.map((item, index) => {
+      {growthAnalysis.filter(item => item.parameter !== 'Team Cost').map((item, index) => {
 
-        // Calculate growth between first and last period for each parameter
+        // Calculate growth between current and previous period for each parameter
+        // Current period is first (newest), previous period is last (oldest)
+        const currentPeriodAmount = item.periodValues[0]?.amount || 0;
+        const previousPeriodAmount = item.periodValues[item.periodValues.length - 1]?.amount || 0;
+        
+        // Absolute change: current - previous
+        const absoluteChange = currentPeriodAmount - previousPeriodAmount;
 
-        const firstPeriodAmount = item.periodValues[0]?.amount || 0;
+        const growthPercentage = previousPeriodAmount !== 0 
 
-        const lastPeriodAmount = item.periodValues[item.periodValues.length - 1]?.amount || 0;
+          ? ((absoluteChange) / previousPeriodAmount) * 100 
 
-        const absoluteChange = lastPeriodAmount - firstPeriodAmount;
-
-        const growthPercentage = firstPeriodAmount !== 0 
-
-          ? ((absoluteChange) / firstPeriodAmount) * 100 
-
-          : lastPeriodAmount !== 0 ? Infinity : 0;
+          : currentPeriodAmount !== 0 ? Infinity : 0;
 
         const isPositive = absoluteChange >= 0;
+        
+        // Calculate GPM% and Net Margin% for each period
+        const getRevenueForPeriod = (periodIndex: number) => {
+          const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
+          return revenueItem?.periodValues[periodIndex]?.amount || 0;
+        };
+        
+        const currentRevenue = getRevenueForPeriod(0);
+        const previousRevenue = getRevenueForPeriod(item.periodValues.length - 1);
+        
+        // Calculate percentages for current and previous periods
+        const currentGPMPercentage = currentRevenue > 0 ? ((item.parameter === 'GPM' ? currentPeriodAmount : 0) / currentRevenue) * 100 : 0;
+        const previousGPMPercentage = previousRevenue > 0 ? ((item.parameter === 'GPM' ? previousPeriodAmount : 0) / previousRevenue) * 100 : 0;
+        
+        const currentNetMarginPercentage = currentRevenue > 0 ? ((item.parameter === 'Net Margin' ? currentPeriodAmount : 0) / currentRevenue) * 100 : 0;
+        const previousNetMarginPercentage = previousRevenue > 0 ? ((item.parameter === 'Net Margin' ? previousPeriodAmount : 0) / previousRevenue) * 100 : 0;
+        
+        // Debug absolute change calculation
+        console.log(`🔍 Absolute Change Debug for ${item.parameter}:`, {
+          parameter: item.parameter,
+          currentPeriodAmount,
+          previousPeriodAmount,
+          absoluteChange,
+          growthPercentage,
+          isPositive,
+          currentRevenue,
+          previousRevenue,
+          currentGPMPercentage,
+          previousGPMPercentage,
+          currentNetMarginPercentage,
+          previousNetMarginPercentage,
+          periodValues: item.periodValues.map(pv => ({ period: pv.period, amount: pv.amount }))
+        });
 
 
 
@@ -6171,6 +6259,28 @@ const TeamReportCompare: React.FC = () => {
 
             </td>
 
+            {/* GPM% column */}
+            <td style={{ 
+              padding: '6px 8px', 
+              textAlign: 'right',
+              color: '#000000',
+              fontSize: '10px',
+              fontWeight: 'bold'
+            }}>
+              {item.parameter === 'GPM' ? `${currentGPMPercentage.toFixed(2)}%` : '-'}
+            </td>
+
+            {/* Net Margin% column */}
+            <td style={{ 
+              padding: '6px 8px', 
+              textAlign: 'right',
+              color: '#000000',
+              fontSize: '10px',
+              fontWeight: 'bold'
+            }}>
+              {item.parameter === 'Net Margin' ? `${currentNetMarginPercentage.toFixed(2)}%` : '-'}
+            </td>
+
           </tr>
 
         );
@@ -6185,9 +6295,239 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-{/* Removed Show All Parameters button - always show all parameters */}
+{/* Show Full Summary Report Button */}
+<div style={{ textAlign: 'center', marginTop: 16, marginBottom: 16 }}>
+  <button
+    onClick={() => setShowSummaryReport(!showSummaryReport)}
+    style={{ 
+      backgroundColor: '#004a7a',
+      color: '#ffffff',
+      border: 'none',
+      padding: '8px 16px',
+      borderRadius: '4px',
+      fontSize: '12px',
+      fontWeight: 'bold',
+      cursor: 'pointer',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    }}
+  >
+    {showSummaryReport ? 'Hide Full Summary Report' : 'Show Full Summary Report'}
+  </button>
+</div>
 
-
+{/* Full Summary Report */}
+{showSummaryReport && (
+  <div style={{ marginTop: 20, marginBottom: 20 }}>
+    <div style={{
+      backgroundColor: '#000000', 
+      color: '#ffffff', 
+      padding: '6px 12px', 
+      borderRadius: 4, 
+      fontSize: 10, 
+      fontWeight: 700,
+      display: 'inline-block',
+      marginBottom: 8,
+      borderBottom: '3px solid #ff8c00'
+    }}>
+      Full Summary Report - All Business Units
+    </div>
+    
+    {(() => {
+      // Get all unique business units
+      const allBusinessUnits = Array.from(new Set(data.map(item => item.business_unit).filter(Boolean)));
+      
+      if (allBusinessUnits.length === 0) {
+        return <div style={{ color: '#000000', padding: 16, textAlign: 'center' }}>
+          No business unit data available
+        </div>;
+      }
+      
+      // Helper function to get parameter value for specific business unit using unified logic
+      const getParameterValueForBusinessUnit = (period: string, parameter: string, businessUnit: string) => {
+        const filteredData = getFilteredDataByPeriod(period, compareType).filter(item => item.business_unit === businessUnit);
+        
+        if (filteredData.length === 0) return 0;
+        
+        // Use the same logic as getParameterValueUsingKPILogic but for specific business unit
+        if (parameter === 'HC') {
+          const validData = filteredData.filter(item => {
+            const itemDate = parseDate(item.month, item.year);
+            return !isNaN(itemDate.getTime());
+          });
+          
+          if (validData.length === 0) return 0;
+          
+          const lastMonthData = validData.reduce((latest, item) => {
+            const itemDate = parseDate(item.month, item.year);
+            const latestDate = parseDate(latest.month, latest.year);
+            return itemDate > latestDate ? item : latest;
+          });
+          
+          const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
+          return validData
+            .filter(item => {
+              const itemDate = parseDate(item.month, item.year);
+              return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                     itemDate.getFullYear() === lastMonthDate.getFullYear();
+            })
+            .reduce((sum, item) => sum + (item.hc || 0), 0);
+        }
+        
+        // For other parameters: aggregate by month first, then sum
+        const monthlyTotals: {[key: string]: number} = {};
+        filteredData.forEach(item => {
+          const monthKey = `${item.month} ${item.year}`;
+          if (!monthlyTotals[monthKey]) {
+            monthlyTotals[monthKey] = 0;
+          }
+          
+          // Map parameter names to database field names
+          let fieldName = parameter.toLowerCase();
+          if (parameter === 'Team Cost') fieldName = 'team_cost';
+          if (parameter === 'NP' || parameter === 'Net Margin') fieldName = 'net_margin';
+          if (parameter === 'GPM') fieldName = 'gpm';
+          if (parameter === 'Revenue') fieldName = 'revenue';
+          
+          monthlyTotals[monthKey] += (item[fieldName] || 0);
+        });
+        return Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+      };
+      
+      // Calculate summary data for each business unit using unified KPI dashboard logic
+      const businessUnitSummaries = allBusinessUnits.map(businessUnit => {
+        // Calculate metrics for each period using unified logic
+        const periods = comparisonValues.filter(Boolean);
+        const periodData = periods.map(period => {
+          // Use the unified KPI dashboard logic for each parameter and business unit
+          const revenue = getParameterValueForBusinessUnit(period || '', 'Revenue', businessUnit);
+          const gpm = getParameterValueForBusinessUnit(period || '', 'GPM', businessUnit);
+          const netMargin = getParameterValueForBusinessUnit(period || '', 'Net Margin', businessUnit);
+          const hc = getParameterValueForBusinessUnit(period || '', 'HC', businessUnit);
+          
+          return { period, revenue, gpm, netMargin, hc };
+        });
+        
+        // Calculate growth metrics
+        const currentPeriod = periodData[0];
+        const previousPeriod = periodData[periodData.length - 1];
+        
+        const revenueChange = currentPeriod.revenue - previousPeriod.revenue;
+        const gpmChange = currentPeriod.gpm - previousPeriod.gpm;
+        const netMarginChange = currentPeriod.netMargin - previousPeriod.netMargin;
+        const hcChange = currentPeriod.hc - previousPeriod.hc;
+        
+        const revenueGrowth = previousPeriod.revenue > 0 ? (revenueChange / previousPeriod.revenue) * 100 : 0;
+        const gpmGrowth = previousPeriod.gpm > 0 ? (gpmChange / previousPeriod.gpm) * 100 : 0;
+        const netMarginGrowth = previousPeriod.netMargin > 0 ? (netMarginChange / previousPeriod.netMargin) * 100 : 0;
+        const hcGrowth = previousPeriod.hc > 0 ? (hcChange / previousPeriod.hc) * 100 : 0;
+        
+        return {
+          businessUnit,
+          currentPeriod,
+          previousPeriod,
+          revenueChange,
+          gpmChange,
+          netMarginChange,
+          hcChange,
+          revenueGrowth,
+          gpmGrowth,
+          netMarginGrowth,
+          hcGrowth
+        };
+      });
+      
+      return (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse', 
+            backgroundColor: '#ffffff',
+            border: '1px solid #d9d9d9',
+            fontSize: '10px'
+          }}>
+            <thead>
+              <tr style={{ backgroundColor: '#d8e8f0' }}>
+                <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Business Unit</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Parameter</th>
+                {comparisonValues.filter(Boolean).map((period, i) => (
+                  <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                    {getMonthRangeForFY(period || '')}
+                  </th>
+                ))}
+                <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Growth %</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>GPM %</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Net Margin %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {businessUnitSummaries.map((summary, index) => {
+                const parameters = [
+                  { name: 'Revenue', current: summary.currentPeriod.revenue, previous: summary.previousPeriod.revenue, change: summary.revenueChange, growth: summary.revenueGrowth },
+                  { name: 'GPM', current: summary.currentPeriod.gpm, previous: summary.previousPeriod.gpm, change: summary.gpmChange, growth: summary.gpmGrowth },
+                  { name: 'Net Margin', current: summary.currentPeriod.netMargin, previous: summary.previousPeriod.netMargin, change: summary.netMarginChange, growth: summary.netMarginGrowth },
+                  { name: 'HC', current: summary.currentPeriod.hc, previous: summary.previousPeriod.hc, change: summary.hcChange, growth: summary.hcGrowth }
+                ];
+                
+                return parameters.map((param, paramIndex) => (
+                  <tr key={`${summary.businessUnit}-${param.name}`} style={{ 
+                    backgroundColor: (index + paramIndex) % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                    borderBottom: '1px solid #d9d9d9',
+                    color: '#000000'
+                  }}>
+                    {paramIndex === 0 && (
+                      <td rowSpan={parameters.length} style={{ 
+                        padding: '6px 8px', 
+                        textAlign: 'left',
+                        fontWeight: 'bold',
+                        verticalAlign: 'top'
+                      }}>
+                        {summary.businessUnit}
+                      </td>
+                    )}
+                    <td style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 'bold' }}>
+                      {param.name}
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                      {formatValueForTable(param.current, param.name)}
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                      {formatValueForTable(param.previous, param.name)}
+                    </td>
+                    <td style={{ 
+                      padding: '6px 8px', 
+                      textAlign: 'right',
+                      color: param.change >= 0 ? '#4ade80' : '#f87171',
+                      fontWeight: 'bold'
+                    }}>
+                      {param.change >= 0 ? '+' : ''}
+                      {formatValueForTable(param.change, param.name)}
+                    </td>
+                    <td style={{ 
+                      padding: '6px 8px', 
+                      textAlign: 'right',
+                      color: param.change >= 0 ? '#4ade80' : '#f87171',
+                      fontWeight: 'bold'
+                    }}>
+                      {param.change >= 0 ? '+' : ''}
+                      {param.growth.toFixed(2)}%
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 'bold' }}>
+                      {param.name === 'GPM' ? `${((param.current / summary.currentPeriod.revenue) * 100).toFixed(2)}%` : '-'}
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 'bold' }}>
+                      {param.name === 'Net Margin' ? `${((param.current / summary.currentPeriod.revenue) * 100).toFixed(2)}%` : '-'}
+                    </td>
+                  </tr>
+                ));
+              })}
+            </tbody>
+          </table>
+        </div>
+      );
+    })()}
+  </div>
+)}
 
                 {/* Summary Cards */}
 
@@ -6524,6 +6864,38 @@ const TeamReportCompare: React.FC = () => {
   }}>
     Efficiency Dashboard
   </div>
+  
+  {/* Baseline Toggle Switch */}
+  <div style={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '8px', 
+    marginBottom: '12px',
+    fontSize: '11px',
+    color: '#000000'
+  }}>
+    <span>Baseline:</span>
+    <label style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '4px', 
+      cursor: 'pointer',
+      userSelect: 'none'
+    }}>
+      <input
+        type="checkbox"
+        checked={useCurrentYearAsBaseline}
+        onChange={(e) => setUseCurrentYearAsBaseline(e.target.checked)}
+        style={{ margin: 0 }}
+      />
+      <span style={{ 
+        color: useCurrentYearAsBaseline ? '#004a7a' : '#666666',
+        fontWeight: useCurrentYearAsBaseline ? 'bold' : 'normal'
+      }}>
+        {useCurrentYearAsBaseline ? 'Current Year (FY 2025)' : 'Previous Year (FY 2024)'}
+      </span>
+    </label>
+  </div>
 
   
   
@@ -6557,7 +6929,14 @@ const TeamReportCompare: React.FC = () => {
 
         }));
 
-
+      // Debug Efficiency Dashboard data
+      console.log(`🔍 Efficiency Dashboard Debug for ${period}:`, {
+        period,
+        periodData: periodData.map(pd => ({ parameter: pd.parameter, amount: pd.amount })),
+        netMargin: periodData.find(i => i.parameter === "Net Margin")?.amount || 0,
+        revenue: periodData.find(i => i.parameter === "Revenue")?.amount || 0,
+        hc: periodData.find(i => i.parameter === "HC")?.amount || 0
+      });
 
       return {
 
@@ -6579,7 +6958,7 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-    const baseline = metrics[0];
+    const baseline = useCurrentYearAsBaseline ? metrics[0] : metrics[metrics.length - 1];
 
     
     
@@ -6683,7 +7062,7 @@ const TeamReportCompare: React.FC = () => {
 
   {metricDefinitions.map((metric, i) => {
 
-    const currentValue = metric.calculate(metrics[metrics.length - 1]);
+    const currentValue = useCurrentYearAsBaseline ? metric.calculate(metrics[metrics.length - 1]) : metric.calculate(metrics[0]);
 
     const baselineValue = metric.calculate(baseline);
 
@@ -6811,9 +7190,9 @@ const TeamReportCompare: React.FC = () => {
 
                   <th key={i} style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
 
-                    {m.period}
+                    {getMonthRangeForFY(m.period || '')}
 
-                    {i === 0 && <div style={{ fontSize: 10, fontWeight: 400, color: '#000000' }}>(Baseline)</div>}
+                    {((useCurrentYearAsBaseline && i === 0) || (!useCurrentYearAsBaseline && i === metrics.length - 1)) && <div style={{ fontSize: 10, fontWeight: 400, color: '#000000' }}>(Baseline)</div>}
 
                   </th>
 
@@ -6909,7 +7288,7 @@ const TeamReportCompare: React.FC = () => {
 
                     {(() => {
 
-                      const current = metric.calculate(metrics[metrics.length - 1]);
+                      const current = useCurrentYearAsBaseline ? metric.calculate(metrics[metrics.length - 1]) : metric.calculate(metrics[0]);
 
                       const baselineValue = metric.calculate(baseline);
 
