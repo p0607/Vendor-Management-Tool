@@ -231,10 +231,11 @@ const TeamReportCompare: React.FC = () => {
     const currentYear = parseInt(yearMatch[1]);
     const previousYear = currentYear - 1;
     
-    if (quarter.includes('Q1')) return `Q1(Apr-Jun) ${previousYear}`;
-    if (quarter.includes('Q2')) return `Q2(Jul-Sep) ${previousYear}`;
-    if (quarter.includes('Q3')) return `Q3(Oct-Dec) ${previousYear}`;
-    if (quarter.includes('Q4')) return `Q4(Jan-Mar) ${previousYear}`;
+    // Match the exact format: Q1(Apr-Jun) 2025 -> Q1(Apr-Jun) 2024
+    if (quarter.includes('Q1(Apr-Jun)')) return `Q1(Apr-Jun) ${previousYear}`;
+    if (quarter.includes('Q2(Jul-Sep)')) return `Q2(Jul-Sep) ${previousYear}`;
+    if (quarter.includes('Q3(Oct-Dec)')) return `Q3(Oct-Dec) ${previousYear}`;
+    if (quarter.includes('Q4(Jan-Mar)')) return `Q4(Jan-Mar) ${previousYear}`;
     
     return null;
   };
@@ -701,18 +702,13 @@ const TeamReportCompare: React.FC = () => {
       const itemMonth = itemDate.getMonth() + 1;
       
       // Financial year filtering: FY 2025 = April 2025 to March 2026
-      let isInCurrentFY = false;
       if (itemMonth >= 4) {
         // April to December: same calendar year
-        isInCurrentFY = itemYear === currentFY;
+        return itemYear === currentFY;
       } else {
         // January to March: next calendar year
-        isInCurrentFY = itemYear === currentFY + 1;
+        return itemYear === currentFY + 1;
       }
-      
-      // Financial year filtering working correctly
-      
-      return isInCurrentFY;
     });
 
     const previousFYData = data.filter(item => {
@@ -723,16 +719,13 @@ const TeamReportCompare: React.FC = () => {
       const itemMonth = itemDate.getMonth() + 1;
       
       // Financial year filtering: FY 2024 = April 2024 to March 2025
-      let isInPreviousFY = false;
       if (itemMonth >= 4) {
         // April to December: same calendar year
-        isInPreviousFY = itemYear === previousFY;
+        return itemYear === previousFY;
       } else {
         // January to March: next calendar year
-        isInPreviousFY = itemYear === previousFY + 1;
+        return itemYear === previousFY + 1;
       }
-      
-      return isInPreviousFY;
     });
     
     // Debug: Check what months are being included
@@ -1070,6 +1063,17 @@ const TeamReportCompare: React.FC = () => {
   const [filteredClientNames, setFilteredClientNames] = useState<string[]>([]);
 
   const [buHeads, setBUHeads] = useState<string[]>([]);
+  const [kpiData, setKpiData] = useState<Record<string, {
+    currentFY: number;
+    previousFY: number;
+    growthPercentage: number;
+    isPositive: boolean;
+    monthsCompleted: number;
+    monthsRemaining: number;
+    period: string;
+    currentFYActual: number;
+    projectedAmount: number;
+  }>>({});
 
   const [compareType, setCompareType] = useState<CompareType>(() => {
     // Force year comparison regardless of URL
@@ -1888,9 +1892,21 @@ const TeamReportCompare: React.FC = () => {
     // If comparing by quarters and this is the first selection, auto-suggest corresponding quarter
     if (compareType === 'quarter' && index === 0 && value) {
       const correspondingQuarter = getCorrespondingPreviousQuarter(value);
+      console.log("🔍 Auto-selecting quarter:", {
+        selectedQuarter: value,
+        correspondingQuarter,
+        availableOptions,
+        isAvailable: correspondingQuarter && availableOptions.includes(correspondingQuarter)
+      });
+      
       if (correspondingQuarter && availableOptions.includes(correspondingQuarter)) {
         newValues[1] = correspondingQuarter;
         message.success(`Auto-selected corresponding quarter: ${correspondingQuarter}`);
+      } else {
+        console.log("🔍 Could not auto-select quarter:", {
+          correspondingQuarter,
+          availableOptions: availableOptions.slice(0, 10) // Show first 10 for debugging
+        });
       }
     }
     
@@ -2922,12 +2938,27 @@ const TeamReportCompare: React.FC = () => {
             switch (compareType) {
 
               case "year":
-                // Handle both "2025" and "FY 2025" formats
+                // Handle both "2025" and "FY 2025" formats with financial year logic
                 const yearStr = date.getFullYear().toString();
                 const fyYearStr = `FY ${yearStr}`;
                 itemValue = yearStr;
-                // Check if period matches either format
-                return period === yearStr || period === fyYearStr;
+                
+                // Extract target year from period
+                const targetYearMatch = period.match(/(\d{4})/);
+                if (!targetYearMatch) return false;
+                
+                const targetYear = parseInt(targetYearMatch[1]);
+                const itemYear = date.getFullYear();
+                const itemMonth = date.getMonth() + 1;
+                
+                // Financial year filtering: FY 2025 = April 2025 to March 2026
+                if (itemMonth >= 4) {
+                  // April to December: same calendar year
+                  return itemYear === targetYear;
+                } else {
+                  // January to March: next calendar year
+                  return itemYear === targetYear + 1;
+                }
 
               case "month":
 
@@ -3047,13 +3078,27 @@ const TeamReportCompare: React.FC = () => {
       switch (compareType) {
 
         case "year":
-          // Handle both "2025" and "FY 2025" formats
+          // Handle both "2025" and "FY 2025" formats with financial year logic
           const yearStr = date.getFullYear().toString();
           const fyYearStr = `FY ${yearStr}`;
           itemValue = yearStr;
-          // Check if periodValue matches either format
-          const matches = periodValue === yearStr || periodValue === fyYearStr;
-          return matches;
+          
+          // Extract target year from periodValue
+          const targetYearMatch = periodValue.match(/(\d{4})/);
+          if (!targetYearMatch) return false;
+          
+          const targetYear = parseInt(targetYearMatch[1]);
+          const itemYear = date.getFullYear();
+          const itemMonth = date.getMonth() + 1;
+          
+          // Financial year filtering: FY 2025 = April 2025 to March 2026
+          if (itemMonth >= 4) {
+            // April to December: same calendar year
+            return itemYear === targetYear;
+          } else {
+            // January to March: next calendar year
+            return itemYear === targetYear + 1;
+          }
 
         case "month":
 
@@ -3786,6 +3831,23 @@ const TeamReportCompare: React.FC = () => {
     console.log("🔍 Setting growthAnalysis state with multi-period data:", chartData.length, "items");
     setGrowthAnalysis(chartData);
   }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, showAllParameters]);
+
+  // Calculate KPIs when data or comparison values change
+  useEffect(() => {
+    console.log("🔍 Calculating KPIs...");
+    console.log("🔍 comparisonValues:", comparisonValues);
+    console.log("🔍 compareType:", compareType);
+    console.log("🔍 data length:", data.length);
+    
+    if (data.length === 0) {
+      setKpiData({});
+      return;
+    }
+    
+    const kpis = calculateKPIs();
+    console.log("🔍 Calculated KPIs:", kpis);
+    setKpiData(kpis);
+  }, [data, comparisonValues, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
 
   // Calculate growth percentages for chart data
   const calculateGrowthData = () => {
@@ -4538,11 +4600,11 @@ const TeamReportCompare: React.FC = () => {
 
 
       // Get KPI data for waterfall
-      const kpiData = calculateKPIs();
+      const kpiDataForWaterfall = kpiData;
       
       // Create waterfall data
       const waterfallData = selectedParameters.map(parameter => {
-        const kpi = kpiData[parameter];
+        const kpi = kpiDataForWaterfall[parameter];
         if (!kpi) return null;
         
         return {
@@ -5593,7 +5655,7 @@ const TeamReportCompare: React.FC = () => {
             marginBottom: 16
           }}>
             {(() => {
-              const kpis = calculateKPIs();
+              const kpis = kpiData;
               const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP'];
               const additionalKPIs = []; // No additional KPIs available
               const displayKPIs = mainKPIs; // Only show the 5 available KPIs
