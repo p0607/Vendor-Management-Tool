@@ -2892,6 +2892,107 @@ const TeamReportCompare: React.FC = () => {
 
 
 
+  // Helper function to get filtered data using KPI dashboard logic
+  const getFilteredDataByPeriod = useCallback((periodValue: string | null, compareType: string): any[] => {
+    if (!periodValue) return [];
+    
+    return data.filter(item => {
+      // Business unit filter
+      if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+        return false;
+      }
+      
+      // Date parsing and period matching
+      const date = parseDate(item.month, item.year);
+      if (isNaN(date.getTime())) return false;
+      
+      let itemValue = "";
+      
+      switch (compareType) {
+        case "year":
+          // Handle both "2025" and "FY 2025" formats with financial year logic
+          const yearStr = date.getFullYear().toString();
+          const fyYearStr = `FY ${yearStr}`;
+          itemValue = yearStr;
+          
+          // Extract target year from periodValue
+          const targetYearMatch = periodValue.match(/(\d{4})/);
+          if (!targetYearMatch) return false;
+          
+          const targetYear = parseInt(targetYearMatch[1]);
+          const itemYear = date.getFullYear();
+          const itemMonth = date.getMonth() + 1;
+          
+          // Financial year filtering: FY 2025 = April 2025 to March 2026
+          if (itemMonth >= 4) {
+            // April to December: same calendar year
+            return itemYear === targetYear;
+          } else {
+            // January to March: next calendar year
+            return itemYear === targetYear + 1;
+          }
+          
+        case "month":
+          itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+          return itemValue === periodValue;
+          
+        case "quarter":
+          itemValue = getFiscalQuarter(date).label;
+          return itemValue === periodValue;
+          
+        default:
+          return false;
+      }
+    });
+  }, [data, selectedBusinessUnit, compareType]);
+
+  // Helper function to get parameter value using KPI dashboard logic
+  const getParameterValueUsingKPILogic = useCallback((periodValue: string | null, parameter: string): number => {
+    if (!periodValue) return 0;
+    
+    const filteredData = getFilteredDataByPeriod(periodValue, compareType);
+    
+    if (filteredData.length === 0) return 0;
+    
+    // Special handling for HC - use sum of last available month's HC data
+    if (parameter === 'HC') {
+      // Filter out items with invalid dates first
+      const validData = filteredData.filter(item => {
+        const itemDate = parseDate(item.month, item.year);
+        return !isNaN(itemDate.getTime());
+      });
+      
+      if (validData.length === 0) return 0;
+      
+      const lastMonthData = validData.reduce((latest, item) => {
+        const itemDate = parseDate(item.month, item.year);
+        const latestDate = parseDate(latest.month, latest.year);
+        return itemDate > latestDate ? item : latest;
+      });
+      
+      // Sum all HC values from that last month
+      const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
+      return validData
+        .filter(item => {
+          const itemDate = parseDate(item.month, item.year);
+          return itemDate.getMonth() === lastMonthDate.getMonth() && 
+                 itemDate.getFullYear() === lastMonthDate.getFullYear();
+        })
+        .reduce((sum, item) => sum + (item.hc || 0), 0);
+    } else {
+      // For all other parameters: aggregate by month first, then sum
+      const monthlyTotals: {[key: string]: number} = {};
+      filteredData.forEach(item => {
+        const monthKey = `${item.month} ${item.year}`;
+        if (!monthlyTotals[monthKey]) {
+          monthlyTotals[monthKey] = 0;
+        }
+        monthlyTotals[monthKey] += (item[parameter.toLowerCase()] || 0);
+      });
+      return Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+    }
+  }, [getFilteredDataByPeriod, compareType]);
+
   // Helper function to get base parameter value - moved to component level
 
   const getBaseParameterValue = useCallback((periodValue: string | null, index: number, parameter: string): number => {
@@ -2970,17 +3071,6 @@ const TeamReportCompare: React.FC = () => {
                 // Financial year filtering: FY 2025 = April 2025 to March 2026
                 const isInTargetFY = itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
                 
-                // Debug logging for FY 2024
-                if (targetYear === 2024 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3)) {
-                  console.log(`🔍 FY 2024 Q4 Debug (Combined):`, {
-                    itemMonth,
-                    itemYear,
-                    targetYear,
-                    isInTargetFY,
-                    period,
-                    item: { month: item.month, year: item.year }
-                  });
-                }
                 
                 return isInTargetFY;
 
@@ -3118,17 +3208,6 @@ const TeamReportCompare: React.FC = () => {
           // Financial year filtering: FY 2025 = April 2025 to March 2026
           const isInTargetFY = itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
           
-          // Debug logging for FY 2024
-          if (targetYear === 2024 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3)) {
-            console.log(`🔍 FY 2024 Q4 Debug:`, {
-              itemMonth,
-              itemYear,
-              targetYear,
-              isInTargetFY,
-              periodValue,
-              item: { month: item.month, year: item.year }
-            });
-          }
           
           return isInTargetFY;
 
@@ -3289,19 +3368,10 @@ const TeamReportCompare: React.FC = () => {
 
       if (!periodValue) return 0;
 
-      
-      
-      // Handle calculated metrics - these are now direct fields in our new structure
+      // Use KPI dashboard logic for consistent data calculation
+      const value = getParameterValueUsingKPILogic(periodValue, parameter);
 
-      // No need for complex calculations since we have direct percentage fields
-
-      
-      
-      // For regular parameters, use the base function
-
-      const value = getBaseParameterValue(periodValue, index, parameter);
-
-      console.log(`🔍 Parameter ${parameter} for period ${periodValue}: ${value}`);
+      console.log(`🔍 Parameter ${parameter} for period ${periodValue} (using KPI logic): ${value}`);
 
       return value;
 
