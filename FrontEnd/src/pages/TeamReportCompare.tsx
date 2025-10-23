@@ -2963,17 +2963,27 @@ const TeamReportCompare: React.FC = () => {
     
     // Debug Q4 2025 data specifically for FY 2024
     if (periodValue === 'FY 2024' && parameter === 'Revenue') {
+      // Check if Q4 2025 data exists in the raw dataset
+      const q4DataInRawDataset = data.filter(item => {
+        const itemDate = parseDate(item.month, item.year);
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        return itemYear === 2025 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3);
+      });
+      
       console.log(`🔍 Q4 2025 Debug for FY 2024:`, {
         periodValue,
         parameter,
         filteredDataCount: filteredData.length,
-        q4Data: filteredData.filter(item => {
+        q4DataInRawDataset: q4DataInRawDataset.length,
+        q4DataInFiltered: filteredData.filter(item => {
           const itemDate = parseDate(item.month, item.year);
           const itemYear = itemDate.getFullYear();
           const itemMonth = itemDate.getMonth() + 1;
           return itemYear === 2025 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3);
-        }),
-        allMonths: filteredData.map(item => `${item.month} ${item.year}`).sort()
+        }).length,
+        allMonths: filteredData.map(item => `${item.month} ${item.year}`).sort(),
+        q4SampleData: q4DataInRawDataset.slice(0, 3)
       });
     }
     
@@ -3794,101 +3804,8 @@ const TeamReportCompare: React.FC = () => {
 
             });
 
-          // Special handling for HC - use sum of last available month's HC data
-          if (param === 'HC') {
-            if (filteredData.length > 0) {
-              // Filter out items with invalid dates first
-              const validData = filteredData.filter(item => {
-                const itemDate = parseDate(item.month, item.year);
-                return !isNaN(itemDate.getTime());
-              });
-              
-              if (validData.length === 0) {
-                return 0;
-              }
-              
-              const lastMonthData = validData.reduce((latest, item) => {
-                const itemDate = parseDate(item.month, item.year);
-                const latestDate = parseDate(latest.month, latest.year);
-                return itemDate > latestDate ? item : latest;
-              });
-              // Sum all HC values from that last month
-              const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
-              const hcValue = validData
-                .filter(item => {
-                  const itemDate = parseDate(item.month, item.year);
-                  return itemDate.getMonth() === lastMonthDate.getMonth() && 
-                         itemDate.getFullYear() === lastMonthDate.getFullYear();
-                })
-                .reduce((sum, item) => sum + (item.hc || 0), 0);
-              
-              console.log(`🔍 Growth Analysis HC Debug for ${periodValue}:`, {
-                lastMonth: `${lastMonthData.month} ${lastMonthData.year}`,
-                hcValue,
-                filteredDataCount: filteredData.length,
-                validDataCount: validData.length,
-                lastMonthDataCount: validData.filter(item => {
-                  const itemDate = parseDate(item.month, item.year);
-                  return itemDate.getMonth() === lastMonthDate.getMonth() && 
-                         itemDate.getFullYear() === lastMonthDate.getFullYear();
-                }).length,
-                sampleValidData: validData.slice(0, 3).map(item => ({
-                  month: item.month,
-                  year: item.year,
-                  business_unit: item.business_unit,
-                  hc: item.hc
-                })),
-                allMonthsInValidData: Array.from(new Set(validData.map(item => `${item.month} ${item.year}`))).sort(),
-                hcDataByMonth: validData.reduce((acc: {[key: string]: number}, item) => {
-                  const monthKey = `${item.month} ${item.year}`;
-                  if (!acc[monthKey]) acc[monthKey] = 0;
-                  acc[monthKey] += (item.hc || 0);
-                  return acc;
-                }, {})
-              });
-              
-              return hcValue;
-            }
-            return 0;
-          }
-
-          // For all other parameters: aggregate by month first, then sum
-          // This prevents double-counting when there are multiple records per month
-          const monthlyTotals: {[key: string]: number} = {};
-          filteredData.forEach(item => {
-            const monthKey = `${item.month} ${item.year}`;
-            if (!monthlyTotals[monthKey]) {
-              monthlyTotals[monthKey] = 0;
-            }
-            
-            // Get the value based on the selected parameter
-            let value = 0;
-            switch (param) {
-              case 'Revenue': value = item.revenue || 0; break;
-              case 'GPM': value = item.gpm || 0; break;
-              case 'Net Margin': value = item.net_margin || 0; break;
-              case 'Team Cost': value = item.team_cost || 0; break;
-              case 'HC': value = item.hc || 0; break;
-              default: value = 0;
-            }
-            
-            monthlyTotals[monthKey] += value;
-          });
-          
-          // Sum the monthly totals instead of all individual records
-          const total = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
-          
-          console.log(`🔍 ${param} Growth Analysis Debug for ${periodValue}:`, {
-            parameter: param,
-            total,
-            monthlyBreakdown: Object.entries(monthlyTotals).map(([month, total]) => ({
-              month,
-              total: total.toFixed(2)
-            })),
-            totalRecords: filteredData.length
-          });
-          
-          return total;
+          // Use the unified KPI dashboard logic for all parameters
+          return getParameterValueUsingKPILogic(periodValue, param);
 
 
         }).filter(amount => amount !== null);
