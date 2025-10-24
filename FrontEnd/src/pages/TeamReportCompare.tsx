@@ -586,6 +586,12 @@ const TeamReportCompare: React.FC = () => {
       };
   };
 
+  // Helper function to convert month name to number
+  const getMonthNumber = (monthName: string): number => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months.indexOf(monthName) + 1;
+  };
+
   // KPI calculation function
   const calculateKPIs = (): Record<string, {
     currentFY: number;
@@ -599,6 +605,71 @@ const TeamReportCompare: React.FC = () => {
     projectedAmount: number;
   }> => {
     if (!data || data.length === 0) return {};
+
+    // If comparing by months and we have selected months
+    if (compareType === 'month' && comparisonValues.some(v => v)) {
+      const currentMonth = comparisonValues[0];
+      const previousMonth = comparisonValues[1];
+      
+      if (!currentMonth || !previousMonth) return {};
+
+      // Parse month and year from strings like "May 2025"
+      const currentMonthMatch = currentMonth.match(/(\w+) (\d{4})/);
+      const previousMonthMatch = previousMonth.match(/(\w+) (\d{4})/);
+      
+      if (!currentMonthMatch || !previousMonthMatch) return {};
+      
+      const currentMonthName = currentMonthMatch[1];
+      const currentYear = parseInt(currentMonthMatch[2]);
+      const previousMonthName = previousMonthMatch[1];
+      const previousYear = parseInt(previousMonthMatch[2]);
+
+      // Filter data for current month
+      const currentMonthData = data.filter(item => {
+        const itemDate = parseDate(item.month, item.year);
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        
+        return itemYear === currentYear && itemMonth === getMonthNumber(currentMonthName);
+      });
+
+      // Filter data for previous month
+      const previousMonthData = data.filter(item => {
+        const itemDate = parseDate(item.month, item.year);
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        
+        return itemYear === previousYear && itemMonth === getMonthNumber(previousMonthName);
+      });
+
+      const calculateParameterKPI = (parameter: string) => {
+        const currentValue = currentMonthData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        const previousValue = previousMonthData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+
+        const growthPercentage = previousValue > 0 
+          ? ((currentValue - previousValue) / previousValue) * 100 
+          : 0;
+
+        return {
+          currentFY: currentValue,
+          previousFY: previousValue,
+          growthPercentage,
+          isPositive: growthPercentage >= 0,
+          monthsCompleted: 1,
+          monthsRemaining: 0,
+          period: `${currentMonth} vs ${previousMonth}`,
+          currentFYActual: currentValue,
+          projectedAmount: 0
+        };
+      };
+
+      return {
+        Revenue: calculateParameterKPI('revenue'),
+        GPM: calculateParameterKPI('gpm'),
+        'Team Cost': calculateParameterKPI('team_cost'),
+        NP: calculateParameterKPI('net_margin')
+      };
+    }
 
     // If comparing by quarters and we have selected quarters
     if (compareType === 'quarter' && comparisonValues.some(v => v)) {
@@ -5894,8 +5965,26 @@ const TeamReportCompare: React.FC = () => {
                       display: 'flex',
                       justifyContent: 'space-between'
                     }}>
-                      <span>{getMonthRangeForFY('FY 2025')} (Projected)</span>
-                      <span>{formatValue(kpi.previousFY)} FY 2024</span>
+                      <span>{(() => {
+                        // Show actual selected periods instead of hardcoded FY
+                        if (compareType === 'month' && comparisonValues[0]) {
+                          return `${comparisonValues[0]} (Projected)`;
+                        } else if (compareType === 'quarter' && comparisonValues[0]) {
+                          return `${comparisonValues[0]} (Projected)`;
+                        } else {
+                          return `${getMonthRangeForFY('FY 2025')} (Projected)`;
+                        }
+                      })()}</span>
+                      <span>{formatValue(kpi.previousFY)} {(() => {
+                        // Show actual selected periods instead of hardcoded FY
+                        if (compareType === 'month' && comparisonValues[1]) {
+                          return comparisonValues[1];
+                        } else if (compareType === 'quarter' && comparisonValues[1]) {
+                          return comparisonValues[1];
+                        } else {
+                          return 'FY 2024';
+                        }
+                      })()}</span>
                     </div>
 
                     {/* Projection Details */}
