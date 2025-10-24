@@ -606,14 +606,25 @@ const TeamReportCompare: React.FC = () => {
   }> => {
     if (!data || data.length === 0) return {};
 
+    console.log("🔍 calculateKPIs called with:", {
+      compareType,
+      comparisonValues,
+      dataLength: data.length,
+      isMonthComparison: compareType === 'month',
+      hasComparisonValues: comparisonValues.some(v => v)
+    });
+
     // If comparing by months and we have selected months
     if (compareType === 'month' && comparisonValues.some(v => v)) {
+      console.log("🔍 Month comparison logic triggered!");
       const currentMonth = comparisonValues[0];
       const previousMonth = comparisonValues[1];
       
+      console.log("🔍 Month comparison values:", { currentMonth, previousMonth });
+      
       if (!currentMonth || !previousMonth) return {};
 
-      // Parse month and year from strings like "May 2025"
+      // Parse month and year from strings like "November 2023"
       const currentMonthMatch = currentMonth.match(/(\w+) (\d{4})/);
       const previousMonthMatch = previousMonth.match(/(\w+) (\d{4})/);
       
@@ -623,32 +634,37 @@ const TeamReportCompare: React.FC = () => {
       const currentYear = parseInt(currentMonthMatch[2]);
       const previousMonthName = previousMonthMatch[1];
       const previousYear = parseInt(previousMonthMatch[2]);
-
-      // Filter data for current month
-      const currentMonthData = data.filter(item => {
-        const itemDate = parseDate(item.month, item.year);
-        const itemYear = itemDate.getFullYear();
-        const itemMonth = itemDate.getMonth() + 1;
-        
-        return itemYear === currentYear && itemMonth === getMonthNumber(currentMonthName);
-      });
-
-      // Filter data for previous month
-      const previousMonthData = data.filter(item => {
-        const itemDate = parseDate(item.month, item.year);
-        const itemYear = itemDate.getFullYear();
-        const itemMonth = itemDate.getMonth() + 1;
-        
-        return itemYear === previousYear && itemMonth === getMonthNumber(previousMonthName);
+      
+      console.log("🔍 Parsed month values:", {
+        currentMonthName,
+        currentYear,
+        previousMonthName,
+        previousYear
       });
 
       const calculateParameterKPI = (parameter: string) => {
-        const currentValue = currentMonthData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
-        const previousValue = previousMonthData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
+        // Use the same logic as Growth Analysis for consistency
+        console.log(`🔍 Calling getParameterValueUsingKPILogic for ${parameter}:`, {
+          currentMonth,
+          previousMonth,
+          compareType
+        });
+        
+        const currentValue = getParameterValueUsingKPILogic(currentMonth, parameter);
+        const previousValue = getParameterValueUsingKPILogic(previousMonth, parameter);
 
         const growthPercentage = previousValue > 0 
           ? ((currentValue - previousValue) / previousValue) * 100 
           : 0;
+
+        console.log(`🔍 Month KPI Debug for ${parameter}:`, {
+          parameter,
+          currentMonth,
+          previousMonth,
+          currentValue,
+          previousValue,
+          growthPercentage
+        });
 
         return {
           currentFY: currentValue,
@@ -663,12 +679,15 @@ const TeamReportCompare: React.FC = () => {
         };
       };
 
-      return {
-        Revenue: calculateParameterKPI('revenue'),
-        GPM: calculateParameterKPI('gpm'),
-        'Team Cost': calculateParameterKPI('team_cost'),
-        NP: calculateParameterKPI('net_margin')
+      const kpiResults = {
+        Revenue: calculateParameterKPI('Revenue'),
+        GPM: calculateParameterKPI('GPM'),
+        'Team Cost': calculateParameterKPI('Team Cost'),
+        NP: calculateParameterKPI('Net Margin')
       };
+      
+      console.log("🔍 Month KPI Results:", kpiResults);
+      return kpiResults;
     }
 
     // If comparing by quarters and we have selected quarters
