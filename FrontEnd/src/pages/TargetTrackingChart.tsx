@@ -56,8 +56,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   // Update databaseData when data prop changes
   useEffect(() => {
     if (data && data.length > 0) {
-      console.log('🔍 Data prop received:', data.length, 'items');
-      console.log('🔍 Sample data item:', data[0]);
       setDatabaseData(data);
     }
   }, [data]);
@@ -78,7 +76,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   // Enhanced date parser to handle various date formats (same as TeamReportCompare)
   const parseDate = (dateStr: string, year?: number): Date => {
     if (!dateStr || dateStr.trim() === '') {
-      console.warn("⚠️ parseDate: No dateStr provided, returning invalid date");
       return new Date(NaN);
     }
 
@@ -107,10 +104,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       .replace(/^novem$/i, 'November') // Fix "Novem" -> "November"
       .replace(/^decem$/i, 'December'); // Fix "Decem" -> "December"
     
-    // Log when we fix a misspelling
-    if (fixedDateStr !== dateStr) {
-      console.log(`🔧 TargetTrackingChart parseDate: Fixed misspelling "${dateStr}" -> "${fixedDateStr}"`);
-    }
+    // Fix misspellings silently
 
     const monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -136,8 +130,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       // If we find a month name, create a date for the 1st of that month
       // Use the provided year - DO NOT use current year as fallback to prevent automatic data generation
       if (!year) {
-        console.warn("⚠️ parseDate: No year provided for month:", dateStr, "Returning invalid date");
-        return new Date(NaN); // Return invalid date instead of current year
+        return new Date(NaN);
       }
       return new Date(year, monthIndex, 1);
     }
@@ -164,7 +157,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     
     if (abbreviatedIndex !== -1) {
       if (!year) {
-        console.warn("⚠️ parseDate: No year provided for abbreviated month:", dateStr, "Returning invalid date");
         return new Date(NaN);
       }
       return new Date(year, abbreviatedIndex, 1);
@@ -176,8 +168,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       return date;
     }
     
-    // Fallback - return invalid date instead of current date to prevent automatic data generation
-    console.warn("⚠️ parseDate: Unable to parse date:", dateStr, "Returning invalid date");
+    // Fallback - return invalid date
     return new Date(NaN);
   };
 
@@ -206,7 +197,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
   const fetchDataFromDatabase = async () => {
     // If data is provided via props, don't fetch from API
     if (data && data.length > 0) {
-      console.log('🔍 Using data from props, skipping API call');
       return;
     }
     
@@ -220,22 +210,15 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         params.business_unit = businessUnitToUse;
       }
       
-      console.log('🔍 Fetching data from API endpoint: /team-report');
-      console.log('🔍 Selected parameter:', selectedParameter);
-      console.log('🔍 Selected business unit filter:', selectedBusinessUnitFilter);
-      console.log('🔍 Prop business unit:', selectedBusinessUnit);
-      console.log('🔍 Final business unit used:', businessUnitToUse);
-      console.log('🔍 Fetching data from database with params:', params);
-      const res = await apiClient.get("/team-report", { params });
+      const res = await apiClient.get("/team-summary-report", { params });
       
       // Convert all numeric fields to numbers and handle formatting
       const convertedData = res.data.map((item: any) => {
         const convertedItem = { ...item };
         
-        // List of all possible parameter fields that need conversion
+        // List of actual fields available in team-summary-report (only 5 fields)
         const numericFields = [
-          'sales', 'amount', 'gpm', 'np', 'team_cost', 'salary_cost', 'opr_cost', 
-          'funding_cost', 'leave_encashment', 'hc', 'gpm_percent', 'np_percent'
+          'hc', 'revenue', 'gpm', 'team_cost', 'net_margin'
         ];
         
         // Convert each numeric field
@@ -256,23 +239,17 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
           }
         });
         
-        // Map common field names for compatibility
-        if (convertedItem.sales && !convertedItem.amount) {
-          convertedItem.amount = convertedItem.sales;
+        // Map field names for compatibility (team-summary-report has net_margin, not np)
+        if (convertedItem.net_margin && !convertedItem.np) {
+          convertedItem.np = convertedItem.net_margin;
         }
-        if (convertedItem.amount && !convertedItem.sales) {
-          convertedItem.sales = convertedItem.amount;
+        if (convertedItem.np && !convertedItem.net_margin) {
+          convertedItem.net_margin = convertedItem.np;
         }
         
         return convertedItem;
       });
       
-      console.log('🔍 Fetched database data:', convertedData);
-      console.log('🔍 Sample amounts:', convertedData.slice(0, 10).map((item: any) => item.amount));
-      console.log('🔍 Sample dates:', convertedData.slice(0, 10).map((item: any) => item.month));
-      console.log('🔍 Available fields in first item:', convertedData.length > 0 ? Object.keys(convertedData[0]) : 'No data');
-      console.log('🔍 Sample data structure:', convertedData.slice(0, 2));
-      console.log('🔍 First item detailed:', convertedData.length > 0 ? convertedData[0] : 'No data');
       setDatabaseData(convertedData);
     } catch (error: any) {
       console.error("❌ Error fetching data:", error);
@@ -315,10 +292,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       filteredData = filteredData.filter(item => item.business_unit === selectedParameter);
     }
 
-    console.log('🔍 Filtered data count:', filteredData.length);
-    console.log('🔍 Selected business unit:', selectedBusinessUnitFilter);
-    console.log('🔍 Selected parameter:', selectedParameter);
-    console.log('🔍 Sample filtered data:', filteredData.slice(0, 3));
 
     const processedData = filteredData.map(item => {
       const date = new Date(item.month);
@@ -326,7 +299,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       
       // Validate that we have a valid timestamp
       if (isNaN(timestamp)) {
-        console.warn('🔍 Invalid date found:', item.month);
         return null;
       }
 
@@ -366,17 +338,19 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       return {
         date: timestamp, // Use timestamp for DateAxis
         timelineLabel: timelineLabel, // For grouping
-        revenue: item.amount,
-        netMargin: item.amount * 0.15,
-        gpm: item.amount * 0.3,
-        hc: Math.floor(item.amount / 10000),
-        lpm: item.amount * 0.05,
-        throughput: item.amount * 0.1,
-        latency: 50,
-        cpu: 75,
-        memory: 80,
-        disk: 500,
-        network: 800,
+        revenue: item.revenue || 0,
+        netMargin: item.net_margin || 0,
+        gpm: item.gpm || 0,
+        hc: item.hc || 0,
+        teamCost: item.team_cost || 0,
+        // Set other fields to 0 since they don't exist in team-summary-report
+        lpm: 0,
+        throughput: 0,
+        latency: 0,
+        cpu: 0,
+        memory: 0,
+        disk: 0,
+        network: 0,
         tower: item.tower,
         business_unit: item.business_unit
       };
@@ -395,6 +369,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
             netMargin: 0,
             gpm: 0,
             hc: 0,
+            teamCost: 0,
             lpm: 0,
             throughput: 0,
             latency: 0,
@@ -410,6 +385,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         acc[item.timelineLabel].netMargin += item.netMargin;
         acc[item.timelineLabel].gpm += item.gpm;
         acc[item.timelineLabel].hc += item.hc;
+        acc[item.timelineLabel].teamCost += item.teamCost;
         acc[item.timelineLabel].lpm += item.lpm;
         acc[item.timelineLabel].throughput += item.throughput;
         acc[item.timelineLabel].latency += item.latency;
@@ -430,6 +406,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         netMargin: group.netMargin,
         gpm: group.gpm,
         hc: Math.round(group.hc / group.count),
+        teamCost: group.teamCost,
         lpm: group.lpm,
         throughput: group.throughput,
         latency: Math.round(group.latency / group.count),
@@ -444,30 +421,20 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     }
 
     // For month view, just sort by date
-    console.log('🔍 Before sorting - sample dates:', processedData.slice(0, 3).map(item => item ? { date: item.date, type: typeof item.date } : null));
     const sortedData = processedData.sort((a, b) => (a?.date || 0) - (b?.date || 0));
-    console.log('🔍 After sorting - sample dates:', sortedData.slice(0, 3).map(item => item ? { date: item.date, type: typeof item.date } : null));
-    console.log('🔍 Final processed data sample:', sortedData.slice(0, 3));
     return sortedData;
   };
 
   // Generate chart data with forecasting
     const generateChartData = () => {
-    console.log('🔍 Generating forecast chart data for parameter:', selectedParameter);
-    console.log('🔍 Database data length:', databaseData.length);
-    console.log('🔍 Sample database data:', databaseData.slice(0, 3));
       
     // Use only database data for forecasting
     if (databaseData.length === 0) {
-      console.log('🔍 No database data available for forecasting');
         return [];
-      }
+    }
 
     const currentFY = getCurrentFinancialYear();
     const currentMonthIndex = getCurrentMonthIndex();
-    
-    console.log('🔍 Current FY:', currentFY);
-    console.log('🔍 Current month index:', currentMonthIndex);
 
     // Filter data for current financial year (same logic as KPI Dashboard)
     const currentFYData = databaseData.filter(item => {
@@ -485,7 +452,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       }
     });
 
-    console.log('🔍 Current FY data length:', currentFYData.length);
 
     // Get actual data for current FY months (April to current month)
     const actualData: { [key: string]: number } = {};
@@ -542,22 +508,14 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       actualData[monthKey] += parameterValue;
     });
 
-    console.log('🔍 Actual data by month:', actualData);
-    console.log('🔍 Database data length:', databaseData.length);
-    console.log('🔍 Sample database data:', databaseData.slice(0, 3));
-    console.log('🔍 Financial year months:', financialYearMonths);
 
     // Calculate forecasting
     const forecastData: { [key: string]: number } = {};
     
     // Get actual values for available months
     const actualValues = Object.values(actualData).filter(v => v > 0);
-    console.log('🔍 Actual values found:', actualValues);
-    console.log('🔍 Actual values length:', actualValues.length);
     
     if (actualValues.length === 0) {
-      console.log('🔍 No actual data available for forecasting, creating sample data for demonstration');
-      console.log('🔍 This means the database data processing failed - check parameter mapping and data structure');
       
       // Create sample data for demonstration
       const sampleData = financialYearMonths.map((month, index) => {
@@ -579,7 +537,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         };
       });
       
-      console.log('🔍 Sample data created:', sampleData);
       return sampleData;
     }
 
@@ -615,9 +572,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       growthRate = (lastValue - firstValue) / (actualValues.length - 1);
     }
 
-    console.log('🔍 Weighted average for forecasting:', weightedAverage);
-    console.log('🔍 Growth rate:', growthRate);
-    console.log('🔍 Current month index:', currentMonthIndex);
 
     // Generate chart data for all 12 months (April to March)
     const chartData = financialYearMonths.map((month, index) => {
@@ -627,13 +581,10 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       // Check if this month has actual data in the database
       const hasActualData = actualData[month] && actualData[month] > 0;
       
-      console.log(`🔍 Checking ${month} (index ${index}): hasActualData=${hasActualData}, value=${actualData[month]}`);
-      
       if (hasActualData) {
         // Use actual data from database for months that have data
         value = actualData[month];
         isForecast = false;
-        console.log(`🔍 Using actual data for ${month}: ${value}`);
       } else {
         // Months without actual data - apply forecasting
         // Find the last month with actual data to base forecast on
@@ -653,7 +604,6 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         value = (baseForecast + trendAdjustment) * seasonalFactor;
         isForecast = true;
         
-        console.log(`🔍 Forecasting ${month}: base=${baseForecast}, trend=${trendAdjustment}, final=${value}`);
       }
 
         return {
@@ -663,26 +613,17 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         };
     });
 
-    console.log('🔍 Final forecast chart data:', chartData);
-    console.log('🔍 Chart data summary:', chartData.map(item => ({ period: item.period, value: item.value, isForecast: item.isForecast })));
       return chartData;
     };
 
     // Render chart
   useEffect(() => {
-    console.log('🔍 Chart useEffect triggered');
-    console.log('🔍 Selected parameter:', selectedParameter);
-    console.log('🔍 Selected timeline:', selectedTimeline);
-    console.log('🔍 Selected business unit filter:', selectedBusinessUnitFilter);
-    console.log('🔍 Database data length:', databaseData.length);
     
     // Check if chart container exists
     const chartContainer = document.getElementById("forecastChart");
     if (!chartContainer) {
-      console.error('🔍 Chart container not found!');
       return;
     }
-    console.log('🔍 Chart container found');
     
     // Cleanup existing chart
     am5.array.each(am5.registry.rootElements, (root) => {
@@ -735,9 +676,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
 
     // Generate chart data
     const chartData = generateChartData();
-    console.log('🔍 About to render chart with data:', chartData);
     if (chartData.length === 0) {
-      console.log('🔍 No chart data available, returning early');
       return;
     }
 
@@ -866,18 +805,11 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       };
     });
 
-    console.log('🔍 Setting actual series data:', actualData);
-    console.log('🔍 Setting forecast series data:', forecastData);
-    console.log('🔍 Sample actual data item:', actualData[0]);
-    console.log('🔍 Sample forecast data item:', forecastData[0]);
-    
     actualSeries.data.setAll(actualData);
     forecastSeries.data.setAll(forecastData);
-    console.log('🔍 Series data set successfully');
     
     // Set x-axis data - ensure all 12 months are always displayed
     const allMonthsData = financialYearMonths.map(month => ({ period: month }));
-    console.log('🔍 Setting x-axis data with all months:', allMonthsData);
     xAxis.data.setAll(allMonthsData);
 
     // Add legend

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import Login from './pages/Login';
@@ -20,6 +20,11 @@ import AddHRMSData from './pages/AddHRMSData';
 import TeamReportCompare from "./pages/TeamReportCompare";
 
 const App: React.FC = () => {
+  // Set document title
+  useEffect(() => {
+    document.title = 'Financials';
+  }, []);
+
   return (
     <Router basename="/">
       <Routes>
