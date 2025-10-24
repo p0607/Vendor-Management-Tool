@@ -3047,9 +3047,9 @@ const TeamReportCompare: React.FC = () => {
     }
   }, [getFilteredDataByPeriod, compareType]);
 
-  // Helper function to get month range for a given FY
+  // Helper function to get month range for a given FY - uses same logic as KPI calculations
   const getMonthRangeForFY = useCallback((fyPeriod: string) => {
-    if (!fyPeriod || !data.length) return '';
+    if (!fyPeriod || !data.length) return fyPeriod;
     
     // Extract year from FY period (e.g., "FY 2025" -> 2025)
     const yearMatch = fyPeriod.match(/FY (\d{4})/);
@@ -3057,8 +3057,8 @@ const TeamReportCompare: React.FC = () => {
     
     const targetYear = parseInt(yearMatch[1]);
     
-    // Get all months for this FY that actually have data
-    const fyMonths = data.filter(item => {
+    // Use the EXACT same filtering logic as calculateKPIs function
+    const fyData = data.filter(item => {
       const itemDate = parseDate(item.month, item.year);
       if (isNaN(itemDate.getTime())) return false;
       
@@ -3067,19 +3067,24 @@ const TeamReportCompare: React.FC = () => {
       
       // Financial year filtering: FY 2025 = April 2025 to March 2026
       if (itemMonth >= 4) {
+        // April to December: same calendar year
         return itemYear === targetYear;
       } else {
+        // January to March: next calendar year
         return itemYear === targetYear + 1;
       }
-    }).map(item => {
-      const itemDate = parseDate(item.month, item.year);
-      return itemDate.toLocaleString('default', { month: 'short' });
     });
     
-    // Get unique months and sort them
-    const uniqueMonths = Array.from(new Set(fyMonths));
+    // Get unique months from the filtered data (same data used in KPI calculations)
+    const uniqueMonths = Array.from(new Set(fyData.map(item => {
+      const itemDate = parseDate(item.month, item.year);
+      return itemDate.toLocaleString('default', { month: 'short' });
+    })));
     
-    if (uniqueMonths.length === 0) return fyPeriod;
+    if (uniqueMonths.length === 0) {
+      // If no data found, return the period without month range
+      return fyPeriod;
+    }
     
     // Sort months according to financial year order
     const monthOrder = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
@@ -3089,6 +3094,7 @@ const TeamReportCompare: React.FC = () => {
       return aIndex - bIndex;
     });
     
+    // Show the actual data range from database (same data used in KPI calculations)
     if (sortedMonths.length <= 2) {
       return `${fyPeriod} (${sortedMonths.join(', ')})`;
     } else {
@@ -5190,27 +5196,8 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      <div style={{ margin: "20px 8px 8px 8px", paddingTop: "0rem" }}>
+      <div style={{ margin: "2px 8px 8px 8px", paddingTop: "0rem" }}>
 
-        {/* Crore/Lakh Toggle Button */}
-        <div style={{ marginBottom: '0px', display: 'flex', justifyContent: 'flex-end' }}>
-          <button 
-            onClick={() => setIsCroreMode(!isCroreMode)}
-            style={{
-              padding: '6px 12px',
-              fontSize: '11px',
-              backgroundColor: isCroreMode ? '#1890ff' : '#52c41a',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              height: 'fit-content'
-            }}
-          >
-            {isCroreMode ? 'Crore' : 'Lakh'}
-          </button>
-        </div>
 
         {/* Filters Section */}
   <div style={{ 
@@ -5910,8 +5897,8 @@ const TeamReportCompare: React.FC = () => {
                       display: 'flex',
                       justifyContent: 'space-between'
                     }}>
-                      <span>FY 2025 (Projected)</span>
-                      <span>{formatValue(kpi.previousFY)} Actual</span>
+                      <span>{getMonthRangeForFY('FY 2025')} (Projected)</span>
+                      <span>{getMonthRangeForFY('FY 2024')}</span>
                     </div>
 
                     {/* Projection Details */}
