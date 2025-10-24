@@ -5898,7 +5898,7 @@ const TeamReportCompare: React.FC = () => {
                       justifyContent: 'space-between'
                     }}>
                       <span>{getMonthRangeForFY('FY 2025')} (Projected)</span>
-                      <span>{getMonthRangeForFY('FY 2024')}</span>
+                      <span>{formatValue(kpi.previousFY)} FY 2024</span>
                     </div>
 
                     {/* Projection Details */}
