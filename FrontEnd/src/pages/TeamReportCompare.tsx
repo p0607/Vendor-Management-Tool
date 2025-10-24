@@ -5491,13 +5491,10 @@ const TeamReportCompare: React.FC = () => {
 
   </div>
 
-
-
-
        
          {/* Period Selectors */}
 
-  <div style={{ marginBottom: 16 }}>
+  <div style={{ marginBottom: 16, marginTop: 1 }}>
 
     <label style={{ color: '#000000', fontSize: '10px' }}>Comparison Periods ({compareType}):</label>
 
@@ -6108,7 +6105,11 @@ const TeamReportCompare: React.FC = () => {
 
           <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
 
-            {getMonthRangeForFY(period || '')}
+            {(() => {
+              // Only show month range for current FY (FY 2025), not for previous FY (FY 2024)
+              const isCurrentFY = period?.includes('2025');
+              return isCurrentFY ? getMonthRangeForFY(period || '') : period || '';
+            })()}
 
           </th>
 
@@ -6185,7 +6186,7 @@ const TeamReportCompare: React.FC = () => {
                         const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
                         const revenue = revenueItem?.periodValues[i]?.amount || 0;
                         const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
-                        return `${percentage}%`;
+                        return `GPM %: ${percentage}%`;
                       })()}
                     </div>
                   )}
@@ -6195,7 +6196,7 @@ const TeamReportCompare: React.FC = () => {
                         const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
                         const revenue = revenueItem?.periodValues[i]?.amount || 0;
                         const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
-                        return `${percentage}%`;
+                        return `Net Margin %: ${percentage}%`;
                       })()}
                     </div>
                   )}
@@ -6414,7 +6415,11 @@ const TeamReportCompare: React.FC = () => {
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Parameter</th>
                 {comparisonValues.filter(Boolean).map((period, i) => (
                   <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-                    {getMonthRangeForFY(period || '')}
+                    {(() => {
+                      // Only show month range for current FY (FY 2025), not for previous FY (FY 2024)
+                      const isCurrentFY = period?.includes('2025');
+                      return isCurrentFY ? getMonthRangeForFY(period || '') : period || '';
+                    })()}
                   </th>
                 ))}
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
@@ -6464,7 +6469,7 @@ const TeamReportCompare: React.FC = () => {
                           {(() => {
                             const revenue = summary.currentPeriod.revenue;
                             const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
-                            return `${percentage}%`;
+                            return `GPM %: ${percentage}%`;
                           })()}
                         </div>
                       )}
@@ -6473,7 +6478,7 @@ const TeamReportCompare: React.FC = () => {
                           {(() => {
                             const revenue = summary.currentPeriod.revenue;
                             const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
-                            return `${percentage}%`;
+                            return `Net Margin %: ${percentage}%`;
                           })()}
                         </div>
                       )}
@@ -6487,7 +6492,7 @@ const TeamReportCompare: React.FC = () => {
                           {(() => {
                             const revenue = summary.previousPeriod.revenue;
                             const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
-                            return `${percentage}%`;
+                            return `GPM %: ${percentage}%`;
                           })()}
                         </div>
                       )}
@@ -6496,7 +6501,7 @@ const TeamReportCompare: React.FC = () => {
                           {(() => {
                             const revenue = summary.previousPeriod.revenue;
                             const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
-                            return `${percentage}%`;
+                            return `Net Margin %: ${percentage}%`;
                           })()}
                         </div>
                       )}
