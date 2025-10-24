@@ -432,6 +432,11 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     if (databaseData.length === 0) {
         return [];
     }
+    
+    // Debug: Log the selected parameter and available data
+    console.log('🔍 generateChartData - selectedParameter:', selectedParameter);
+    console.log('🔍 generateChartData - databaseData length:', databaseData.length);
+    console.log('🔍 generateChartData - sample data:', databaseData.slice(0, 2));
 
     const currentFY = getCurrentFinancialYear();
     const currentMonthIndex = getCurrentMonthIndex();
@@ -462,6 +467,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
       const parameterMapping: { [key: string]: string[] } = {
         'Revenue': ['sales', 'amount', 'revenue'],
         'GPM': ['gpm', 'gross_profit_margin'],
+        'Net Margin': ['net_margin', 'np', 'net_profit'],
         'NP': ['np', 'net_profit', 'net_margin'],
         'Team Cost': ['team_cost', 'teamcost', 'teamCost'],
         'Salary Cost': ['salary_cost', 'salarycost', 'salaryCost'],
@@ -484,7 +490,12 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
         }
       }
       
-      if (parameterValue === null) return;
+      if (parameterValue === null) {
+        console.log('🔍 No parameter value found for:', selectedParameter, 'in item:', item);
+        return;
+      }
+      
+      console.log('🔍 Found parameter value:', parameterValue, 'for field:', selectedParameter);
       
       // Parse month using same logic as KPI Dashboard
       const itemDate = parseDate(item.month, item.year);
