@@ -431,6 +431,7 @@ select,
   font-weight: bold;
   background-color: rgba(0, 0, 0, 0.1);
   color: black;
+  font-size: 14px;
 }
 
 .no-data {
