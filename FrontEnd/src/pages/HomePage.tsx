@@ -84,7 +84,7 @@ const HomePage: React.FC = () => {
       alignItems: 'center'
     }}>
       <div className="homepage-logo-top-left">
-      <img src={logo} alt="Alchemy Logo" />
+      <img src="/static/media/logo_1.fc31060d17d32e4105b3.png" alt="Alchemy Logo" />
       </div>
       <div className="auth-buttons-container">
         {(userDesignation === 'SUPER ADMIN' || userDesignation === 'ADMIN') && (

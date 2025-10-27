@@ -55,7 +55,7 @@ const Login = () => {
   return (
     <div className="login-background">
       <div className="login-logo-topright">
-        <img src={logo} alt="Alchemy Logo" />
+        <img src="/static/media/logo_1.fc31060d17d32e4105b3.png" alt="Alchemy Logo" />
       </div>
       <main className="login-center">
         <form className="glassmorphism" onSubmit={handleLogin}>
