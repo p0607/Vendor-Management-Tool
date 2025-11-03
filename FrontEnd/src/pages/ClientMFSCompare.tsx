@@ -28,8 +28,9 @@ import * as XLSX from 'xlsx';
 
 const { Option } = Select;
 
-// API endpoint configuration - can be changed later for Client MFS
-const API_ENDPOINT = "/team-summary-report"; // TODO: Change this to Client MFS API endpoint when ready
+// API endpoint configuration - Using team_report table endpoint
+// This fetches data from the team_report table (different from team_summary_report used by TeamReportCompare)
+const API_ENDPOINT = "/team-report";
 
 
 
