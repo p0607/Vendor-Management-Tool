@@ -22,14 +22,14 @@ import { formatValueForTable } from '../utils/formatUtils';
 
 import apiClient from '../config/api';
 
-// API endpoint configuration - can be changed later for Client MFS
-const API_ENDPOINT = "/team-summary-report"; // TODO: Change this to Client MFS API endpoint when ready
-
 import * as XLSX from 'xlsx';
 
 
 
 const { Option } = Select;
+
+// API endpoint configuration - can be changed later for Client MFS
+const API_ENDPOINT = "/team-summary-report"; // TODO: Change this to Client MFS API endpoint when ready
 
 
 
