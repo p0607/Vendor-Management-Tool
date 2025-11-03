@@ -1001,10 +1001,16 @@ app.get('/api/team-report', async (req, res, next) => {
 
 app.post('/api/team-report', async (req, res, next) => {
     try {
+      // Handle backward compatibility: if 'sales' is provided, use it as 'revenue'
+      if (req.body.sales !== undefined && req.body.revenue === undefined) {
+        req.body.revenue = req.body.sales;
+      }
+      
       const { 
-        tower, client_name, project_name, business_unit, bu_head, hc, 
-        salary_cost, sales, gpm, gpm_percentage, leave_encashment, 
-        team_cost, opr_cost, funding_cost, np, np_percentage, month, year 
+        client_name, project_name, business_unit, bu_head, hc, 
+        salary_cost, revenue, gpm, gpm_percentage, leave_encashment, 
+        team_cost, opr_cost, funding_cost, np, np_percentage, 
+        rebate, passthrough, month, year 
       } = req.body;
       
       // Validate required fields: month and year are compulsory
@@ -1040,27 +1046,27 @@ app.post('/api/team-report', async (req, res, next) => {
 
       // Log the incoming data for debugging
       logger.info('Creating team report', { 
-        tower, client_name, project_name, business_unit, bu_head, hc, 
-        salary_cost, sales, gpm, gpm_percentage, leave_encashment, 
-        team_cost, opr_cost, funding_cost, np, np_percentage, month, year, monthDate 
+        client_name, project_name, business_unit, bu_head, hc, 
+        salary_cost, revenue, gpm, gpm_percentage, leave_encashment, 
+        team_cost, opr_cost, funding_cost, np, np_percentage, 
+        rebate, passthrough, month, year, monthDate 
       });
       
       // Check for exact duplicate (all columns match)
       const duplicateCheck = await executeQuery(
         `SELECT id FROM team_report WHERE 
-         tower = $1 AND client_name = $2 AND project_name = $3 AND business_unit = $4 AND bu_head = $5 AND 
-         hc = $6 AND salary_cost = $7 AND sales = $8 AND gpm = $9 AND gpm_percentage = $10 AND 
-         leave_encashment = $11 AND team_cost = $12 AND opr_cost = $13 AND funding_cost = $14 AND 
-         np = $15 AND np_percentage = $16 AND month = $17 AND year = $18`,
+         client_name = $1 AND project_name = $2 AND business_unit = $3 AND bu_head = $4 AND 
+         hc = $5 AND salary_cost = $6 AND revenue = $7 AND gpm = $8 AND gpm_percentage = $9 AND 
+         leave_encashment = $10 AND team_cost = $11 AND opr_cost = $12 AND funding_cost = $13 AND 
+         np = $14 AND np_percentage = $15 AND rebate = $16 AND passthrough = $17 AND month = $18 AND year = $19`,
         [
-          tower === '' ? null : tower,
           client_name === '' ? null : client_name,
           project_name === '' ? null : project_name,
           business_unit === '' ? null : business_unit,
           bu_head === '' ? null : bu_head,
           hc || 0,
           salary_cost || 0,
-          sales || 0,
+          revenue || 0,
           gpm || 0,
           gpm_percentage || 0,
           leave_encashment || 0,
@@ -1069,6 +1075,8 @@ app.post('/api/team-report', async (req, res, next) => {
           funding_cost || 0,
           np || 0,
           np_percentage || 0,
+          rebate || 0,
+          passthrough || 0,
           monthDate,
           year
         ]
@@ -1084,19 +1092,19 @@ app.post('/api/team-report', async (req, res, next) => {
 
       const result = await executeQuery(
         `INSERT INTO team_report (
-          tower, client_name, project_name, business_unit, bu_head, hc,
-          salary_cost, sales, gpm, gpm_percentage, leave_encashment,
-          team_cost, opr_cost, funding_cost, np, np_percentage, month, year
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
+          client_name, project_name, business_unit, bu_head, hc,
+          salary_cost, revenue, gpm, gpm_percentage, leave_encashment,
+          team_cost, opr_cost, funding_cost, np, np_percentage, 
+          rebate, passthrough, month, year
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
         [
-          tower === '' ? null : tower,
           client_name === '' ? null : client_name,
           project_name === '' ? null : project_name,
           business_unit === '' ? null : business_unit,
           bu_head === '' ? null : bu_head,
           hc || 0,
           salary_cost || 0,
-          sales || 0,
+          revenue || 0,
           gpm || 0,
           gpm_percentage || 0,
           leave_encashment || 0,
@@ -1105,6 +1113,8 @@ app.post('/api/team-report', async (req, res, next) => {
           funding_cost || 0,
           np || 0,
           np_percentage || 0,
+          rebate || 0,
+          passthrough || 0,
           monthDate,
           year
         ]
@@ -1149,6 +1159,11 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
     for (let i = 0; i < data.length; i++) {
       const record = data[i];
       
+      // Handle backward compatibility: if 'sales' is provided, use it as 'revenue'
+      if (record.sales !== undefined && record.revenue === undefined) {
+        record.revenue = record.sales;
+      }
+      
       // Log only first few records for debugging to avoid log spam
       if (i < 3) {
         logger.info('Processing record', { recordIndex: i, record: record });
@@ -1164,7 +1179,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       }
       
       // Convert numeric fields to numbers
-      const numericFields = ['hc', 'salary_cost', 'sales', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'year'];
+      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'year'];
       for (const field of numericFields) {
         if (record[field] !== null && record[field] !== undefined && record[field] !== '') {
           if (typeof record[field] === 'string') {
@@ -1217,7 +1232,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       record.monthDate = `${record.year}-${monthNum}-01`;
       
       // Convert empty strings to null for all fields
-      const allFields = ['tower', 'client_name', 'project_name', 'business_unit', 'bu_head', 'month'];
+      const allFields = ['client_name', 'project_name', 'business_unit', 'bu_head', 'month'];
       for (const field of allFields) {
         if (record[field] === '' || record[field] === undefined) {
           record[field] = null;
@@ -1231,23 +1246,23 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       await client.query('BEGIN');
       
       const insertQuery = `INSERT INTO team_report (
-        tower, client_name, project_name, business_unit, bu_head, hc,
-        salary_cost, sales, gpm, gpm_percentage, leave_encashment,
-        team_cost, opr_cost, funding_cost, np, np_percentage, month, year
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`;
+        client_name, project_name, business_unit, bu_head, hc,
+        salary_cost, revenue, gpm, gpm_percentage, leave_encashment,
+        team_cost, opr_cost, funding_cost, np, np_percentage, 
+        rebate, passthrough, month, year
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`;
       
       for (let i = 0; i < data.length; i++) {
         const record = data[i];
         try {
           await client.query(insertQuery, [
-          record.tower === '' ? null : record.tower,
           record.client_name === '' ? null : record.client_name,
           record.project_name === '' ? null : record.project_name,
           record.business_unit === '' ? null : record.business_unit,
           record.bu_head === '' ? null : record.bu_head,
             record.hc || 0,
             record.salary_cost || 0,
-            record.sales || 0,
+            record.revenue || 0,
             record.gpm || 0,
             record.gpm_percentage || 0,
             record.leave_encashment || 0,
@@ -1256,6 +1271,8 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             record.funding_cost || 0,
             record.np || 0,
             record.np_percentage || 0,
+            record.rebate || 0,
+            record.passthrough || 0,
             record.monthDate,
             record.year
           ]);

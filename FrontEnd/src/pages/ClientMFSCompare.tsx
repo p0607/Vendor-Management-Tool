@@ -40,6 +40,12 @@ interface ReportData {
 
   business_unit: string;
 
+  client_name?: string;
+
+  project_name?: string;
+
+  bu_head?: string;
+
   month: string;
 
   year: number;
@@ -48,11 +54,29 @@ interface ReportData {
 
   revenue: number;
 
+  salary_cost?: number;
+
   gpm: number;
+
+  gpm_percentage?: number;
+
+  np?: number;
+
+  np_percentage?: number;
+
+  leave_encashment?: number;
 
   team_cost: number;
 
-  net_margin: number;
+  opr_cost?: number;
+
+  funding_cost?: number;
+
+  net_margin?: number;
+
+  rebate?: number;
+
+  passthrough?: number;
 
   created_at?: string;
 
@@ -1652,6 +1676,12 @@ const ClientMFSCompare: React.FC = () => {
 
           business_unit: stringOrNull(row['Business_Unit'] || row['Business Unit'] || row.business_unit),
 
+          client_name: stringOrNull(row['Client_Name'] || row['Client Name'] || row.client_name),
+
+          project_name: stringOrNull(row['Project Name'] || row['Project_Name'] || row.project_name),
+
+          bu_head: stringOrNull(row['BU Head'] || row['BU_Head'] || row.bu_head),
+
           month: stringOrNull(row['Month'] || row.month),
 
           year: parseNumericValue(row['Year'] || row.year) || null,
@@ -1660,11 +1690,27 @@ const ClientMFSCompare: React.FC = () => {
 
           revenue: parseNumericValue(row['Revenue'] || row.revenue),
 
+          salary_cost: parseNumericValue(row['Salary Cost'] || row['Salary_Cost'] || row.salary_cost),
+
           gpm: parseNumericValue(row['GPM'] || row.gpm),
+
+          gpm_percentage: parseNumericValue(row['GPM -%'] || row['GPM %'] || row['GPM-%'] || row.gpm_percentage),
+
+          np: parseNumericValue(row['NP'] || row.np),
+
+          np_percentage: parseNumericValue(row['NP %'] || row['NP%'] || row['NP_Percentage'] || row.np_percentage),
+
+          leave_encashment: parseNumericValue(row['Leave Encsh'] || row['Leave_Encsh'] || row['Leave Encashment'] || row.leave_encashment),
 
           team_cost: parseNumericValue(row['Team Cost'] || row['Team_Cost'] || row.team_cost),
 
-          net_margin: parseNumericValue(row['Net Margin'] || row['Net_Margin'] || row.net_margin),
+          opr_cost: parseNumericValue(row['Opr Cost'] || row['Opr_Cost'] || row.opr_cost),
+
+          funding_cost: parseNumericValue(row['Funding Cost'] || row['Funding_Cost'] || row.funding_cost),
+
+          rebate: parseNumericValue(row['Rebate'] || row.rebate),
+
+          passthrough: parseNumericValue(row['Passthrough'] || row.passthrough),
 
         };
 
@@ -1793,41 +1839,43 @@ const ClientMFSCompare: React.FC = () => {
 
     const exportData = data.map((row: ReportData) => ({
 
-      'Tower': row.tower,
+      'Business_Unit': row.business_unit,
 
-      'Client_Name': row.client_name,
+      'Client_Name': row.client_name || '',
 
-      'Project_Name': row.project_name,
+      'Project Name': row.project_name || '',
 
-      'Business_unit': row.business_unit,
+      'BU Head': row.bu_head || '',
 
-      'BU_Head': row.bu_head,
-
-      'HC': row.hc,
-
-      'Salary Cost': row.salary_cost,
-
-      'Revenue': row.revenue,
-
-      'GPM': row.gpm,
-
-      'GPM %': row.gpm_percentage,
-
-      'Loan Encash': row.leave_encashment,
-
-      'Team Cost': row.team_cost,
-
-      'Opr Cost': row.opr_cost,
-
-      'Funding Cost': row.funding_cost,
-
-      'Net Margin': row.net_margin,
-
-      'NP %': row.np_percentage,
+      'Year': row.year,
 
       'Month': row.month,
 
-      'Year': row.year,
+      'HC': row.hc || 0,
+
+      'Revenue': row.revenue || 0,
+
+      'Salary Cost': row.salary_cost || 0,
+
+      'GPM': row.gpm || 0,
+
+      'GPM -%': row.gpm_percentage || 0,
+
+      'NP': row.np || 0,
+
+      'NP %': row.np_percentage || 0,
+
+      'Leave Encsh': row.leave_encashment || 0,
+
+      'Team Cost': row.team_cost || 0,
+
+      'Opr Cost': row.opr_cost || 0,
+
+      'Funding Cost': row.funding_cost || 0,
+
+      'Rebate': row.rebate || 0,
+
+      'Passthrough': row.passthrough || 0,
 
     }));
 
@@ -1837,19 +1885,19 @@ const ClientMFSCompare: React.FC = () => {
 
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "TeamReport");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Client_MFS_Report");
 
-    XLSX.writeFile(workbook, "TeamReport.xlsx");
+    XLSX.writeFile(workbook, "Client_MFS_Report.xlsx");
 
   };
 
 
 
-  // Handle Excel template download for team_summary_report
+  // Handle Excel template download for team_report
 
   const handleDownloadTemplate = () => {
 
-    // Create a template with only headers for the new simplified structure
+    // Create a template with only headers matching the new table structure
 
     const templateData = [
 
@@ -1857,19 +1905,41 @@ const ClientMFSCompare: React.FC = () => {
 
         'Business_Unit': '',
 
-        'Month': '',
+        'Client_Name': '',
+
+        'Project Name': '',
+
+        'BU Head': '',
 
         'Year': '',
+
+        'Month': '',
 
         'HC': '',
 
         'Revenue': '',
 
+        'Salary Cost': '',
+
         'GPM': '',
+
+        'GPM -%': '',
+
+        'NP': '',
+
+        'NP %': '',
+
+        'Leave Encsh': '',
 
         'Team Cost': '',
 
-        'Net Margin': '',
+        'Opr Cost': '',
+
+        'Funding Cost': '',
+
+        'Rebate': '',
+
+        'Passthrough': '',
 
       }
 
@@ -1881,9 +1951,9 @@ const ClientMFSCompare: React.FC = () => {
 
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "MFS_Summary_Template");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Client_MFS_Template");
 
-    XLSX.writeFile(workbook, "MFS_Summary_Template.xlsx");
+    XLSX.writeFile(workbook, "Client_MFS_Template.xlsx");
 
   };
 
