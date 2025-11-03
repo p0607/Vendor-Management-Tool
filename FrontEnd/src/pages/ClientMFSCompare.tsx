@@ -22,6 +22,8 @@ import { formatValueForTable } from '../utils/formatUtils';
 
 import apiClient from '../config/api';
 
+// API endpoint configuration - can be changed later for Client MFS
+const API_ENDPOINT = "/team-summary-report"; // TODO: Change this to Client MFS API endpoint when ready
 
 import * as XLSX from 'xlsx';
 
@@ -110,7 +112,7 @@ type CompareType = "year" | "quarter" | "month";
 
 
 
-const TeamReportCompare: React.FC = () => {
+const ClientMFSCompare: React.FC = () => {
 
   const navigate = useNavigate();
 
@@ -1701,7 +1703,7 @@ const TeamReportCompare: React.FC = () => {
           try {
 
 
-            await apiClient.post("/team-summary-report/bulk", { data: batch });
+            await apiClient.post(`${API_ENDPOINT}/bulk`, { data: batch });
 
             successCount += batch.length;
 
@@ -2347,7 +2349,7 @@ const TeamReportCompare: React.FC = () => {
 
       
       
-      const res = await apiClient.get("/team-summary-report");
+      const res = await apiClient.get(API_ENDPOINT);
 
 
       
@@ -2435,7 +2437,7 @@ const TeamReportCompare: React.FC = () => {
 
       console.log(`🔍 Fetching client names for business unit: ${businessUnit}`);
 
-      const res = await apiClient.get("/team-summary-report");
+      const res = await apiClient.get(API_ENDPOINT);
 
       
       
@@ -2541,7 +2543,7 @@ const TeamReportCompare: React.FC = () => {
 
       console.log(`🔍 Fetching BU heads for business unit: ${businessUnit}`);
 
-      const res = await apiClient.get("/team-summary-report");
+      const res = await apiClient.get(API_ENDPOINT);
 
       
       
@@ -2627,7 +2629,7 @@ const TeamReportCompare: React.FC = () => {
         
         // Always fetch all data and filter on frontend for better control
 
-        const res = await apiClient.get("/team-summary-report");
+        const res = await apiClient.get(API_ENDPOINT);
 
         
         
@@ -5247,7 +5249,7 @@ const TeamReportCompare: React.FC = () => {
           zIndex: 1,
           whiteSpace: 'nowrap'
 
-        }}>MFS Comparison</h2>
+        }}>Client MFS Comparison</h2>
 
         <div className="auth-buttons-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginRight: '20px' }}>
 
@@ -5272,7 +5274,10 @@ const TeamReportCompare: React.FC = () => {
 
             </Dropdown>
 
-            <button className="auth-button" onClick={() => navigate('/client-mfs/compare')}>
+            <button className="auth-button" onClick={() => {
+              // Client MFS comparison functionality - add your navigation or logic here
+              console.log('Client MFS comparison clicked');
+            }}>
               Client MFS comparison
             </button>
 
@@ -7873,4 +7878,4 @@ const TeamReportCompare: React.FC = () => {
 
 };
 
-export default TeamReportCompare;
+export default ClientMFSCompare;
