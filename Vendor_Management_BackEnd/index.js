@@ -1021,11 +1021,48 @@ app.post('/api/team-report', async (req, res, next) => {
         });
       }
       
+      // Handle year - can be 2-digit (23) or 4-digit (2023)
+      let yearValue = typeof year === 'string' ? parseFloat(year) : year;
+      if (yearValue && yearValue < 100) {
+        // Convert 2-digit year to 4-digit (assume 2000s for years < 50, 1900s for years >= 50)
+        yearValue = yearValue < 50 ? 2000 + yearValue : 1900 + yearValue;
+        year = yearValue;
+      }
+
       if (!year || year === 0) {
         return res.status(400).json({
           success: false,
           error: `Year is missing or invalid. Year is required. Month: ${month}, Year: ${year}`
         });
+      }
+      
+      // Convert numeric fields to numbers (handle parentheses, commas, percentages)
+      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough'];
+      const processedFields = {};
+      for (const field of numericFields) {
+        const value = req.body[field];
+        if (value !== null && value !== undefined && value !== '') {
+          if (typeof value === 'string') {
+            // Handle negative numbers in parentheses, commas, percentages
+            let strValue = value.trim();
+            if (strValue === '-' || strValue === '########' || strValue === '') {
+              processedFields[field] = 0;
+            } else {
+              if (strValue.startsWith('(') && strValue.endsWith(')')) {
+                strValue = '-' + strValue.slice(1, -1);
+              }
+              if (strValue.endsWith('%')) {
+                strValue = strValue.replace('%', '');
+              }
+              strValue = strValue.replace(/,/g, '');
+              processedFields[field] = parseFloat(strValue) || 0;
+            }
+          } else {
+            processedFields[field] = value || 0;
+          }
+        } else {
+          processedFields[field] = 0;
+        }
       }
       
       // Convert month name to date format (YYYY-MM-01)
@@ -1064,19 +1101,19 @@ app.post('/api/team-report', async (req, res, next) => {
           project_name === '' ? null : project_name,
           business_unit === '' ? null : business_unit,
           bu_head === '' ? null : bu_head,
-          hc || 0,
-          salary_cost || 0,
-          revenue || 0,
-          gpm || 0,
-          gpm_percentage || 0,
-          leave_encashment || 0,
-          team_cost || 0,
-          opr_cost || 0,
-          funding_cost || 0,
-          np || 0,
-          np_percentage || 0,
-          rebate || 0,
-          passthrough || 0,
+          processedFields.hc,
+          processedFields.salary_cost,
+          processedFields.revenue,
+          processedFields.gpm,
+          processedFields.gpm_percentage,
+          processedFields.leave_encashment,
+          processedFields.team_cost,
+          processedFields.opr_cost,
+          processedFields.funding_cost,
+          processedFields.np,
+          processedFields.np_percentage,
+          processedFields.rebate,
+          processedFields.passthrough,
           monthDate,
           year
         ]
@@ -1102,19 +1139,19 @@ app.post('/api/team-report', async (req, res, next) => {
           project_name === '' ? null : project_name,
           business_unit === '' ? null : business_unit,
           bu_head === '' ? null : bu_head,
-          hc || 0,
-          salary_cost || 0,
-          revenue || 0,
-          gpm || 0,
-          gpm_percentage || 0,
-          leave_encashment || 0,
-          team_cost || 0,
-          opr_cost || 0,
-          funding_cost || 0,
-          np || 0,
-          np_percentage || 0,
-          rebate || 0,
-          passthrough || 0,
+          processedFields.hc,
+          processedFields.salary_cost,
+          processedFields.revenue,
+          processedFields.gpm,
+          processedFields.gpm_percentage,
+          processedFields.leave_encashment,
+          processedFields.team_cost,
+          processedFields.opr_cost,
+          processedFields.funding_cost,
+          processedFields.np,
+          processedFields.np_percentage,
+          processedFields.rebate,
+          processedFields.passthrough,
           monthDate,
           year
         ]
@@ -1174,16 +1211,39 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         throw new Error(`Record ${i + 1}: Month is missing or empty. Month is required.`);
       }
       
+      // Handle year - can be 2-digit (23) or 4-digit (2023)
+      if (record.year) {
+        let yearValue = typeof record.year === 'string' ? parseFloat(record.year) : record.year;
+        if (yearValue && yearValue < 100) {
+          // Convert 2-digit year to 4-digit (assume 2000s for years < 50, 1900s for years >= 50)
+          yearValue = yearValue < 50 ? 2000 + yearValue : 1900 + yearValue;
+          record.year = yearValue;
+        }
+      }
+
       if (!record.year || record.year === 0) {
         throw new Error(`Record ${i + 1}: Year is missing or invalid. Year is required. Month: ${record.month}, Year: ${record.year}`);
       }
       
       // Convert numeric fields to numbers
-      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'year'];
+      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough'];
       for (const field of numericFields) {
         if (record[field] !== null && record[field] !== undefined && record[field] !== '') {
           if (typeof record[field] === 'string') {
-            record[field] = parseFloat(record[field]) || 0;
+            // Handle negative numbers in parentheses, commas, percentages
+            let strValue = record[field].trim();
+            if (strValue === '-' || strValue === '########' || strValue === '') {
+              record[field] = 0;
+            } else {
+              if (strValue.startsWith('(') && strValue.endsWith(')')) {
+                strValue = '-' + strValue.slice(1, -1);
+              }
+              if (strValue.endsWith('%')) {
+                strValue = strValue.replace('%', '');
+              }
+              strValue = strValue.replace(/,/g, '');
+              record[field] = parseFloat(strValue) || 0;
+            }
           }
         } else {
           record[field] = 0; // Default to 0 for numeric fields

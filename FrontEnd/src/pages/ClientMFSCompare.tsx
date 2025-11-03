@@ -1555,7 +1555,7 @@ const ClientMFSCompare: React.FC = () => {
 
 
 
-  // Helper function to safely parse numeric values from Excel (handles formulas)
+  // Helper function to safely parse numeric values from Excel (handles formulas, commas, parentheses, percentages)
 
   const parseNumericValue = (value: any): number => {
 
@@ -1571,13 +1571,26 @@ const ClientMFSCompare: React.FC = () => {
     
     // Convert to string and clean it
 
-    const stringValue = String(value).trim();
+    let stringValue = String(value).trim();
 
     
     
-    // Handle empty strings
+    // Handle empty strings and dashes
 
-    if (stringValue === '' || stringValue === '-') return 0;
+    if (stringValue === '' || stringValue === '-' || stringValue === '########') return 0;
+
+    // Handle negative numbers in parentheses like (54,059) -> -54059
+    if (stringValue.startsWith('(') && stringValue.endsWith(')')) {
+      stringValue = '-' + stringValue.slice(1, -1);
+    }
+
+    // Remove percentage symbol if present
+    if (stringValue.endsWith('%')) {
+      stringValue = stringValue.replace('%', '');
+    }
+
+    // Remove commas (thousands separators)
+    stringValue = stringValue.replace(/,/g, '');
 
     
     
@@ -1609,7 +1622,7 @@ const ClientMFSCompare: React.FC = () => {
 
       
       
-      // Read Excel with formula evaluation
+      // Read Excel with formula evaluation and proper date handling
 
       const workbook = XLSX.read(bstr, { 
 
@@ -1627,7 +1640,7 @@ const ClientMFSCompare: React.FC = () => {
 
         cellDates: true,
 
-        dateNF: 'yyyy-mm-dd'
+        dateNF: 'mm/dd/yyyy'
 
       });
 
@@ -1640,16 +1653,22 @@ const ClientMFSCompare: React.FC = () => {
       
       
       // Convert to JSON with raw values (formulas will be evaluated)
-
+      // Use raw: false to get formatted dates as strings
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
 
-        raw: true,
+        raw: false,  // Changed to false to get formatted date strings instead of serial numbers
 
         defval: '',
 
         blankrows: false
 
       });
+      
+      // Log first few rows for debugging
+      if (jsonData.length > 0) {
+        console.log('First row from Excel:', jsonData[0]);
+        console.log('Total rows in Excel:', jsonData.length);
+      }
 
       
       
@@ -1670,62 +1689,168 @@ const ClientMFSCompare: React.FC = () => {
 
         };
 
+        // Normalize month format - convert date strings to month names
+        let monthValue = row['Month'] || row.month || '';
+        if (monthValue) {
+          // Handle Excel date serial numbers (if month is stored as Excel date)
+          if (typeof monthValue === 'number' && monthValue > 1 && monthValue < 50000) {
+            // Excel date serial number - convert to Date then to month name
+            const excelEpoch = new Date(1900, 0, 1);
+            const date = new Date(excelEpoch.getTime() + (monthValue - 2) * 24 * 60 * 60 * 1000);
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'];
+            monthValue = monthNames[date.getMonth()];
+          }
+          // If it's a date string like "2024-01-01" or "2024/01/01", extract month name
+          else if (typeof monthValue === 'string' && (monthValue.match(/^\d{4}-\d{2}-\d{2}/) || monthValue.match(/^\d{4}\/\d{2}\/\d{2}/))) {
+            const date = new Date(monthValue);
+            if (!isNaN(date.getTime())) {
+              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+              monthValue = monthNames[date.getMonth()];
+            }
+          }
+          // If it's a Date object
+          else if (monthValue instanceof Date) {
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'];
+            monthValue = monthNames[monthValue.getMonth()];
+          }
+          // If it's a number (1-12), convert to month name
+          else if (typeof monthValue === 'number' || (typeof monthValue === 'string' && /^\d+$/.test(String(monthValue)))) {
+            const monthNum = parseInt(String(monthValue));
+            if (monthNum >= 1 && monthNum <= 12) {
+              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+              monthValue = monthNames[monthNum - 1];
+            }
+          }
+          // Keep the original value if it's already a valid month name
+          else if (typeof monthValue === 'string') {
+            const validMonths = ['January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December',
+              'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            if (!validMonths.includes(monthValue.trim())) {
+              // Try to parse it as a date
+              const date = new Date(monthValue);
+              if (!isNaN(date.getTime())) {
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December'];
+                monthValue = monthNames[date.getMonth()];
+              }
+            }
+          }
+        }
 
+        // Handle Business Unit and Client Name - try separate columns first, then combined column as fallback
+        let businessUnit = stringOrNull(row['Business Unit'] || row['Business_Unit'] || row.business_unit);
+        let clientName = stringOrNull(row['Client Name'] || row['Client_Name'] || row.client_name);
+        
+        // If Business_Client_Na exists (combined column), use it as fallback to split
+        if ((!businessUnit || !clientName) && row['Business_Client_Na']) {
+          const businessClientNa = String(row['Business_Client_Na'] || '').trim();
+          if (businessClientNa) {
+            // Try to split by "|" first
+            if (businessClientNa.includes('|')) {
+              const parts = businessClientNa.split('|').map((p: string) => p.trim()).filter((p: string) => p !== '');
+              if (parts.length >= 1 && !businessUnit) businessUnit = stringOrNull(parts[0]);
+              if (parts.length >= 2 && !clientName) {
+                // The part after | might contain client name, possibly with "-"
+                const rightPart = parts[1].trim();
+                if (rightPart.includes('-')) {
+                  const subParts = rightPart.split('-').map((p: string) => p.trim()).filter((p: string) => p !== '');
+                  if (subParts.length >= 1) clientName = stringOrNull(subParts[0]);
+                } else {
+                  clientName = stringOrNull(rightPart);
+                }
+              }
+            } else if (businessClientNa.includes('-')) {
+              // Split by "-" (handle cases like "BPO HTDenture - BPO /AO")
+              const parts = businessClientNa.split('-').map((p: string) => p.trim()).filter((p: string) => p !== '');
+              if (parts.length >= 1 && !businessUnit) businessUnit = stringOrNull(parts[0]);
+              if (parts.length >= 2 && !clientName) clientName = stringOrNull(parts[1]);
+            } else if (!businessUnit) {
+              // No separator found, use as business unit if not set
+              businessUnit = stringOrNull(businessClientNa);
+            }
+          }
+        }
+
+        // Handle year - can be 2-digit (23) or 4-digit (2023)
+        let yearValue = parseNumericValue(row['Year'] || row.year) || null;
+        if (yearValue && yearValue < 100) {
+          // Convert 2-digit year to 4-digit (assume 2000s for years < 50, 1900s for years >= 50)
+          yearValue = yearValue < 50 ? 2000 + yearValue : 1900 + yearValue;
+        }
 
         return {
 
-          business_unit: stringOrNull(row['Business_Unit'] || row['Business Unit'] || row.business_unit),
+          business_unit: businessUnit,
 
-          client_name: stringOrNull(row['Client_Name'] || row['Client Name'] || row.client_name),
+          client_name: clientName,
 
-          project_name: stringOrNull(row['Project Name'] || row['Project_Name'] || row.project_name),
+          project_name: stringOrNull(row['Project Name'] || row['Project_Na'] || row['Project_Name'] || row.project_name),
 
           bu_head: stringOrNull(row['BU Head'] || row['BU_Head'] || row.bu_head),
 
-          month: stringOrNull(row['Month'] || row.month),
+          month: stringOrNull(monthValue),
 
-          year: parseNumericValue(row['Year'] || row.year) || null,
+          year: yearValue,
 
           hc: parseNumericValue(row['HC'] || row.hc),
 
           revenue: parseNumericValue(row['Revenue'] || row.revenue),
 
-          salary_cost: parseNumericValue(row['Salary Cost'] || row['Salary_Cost'] || row.salary_cost),
+          salary_cost: parseNumericValue(row['Salary Cost'] || row['Salary Cos'] || row['Salary_Cost'] || row.salary_cost),
 
           gpm: parseNumericValue(row['GPM'] || row.gpm),
 
-          gpm_percentage: parseNumericValue(row['GPM -%'] || row['GPM %'] || row['GPM-%'] || row.gpm_percentage),
+          gpm_percentage: parseNumericValue(row['GPM -%'] || row['GPM-%'] || row['GPM %'] || row.gpm_percentage),
 
           np: parseNumericValue(row['NP'] || row.np),
 
           np_percentage: parseNumericValue(row['NP %'] || row['NP%'] || row['NP_Percentage'] || row.np_percentage),
 
-          leave_encashment: parseNumericValue(row['Leave Encsh'] || row['Leave_Encsh'] || row['Leave Encashment'] || row.leave_encashment),
+          leave_encashment: parseNumericValue(row['Leave Encsh'] || row['Leave Enc'] || row['Leave_Encsh'] || row['Leave Encashment'] || row.leave_encashment),
 
           team_cost: parseNumericValue(row['Team Cost'] || row['Team_Cost'] || row.team_cost),
 
           opr_cost: parseNumericValue(row['Opr Cost'] || row['Opr_Cost'] || row.opr_cost),
 
-          funding_cost: parseNumericValue(row['Funding Cost'] || row['Funding_Cost'] || row.funding_cost),
+          funding_cost: parseNumericValue(row['Funding Cost'] || row['Funding C'] || row['Funding_Cost'] || row.funding_cost),
 
           rebate: parseNumericValue(row['Rebate'] || row.rebate),
 
-          passthrough: parseNumericValue(row['Passthrough'] || row.passthrough),
+          passthrough: parseNumericValue(row['Passthroug'] || row['Passthrough'] || row.passthrough),
 
         };
 
+      }).filter((record: any) => {
+        // Filter out completely empty rows (rows where month and year are both missing/null)
+        return record.month !== null && record.month !== '' && record.year !== null && record.year !== 0;
       });
 
 
+
+      // Validate data before processing
+      if (!mappedData || mappedData.length === 0) {
+        message.error('No valid data found in the Excel file. Please check the file format.');
+        return;
+      }
+
+      // Log first record for debugging
+      console.log('Sample record being sent:', mappedData[0]);
+      console.log(`Total records to import: ${mappedData.length}`);
 
       try {
 
 
         
         
-        // Process in batches of 100 records to avoid server overload
+        // Process in batches of 50 records to avoid server overload and timeout issues
 
-        const batchSize = 100;
+        const batchSize = 50;
 
         const totalBatches = Math.ceil(mappedData.length / batchSize);
 
@@ -1749,8 +1874,10 @@ const ClientMFSCompare: React.FC = () => {
           
           try {
 
-
-            await apiClient.post(`${API_ENDPOINT}/bulk`, { data: batch });
+            // Use longer timeout for bulk operations (60 seconds)
+            await apiClient.post(`${API_ENDPOINT}/bulk`, { data: batch }, {
+              timeout: 60000
+            });
 
             successCount += batch.length;
 
@@ -1777,8 +1904,8 @@ const ClientMFSCompare: React.FC = () => {
             
             
             // Continue with next batch instead of stopping completely
-
-            message.warning(`Batch ${batchNumber} failed, continuing with remaining batches...`);
+            const errorMessage = batchErr.response?.data?.error || batchErr.message || 'Unknown error';
+            message.warning(`Batch ${batchNumber} failed: ${errorMessage.substring(0, 50)}...`, 5);
 
           }
 
@@ -1794,22 +1921,26 @@ const ClientMFSCompare: React.FC = () => {
         
         if (errorCount === 0) {
 
-          message.success(`Successfully imported all ${successCount} records!`);
+          message.success(`Successfully imported all ${successCount} records!`, 5);
 
         } else if (successCount > 0) {
 
-          message.warning(`Imported ${successCount} records successfully, ${errorCount} records failed.`);
+          message.warning(`Imported ${successCount} records successfully, ${errorCount} records failed. Check console for details.`, 8);
 
         } else {
 
-          message.error('All batches failed to import.');
+          message.error(`All batches failed to import. ${errorCount} records failed. Check console for error details.`, 8);
 
         }
 
         
         
-        // Refresh data - let the main fetchData function handle data processing
-        // This ensures consistent data processing and avoids duplicate processing
+        // Refresh data only if at least some records were successfully imported
+        if (successCount > 0) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
         
         
         
@@ -1838,10 +1969,9 @@ const ClientMFSCompare: React.FC = () => {
   const handleExportExcel = () => {
 
     const exportData = data.map((row: ReportData) => ({
+      'Business Unit': row.business_unit || '',
 
-      'Business_Unit': row.business_unit,
-
-      'Client_Name': row.client_name || '',
+      'Client Name': row.client_name || '',
 
       'Project Name': row.project_name || '',
 
@@ -1897,49 +2027,50 @@ const ClientMFSCompare: React.FC = () => {
 
   const handleDownloadTemplate = () => {
 
-    // Create a template with only headers matching the new table structure
+    // Create a template matching the exact Excel format shown
+    // Separate columns for Business Unit, Client Name, Project Name
 
     const templateData = [
 
       {
 
-        'Business_Unit': '',
+        'Business Unit': '',  // e.g., "BPO | HTD"
 
-        'Client_Name': '',
+        'Client Name': '',  // e.g., "ccenture - BPO PAYROLL" or "Accenture - BPO/AO"
 
-        'Project Name': '',
+        'Project Name': '',  // Can be empty
 
-        'BU Head': '',
+        'BU Head': '',  // e.g., "KD"
 
-        'Year': '',
+        'Year': '',  // Can be 2023 or 23
 
-        'Month': '',
+        'Month': '',  // e.g., "April"
 
-        'HC': '',
+        'HC': '',  // e.g., "103"
 
-        'Revenue': '',
+        'Revenue': '',  // e.g., "42,24,544" (comma-separated, can include commas)
 
-        'Salary Cost': '',
+        'Salary Cost': '',  // e.g., "40,10,044"
 
-        'GPM': '',
+        'GPM': '',  // e.g., "1,37,594"
 
-        'GPM -%': '',
+        'GPM -%': '',  // e.g., "3%" (can include % symbol)
 
-        'NP': '',
+        'NP': '',  // e.g., "(54,059)" for negative in parentheses or "99,022" for positive
 
-        'NP %': '',
+        'NP %': '',  // e.g., "-1%" or "1%" (can include % symbol and negative sign)
 
-        'Leave Encsh': '',
+        'Leave Encsh': '',  // e.g., "76,906"
 
-        'Team Cost': '',
+        'Team Cost': '',  // Can be empty or "-" (dash) for null
 
-        'Opr Cost': '',
+        'Opr Cost': '',  // e.g., "91,653"
 
-        'Funding Cost': '',
+        'Funding Cost': '',  // e.g., "1,00,000"
 
-        'Rebate': '',
+        'Rebate': '',  // Can be empty
 
-        'Passthrough': '',
+        'Passthrough': '',  // Can be empty
 
       }
 
@@ -5345,17 +5476,8 @@ const ClientMFSCompare: React.FC = () => {
 
             </Dropdown>
 
-            <button className="auth-button" onClick={() => {
-              // Client MFS comparison functionality - add your navigation or logic here
-              console.log('Client MFS comparison clicked');
-            }}>
-              Client MFS comparison
-            </button>
-
-            <button className="auth-button" onClick={() => navigate('/HomePage')}>
-
-              Home
-
+            <button className="auth-button" onClick={() => navigate('/team-report/compare')}>
+              MFS comparison
             </button>
           </div>
 
