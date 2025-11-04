@@ -378,6 +378,24 @@ const ClientMFSCompare: React.FC = () => {
           // For all other parameters: aggregate by month first, then sum
           // This prevents double-counting when there are multiple records per month
           
+          // Map parameter name to database field name
+          const getFieldName = (param: string): string => {
+            const paramLower = param.toLowerCase();
+            if (paramLower === 'revenue') return 'revenue';
+            if (paramLower === 'salary_cost') return 'salary_cost';
+            if (paramLower === 'gpm') return 'gpm';
+            if (paramLower === 'team_cost') return 'team_cost';
+            if (paramLower === 'np' || paramLower === 'net_margin') return 'np'; // Use 'np' field
+            if (paramLower === 'leave_encashment') return 'leave_encashment';
+            if (paramLower === 'opr_cost') return 'opr_cost';
+            if (paramLower === 'funding_cost') return 'funding_cost';
+            if (paramLower === 'rebate') return 'rebate';
+            if (paramLower === 'passthrough') return 'passthrough';
+            return param; // Fallback to parameter name
+          };
+          
+          const fieldName = getFieldName(parameter);
+          
           // Current quarter aggregation
           const currentMonthlyTotals: {[key: string]: number} = {};
           currentQuarterData.forEach(item => {
@@ -385,7 +403,7 @@ const ClientMFSCompare: React.FC = () => {
             if (!currentMonthlyTotals[monthKey]) {
               currentMonthlyTotals[monthKey] = 0;
             }
-            currentMonthlyTotals[monthKey] += (item[parameter] || 0);
+            currentMonthlyTotals[monthKey] += (item[fieldName] || 0);
           });
           currentValue = Object.values(currentMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
           
@@ -396,7 +414,7 @@ const ClientMFSCompare: React.FC = () => {
             if (!previousMonthlyTotals[monthKey]) {
               previousMonthlyTotals[monthKey] = 0;
             }
-            previousMonthlyTotals[monthKey] += (item[parameter] || 0);
+            previousMonthlyTotals[monthKey] += (item[fieldName] || 0);
           });
           previousValue = Object.values(previousMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
         }
@@ -418,7 +436,7 @@ const ClientMFSCompare: React.FC = () => {
         Revenue: calculateParameterRaw('revenue'),
         GPM: calculateParameterRaw('gpm'),
         'Team Cost': calculateParameterRaw('team_cost'),
-        NP: calculateParameterRaw('net_margin')
+        NP: calculateParameterRaw('np') // Use 'np' field from database, not 'net_margin'
         // Removed unused KPIs: 'Opr Cost', 'Funding Cost', 'Leave Encashment', 'HC'
       };
     }
@@ -532,6 +550,26 @@ const ClientMFSCompare: React.FC = () => {
         // For all other parameters: aggregate by month first, then sum (ACTUAL DATA ONLY - NO PROJECTIONS)
         // This prevents double-counting when there are multiple records per month
         
+        // Map parameter name to database field name
+        // Support both space-separated ('salary cost') and underscore-separated ('salary_cost') formats
+        const getFieldName = (param: string): string => {
+          const paramLower = param.toLowerCase();
+          if (paramLower === 'revenue') return 'revenue';
+          if (paramLower === 'salary cost' || paramLower === 'salary_cost') return 'salary_cost';
+          if (paramLower === 'gpm') return 'gpm';
+          if (paramLower === 'team cost' || paramLower === 'team_cost') return 'team_cost';
+          if (paramLower === 'np' || paramLower === 'net margin' || paramLower === 'net_margin') return 'np'; // Use 'np' field
+          if (paramLower === 'leave encashment' || paramLower === 'leave_encashment') return 'leave_encashment';
+          if (paramLower === 'opr cost' || paramLower === 'opr_cost') return 'opr_cost';
+          if (paramLower === 'funding cost' || paramLower === 'funding_cost') return 'funding_cost';
+          if (paramLower === 'rebate') return 'rebate';
+          if (paramLower === 'passthrough') return 'passthrough';
+          // Fallback: convert spaces to underscores for database field names
+          return paramLower.replace(/\s+/g, '_');
+        };
+        
+        const fieldName = getFieldName(parameter);
+        
         // Current FY aggregation
         const currentFYMonthlyTotals: {[key: string]: number} = {};
         currentFYData.forEach(item => {
@@ -539,7 +577,7 @@ const ClientMFSCompare: React.FC = () => {
           if (!currentFYMonthlyTotals[monthKey]) {
             currentFYMonthlyTotals[monthKey] = 0;
           }
-          currentFYMonthlyTotals[monthKey] += (item[parameter] || 0);
+          currentFYMonthlyTotals[monthKey] += (item[fieldName] || 0);
         });
         currentFYActual = Object.values(currentFYMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
         
@@ -550,7 +588,7 @@ const ClientMFSCompare: React.FC = () => {
           if (!previousFYMonthlyTotals[monthKey]) {
             previousFYMonthlyTotals[monthKey] = 0;
           }
-          previousFYMonthlyTotals[monthKey] += (item[parameter] || 0);
+          previousFYMonthlyTotals[monthKey] += (item[fieldName] || 0);
         });
         previousFYTotal = Object.values(previousFYMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
 
@@ -608,7 +646,7 @@ const ClientMFSCompare: React.FC = () => {
         Revenue: calculateParameterRaw('revenue'),
         GPM: calculateParameterRaw('gpm'),
         'Team Cost': calculateParameterRaw('team_cost'),
-        NP: calculateParameterRaw('net_margin')
+        NP: calculateParameterRaw('np') // Use 'np' field from database, not 'net_margin'
         // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment', 'HC'
       };
   };
@@ -710,9 +748,7 @@ const ClientMFSCompare: React.FC = () => {
         Revenue: calculateParameterKPI('Revenue'),
         'Salary Cost': calculateParameterKPI('Salary Cost'),
         GPM: calculateParameterKPI('GPM'),
-        'GPM %': calculateParameterKPI('GPM %'),
-        NP: calculateParameterKPI('Net Margin'),
-        'NP %': calculateParameterKPI('NP %'),
+        NP: calculateParameterKPI('NP'), // Use 'NP' which maps to 'np' field
         'Leave Encashment': calculateParameterKPI('Leave Encashment'),
         'Team Cost': calculateParameterKPI('Team Cost'),
         'Opr Cost': calculateParameterKPI('Opr Cost'),
@@ -720,6 +756,7 @@ const ClientMFSCompare: React.FC = () => {
         Rebate: calculateParameterKPI('Rebate'),
         Passthrough: calculateParameterKPI('Passthrough'),
         HC: calculateParameterKPI('HC')
+        // Removed GPM % and NP % from KPI dashboard
       };
       
       console.log("🔍 Month KPI Results:", kpiResults);
@@ -804,9 +841,7 @@ const ClientMFSCompare: React.FC = () => {
         Revenue: calculateParameterKPI('revenue'),
         'Salary Cost': calculateParameterKPI('salary_cost'),
         GPM: calculateParameterKPI('gpm'),
-        'GPM %': calculateParameterKPI('gpm_percentage'),
-        NP: calculateParameterKPI('net_margin'),
-        'NP %': calculateParameterKPI('np_percentage'),
+        NP: calculateParameterKPI('np'), // Use 'np' field from database, not 'net_margin'
         'Leave Encashment': calculateParameterKPI('leave_encashment'),
         'Team Cost': calculateParameterKPI('team_cost'),
         'Opr Cost': calculateParameterKPI('opr_cost'),
@@ -814,6 +849,7 @@ const ClientMFSCompare: React.FC = () => {
         Rebate: calculateParameterKPI('rebate'),
         Passthrough: calculateParameterKPI('passthrough'),
         HC: calculateParameterKPI('hc')
+        // Removed GPM % and NP % from KPI dashboard
       };
     }
 
@@ -1001,14 +1037,29 @@ const ClientMFSCompare: React.FC = () => {
             monthlyTotals[monthKey] = 0;
           }
           
-          // Get the value based on the parameter name
+          // Get the value based on the parameter name - map display names to database fields
           let value = 0;
-          switch (parameter) {
-            case 'revenue': value = item.revenue || 0; break;
-            case 'gpm': value = item.gpm || 0; break;
-            case 'team_cost': value = item.team_cost || 0; break;
-            case 'net_margin': value = item.net_margin || 0; break;
-            default: value = 0;
+          const paramLower = parameter.toLowerCase();
+          
+          // Map display parameter names to database field names
+          // Support both space-separated ('salary cost') and underscore-separated ('salary_cost') formats
+          if (paramLower === 'revenue') value = item.revenue || 0;
+          else if (paramLower === 'salary cost' || paramLower === 'salary_cost') value = item.salary_cost || 0;
+          else if (paramLower === 'gpm') value = item.gpm || 0;
+          else if (paramLower === 'gpm %' || paramLower === 'gpm_percentage') value = item.gpm_percentage || 0;
+          else if (paramLower === 'team cost' || paramLower === 'team_cost') value = item.team_cost || 0;
+          else if (paramLower === 'np' || paramLower === 'net margin' || paramLower === 'net_margin') value = item.np || item.net_margin || 0; // Use 'np' field from database
+          else if (paramLower === 'np %' || paramLower === 'np_percentage') value = item.np_percentage || 0;
+          else if (paramLower === 'leave encashment' || paramLower === 'leave_encashment') value = item.leave_encashment || 0;
+          else if (paramLower === 'opr cost' || paramLower === 'opr_cost') value = item.opr_cost || 0;
+          else if (paramLower === 'funding cost' || paramLower === 'funding_cost') value = item.funding_cost || 0;
+          else if (paramLower === 'rebate') value = item.rebate || 0;
+          else if (paramLower === 'passthrough') value = item.passthrough || 0;
+          else if (paramLower === 'hc') value = item.hc || 0;
+          else {
+            // Try direct field access as fallback (convert spaces to underscores for database field names)
+            const dbFieldName = paramLower.replace(/\s+/g, '_');
+            value = item[parameter] || item[parameter.toLowerCase()] || item[dbFieldName] || item[paramLower] || 0;
           }
           
           monthlyTotals[monthKey] += value;
@@ -1128,14 +1179,29 @@ const ClientMFSCompare: React.FC = () => {
             previousMonthlyTotals[monthKey] = 0;
           }
           
-          // Get the value based on the parameter name
+          // Get the value based on the parameter name - map display names to database fields
           let value = 0;
-          switch (parameter) {
-            case 'revenue': value = item.revenue || 0; break;
-            case 'gpm': value = item.gpm || 0; break;
-            case 'team_cost': value = item.team_cost || 0; break;
-            case 'net_margin': value = item.net_margin || 0; break;
-            default: value = 0;
+          const paramLower = parameter.toLowerCase();
+          
+          // Map display parameter names to database field names
+          // Support both space-separated ('salary cost') and underscore-separated ('salary_cost') formats
+          if (paramLower === 'revenue') value = item.revenue || 0;
+          else if (paramLower === 'salary cost' || paramLower === 'salary_cost') value = item.salary_cost || 0;
+          else if (paramLower === 'gpm') value = item.gpm || 0;
+          else if (paramLower === 'gpm %' || paramLower === 'gpm_percentage') value = item.gpm_percentage || 0;
+          else if (paramLower === 'team cost' || paramLower === 'team_cost') value = item.team_cost || 0;
+          else if (paramLower === 'np' || paramLower === 'net margin' || paramLower === 'net_margin') value = item.np || item.net_margin || 0; // Use 'np' field from database
+          else if (paramLower === 'np %' || paramLower === 'np_percentage') value = item.np_percentage || 0;
+          else if (paramLower === 'leave encashment' || paramLower === 'leave_encashment') value = item.leave_encashment || 0;
+          else if (paramLower === 'opr cost' || paramLower === 'opr_cost') value = item.opr_cost || 0;
+          else if (paramLower === 'funding cost' || paramLower === 'funding_cost') value = item.funding_cost || 0;
+          else if (paramLower === 'rebate') value = item.rebate || 0;
+          else if (paramLower === 'passthrough') value = item.passthrough || 0;
+          else if (paramLower === 'hc') value = item.hc || 0;
+          else {
+            // Try direct field access as fallback (convert spaces to underscores for database field names)
+            const dbFieldName = paramLower.replace(/\s+/g, '_');
+            value = item[parameter] || item[parameter.toLowerCase()] || item[dbFieldName] || item[paramLower] || 0;
           }
           
           previousMonthlyTotals[monthKey] += value;
@@ -1188,9 +1254,7 @@ const ClientMFSCompare: React.FC = () => {
       Revenue: calculateParameterKPI('revenue'),
       'Salary Cost': calculateParameterKPI('salary_cost'),
       GPM: calculateParameterKPI('gpm'),
-      'GPM %': calculateParameterKPI('gpm_percentage'),
-      NP: calculateParameterKPI('net_margin'),
-      'NP %': calculateParameterKPI('np_percentage'),
+      NP: calculateParameterKPI('np'), // Use 'np' field from database, not 'net_margin'
       'Leave Encashment': calculateParameterKPI('leave_encashment'),
       'Team Cost': calculateParameterKPI('team_cost'),
       'Opr Cost': calculateParameterKPI('opr_cost'),
@@ -1198,6 +1262,7 @@ const ClientMFSCompare: React.FC = () => {
       Rebate: calculateParameterKPI('rebate'),
       Passthrough: calculateParameterKPI('passthrough'),
       HC: calculateParameterKPI('hc')
+      // Removed GPM % and NP % from KPI dashboard
     };
   };
 
@@ -3337,7 +3402,8 @@ const ClientMFSCompare: React.FC = () => {
         if (parameter === 'GPM') fieldName = 'gpm';
         if (parameter === 'GPM %') fieldName = 'gpm_percentage';
         if (parameter === 'Team Cost') fieldName = 'team_cost';
-        if (parameter === 'NP' || parameter === 'Net Margin') fieldName = 'net_margin';
+        if (parameter === 'NP') fieldName = 'np'; // Use 'np' field from database
+        if (parameter === 'Net Margin') fieldName = 'np'; // Map Net Margin to np as well
         if (parameter === 'NP %') fieldName = 'np_percentage';
         if (parameter === 'Leave Encashment') fieldName = 'leave_encashment';
         if (parameter === 'Opr Cost') fieldName = 'opr_cost';
@@ -3531,8 +3597,8 @@ const ClientMFSCompare: React.FC = () => {
                     case 'Salary Cost': value = item.salary_cost || 0; break;
                     case 'GPM': value = item.gpm || 0; break;
                     case 'GPM %': value = item.gpm_percentage || 0; break;
-                    case 'Net Margin': value = item.net_margin || 0; break;
-                    case 'NP': value = item.net_margin || 0; break; // NP maps to net_margin
+                    case 'Net Margin': value = item.np || item.net_margin || 0; break; // Map to np field
+                    case 'NP': value = item.np || 0; break; // Use 'np' field from database
                     case 'NP %': value = item.np_percentage || 0; break;
                     case 'Leave Encashment': value = item.leave_encashment || 0; break;
                     case 'Team Cost': value = item.team_cost || 0; break;
@@ -3703,8 +3769,8 @@ const ClientMFSCompare: React.FC = () => {
           case 'Salary Cost': value = item.salary_cost || 0; break;
           case 'GPM': value = item.gpm || 0; break;
           case 'GPM %': value = item.gpm_percentage || 0; break;
-          case 'Net Margin': value = item.net_margin || 0; break;
-          case 'NP': value = item.net_margin || 0; break; // NP maps to net_margin
+          case 'Net Margin': value = item.np || item.net_margin || 0; break; // Map to np field
+          case 'NP': value = item.np || 0; break; // Use 'np' field from database
           case 'NP %': value = item.np_percentage || 0; break;
           case 'Leave Encashment': value = item.leave_encashment || 0; break;
           case 'Team Cost': value = item.team_cost || 0; break;
@@ -4071,8 +4137,8 @@ const ClientMFSCompare: React.FC = () => {
                     case 'Salary Cost': value = item.salary_cost || 0; break;
                     case 'GPM': value = item.gpm || 0; break;
                     case 'GPM %': value = item.gpm_percentage || 0; break;
-                    case 'Net Margin': value = item.net_margin || 0; break;
-                    case 'NP': value = item.net_margin || 0; break;
+                    case 'Net Margin': value = item.np || item.net_margin || 0; break; // Map to np field
+                    case 'NP': value = item.np || 0; break; // Use 'np' field from database
                     case 'NP %': value = item.np_percentage || 0; break;
                     case 'Leave Encashment': value = item.leave_encashment || 0; break;
                     case 'Team Cost': value = item.team_cost || 0; break;
@@ -6049,7 +6115,8 @@ const ClientMFSCompare: React.FC = () => {
             {(() => {
               const kpis = kpiData;
               const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP'];
-              const allKPIs = Object.keys(kpis).filter(k => kpis[k]); // All available KPIs
+              // Filter out GPM % and NP % from all KPIs
+              const allKPIs = Object.keys(kpis).filter(k => kpis[k] && k !== 'GPM %' && k !== 'NP %');
               const additionalKPIs = allKPIs.filter(k => !mainKPIs.includes(k));
               const displayKPIs = showAllKPIs ? allKPIs : mainKPIs;
               
@@ -6472,7 +6539,7 @@ const ClientMFSCompare: React.FC = () => {
     <tbody>
 
       {(() => {
-        const mainGrowthParams = ['Revenue', 'GPM', 'NP'];
+        const mainGrowthParams = ['HC', 'Revenue', 'GPM', 'NP']; // Include HC in initial display
         const allGrowthParams = growthAnalysis.filter(item => item.parameter !== 'Team Cost');
         const additionalGrowthParams = allGrowthParams.filter(item => !mainGrowthParams.includes(item.parameter));
         const displayGrowthParams = showAllGrowthParams ? allGrowthParams : allGrowthParams.filter(item => mainGrowthParams.includes(item.parameter));
