@@ -158,7 +158,7 @@ const ClientMFSCompare: React.FC = () => {
   // Update URL without the problematic parameters
   if (paramsToRemove.some(param => window.location.search.includes(param))) {
     window.history.replaceState({}, '', currentUrl.toString());
-    console.log("🔍 URL cleaned, parameters removed");
+    // console.log("🔍 URL cleaned, parameters removed");
   }
   
   // Create queryParams from the cleaned URL
@@ -537,15 +537,12 @@ const ClientMFSCompare: React.FC = () => {
           previousFYTotal = 0;
         }
 
-        console.log(`🔍 HC Raw Database Values (Sum of Last Available Month):`, {
-          currentFY,
-          previousFY,
-          currentFYActual, // SUM OF LAST MONTH HC VALUE
-          previousFYTotal, // SUM OF LAST MONTH HC VALUE (March for complete FY)
-          currentFYDataLength: currentFYData.length,
-          previousFYDataLength: previousFYData.length,
-          calculation: `Sum of last available month HC data for each FY`
-        });
+        // console.log(`🔍 HC Raw Database Values (Sum of Last Available Month):`, {
+        //   currentFY,
+        //   previousFY,
+        //   currentFYActual,
+        //   previousFYTotal
+        // });
       } else {
         // For all other parameters: aggregate by month first, then sum (ACTUAL DATA ONLY - NO PROJECTIONS)
         // This prevents double-counting when there are multiple records per month
@@ -596,28 +593,12 @@ const ClientMFSCompare: React.FC = () => {
         const oldCurrentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
         const oldPreviousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
         
-        console.log(`🔍 Raw Database Values for ${parameter}:`, {
-          currentFY,
-          previousFY,
-          currentFYActual, // NEW: Monthly aggregated value
-          previousFYTotal, // NEW: Monthly aggregated value
-          oldCurrentFYActual, // OLD: Sum of all records
-          oldPreviousFYTotal, // OLD: Sum of all records
-          difference: currentFYActual - oldCurrentFYActual,
-          currentFYDataLength: currentFYData.length,
-          previousFYDataLength: previousFYData.length,
-          calculation: `Monthly aggregation for ${parameter}`,
-          sampleCurrentFYData: currentFYData.slice(0, 3).map(item => ({
-            month: item.month,
-            year: item.year,
-            [parameter]: item[parameter]
-          })),
-          samplePreviousFYData: previousFYData.slice(0, 3).map(item => ({
-            month: item.month,
-            year: item.year,
-            [parameter]: item[parameter]
-          }))
-        });
+        // console.log(`🔍 Raw Database Values for ${parameter}:`, {
+        //   currentFY,
+        //   previousFY,
+        //   currentFYActual,
+        //   previousFYTotal
+        // });
       }
 
       // Calculate growth percentage (current - previous) / previous * 100
@@ -759,7 +740,7 @@ const ClientMFSCompare: React.FC = () => {
         // Removed GPM % and NP % from KPI dashboard
       };
       
-      console.log("🔍 Month KPI Results:", kpiResults);
+      // console.log("🔍 Month KPI Results:", kpiResults);
       return kpiResults;
     }
 
@@ -910,42 +891,12 @@ const ClientMFSCompare: React.FC = () => {
     const currentFYMonths = currentFYData.map(item => `${item.month} ${item.year}`).sort();
     const previousFYMonths = previousFYData.map(item => `${item.month} ${item.year}`).sort();
     
-    console.log(`🔍 FINANCIAL YEAR DEBUG:`, {
-      currentFY,
-      previousFY,
-      currentFYDataCount: currentFYData.length,
-      previousFYDataCount: previousFYData.length,
-      currentFYMonths: Array.from(new Set(currentFYMonths)),
-      previousFYMonths: Array.from(new Set(previousFYMonths)),
-      currentFYUniqueMonths: Array.from(new Set(currentFYMonths)).length,
-      previousFYUniqueMonths: Array.from(new Set(previousFYMonths)).length
-    });
-    
-    // Debug April 2024 data specifically
-    const april2024Data = data.filter(item => item.month === 'April' && item.year === 2024);
-    console.log("🔍 April 2024 Data:", april2024Data.length, "records");
-    if (april2024Data.length > 0) {
-      console.log("🔍 April 2024 Sample:", april2024Data[0]);
-    }
-    
-    // Debug what months are actually in the data
-    const allMonthsInData = Array.from(new Set(data.map(item => `${item.month} ${item.year}`))).sort();
-    console.log("🔍 All months in database:", allMonthsInData);
-    
-    // Debug what months are in previousFYData
-    const previousFYMonthsInData = Array.from(new Set(previousFYData.map(item => `${item.month} ${item.year}`))).sort();
-    console.log("🔍 Previous FY months in filtered data:", previousFYMonthsInData);
-    
-    // Debug what months are in currentFYData
-    const currentFYMonthsInData = Array.from(new Set(currentFYData.map(item => `${item.month} ${item.year}`))).sort();
-    console.log("🔍 Current FY months in filtered data:", currentFYMonthsInData);
-    
-    // Debug what months are in previousFYData with HC values
-    const previousFYMonthsWithHC = previousFYData
-      .filter(item => item.hc && item.hc > 0)
-      .map(item => `${item.month} ${item.year} (HC: ${item.hc})`)
-      .sort();
-    console.log("🔍 Previous FY months with HC data:", previousFYMonthsWithHC);
+    // console.log(`🔍 FINANCIAL YEAR DEBUG:`, {
+    //   currentFY,
+    //   previousFY,
+    //   currentFYDataCount: currentFYData.length,
+    //   previousFYDataCount: previousFYData.length
+    // });
 
     const calculateParameterKPI = (parameter: string) => {
       let currentFYActual, currentFYProjected, previousFYTotal;
@@ -981,11 +932,11 @@ const ClientMFSCompare: React.FC = () => {
             currentFYProjected = currentFYActual; // HC doesn't need projection
           }
        
-          console.log(`🔍 KPI HC Debug for Current FY ${currentFY}:`, {
-            currentFYActual,
-            currentFYDataCount: currentFYData.length,
-            validCurrentFYDataCount: validCurrentFYData.length
-          });
+          // console.log(`🔍 KPI HC Debug for Current FY ${currentFY}:`, {
+          //   currentFYActual,
+          //   currentFYDataCount: currentFYData.length,
+          //   validCurrentFYDataCount: validCurrentFYData.length
+          // });
         } else {
           currentFYActual = 0;
           currentFYProjected = 0;
@@ -1017,12 +968,12 @@ const ClientMFSCompare: React.FC = () => {
               })
               .reduce((sum, item) => sum + (item.hc || 0), 0);
               
-            console.log(`🔍 KPI HC Debug for Previous FY ${previousFY}:`, {
-              lastMonth: `${lastMonthPrevious.month} ${lastMonthPrevious.year}`,
-              previousFYTotal,
-              previousFYDataCount: previousFYData.length,
-              validPreviousFYDataCount: validPreviousFYData.length
-            });
+            // console.log(`🔍 KPI HC Debug for Previous FY ${previousFY}:`, {
+            //   lastMonth: `${lastMonthPrevious.month} ${lastMonthPrevious.year}`,
+            //   previousFYTotal,
+            //   previousFYDataCount: previousFYData.length,
+            //   validPreviousFYDataCount: validPreviousFYData.length
+            // });
           }
         } else {
           previousFYTotal = 0;
@@ -1068,38 +1019,7 @@ const ClientMFSCompare: React.FC = () => {
         // Sum the monthly totals instead of all individual records
         currentFYActual = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
         
-        // Debug: Check what data is being summed
-        console.log(`🔍 ${parameter} DEBUG - Current FY Data Analysis:`, {
-          totalRecords: currentFYData.length,
-          parameterValue: parameter,
-          currentFYActual,
-          sampleRecords: currentFYData.slice(0, 5).map(item => ({
-            month: item.month,
-            year: item.year,
-            business_unit: item.business_unit,
-            [parameter]: item[parameter],
-            client_name: item.client_name
-          }))
-        });
-        
-        // Debug: Show the difference between old and new calculation methods
-        const debugMonthlyTotals: {[key: string]: number} = {};
-        currentFYData.forEach(item => {
-          const monthKey = `${item.month} ${item.year}`;
-          if (!debugMonthlyTotals[monthKey]) {
-            debugMonthlyTotals[monthKey] = 0;
-          }
-          debugMonthlyTotals[monthKey] += (item[parameter] || 0);
-        });
-        
-        const debugMonthlyAggregatedTotal = Object.values(debugMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
-        
-        console.log(`🔍 ${parameter} MONTHLY AGGREGATION DEBUG:`, {
-          monthlyTotals: debugMonthlyTotals,
-          monthlyAggregatedTotal: debugMonthlyAggregatedTotal,
-          difference: currentFYActual - debugMonthlyAggregatedTotal,
-          shouldUseMonthlyAggregation: Math.abs(currentFYActual - debugMonthlyAggregatedTotal) > 0.01
-        });
+        // Debug logs disabled for performance
         
         // If we have data for current FY, project it for remaining months
         currentFYProjected = currentFYActual;
@@ -1156,18 +1076,18 @@ const ClientMFSCompare: React.FC = () => {
             // Multiply last month's total value by actual remaining months
             currentFYProjected = currentFYActual + (lastMonthValue * actualMonthsRemaining);
             
-            console.log(`🔍 ${parameter} PROJECTION DEBUG:`, {
-              availableMonths: Object.keys(monthlyTotals),
-              sortedMonths,
-              lastMonthWithData,
-              lastMonthValue,
-              lastMonthIndex,
-              actualMonthsRemaining,
-              monthsRemaining, // Old calculation
-              currentFYActual,
-              currentFYProjected,
-              projectionAmount: lastMonthValue * actualMonthsRemaining
-            });
+            // console.log(`🔍 ${parameter} PROJECTION DEBUG:`, {
+            //   availableMonths: Object.keys(monthlyTotals),
+            //   sortedMonths,
+            //   lastMonthWithData,
+            //   lastMonthValue,
+            //   lastMonthIndex,
+            //   actualMonthsRemaining,
+            //   monthsRemaining, // Old calculation
+            //   currentFYActual,
+            //   currentFYProjected,
+            //   projectionAmount: lastMonthValue * actualMonthsRemaining
+            // });
           }
         }
 
@@ -2296,21 +2216,21 @@ const ClientMFSCompare: React.FC = () => {
     // If comparing by quarters and this is the first selection, auto-suggest corresponding quarter
     if (compareType === 'quarter' && index === 0 && value) {
       const correspondingQuarter = getCorrespondingPreviousQuarter(value);
-      console.log("🔍 Auto-selecting quarter:", {
-        selectedQuarter: value,
-        correspondingQuarter,
-        availableOptions,
-        isAvailable: correspondingQuarter && availableOptions.includes(correspondingQuarter)
-      });
+      // console.log("🔍 Auto-selecting quarter:", {
+      //   selectedQuarter: value,
+      //   correspondingQuarter,
+      //   availableOptions,
+      //   isAvailable: correspondingQuarter && availableOptions.includes(correspondingQuarter)
+      // });
       
       if (correspondingQuarter && availableOptions.includes(correspondingQuarter)) {
         newValues[1] = correspondingQuarter;
         message.success(`Auto-selected corresponding quarter: ${correspondingQuarter}`);
       } else {
-        console.log("🔍 Could not auto-select quarter:", {
-          correspondingQuarter,
-          availableOptions: availableOptions.slice(0, 10) // Show first 10 for debugging
-        });
+        // console.log("🔍 Could not auto-select quarter:", {
+        //   correspondingQuarter,
+        //   availableOptions: availableOptions.slice(0, 10) // Show first 10 for debugging
+        // });
       }
     }
     
@@ -2722,15 +2642,14 @@ const ClientMFSCompare: React.FC = () => {
     
     try {
 
-      console.log(`🔍 Fetching client names for business unit: ${businessUnit}`);
+      // console.log(`🔍 Fetching client names for business unit: ${businessUnit}`);
 
       const res = await apiClient.get(API_ENDPOINT);
 
       
       
-      console.log(`🔍 Raw client data for ${businessUnit}:`, res.data);
-
-      console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
+      // console.log(`🔍 Raw client data for ${businessUnit}:`, res.data);
+      // console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
 
       
       
@@ -2746,7 +2665,7 @@ const ClientMFSCompare: React.FC = () => {
 
         
         
-        console.log(`🔍 Filtered data for ${businessUnit}:`, filteredData);
+          // console.log(`🔍 Filtered data for ${businessUnit}:`, filteredData);
 
         
         
@@ -2762,7 +2681,7 @@ const ClientMFSCompare: React.FC = () => {
 
             .filter((name: any) => name && name.trim() !== '');
 
-          console.log(`🔍 Project names for ${businessUnit}:`, projectNames);
+          // console.log(`🔍 Project names for ${businessUnit}:`, projectNames);
 
           uniqueNames = Array.from(new Set(projectNames)) as string[];
 
@@ -2776,7 +2695,7 @@ const ClientMFSCompare: React.FC = () => {
 
             .filter((name: any) => name && name.trim() !== '');
 
-          console.log(`🔍 Client names for ${businessUnit}:`, clientNames);
+          // console.log(`🔍 Client names for ${businessUnit}:`, clientNames);
 
           uniqueNames = Array.from(new Set(clientNames)) as string[];
 
@@ -2784,7 +2703,7 @@ const ClientMFSCompare: React.FC = () => {
 
         
         
-        console.log(`🔍 Unique names for ${businessUnit}:`, uniqueNames);
+        // console.log(`🔍 Unique names for ${businessUnit}:`, uniqueNames);
 
         setClientNames(uniqueNames);
 
@@ -2828,15 +2747,14 @@ const ClientMFSCompare: React.FC = () => {
     
     try {
 
-      console.log(`🔍 Fetching BU heads for business unit: ${businessUnit}`);
+      // console.log(`🔍 Fetching BU heads for business unit: ${businessUnit}`);
 
       const res = await apiClient.get(API_ENDPOINT);
 
       
       
-      console.log(`🔍 Raw BU head data for ${businessUnit}:`, res.data);
-
-      console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
+      // console.log(`🔍 Raw BU head data for ${businessUnit}:`, res.data);
+      // console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
 
       
       
@@ -2921,79 +2839,11 @@ const ClientMFSCompare: React.FC = () => {
         
         
         
-        // Debug: Show ALL month data to understand the issue
-        if (res.data && Array.isArray(res.data)) {
-          console.warn(`🔍 TOTAL RECORDS: ${res.data.length}`);
-          console.log("🔍 Raw API response:", res.data);
-          console.log("🔍 Number of records:", res.data?.length || 0);
-          if (res.data.length > 0) {
-            console.log("🔍 First record sample:", res.data[0]);
-            console.log("🔍 Year values in data:", res.data.map((item: any) => item.year));
-          }
-          
-          // Show all unique month values
-          const uniqueMonths = Array.from(new Set(res.data.map(item => item.month)));
-          console.warn(`🔍 UNIQUE MONTHS:`, uniqueMonths);
-          
-          // Check a few months to see if the issue is July-specific
-          const testMonths = ['2023-06-01', '2023-07-01', '2023-08-01', '2024-06-01', '2024-07-01', '2024-08-01'];
-          
-          testMonths.forEach(testMonth => {
-            const monthRecords = res.data.filter((item: any) => item.month === testMonth);
-            if (monthRecords.length > 0) {
-              const totalRevenue = monthRecords.reduce((sum: number, item: any) => sum + (item.revenue || 0), 0);
-              console.warn(`🔍 ${testMonth}: ${monthRecords.length} records, total revenue: ${totalRevenue}`);
-            }
-          });
-          
-          // Show July records specifically (handle both DATE format and text format)
-          const julyRecords = res.data.filter((item: any) => {
-            const month = item.month || '';
-            // Handle DATE format (YYYY-MM-DD)
-            if (month.match(/^\d{4}-\d{2}-\d{2}$/)) {
-              return month.includes('-07-01'); // July 1st
-            }
-            // Handle text format
-            return month.toLowerCase().includes('july');
-          });
-          console.warn(`🔍 JULY RECORDS FOUND: ${julyRecords.length}`);
-          
-          if (julyRecords.length > 0) {
-            julyRecords.forEach((record, index) => {
-              console.warn(`🔍 July Record ${index + 1}:`, {
-                month: record.month,
-                year: record.year,
-                revenue: record.revenue,
-                business_unit: record.business_unit,
-                client_name: record.client_name
-              });
-            });
-            
-            // Calculate totals by year
-            const julyByYear = julyRecords.reduce((acc: any, item: any) => {
-              const year = item.year;
-              if (!acc[year]) acc[year] = { records: [], total: 0 };
-              acc[year].records.push(item);
-              acc[year].total += item.revenue || 0;
-              return acc;
-            }, {});
-            
-            Object.keys(julyByYear).forEach(year => {
-              console.warn(`🔍 July ${year}: ${julyByYear[year].records.length} records, total: ${julyByYear[year].total}`);
-              
-              // Check for duplicate business units or clients
-              const businessUnits = Array.from(new Set(julyByYear[year].records.map((r: any) => r.business_unit)));
-              const clients = Array.from(new Set(julyByYear[year].records.map((r: any) => r.client_name)));
-              
-              if (businessUnits.length > 1) {
-                console.warn(`🔍 July ${year} has multiple business units:`, businessUnits);
-              }
-              if (clients.length > 1) {
-                console.warn(`🔍 July ${year} has multiple clients:`, clients);
-              }
-            });
-          }
-        }
+        // Debug: Show ALL month data to understand the issue (disabled for performance)
+        // if (res.data && Array.isArray(res.data)) {
+        //   console.warn(`🔍 TOTAL RECORDS: ${res.data.length}`);
+        //   // Only log errors, not verbose data
+        // }
 
         
         
@@ -3112,19 +2962,19 @@ const ClientMFSCompare: React.FC = () => {
 
           // Handle 2-digit year conversion (e.g., 23 -> 2023, 24 -> 2024)
           if (processedItem.year && processedItem.year < 100) {
-            console.log(`🔍 Converting 2-digit year: ${processedItem.year} -> ${2000 + processedItem.year}`);
+            // console.log(`🔍 Converting 2-digit year: ${processedItem.year} -> ${2000 + processedItem.year}`);
             if (processedItem.year >= 0 && processedItem.year <= 99) {
               // Assume years 0-99 map to 2000-2099
               processedItem.year = 2000 + processedItem.year;
             }
           }
 
-          // Debug: Log processed item after year conversion
-          console.log(`🔍 Processed item after conversion:`, {
-            month: processedItem.month,
-            year: processedItem.year,
-            business_unit: processedItem.business_unit
-          });
+          // Debug: Log processed item after year conversion (disabled for performance)
+          // console.log(`🔍 Processed item after conversion:`, {
+          //   month: processedItem.month,
+          //   year: processedItem.year,
+          //   business_unit: processedItem.business_unit
+          // });
 
           
 
@@ -3189,9 +3039,9 @@ const ClientMFSCompare: React.FC = () => {
         setData(validData);
 
       } catch (error: any) {
-
-        console.error("Error fetching data:", error);
-
+        console.error("❌ Error fetching data:", error);
+        // Set empty data on error to prevent blank page
+        setData([]);
       } finally {
 
         setIsLoading(false);
