@@ -1000,20 +1000,15 @@ function toYMD(date: Date | string | null | undefined): string | null {
 
 
 // Filter data based on search terms
+// Note: We need to filter first, then calculate SL No. based on filtered position
+// So we'll do a two-pass: first pass filters, second pass adds SL No. info for search
 const filteredData = useMemo(() => {
-  return routingTable.filter(item => {
-    const searchTermLower = searchTerm.toLowerCase();
+  // First, filter the data based on all criteria except SL No.
+  const initiallyFiltered = routingTable.filter((item) => {
     const billingDateLower = billingDateFilter.toLowerCase();
     const vendorDetailsLower = vendorDetailsFilter.toLowerCase();
 
-    const searchWords = searchTermLower.split(/\s+/).filter(word => word.length > 0);
-    const hasSearchMatch = searchWords.length === 0 || 
-      searchWords.some(word => 
-        Object.values(item).some(value => 
-          String(value).toLowerCase().includes(word)
-        )
-      );
-
+    // Filter by billing date and vendor details first
     const hasBillingDateMatch = !billingDateLower || 
       (item['Costing Date'] && String(item['Costing Date']).toLowerCase().includes(billingDateLower));
 
@@ -1021,17 +1016,54 @@ const filteredData = useMemo(() => {
       (item['Vendor Details'] && String(item['Vendor Details']).toLowerCase().includes(vendorDetailsLower));
 
     // Date range filter logic for "Costing Date"
-   if (startDate || endDate) {
+    let hasDateRangeMatch = true;
+    if (startDate || endDate) {
       const itemDateStr = item['Costing Date'];
       const itemYMD = toYMD(itemDateStr);
       const startYMD = toYMD(startDate);
       const endYMD = toYMD(endDate);
-      if (!itemYMD) return false;
-      if (startYMD && itemYMD < startYMD) return false;
-      if (endYMD && itemYMD > endYMD) return false;
+      if (!itemYMD) {
+        hasDateRangeMatch = false;
+      } else {
+        if (startYMD && itemYMD < startYMD) hasDateRangeMatch = false;
+        if (endYMD && itemYMD > endYMD) hasDateRangeMatch = false;
+      }
     }
 
-    return hasSearchMatch && hasBillingDateMatch && hasVendorDetailsMatch;
+    return hasBillingDateMatch && hasVendorDetailsMatch && hasDateRangeMatch;
+  });
+
+  // Now filter by search term, including SL No. matching
+  // SL No. is fetched directly from the database (item['Sl.No'])
+  const searchTermLower = searchTerm.toLowerCase();
+  const searchWords = searchTermLower.split(/\s+/).filter(word => word.length > 0);
+  
+  return initiallyFiltered.filter((item) => {
+    const hasSearchMatch = searchWords.length === 0 || 
+      searchWords.some(word => {
+        // Get SL No. from database (item['Sl.No'])
+        const slNo = item['Sl.No'] ? String(item['Sl.No']).toLowerCase() : '';
+        
+        // Check if search term matches SL No. from database
+        if (slNo) {
+          // Check if SL No. contains the search word (for partial text matches)
+          if (slNo.includes(word)) {
+            return true;
+          }
+          // Also check exact number match
+          const searchNumber = parseInt(word, 10);
+          const slNoNumber = parseInt(slNo, 10);
+          if (!isNaN(searchNumber) && !isNaN(slNoNumber) && searchNumber === slNoNumber) {
+            return true;
+          }
+        }
+        // Check all other item values
+        return Object.values(item).some(value => 
+          String(value).toLowerCase().includes(word)
+        );
+      });
+
+    return hasSearchMatch;
   });
 }, [routingTable, searchTerm, billingDateFilter, vendorDetailsFilter, startDate, endDate]);
   useEffect(() => {
@@ -1359,7 +1391,7 @@ const filteredData = useMemo(() => {
     ) : (
       <div className="cell-content">
         {field === 'Sl.No'
-          ? (index + 1)
+          ? (item['Sl.No'] || (index + 1).toString())
           : field === 'Costing Date'
           ? (item[field] ? formatDateOnly(item[field]) : 'No Date')
           : field === 'Billing Month'

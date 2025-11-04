@@ -6484,6 +6484,16 @@ const ClientMFSCompare: React.FC = () => {
                       })()}
                     </div>
                   )}
+                  {item.parameter === 'NP' && (
+                    <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                      {(() => {
+                        const npPercentageItem = growthAnalysis.find(g => g.parameter === 'NP %');
+                        const npPercentage = npPercentageItem?.periodValues[i]?.amount || 0;
+                        const npPercentageNum = typeof npPercentage === 'number' && !isNaN(npPercentage) ? npPercentage : 0;
+                        return `NP %: ${npPercentageNum.toFixed(2)}%`;
+                      })()}
+                    </div>
+                  )}
                 </td>
 
               );
