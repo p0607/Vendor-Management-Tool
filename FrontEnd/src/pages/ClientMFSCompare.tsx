@@ -3198,6 +3198,15 @@ const ClientMFSCompare: React.FC = () => {
         return false;
       }
       
+      // Client name/project name filter - enabled for team_report
+      if (selectedClientName) {
+        if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+          if (item.project_name !== selectedClientName) return false;
+        } else {
+          if (item.client_name !== selectedClientName) return false;
+        }
+      }
+      
       // Date parsing and period matching
       const date = parseDate(item.month, item.year);
       if (isNaN(date.getTime())) return false;
@@ -3249,7 +3258,7 @@ const ClientMFSCompare: React.FC = () => {
           return false;
       }
     });
-  }, [data, selectedBusinessUnit, compareType]);
+  }, [data, selectedBusinessUnit, selectedClientName, compareType]);
 
   // Helper function to get parameter value using KPI dashboard logic
   const getParameterValueUsingKPILogic = useCallback((periodValue: string | null, parameter: string): number => {
@@ -3431,14 +3440,14 @@ const ClientMFSCompare: React.FC = () => {
 
             }
 
-            // Client name/project name filter disabled for team_summary_report (fields don't exist)
-            // if (selectedClientName) {
-            //   if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-            //     if (item.project_name !== selectedClientName) return false;
-            //   } else {
-            //     if (item.client_name !== selectedClientName) return false;
-            //   }
-            // }
+            // Client name/project name filter - enabled for team_report
+            if (selectedClientName) {
+              if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+                if (item.project_name !== selectedClientName) return false;
+              } else {
+                if (item.client_name !== selectedClientName) return false;
+              }
+            }
 
             // BU head filter disabled for team_summary_report (field doesn't exist)
             // if (selectedBUHead && item.bu_head !== selectedBUHead) {
@@ -3558,14 +3567,14 @@ const ClientMFSCompare: React.FC = () => {
 
       
       
-      // Client name/project name filter disabled for team_summary_report (fields don't exist)
-      // if (selectedClientName) {
-      //   if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-      //     if (item.project_name !== selectedClientName) return false;
-      //   } else {
-      //     if (item.client_name !== selectedClientName) return false;
-      //   }
-      // }
+      // Client name/project name filter - enabled for team_report
+      if (selectedClientName) {
+        if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+          if (item.project_name !== selectedClientName) return false;
+        } else {
+          if (item.client_name !== selectedClientName) return false;
+        }
+      }
 
       
       
@@ -3880,14 +3889,14 @@ const ClientMFSCompare: React.FC = () => {
               const allPeriodData = combinedPeriod.periods.flatMap(period => 
                 data.filter(item => {
                   if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
-                  // Client name/project name filter disabled for team_summary_report (fields don't exist)
-                  // if (selectedClientName) {
-                  //   if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-                  //     if (item.project_name !== selectedClientName) return false;
-                  //   } else {
-                  //     if (item.client_name !== selectedClientName) return false;
-                  //   }
-                  // }
+                  // Client name/project name filter - enabled for team_report
+                  if (selectedClientName) {
+                    if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+                      if (item.project_name !== selectedClientName) return false;
+                    } else {
+                      if (item.client_name !== selectedClientName) return false;
+                    }
+                  }
                   // BU head filter disabled for team_summary_report (field doesn't exist)
                   // if (selectedBUHead && item.bu_head !== selectedBUHead) return false;
                   
@@ -5563,8 +5572,7 @@ const ClientMFSCompare: React.FC = () => {
 
 
 
-    {/* Client Name / Project Name Filter - DISABLED for team_summary_report */}
-    {/* 
+    {/* Client Name / Project Name Filter - Enabled for team_report */}
           <div>
             <div style={{ 
               color: '#000000', 
@@ -5608,7 +5616,6 @@ const ClientMFSCompare: React.FC = () => {
       />
 
     </div>
-    */}
 
 
 
