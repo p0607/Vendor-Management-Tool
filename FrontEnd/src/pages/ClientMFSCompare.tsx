@@ -4129,9 +4129,17 @@ const ClientMFSCompare: React.FC = () => {
 
           periodValues: comparisonValues.map((period, i) => {
             // Ensure amount is a valid number, not null/undefined
-            const amount = periodAmounts[i] !== null && periodAmounts[i] !== undefined 
-              ? (typeof periodAmounts[i] === 'number' ? periodAmounts[i] : parseFloat(periodAmounts[i]) || 0)
-              : 0;
+            const amountValue = periodAmounts[i];
+            let amount = 0;
+            if (amountValue !== null && amountValue !== undefined) {
+              if (typeof amountValue === 'number') {
+                amount = amountValue;
+              } else if (typeof amountValue === 'string') {
+                amount = parseFloat(amountValue) || 0;
+              } else {
+                amount = parseFloat(String(amountValue)) || 0;
+              }
+            }
             return {
               period,
               amount
