@@ -1129,15 +1129,16 @@ const ClientMFSCompare: React.FC = () => {
         
         previousFYTotal = Object.values(previousMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
         
-        console.log(`🔍 ${parameter} KPI Dashboard Previous FY Debug:`, {
-          parameter,
-          previousFYTotal,
-          monthlyBreakdown: Object.entries(previousMonthlyTotals).map(([month, total]) => ({
-            month,
-            total: total.toFixed(2)
-          })),
-          totalRecords: previousFYData.length
-        });
+        // Debug log removed for performance and to prevent toFixed errors
+        // console.log(`🔍 ${parameter} KPI Dashboard Previous FY Debug:`, {
+        //   parameter,
+        //   previousFYTotal,
+        //   monthlyBreakdown: Object.entries(previousMonthlyTotals).map(([month, total]) => ({
+        //     month,
+        //     total: typeof total === 'number' ? total.toFixed(2) : 'N/A'
+        //   })),
+        //   totalRecords: previousFYData.length
+        // });
         
         // Previous FY calculation working correctly
       }
@@ -1277,12 +1278,14 @@ const ClientMFSCompare: React.FC = () => {
 
   // Utility function to format values based on toggle
   const formatValueWithToggle = (value: number, isLargeValue: boolean = true) => {
-    if (!isLargeValue) return value.toFixed(0);
+    // Ensure value is a valid number
+    const numValue = typeof value === 'number' && !isNaN(value) ? value : 0;
+    if (!isLargeValue) return numValue.toFixed(0);
     
     if (isCroreMode) {
-      return `${(value / 10000000).toFixed(1)}Cr`;
+      return `${(numValue / 10000000).toFixed(1)}Cr`;
     } else {
-      return `${(value / 100000).toFixed(1)}L`;
+      return `${(numValue / 100000).toFixed(1)}L`;
     }
   };
 
@@ -5977,20 +5980,23 @@ const ClientMFSCompare: React.FC = () => {
                 if (!kpi) return null;
                 
                 const formatValue = (value: number) => {
+                  // Ensure value is a valid number
+                  const numValue = typeof value === 'number' && !isNaN(value) ? value : 0;
+                  
                   // Format large values (currency-like) with toggle
                   const largeValueParams = ['Revenue', 'GPM', 'Team Cost', 'NP', 'Salary Cost', 'Leave Encashment', 'Opr Cost', 'Funding Cost', 'Rebate', 'Passthrough'];
                   if (largeValueParams.includes(kpiName)) {
-                    return formatValueWithToggle(value, true);
+                    return formatValueWithToggle(numValue, true);
                   }
                   // Format percentages
                   if (kpiName === 'GPM %' || kpiName === 'NP %') {
-                    return `${value.toFixed(2)}%`;
+                    return `${numValue.toFixed(2)}%`;
                   }
                   // Format HC as integer
                   if (kpiName === 'HC') {
-                    return value.toFixed(0);
+                    return numValue.toFixed(0);
                   }
-                  return value.toFixed(2);
+                  return numValue.toFixed(2);
                 };
                 
                 return (
@@ -6056,7 +6062,10 @@ const ClientMFSCompare: React.FC = () => {
                       marginBottom: 4,
                       textAlign: 'center'
                     }}>
-                      {kpi.growthPercentage >= 0 ? '+' : ''}{kpi.growthPercentage.toFixed(1)}% Growth
+                      {(() => {
+                        const growth = typeof kpi.growthPercentage === 'number' && !isNaN(kpi.growthPercentage) ? kpi.growthPercentage : 0;
+                        return `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}% Growth`;
+                      })()}
                     </div>
 
                     {/* Change in Value */}
@@ -6455,7 +6464,9 @@ const ClientMFSCompare: React.FC = () => {
                       {(() => {
                         const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
                         const revenue = revenueItem?.periodValues[i]?.amount || 0;
-                        const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
+                        const revenueNum = typeof revenue === 'number' && !isNaN(revenue) ? revenue : 0;
+                        const amountNum = typeof pv.amount === 'number' && !isNaN(pv.amount) ? pv.amount : 0;
+                        const percentage = revenueNum > 0 ? ((amountNum / revenueNum) * 100).toFixed(2) : '0.00';
                         return `GPM %: ${percentage}%`;
                       })()}
                     </div>
@@ -6465,7 +6476,9 @@ const ClientMFSCompare: React.FC = () => {
                       {(() => {
                         const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
                         const revenue = revenueItem?.periodValues[i]?.amount || 0;
-                        const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
+                        const revenueNum = typeof revenue === 'number' && !isNaN(revenue) ? revenue : 0;
+                        const amountNum = typeof pv.amount === 'number' && !isNaN(pv.amount) ? pv.amount : 0;
+                        const percentage = revenueNum > 0 ? ((amountNum / revenueNum) * 100).toFixed(2) : '0.00';
                         return `Net Margin %: ${percentage}%`;
                       })()}
                     </div>
@@ -6509,7 +6522,10 @@ const ClientMFSCompare: React.FC = () => {
 
               {isPositive ? '+' : ''}
 
-              {growthPercentage === Infinity ? '∞' : growthPercentage.toFixed(2)}%
+              {(() => {
+                const growth = typeof growthPercentage === 'number' && !isNaN(growthPercentage) && growthPercentage !== Infinity ? growthPercentage : 0;
+                return growthPercentage === Infinity ? '∞' : growth.toFixed(2);
+              })()}%
 
             </td>
 
@@ -6773,7 +6789,9 @@ const ClientMFSCompare: React.FC = () => {
                         <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
                           {(() => {
                             const revenue = summary.currentPeriod.revenue;
-                            const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
+                            const revenueNum = typeof revenue === 'number' && !isNaN(revenue) ? revenue : 0;
+                            const currentNum = typeof param.current === 'number' && !isNaN(param.current) ? param.current : 0;
+                            const percentage = revenueNum > 0 ? ((currentNum / revenueNum) * 100).toFixed(2) : '0.00';
                             return `GPM %: ${percentage}%`;
                           })()}
                         </div>
@@ -6782,7 +6800,9 @@ const ClientMFSCompare: React.FC = () => {
                         <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
                           {(() => {
                             const revenue = summary.currentPeriod.revenue;
-                            const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
+                            const revenueNum = typeof revenue === 'number' && !isNaN(revenue) ? revenue : 0;
+                            const currentNum = typeof param.current === 'number' && !isNaN(param.current) ? param.current : 0;
+                            const percentage = revenueNum > 0 ? ((currentNum / revenueNum) * 100).toFixed(2) : '0.00';
                             return `Net Margin %: ${percentage}%`;
                           })()}
                         </div>
@@ -6796,7 +6816,9 @@ const ClientMFSCompare: React.FC = () => {
                         <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
                           {(() => {
                             const revenue = summary.previousPeriod.revenue;
-                            const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
+                            const revenueNum = typeof revenue === 'number' && !isNaN(revenue) ? revenue : 0;
+                            const previousNum = typeof param.previous === 'number' && !isNaN(param.previous) ? param.previous : 0;
+                            const percentage = revenueNum > 0 ? ((previousNum / revenueNum) * 100).toFixed(2) : '0.00';
                             return `GPM %: ${percentage}%`;
                           })()}
                         </div>
@@ -6805,7 +6827,9 @@ const ClientMFSCompare: React.FC = () => {
                         <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
                           {(() => {
                             const revenue = summary.previousPeriod.revenue;
-                            const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
+                            const revenueNum = typeof revenue === 'number' && !isNaN(revenue) ? revenue : 0;
+                            const previousNum = typeof param.previous === 'number' && !isNaN(param.previous) ? param.previous : 0;
+                            const percentage = revenueNum > 0 ? ((previousNum / revenueNum) * 100).toFixed(2) : '0.00';
                             return `Net Margin %: ${percentage}%`;
                           })()}
                         </div>
@@ -6827,7 +6851,10 @@ const ClientMFSCompare: React.FC = () => {
                       fontWeight: 'bold'
                     }}>
                       {param.change >= 0 ? '+' : ''}
-                      {param.growth.toFixed(2)}%
+                      {(() => {
+                        const growth = typeof param.growth === 'number' && !isNaN(param.growth) ? param.growth : 0;
+                        return growth.toFixed(2);
+                      })()}%
                     </td>
                   </tr>
                   );
@@ -6943,7 +6970,10 @@ const ClientMFSCompare: React.FC = () => {
 
               }}>
 
-                +{change.percentageChange.toFixed(2)}%
+                +{(() => {
+                  const pct = typeof change.percentageChange === 'number' && !isNaN(change.percentageChange) ? change.percentageChange : 0;
+                  return pct.toFixed(2);
+                })()}%
 
               </span>
 
@@ -7045,7 +7075,10 @@ const ClientMFSCompare: React.FC = () => {
 
               }}>
 
-                {change.percentageChange.toFixed(2)}%
+                {(() => {
+                  const pct = typeof change.percentageChange === 'number' && !isNaN(change.percentageChange) ? change.percentageChange : 0;
+                  return pct.toFixed(2);
+                })()}%
 
               </span>
 
@@ -7131,7 +7164,10 @@ const ClientMFSCompare: React.FC = () => {
 
             ? `${Math.max(...growthAnalysis.flatMap(item => 
 
-                item.changes.map(c => c.percentageChange))).toFixed(2)}%`
+                item.changes.map(c => {
+                  const pct = typeof c.percentageChange === 'number' && !isNaN(c.percentageChange) ? c.percentageChange : 0;
+                  return pct;
+                }))).toFixed(2)}%`
 
             : '-'}
 
