@@ -2935,9 +2935,9 @@ const ClientMFSCompare: React.FC = () => {
 
         const convertedData = filteredData.map((item: any) => {
 
-          // Convert numeric fields to numbers
+          // Convert numeric fields to numbers - include all fields from team_report
 
-          const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'year'];
+          const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'np', 'np_percentage', 'salary_cost', 'gpm_percentage', 'leave_encashment', 'opr_cost', 'funding_cost', 'rebate', 'passthrough', 'year'];
 
           
           
@@ -2946,21 +2946,8 @@ const ClientMFSCompare: React.FC = () => {
           
           
           for (const field of numericFields) {
-
-            if (typeof processedItem[field] === 'string') {
-
-              processedItem[field] = parseFloat(processedItem[field].replace(/,/g, '')) || 0;
-
-            } else if (typeof processedItem[field] === 'number') {
-
-              processedItem[field] = processedItem[field];
-
-            } else {
-
-              processedItem[field] = 0;
-
-            }
-
+            // Use parseNumericValue to handle negative values in parentheses (e.g., (54,059) -> -54059)
+            processedItem[field] = parseNumericValue(processedItem[field]);
           }
 
           // Handle 2-digit year conversion (e.g., 23 -> 2023, 24 -> 2024)
@@ -4094,7 +4081,7 @@ const ClientMFSCompare: React.FC = () => {
           return getParameterValueUsingKPILogic(periodValue, param);
 
 
-        }).filter(amount => amount !== null);
+        }).map(amount => amount !== null && amount !== undefined ? amount : 0);
 
 
 
@@ -4140,13 +4127,16 @@ const ClientMFSCompare: React.FC = () => {
 
           parameter: param,
 
-          periodValues: comparisonValues.map((period, i) => ({
-
-            period,
-
-            amount: periodAmounts[i] || 0
-
-          })),
+          periodValues: comparisonValues.map((period, i) => {
+            // Ensure amount is a valid number, not null/undefined
+            const amount = periodAmounts[i] !== null && periodAmounts[i] !== undefined 
+              ? (typeof periodAmounts[i] === 'number' ? periodAmounts[i] : parseFloat(periodAmounts[i]) || 0)
+              : 0;
+            return {
+              period,
+              amount
+            };
+          }),
 
           changes
 
@@ -5969,9 +5959,8 @@ const ClientMFSCompare: React.FC = () => {
               const kpis = kpiData;
               const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP'];
               // Filter out GPM % and NP % from all KPIs
-              const allKPIs = Object.keys(kpis).filter(k => kpis[k] && k !== 'GPM %' && k !== 'NP %');
-              const additionalKPIs = allKPIs.filter(k => !mainKPIs.includes(k));
-              const displayKPIs = showAllKPIs ? allKPIs : mainKPIs;
+              // Always show only the 4 main KPIs (no "Show More" button)
+              const displayKPIs = mainKPIs;
               
               return (
                 <>
@@ -6221,27 +6210,7 @@ const ClientMFSCompare: React.FC = () => {
                   </div>
                 );
                   })}
-                  {additionalKPIs.length > 0 && (
-                    <div style={{ textAlign: 'center', width: '100%', marginTop: '16px' }}>
-                      <button
-                        onClick={() => setShowAllKPIs(!showAllKPIs)}
-                        style={{
-                          padding: '8px 24px',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          backgroundColor: showAllKPIs ? '#ff6b35' : '#1890ff',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                          transition: 'all 0.3s ease'
-                        }}
-                      >
-                        {showAllKPIs ? 'Show Less KPIs' : `Show More KPIs (${additionalKPIs.length} more)`}
-                      </button>
-                    </div>
-                  )}
+                  {/* Show More KPIs button removed - only 4 main KPIs are always shown */}
                 </>
               );
             })()}
@@ -6398,7 +6367,7 @@ const ClientMFSCompare: React.FC = () => {
     <tbody>
 
       {(() => {
-        const mainGrowthParams = ['HC', 'Revenue', 'GPM', 'NP']; // Include HC in initial display
+        const mainGrowthParams = ['HC', 'Revenue', 'GPM', 'NP']; // Show 4 main parameters initially
         const allGrowthParams = growthAnalysis.filter(item => item.parameter !== 'Team Cost');
         const additionalGrowthParams = allGrowthParams.filter(item => !mainGrowthParams.includes(item.parameter));
         const displayGrowthParams = showAllGrowthParams ? allGrowthParams : allGrowthParams.filter(item => mainGrowthParams.includes(item.parameter));
@@ -6408,9 +6377,33 @@ const ClientMFSCompare: React.FC = () => {
             {displayGrowthParams.map((item, index) => {
 
         // Calculate growth between current and previous period for each parameter
-        // Current period is first (newest), previous period is last (oldest)
-        const currentPeriodAmount = item.periodValues[0]?.amount || 0;
-        const previousPeriodAmount = item.periodValues[item.periodValues.length - 1]?.amount || 0;
+        // periodValues array matches comparisonValues order: [0] = first period, [1] = second period, etc.
+        // Get all periodValues that have a period (amount can be 0, which is valid)
+        const validPeriods = item.periodValues.filter(pv => pv.period);
+        
+        // For absolute change calculation, use first and last periods
+        // If we have 2 periods: [0] = FY 2025, [1] = FY 2024
+        // Current = first period (index 0), Previous = last period (index length-1)
+        let currentPeriodAmount = 0;
+        let previousPeriodAmount = 0;
+        
+        if (validPeriods.length >= 2) {
+          // We have at least 2 periods
+          const firstAmount = validPeriods[0]?.amount;
+          const lastAmount = validPeriods[validPeriods.length - 1]?.amount;
+          
+          // Convert to numbers, handling null/undefined/string cases
+          currentPeriodAmount = typeof firstAmount === 'number' && !isNaN(firstAmount) ? firstAmount : 
+                                (firstAmount !== null && firstAmount !== undefined ? parseFloat(String(firstAmount)) || 0 : 0);
+          previousPeriodAmount = typeof lastAmount === 'number' && !isNaN(lastAmount) ? lastAmount : 
+                                 (lastAmount !== null && lastAmount !== undefined ? parseFloat(String(lastAmount)) || 0 : 0);
+        } else if (validPeriods.length === 1) {
+          // Only one period available
+          const amount = validPeriods[0]?.amount;
+          currentPeriodAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 
+                               (amount !== null && amount !== undefined ? parseFloat(String(amount)) || 0 : 0);
+          previousPeriodAmount = 0;
+        }
         
         // Absolute change: current - previous
         const absoluteChange = currentPeriodAmount - previousPeriodAmount;
@@ -6424,16 +6417,16 @@ const ClientMFSCompare: React.FC = () => {
         const isPositive = absoluteChange >= 0;
         
         
-        // Debug absolute change calculation
-        console.log(`🔍 Absolute Change Debug for ${item.parameter}:`, {
-          parameter: item.parameter,
-          currentPeriodAmount,
-          previousPeriodAmount,
-          absoluteChange,
-          growthPercentage,
-          isPositive,
-          periodValues: item.periodValues.map(pv => ({ period: pv.period, amount: pv.amount }))
-        });
+        // Debug absolute change calculation (disabled for performance, enable if needed)
+        // console.log(`🔍 Absolute Change Debug for ${item.parameter}:`, {
+        //   parameter: item.parameter,
+        //   currentPeriodAmount,
+        //   previousPeriodAmount,
+        //   absoluteChange,
+        //   growthPercentage,
+        //   isPositive,
+        //   periodValues: item.periodValues.map(pv => ({ period: pv.period, amount: pv.amount }))
+        // });
 
 
 

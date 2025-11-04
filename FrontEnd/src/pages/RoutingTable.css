@@ -201,13 +201,14 @@ body, html {
 
   /* Specific column widths and alignment for headers */
   .routing-table th:nth-child(1) { width: 40px; } /* Checkbox column */
-  .routing-table th:nth-child(2) { width: 120px; text-align: left !important; } /* Costing Date */
-  .routing-table th:nth-child(3) { width: 250px; text-align: left !important; } /* Vendor Details */
-  .routing-table th:nth-child(4) { width: 150px; text-align: right !important; } /* Alchemy Billing Value */
-  .routing-table th:nth-child(5) { width: 150px; text-align: right !important; } /* Integrator Charges */
-  .routing-table th:nth-child(6) { width: 120px; text-align: right !important; } /* Funding cost */
-  .routing-table th:nth-child(7) { width: 120px; text-align: right !important; } /* Net Margin */
-  .routing-table th:nth-child(8) { width: 80px; } /* Edit Data */
+  .routing-table th:nth-child(2) { width: 40px; text-align: center !important; } /* SL No. column - same width as checkbox */
+  .routing-table th:nth-child(3) { width: 120px; text-align: left !important; } /* Costing Date */
+  .routing-table th:nth-child(4) { width: 250px; text-align: left !important; } /* Vendor Details */
+  .routing-table th:nth-child(5) { width: 150px; text-align: right !important; } /* Alchemy Billing Value */
+  .routing-table th:nth-child(6) { width: 150px; text-align: right !important; } /* Integrator Charges */
+  .routing-table th:nth-child(7) { width: 100px; text-align: right !important; } /* Funding cost - reduced width */
+  .routing-table th:nth-child(8) { width: 100px; text-align: right !important; } /* Net Margin - reduced width */
+  .routing-table th:nth-child(9) { width: 80px; } /* Edit Data */
   
   
   .routing-table th:last-child {
@@ -225,50 +226,55 @@ body, html {
 
   /* Specific column widths for data cells */
   .routing-table td:nth-child(1) { width: 40px; } /* Checkbox column */
-  .routing-table td:nth-child(2) { width: 120px; } /* Costing Date */
-  .routing-table td:nth-child(3) { width: 250px; } /* Vendor Details */
-  .routing-table td:nth-child(4) { width: 150px; } /* Alchemy Billing Value */
-  .routing-table td:nth-child(5) { width: 150px; } /* Integrator Charges */
-  .routing-table td:nth-child(6) { width: 120px; } /* Funding cost */
-  .routing-table td:nth-child(7) { width: 120px; } /* Net Margin */
+  .routing-table td:nth-child(2) { width: 40px; text-align: center !important; } /* SL No. column - same width as checkbox */
+  .routing-table td:nth-child(3) { width: 120px; } /* Costing Date */
+  .routing-table td:nth-child(4) { width: 250px; } /* Vendor Details */
+  .routing-table td:nth-child(5) { width: 150px; } /* Alchemy Billing Value */
+  .routing-table td:nth-child(6) { width: 150px; } /* Integrator Charges */
+  .routing-table td:nth-child(7) { width: 100px; } /* Funding cost - reduced width */
+  .routing-table td:nth-child(8) { width: 100px; } /* Net Margin - reduced width */
   
-  .routing-table td:nth-child(8) { width: 80px; } /* Edit Data - decreased */
+  .routing-table td:nth-child(9) { width: 80px; } /* Edit Data - decreased */
   
   .routing-table td:last-child {
     border-right: 2px solid #e0e0e0;
   }
   
   /* Simple, clean alignment for table data */
-  .routing-table td:nth-child(2) { text-align: left !important; } /* Costing Date */
-  .routing-table td:nth-child(3) { text-align: left !important; } /* Vendor Details */
-  .routing-table td:nth-child(4) { text-align: right !important; } /* Alchemy Billing Value */
-  .routing-table td:nth-child(5) { text-align: right !important; } /* Integrator Charges */
-  .routing-table td:nth-child(6) { text-align: right !important; } /* Funding cost */
-  .routing-table td:nth-child(7) { text-align: right !important; } /* Net Margin */
+  .routing-table td:nth-child(2) { text-align: center !important; } /* SL No. */
+  .routing-table td:nth-child(3) { text-align: left !important; } /* Costing Date */
+  .routing-table td:nth-child(4) { text-align: left !important; } /* Vendor Details */
+  .routing-table td:nth-child(5) { text-align: right !important; } /* Alchemy Billing Value */
+  .routing-table td:nth-child(6) { text-align: right !important; } /* Integrator Charges */
+  .routing-table td:nth-child(7) { text-align: right !important; } /* Funding cost */
+  .routing-table td:nth-child(8) { text-align: right !important; } /* Net Margin */
   
   /* Override flexbox centering for specific columns */
-  .routing-table td:nth-child(2) .cell-content { justify-content: flex-start !important; }
-  .routing-table td:nth-child(3) .cell-content { justify-content: flex-start !important; }
-  .routing-table td:nth-child(4) .cell-content { justify-content: flex-end !important; }
-  .routing-table td:nth-child(5) .cell-content { justify-content: flex-end !important; }
-  .routing-table td:nth-child(6) .cell-content { justify-content: flex-end !important; }
-  .routing-table td:nth-child(7) .cell-content { justify-content: flex-end !important; }
+  .routing-table td:nth-child(2) .cell-content { justify-content: center !important; } /* SL No. */
+  .routing-table td:nth-child(3) .cell-content { justify-content: flex-start !important; } /* Costing Date */
+  .routing-table td:nth-child(4) .cell-content { justify-content: flex-start !important; } /* Vendor Details */
+  .routing-table td:nth-child(5) .cell-content { justify-content: flex-end !important; } /* Alchemy Billing Value */
+  .routing-table td:nth-child(6) .cell-content { justify-content: flex-end !important; } /* Integrator Charges */
+  .routing-table td:nth-child(7) .cell-content { justify-content: flex-end !important; } /* Funding cost */
+  .routing-table td:nth-child(8) .cell-content { justify-content: flex-end !important; } /* Net Margin */
   
   /* Additional specificity to ensure alignment works */
-  .routing-table tbody td:nth-child(2) { text-align: left !important; }
-  .routing-table tbody td:nth-child(3) { text-align: left !important; }
-  .routing-table tbody td:nth-child(4) { text-align: right !important; }
-  .routing-table tbody td:nth-child(5) { text-align: right !important; }
-  .routing-table tbody td:nth-child(6) { text-align: right !important; }
-  .routing-table tbody td:nth-child(7) { text-align: right !important; }
+  .routing-table tbody td:nth-child(2) { text-align: center !important; } /* SL No. */
+  .routing-table tbody td:nth-child(3) { text-align: left !important; } /* Costing Date */
+  .routing-table tbody td:nth-child(4) { text-align: left !important; } /* Vendor Details */
+  .routing-table tbody td:nth-child(5) { text-align: right !important; } /* Alchemy Billing Value */
+  .routing-table tbody td:nth-child(6) { text-align: right !important; } /* Integrator Charges */
+  .routing-table tbody td:nth-child(7) { text-align: right !important; } /* Funding cost */
+  .routing-table tbody td:nth-child(8) { text-align: right !important; } /* Net Margin */
   
   /* Maximum specificity override for any potential conflicts */
-  .routing-table-container .routing-table tbody tr td:nth-child(2) { text-align: left !important; }
-  .routing-table-container .routing-table tbody tr td:nth-child(3) { text-align: left !important; }
-  .routing-table-container .routing-table tbody tr td:nth-child(4) { text-align: right !important; }
-  .routing-table-container .routing-table tbody tr td:nth-child(5) { text-align: right !important; }
-  .routing-table-container .routing-table tbody tr td:nth-child(6) { text-align: right !important; }
-  .routing-table-container .routing-table tbody tr td:nth-child(7) { text-align: right !important; }
+  .routing-table-container .routing-table tbody tr td:nth-child(2) { text-align: center !important; } /* SL No. */
+  .routing-table-container .routing-table tbody tr td:nth-child(3) { text-align: left !important; } /* Costing Date */
+  .routing-table-container .routing-table tbody tr td:nth-child(4) { text-align: left !important; } /* Vendor Details */
+  .routing-table-container .routing-table tbody tr td:nth-child(5) { text-align: right !important; } /* Alchemy Billing Value */
+  .routing-table-container .routing-table tbody tr td:nth-child(6) { text-align: right !important; } /* Integrator Charges */
+  .routing-table-container .routing-table tbody tr td:nth-child(7) { text-align: right !important; } /* Funding cost */
+  .routing-table-container .routing-table tbody tr td:nth-child(8) { text-align: right !important; } /* Net Margin */
   
   .routing-table tbody tr {
     background-color: #e8f4f8 !important;

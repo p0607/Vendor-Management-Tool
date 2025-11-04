@@ -259,6 +259,7 @@ const RoutingTable: React.FC = () => {
 
   // Define default visible fields (first 7 fields, excluding id)
   const defaultVisibleFields: (keyof RoutingTableItem)[] = [
+    'Sl.No',
     'Costing Date',
     'Vendor Details',
     'Alchemy Billing Value',
@@ -1340,7 +1341,7 @@ const filteredData = useMemo(() => {
                   </td>
 {defaultVisibleFields.map(field => (
   <td key={field}>
-    {editingMode && editingRow === index && editingField === field ? (
+    {editingMode && editingRow === index && editingField === field && field !== 'Sl.No' ? (
       <div className="edit-container">
         <input
           type="text"
@@ -1357,14 +1358,16 @@ const filteredData = useMemo(() => {
       </div>
     ) : (
       <div className="cell-content">
-        {field === 'Costing Date'
+        {field === 'Sl.No'
+          ? (index + 1)
+          : field === 'Costing Date'
           ? (item[field] ? formatDateOnly(item[field]) : 'No Date')
           : field === 'Billing Month'
           ? formatBillingMonth(item[field] || '')
           : ['Alchemy Billing Value', 'Integrator Charges (Margin)', 'Funding cost', 'Net Margin'].includes(field as string)
           ? (item[field] ? Math.round(parseFloat(item[field]) || 0).toLocaleString() : '0')
           : item[field] || 'N/A'}
-        {editingMode && (
+        {editingMode && field !== 'Sl.No' && (
           <button
             onClick={() => handleEditClick(index, field as string, item[field] || '')}
             className="edit-pen-button"
@@ -1387,7 +1390,7 @@ const filteredData = useMemo(() => {
                 </tr>
                 {expandedRows[index] && (
                   <tr className="expanded-row">
-                    <td colSpan={defaultVisibleFields.length + 1}>
+                    <td colSpan={defaultVisibleFields.length + 2}>
                       <div className="expanded-content">
                         <div className="expanded-grid">
                           {Object.entries(item)
