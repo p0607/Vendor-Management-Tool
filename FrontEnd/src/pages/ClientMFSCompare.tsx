@@ -656,13 +656,7 @@ const ClientMFSCompare: React.FC = () => {
   }> => {
     if (!data || data.length === 0) return {};
 
-    console.log("🔍 calculateKPIs called with:", {
-      compareType,
-      comparisonValues,
-      dataLength: data.length,
-      isMonthComparison: compareType === 'month',
-      hasComparisonValues: comparisonValues.some(v => v)
-    });
+    // Removed verbose debug logs for performance
 
     // If comparing by months and we have selected months
     if (compareType === 'month' && comparisonValues.some(v => v)) {
@@ -685,20 +679,11 @@ const ClientMFSCompare: React.FC = () => {
       const previousMonthName = previousMonthMatch[1];
       const previousYear = parseInt(previousMonthMatch[2]);
       
-      console.log("🔍 Parsed month values:", {
-        currentMonthName,
-        currentYear,
-        previousMonthName,
-        previousYear
-      });
+      // Removed verbose debug logs for performance
 
       const calculateParameterKPI = (parameter: string) => {
         // Use the same logic as Growth Analysis for consistency
-        console.log(`🔍 Calling getParameterValueUsingKPILogic for ${parameter}:`, {
-          currentMonth,
-          previousMonth,
-          compareType
-        });
+        // Removed verbose debug logs for performance
         
         const currentValue = getParameterValueUsingKPILogic(currentMonth, parameter);
         const previousValue = getParameterValueUsingKPILogic(previousMonth, parameter);
@@ -707,14 +692,7 @@ const ClientMFSCompare: React.FC = () => {
           ? ((currentValue - previousValue) / previousValue) * 100 
           : 0;
 
-        console.log(`🔍 Month KPI Debug for ${parameter}:`, {
-          parameter,
-          currentMonth,
-          previousMonth,
-          currentValue,
-          previousValue,
-          growthPercentage
-        });
+        // Removed verbose debug logs for performance
 
         return {
           currentFY: currentValue,
@@ -2776,7 +2754,7 @@ const ClientMFSCompare: React.FC = () => {
 
         
         
-        console.log(`🔍 Filtered BU head data for ${businessUnit}:`, filteredData);
+        // Removed verbose debug logs for performance
 
         
         
@@ -2786,13 +2764,11 @@ const ClientMFSCompare: React.FC = () => {
 
           .filter((head: any) => head && head.trim() !== '');
 
-        console.log(`🔍 BU heads for ${businessUnit}:`, buHeadsFromData);
+        // Removed verbose debug logs for performance
 
-        
-        
         const uniqueBUHeads = Array.from(new Set(buHeadsFromData)) as string[];
 
-        console.log(`🔍 Unique BU heads for ${businessUnit}:`, uniqueBUHeads);
+        // Removed verbose debug logs for performance
 
         
         
@@ -3667,9 +3643,7 @@ const ClientMFSCompare: React.FC = () => {
 
 
 
-    console.log("🔍 Final comparison data:", newComparisonData);
-
-    console.log("🔍 Available parameters in comparison data:", newComparisonData.length > 0 ? Object.keys(newComparisonData[0]) : []);
+    // Removed verbose debug logs for performance
 
     setComparisonData(newComparisonData);
 
@@ -3681,14 +3655,7 @@ const ClientMFSCompare: React.FC = () => {
 
   useEffect(() => {
 
-    console.log("🔍 Calculating growth analysis...");
-    console.log("🔍 availableParameters:", availableParameters);
-    console.log("🔍 availableParameters length:", availableParameters.length);
-    console.log("🔍 selectedParameters:", selectedParameters);
-    console.log("🔍 selectedParameters length:", selectedParameters.length);
-    // Removed showAllParameters logging
-    console.log("🔍 comparisonValues:", comparisonValues);
-    console.log("🔍 data length:", data.length);
+    // Removed verbose debug logs for performance
 
     
     
@@ -3802,22 +3769,7 @@ const ClientMFSCompare: React.FC = () => {
                   })
                   .reduce((sum, item) => sum + (item.hc || 0), 0);
                 
-                console.log(`🔍 Growth Analysis Combined Period HC Debug for ${periodValue}:`, {
-                  lastMonth: `${lastMonthData.month} ${lastMonthData.year}`,
-                  hcValue,
-                  allPeriodDataCount: allPeriodData.length,
-                  lastMonthDataCount: allPeriodData.filter(item => {
-                    const itemDate = parseDate(item.month, item.year);
-                    return itemDate.getMonth() === lastMonthDate.getMonth() && 
-                           itemDate.getFullYear() === lastMonthDate.getFullYear();
-                  }).length,
-                  sampleAllPeriodData: allPeriodData.slice(0, 3).map(item => ({
-                    month: item.month,
-                    year: item.year,
-                    business_unit: item.business_unit,
-                    hc: item.hc
-                  }))
-                });
+                // Removed verbose debug logs for performance
                 
                 return hcValue;
               }
@@ -4062,18 +4014,22 @@ const ClientMFSCompare: React.FC = () => {
 
         // Calculate projection for first period (current year) if it's a year comparison
         let predictedAmount = 0;
-        let sumAmount = 0;
         const firstPeriodAmount = periodAmounts[0] || 0;
         const firstPeriodActual = typeof firstPeriodAmount === 'number' ? firstPeriodAmount : parseFloat(String(firstPeriodAmount)) || 0;
+        let sumAmount = firstPeriodActual; // Initialize with actual value
         
         // Only calculate projection for year comparisons and if we have actual data
         if (compareType === 'year' && firstPeriodActual > 0 && comparisonValues[0]) {
           // Get KPI data for this parameter to use the same projection logic
           const kpiDataForParam = calculateKPIs();
-          const paramKey = param === 'Net Margin' ? 'NP' : param; // Map Net Margin to NP
+          // Map parameter names to match KPI keys
+          let paramKey = param;
+          if (param === 'Net Margin') paramKey = 'NP';
+          // Also handle GPM % and NP % if needed
+          
           const kpiForParam = kpiDataForParam[paramKey];
           
-          if (kpiForParam) {
+          if (kpiForParam && kpiForParam.projectedAmount !== undefined && kpiForParam.projectedAmount > 0) {
             // Use the same projection logic from KPI dashboard
             predictedAmount = kpiForParam.projectedAmount || 0;
             sumAmount = kpiForParam.currentFY || firstPeriodActual; // currentFY is the projected value
@@ -4101,7 +4057,8 @@ const ClientMFSCompare: React.FC = () => {
               }
             });
             
-            if (param !== 'HC' && currentFYData.length > 0) {
+            // Skip projection for HC and percentage parameters (they don't need projection)
+            if (param !== 'HC' && !param.includes('%') && currentFYData.length > 0) {
               // Calculate monthly totals
               const monthlyTotals: {[key: string]: number} = {};
               currentFYData.forEach(item => {
@@ -4115,8 +4072,10 @@ const ClientMFSCompare: React.FC = () => {
                   case 'Revenue': value = item.revenue || 0; break;
                   case 'Salary Cost': value = item.salary_cost || 0; break;
                   case 'GPM': value = item.gpm || 0; break;
-                  case 'NP': value = item.np || 0; break;
+                  case 'NP':
+                  case 'Net Margin': value = item.np || 0; break;
                   case 'Leave Encashment': value = item.leave_encashment || 0; break;
+                  case 'Team Cost': value = item.team_cost || 0; break;
                   case 'Opr Cost': value = item.opr_cost || 0; break;
                   case 'Funding Cost': value = item.funding_cost || 0; break;
                   case 'Rebate': value = item.rebate || 0; break;
@@ -4126,7 +4085,7 @@ const ClientMFSCompare: React.FC = () => {
                 monthlyTotals[monthKey] += value;
               });
               
-              // Find last month with data
+              // Find last month with data (same logic as KPI dashboard)
               if (Object.keys(monthlyTotals).length > 0) {
                 const monthKeys = Object.keys(monthlyTotals);
                 const sortedMonths = monthKeys.sort((a, b) => {
@@ -4137,28 +4096,32 @@ const ClientMFSCompare: React.FC = () => {
                   return dateA.getTime() - dateB.getTime();
                 });
                 
+                // Find the last month with non-zero value (same logic as KPI dashboard)
+                let lastMonthWithData = null;
                 let lastMonthValue = 0;
                 for (let i = sortedMonths.length - 1; i >= 0; i--) {
                   const monthKey = sortedMonths[i];
                   const value = monthlyTotals[monthKey] || 0;
                   if (value > 0) {
+                    lastMonthWithData = monthKey;
                     lastMonthValue = value;
                     break;
                   }
                 }
                 
-                if (lastMonthValue > 0) {
+                if (lastMonthWithData && lastMonthValue > 0) {
                   const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
                   const fullMonthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-                  const lastMonthKey = sortedMonths[sortedMonths.length - 1];
-                  const [lastMonth, lastYear] = lastMonthKey.split(' ');
+                  const [lastMonth, lastYear] = lastMonthWithData.split(' ');
                   let lastMonthIndex = financialYearMonths.indexOf(lastMonth);
                   if (lastMonthIndex === -1) {
                     lastMonthIndex = fullMonthNames.indexOf(lastMonth);
                   }
                   
                   if (lastMonthIndex !== -1) {
+                    // Calculate remaining months from the last month with data (+1 because index is 0-based)
                     const actualMonthsRemaining = 12 - (lastMonthIndex + 1);
+                    // Project: actual + (last month value * remaining months)
                     const currentFYProjected = firstPeriodActual + (lastMonthValue * actualMonthsRemaining);
                     predictedAmount = currentFYProjected - firstPeriodActual;
                     sumAmount = currentFYProjected;
@@ -4208,12 +4171,7 @@ const ClientMFSCompare: React.FC = () => {
 
     // Use the calculateGrowth function which properly handles multiple periods
     const chartData = calculateGrowth();
-    console.log("🔍 Growth Analysis Chart data (multi-period):", chartData);
-
-    console.log("🔍 Final growth analysis data (multi-period):", chartData);
-    console.log("🔍 Chart data length:", chartData.length);
-    console.log("🔍 Chart data parameters:", chartData.map(item => item.parameter));
-    console.log("🔍 Setting growthAnalysis state with multi-period data:", chartData.length, "items");
+    // Removed verbose debug logs for performance
     setGrowthAnalysis(chartData);
   }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
 
@@ -4265,12 +4223,7 @@ const ClientMFSCompare: React.FC = () => {
             const currentYear = comparisonValues[0];
             const previousYear = comparisonValues[1];
             
-            console.log(`🔍 Year comparison for ${parameter}:`, {
-              currentYear,
-              previousYear,
-              currentValue,
-              periodData
-            });
+            // Removed verbose debug logs for performance
             
             if (currentYear && previousYear) {
               // Find previous year data
@@ -6385,7 +6338,11 @@ const ClientMFSCompare: React.FC = () => {
             comparisonValues.filter(Boolean).length === 2 &&
             i === 0; // Only show for first period (current year)
           
-          const isCurrentFY = period?.includes('2025') || (compareType === 'year' && i === 0);
+          // Check if this is the current FY period - use dynamic year detection
+          const currentYear = getCurrentFinancialYear();
+          const periodStr = period || '';
+          const isCurrentFY = periodStr.includes(String(currentYear)) || 
+                             (compareType === 'year' && i === 0 && periodStr.length > 0);
           
           return (
             <React.Fragment key={i}>
@@ -6505,7 +6462,11 @@ const ClientMFSCompare: React.FC = () => {
                 comparisonValues.filter(Boolean).length === 2 &&
                 i === 0; // Only show for first period (current year)
               
-              const isCurrentFY = pv.period?.includes('2025') || (compareType === 'year' && i === 0);
+              // Check if this is the current FY period - use dynamic year detection
+              const currentYear = getCurrentFinancialYear();
+              const periodStr = pv.period || '';
+              const isCurrentFY = periodStr.includes(String(currentYear)) || 
+                                 (compareType === 'year' && i === 0 && periodStr.length > 0);
               
               return (
                 <React.Fragment key={i}>
@@ -7006,7 +6967,11 @@ const ClientMFSCompare: React.FC = () => {
                       comparisonValues.filter(Boolean).length === 2 &&
                       i === 0; // Only show for first period (current year)
                     
-                    const isCurrentFY = period?.includes('2025') || (compareType === 'year' && i === 0);
+                    // Check if this is the current FY period - use dynamic year detection
+                    const currentYear = getCurrentFinancialYear();
+                    const periodStr = period || '';
+                    const isCurrentFY = periodStr.includes(String(currentYear)) || 
+                                       (compareType === 'year' && i === 0 && periodStr.length > 0);
                     
                     return (
                       <React.Fragment key={i}>
@@ -7102,7 +7067,11 @@ const ClientMFSCompare: React.FC = () => {
                           const isDefaultYearComparison = compareType === 'year' && 
                             comparisonValues.filter(Boolean).length === 2 &&
                             i === 0;
-                          const isCurrentFY = period?.includes('2025') || (compareType === 'year' && i === 0);
+                          // Check if this is the current FY period - use dynamic year detection
+                          const currentYear = getCurrentFinancialYear();
+                          const periodStr = period || '';
+                          const isCurrentFY = periodStr.includes(String(currentYear)) || 
+                                             (compareType === 'year' && i === 0 && periodStr.length > 0);
                           
                           return (
                             <React.Fragment key={i}>
@@ -7436,15 +7405,37 @@ const ClientMFSCompare: React.FC = () => {
               <tr style={{ backgroundColor: '#d8e8f0' }}>
                 <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Business Unit</th>
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Parameter</th>
-                {comparisonValues.filter(Boolean).map((period, i) => (
-                  <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-                    {(() => {
-                      // Only show month range for current FY (FY 2025), not for previous FY (FY 2024)
-                      const isCurrentFY = period?.includes('2025');
-                      return isCurrentFY ? getMonthRangeForFY(period || '') : period || '';
-                    })()}
-                  </th>
-                ))}
+                {comparisonValues.filter(Boolean).map((period, i) => {
+                  // Check if this is the default year comparison
+                  const isDefaultYearComparison = compareType === 'year' && 
+                    comparisonValues.filter(Boolean).length === 2 &&
+                    i === 0; // Only show for first period (current year)
+                  
+                  // Check if this is the current FY period - use dynamic year detection
+                  const currentYear = getCurrentFinancialYear();
+                  const periodStr = period || '';
+                  const isCurrentFY = periodStr.includes(String(currentYear)) || 
+                                     (compareType === 'year' && i === 0 && periodStr.length > 0);
+                  
+                  return (
+                    <React.Fragment key={i}>
+                      <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                        {isCurrentFY ? getMonthRangeForFY(period || '') : period || ''}
+                      </th>
+                      {/* Add Predicted and Sum columns only for default year comparison */}
+                      {isDefaultYearComparison && isCurrentFY && (
+                        <>
+                          <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                            Predicted
+                          </th>
+                          <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                            Sum (Actual + Predicted)
+                          </th>
+                        </>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Growth %</th>
               </tr>
@@ -7521,7 +7512,11 @@ const ClientMFSCompare: React.FC = () => {
                       const isDefaultYearComparison = compareType === 'year' && 
                         comparisonValues.filter(Boolean).length === 2 &&
                         i === 0;
-                      const isCurrentFY = period?.includes('2025') || (compareType === 'year' && i === 0);
+                      // Check if this is the current FY period - use dynamic year detection
+                      const currentYear = getCurrentFinancialYear();
+                      const periodStr = period || '';
+                      const isCurrentFY = periodStr.includes(String(currentYear)) || 
+                                         (compareType === 'year' && i === 0 && periodStr.length > 0);
                       
                       return (
                         <React.Fragment key={i}>
@@ -7729,13 +7724,7 @@ const ClientMFSCompare: React.FC = () => {
         }));
 
       // Debug Efficiency Dashboard data
-      console.log(`🔍 Efficiency Dashboard Debug for ${period}:`, {
-        period,
-        periodData: periodData.map(pd => ({ parameter: pd.parameter, amount: pd.amount })),
-        netMargin: periodData.find(i => i.parameter === "Net Margin")?.amount || 0,
-        revenue: periodData.find(i => i.parameter === "Revenue")?.amount || 0,
-        hc: periodData.find(i => i.parameter === "HC")?.amount || 0
-      });
+      // Removed verbose debug logs for performance
 
       return {
 
