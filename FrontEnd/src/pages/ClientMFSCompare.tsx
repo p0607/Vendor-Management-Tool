@@ -6898,34 +6898,39 @@ const ClientMFSCompare: React.FC = () => {
                   return dateA.getTime() - dateB.getTime();
                 });
                 
+                // Find the last month with non-zero value (same logic as KPI dashboard)
+                let lastMonthWithData = null;
                 let lastMonthValue = 0;
                 for (let i = sortedMonths.length - 1; i >= 0; i--) {
                   const monthKey = sortedMonths[i];
                   const value = monthlyTotals[monthKey] || 0;
                   if (value > 0) {
+                    lastMonthWithData = monthKey;
                     lastMonthValue = value;
                     break;
                   }
                 }
                 
-                if (lastMonthValue > 0) {
+                if (lastMonthWithData && lastMonthValue > 0) {
                   const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
                   const fullMonthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-                  const lastMonthKey = sortedMonths[sortedMonths.length - 1];
-                  const [lastMonth, lastYear] = lastMonthKey.split(' ');
+                  const [lastMonth, lastYear] = lastMonthWithData.split(' ');
                   let lastMonthIndex = financialYearMonths.indexOf(lastMonth);
                   if (lastMonthIndex === -1) {
                     lastMonthIndex = fullMonthNames.indexOf(lastMonth);
                   }
                   
                   if (lastMonthIndex !== -1) {
+                    // Calculate remaining months from the last month with data (+1 because index is 0-based)
                     const actualMonthsRemaining = 12 - (lastMonthIndex + 1);
+                    // Project: actual + (last month value * remaining months)
                     const projected = actual + (lastMonthValue * actualMonthsRemaining);
                     return { predicted: projected - actual, sum: projected };
                   }
                 }
               }
               
+              // If no projection can be calculated, return 0 predicted and actual as sum
               return { predicted: 0, sum: actual };
             };
             
@@ -7624,316 +7629,6 @@ const ClientMFSCompare: React.FC = () => {
   </div>
 )}
 
-                {/* Summary Cards */}
-
-<div style={{ 
-
-  display: 'grid', 
-
-  gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', // Increased min width
-
-  gap: 16,
-
-  marginTop: 24
-
-}}>
-
-  <div style={{
-
-    backgroundColor: '#ffffff',
-
-    borderRadius: 8,
-
-    padding: 16,
-
-    boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-
-    minWidth: '380px', // Added min-width
-
-    border: '1px solid #d9d9d9'
-
-  }}>
-
-    <div style={{ 
-      backgroundColor: '#000000', 
-      color: '#ffffff', 
-      padding: '6px 12px', 
-      borderRadius: 4, 
-      fontSize: 12, 
-      fontWeight: 700,
-      display: 'inline-block',
-      marginBottom: 8,
-      borderBottom: '3px solid #ff8c00'
-    }}>
-      Top Growth
-    </div>
-
-    {growthAnalysis
-
-      .flatMap(item => 
-
-        item.changes
-
-          .filter(change => change.isPositive)
-
-          .map(change => ({
-
-            ...change,
-
-            parameter: item.parameter // Include parameter name
-
-          }))
-
-      )
-
-      .sort((a, b) => b.percentageChange - a.percentageChange)
-
-      .slice(0, 3)
-
-      .map((change, i) => (
-
-        <div key={i} style={{ marginBottom: 8 }}>
-
-                      <div style={{ 
-
-              display: 'flex', 
-
-              justifyContent: 'space-between',
-
-              alignItems: 'center'
-
-            }}>
-
-              <div>
-
-                <div style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>{change.parameter}</div>
-
-                <div style={{ fontSize: 10, color: '#666666' }}>
-
-                  {change.fromPeriod} → {change.toPeriod}
-
-                </div>
-
-              </div>
-
-              <span style={{ 
-
-                color: '#4ade80', 
-
-                fontWeight: 600,
-
-                fontSize: 14
-
-              }}>
-
-                +{(() => {
-                  const pct = typeof change.percentageChange === 'number' && !isNaN(change.percentageChange) ? change.percentageChange : 0;
-                  return pct.toFixed(2);
-                })()}%
-
-              </span>
-
-            </div>
-
-        </div>
-
-      ))}
-
-  </div>
-
-
-
-  <div style={{
-
-    backgroundColor: '#ffffff',
-
-    borderRadius: 8,
-
-    padding: 16,
-
-    boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-
-    minWidth: '380px', // Added min-width
-
-    border: '1px solid #d9d9d9'
-
-  }}>
-
-    <div style={{ 
-      backgroundColor: '#000000', 
-      color: '#ffffff', 
-      padding: '6px 12px', 
-      borderRadius: 4, 
-      fontSize: 12, 
-      fontWeight: 700,
-      display: 'inline-block',
-      marginBottom: 8,
-      borderBottom: '3px solid #ff8c00'
-    }}>
-      Top Decline
-    </div>
-
-    {growthAnalysis
-
-      .flatMap(item => 
-
-        item.changes
-
-          .filter(change => !change.isPositive)
-
-          .map(change => ({
-
-            ...change,
-
-            parameter: item.parameter // Include parameter name
-
-          }))
-
-      )
-
-      .sort((a, b) => a.percentageChange - b.percentageChange)
-
-      .slice(0, 3)
-
-      .map((change, i) => (
-
-        <div key={i} style={{ marginBottom: 8 }}>
-
-                      <div style={{ 
-
-              display: 'flex', 
-
-              justifyContent: 'space-between',
-
-              alignItems: 'center'
-
-            }}>
-
-              <div>
-
-                <div style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>{change.parameter}</div>
-
-                <div style={{ fontSize: 10, color: '#666666' }}>
-
-                  {change.fromPeriod} → {change.toPeriod}
-
-                </div>
-
-              </div>
-
-              <span style={{ 
-
-                color: '#f87171', 
-
-                fontWeight: 600,
-
-                fontSize: 14
-
-              }}>
-
-                {(() => {
-                  const pct = typeof change.percentageChange === 'number' && !isNaN(change.percentageChange) ? change.percentageChange : 0;
-                  return pct.toFixed(2);
-                })()}%
-
-              </span>
-
-            </div>
-
-        </div>
-
-      ))}
-
-  </div>
-
-
-
-  <div style={{
-
-    backgroundColor: '#ffffff',
-
-    borderRadius: 8,
-
-    padding: 16,
-
-    boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-
-    minWidth: '380px', // Added min-width
-
-    border: '1px solid #d9d9d9'
-
-  }}>
-
-    <div style={{ 
-      backgroundColor: '#000000', 
-      color: '#ffffff', 
-      padding: '6px 12px', 
-      borderRadius: 4, 
-      fontSize: 12, 
-      fontWeight: 700,
-      display: 'inline-block',
-      marginBottom: 8,
-      borderBottom: '3px solid #ff8c00'
-    }}>
-      Summary
-    </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-
-        <span style={{ color: '#000000', fontSize: '10px' }}>Parameters Increased:</span>
-
-        <span style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>
-
-          {growthAnalysis
-
-            .flatMap(item => item.changes)
-
-            .filter(change => change.isPositive).length}
-
-        </span>
-
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-
-        <span style={{ color: '#000000', fontSize: '10px' }}>Parameters Decreased:</span>
-
-        <span style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>
-
-          {growthAnalysis
-
-            .flatMap(item => item.changes)
-
-            .filter(change => !change.isPositive).length}
-
-        </span>
-
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-
-        <span style={{ color: '#000000', fontSize: '10px' }}>Highest Growth:</span>
-
-        <span style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>
-
-          {growthAnalysis.length > 0 
-
-            ? `${Math.max(...growthAnalysis.flatMap(item => 
-
-                item.changes.map(c => {
-                  const pct = typeof c.percentageChange === 'number' && !isNaN(c.percentageChange) ? c.percentageChange : 0;
-                  return pct;
-                }))).toFixed(2)}%`
-
-            : '-'}
-
-        </span>
-
-      </div>
-
-  </div>
-
-</div>
 
 
 
@@ -8054,7 +7749,9 @@ const ClientMFSCompare: React.FC = () => {
 
         gpm: periodData.find(i => i.parameter === "GPM")?.amount || 0,
 
-        netMargin: periodData.find(i => i.parameter === "Net Margin")?.amount || 0
+        netMargin: periodData.find(i => i.parameter === "Net Margin")?.amount || 0,
+
+        np: periodData.find(i => i.parameter === "NP")?.amount || 0
 
       };
 
@@ -8096,9 +7793,9 @@ const ClientMFSCompare: React.FC = () => {
 
       {
 
-        name: "Margin per Team Cost",
+        name: "NP per Team Cost",
 
-        calculate: (m: typeof metrics[0]) => m.netMargin / (m.teamCost || 1),
+        calculate: (m: typeof metrics[0]) => m.np / (m.teamCost || 1),
 
         ideal: 'increase',
 
@@ -8120,21 +7817,9 @@ const ClientMFSCompare: React.FC = () => {
 
       {
 
-        name: "Net Margin %",
+        name: "GPM per HC",
 
-        calculate: (m: typeof metrics[0]) => (m.netMargin / (m.revenue || 1)) * 100,
-
-        ideal: 'increase',
-
-        unit: '%'
-
-      },
-
-      {
-
-        name: "Net Margin per HC",
-
-        calculate: (m: typeof metrics[0]) => m.netMargin / (m.hc || 1),
+        calculate: (m: typeof metrics[0]) => m.gpm / (m.hc || 1),
 
         ideal: 'increase',
 
@@ -8156,7 +7841,7 @@ const ClientMFSCompare: React.FC = () => {
 
   display: 'grid',
 
-  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',  // Reduced to fit 6 metrics in one row
+  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',  // Fit 5 metrics in one row
 
   gap: 8,  // Reduced gap from 16px to 8px
 

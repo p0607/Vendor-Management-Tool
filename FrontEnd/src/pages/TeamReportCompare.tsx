@@ -102,6 +102,10 @@ interface GrowthAnalysis {
 
   changes: PeriodChange[];
 
+  // Projection values for first period (current year)
+  predictedAmount?: number; // Projected amount (projected - actual)
+  sumAmount?: number; // Sum of actual + predicted (= projected)
+
 }
 
 
@@ -4007,20 +4011,131 @@ const TeamReportCompare: React.FC = () => {
 
 
 
+        // Calculate projection for first period (current year) if it's a year comparison
+        let predictedAmount = 0;
+        let sumAmount = 0;
+        const firstPeriodAmount = periodAmounts[0] || 0;
+        const firstPeriodActual = typeof firstPeriodAmount === 'number' ? firstPeriodAmount : parseFloat(String(firstPeriodAmount)) || 0;
+        
+        // Only calculate projection for year comparisons and if we have actual data
+        if (compareType === 'year' && firstPeriodActual > 0 && comparisonValues[0]) {
+          // Get KPI data for this parameter to use the same projection logic
+          const kpiDataForParam = calculateKPIs();
+          // Map parameter name to KPI key (KPI uses 'NP' for 'Net Margin')
+          const paramKey = param === 'Net Margin' ? 'NP' : param;
+          const kpiForParam = kpiDataForParam[paramKey];
+          
+          if (kpiForParam) {
+            // Use the same projection logic from KPI dashboard
+            predictedAmount = kpiForParam.projectedAmount || 0;
+            sumAmount = kpiForParam.currentFY || firstPeriodActual; // currentFY is the projected value
+          } else {
+            // Fallback: calculate projection manually if KPI data not available
+            const currentFY = getCurrentFinancialYear();
+            const currentFYData = data.filter(item => {
+              if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+              const date = parseDate(item.month, item.year);
+              if (isNaN(date.getTime())) return false;
+              const itemYear = date.getFullYear();
+              const itemMonth = date.getMonth() + 1;
+              if (itemMonth >= 4) {
+                return itemYear === currentFY;
+              } else {
+                return itemYear === currentFY + 1;
+              }
+            });
+            
+            if (param !== 'HC' && currentFYData.length > 0) {
+              // Calculate monthly totals
+              const monthlyTotals: {[key: string]: number} = {};
+              currentFYData.forEach(item => {
+                const monthKey = `${item.month} ${item.year}`;
+                if (!monthlyTotals[monthKey]) {
+                  monthlyTotals[monthKey] = 0;
+                }
+                
+                let value = 0;
+                switch (param) {
+                  case 'Revenue': value = item.revenue || 0; break;
+                  case 'GPM': value = item.gpm || 0; break;
+                  case 'Net Margin': value = item.net_margin || 0; break;
+                  case 'Team Cost': value = item.team_cost || 0; break;
+                  default: value = 0;
+                }
+                monthlyTotals[monthKey] += value;
+              });
+              
+              // Find last month with data
+              if (Object.keys(monthlyTotals).length > 0) {
+                const monthKeys = Object.keys(monthlyTotals);
+                const sortedMonths = monthKeys.sort((a, b) => {
+                  const [monthA, yearA] = a.split(' ');
+                  const [monthB, yearB] = b.split(' ');
+                  const dateA = parseDate(monthA, parseInt(yearA));
+                  const dateB = parseDate(monthB, parseInt(yearB));
+                  return dateA.getTime() - dateB.getTime();
+                });
+                
+                let lastMonthValue = 0;
+                for (let i = sortedMonths.length - 1; i >= 0; i--) {
+                  const monthKey = sortedMonths[i];
+                  const value = monthlyTotals[monthKey] || 0;
+                  if (value > 0) {
+                    lastMonthValue = value;
+                    break;
+                  }
+                }
+                
+                if (lastMonthValue > 0) {
+                  const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+                  const fullMonthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
+                  const lastMonthKey = sortedMonths[sortedMonths.length - 1];
+                  const [lastMonth, lastYear] = lastMonthKey.split(' ');
+                  let lastMonthIndex = financialYearMonths.indexOf(lastMonth);
+                  if (lastMonthIndex === -1) {
+                    lastMonthIndex = fullMonthNames.indexOf(lastMonth);
+                  }
+                  
+                  if (lastMonthIndex !== -1) {
+                    const actualMonthsRemaining = 12 - (lastMonthIndex + 1);
+                    const currentFYProjected = firstPeriodActual + (lastMonthValue * actualMonthsRemaining);
+                    predictedAmount = currentFYProjected - firstPeriodActual;
+                    sumAmount = currentFYProjected;
+                  }
+                }
+              }
+            }
+          }
+        }
+
         return {
 
           parameter: param,
 
-          periodValues: comparisonValues.map((period, i) => ({
+          periodValues: comparisonValues.map((period, i) => {
+            // Ensure amount is a valid number, not null/undefined
+            const amountValue = periodAmounts[i];
+            let amount = 0;
+            if (amountValue !== null && amountValue !== undefined) {
+              if (typeof amountValue === 'number') {
+                amount = amountValue;
+              } else if (typeof amountValue === 'string') {
+                amount = parseFloat(amountValue) || 0;
+              } else {
+                amount = parseFloat(String(amountValue)) || 0;
+              }
+            }
+            return {
+              period,
+              amount
+            };
+          }),
 
-            period,
-
-            amount: periodAmounts[i] || 0
-
-          })),
-
-          changes
-
+          changes,
+          
+          // Add projection values for first period
+          predictedAmount: predictedAmount,
+          sumAmount: sumAmount > 0 ? sumAmount : firstPeriodActual
         };
 
       }).filter(item => item.periodValues.length > 0);
@@ -6213,19 +6328,33 @@ const TeamReportCompare: React.FC = () => {
 
         <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Parameter</th>
 
-        {comparisonValues.filter(Boolean).map((period, i) => (
-
-          <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-
-            {(() => {
-              // Only show month range for current FY (FY 2025), not for previous FY (FY 2024)
-              const isCurrentFY = period?.includes('2025');
-              return isCurrentFY ? getMonthRangeForFY(period || '') : period || '';
-            })()}
-
-          </th>
-
-        ))}
+        {comparisonValues.filter(Boolean).map((period, i) => {
+          // Check if this is the default year comparison (current year vs previous year)
+          const isDefaultYearComparison = compareType === 'year' && 
+            comparisonValues.filter(Boolean).length === 2 &&
+            i === 0; // Only show for first period (current year)
+          
+          const isCurrentFY = period?.includes('2025') || (compareType === 'year' && i === 0);
+          
+          return (
+            <React.Fragment key={i}>
+              <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                {isCurrentFY ? getMonthRangeForFY(period || '') : period || ''}
+              </th>
+              {/* Add Predicted and Sum columns only for default year comparison (current year vs previous year) */}
+              {isDefaultYearComparison && isCurrentFY && (
+                <>
+                  <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                    Predicted
+                  </th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                    Sum (Actual + Predicted)
+                  </th>
+                </>
+              )}
+            </React.Fragment>
+          );
+        })}
 
         <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
 
@@ -6241,11 +6370,35 @@ const TeamReportCompare: React.FC = () => {
       {growthAnalysis.filter(item => item.parameter !== 'Team Cost').map((item, index) => {
 
         // Calculate growth between current and previous period for each parameter
-        // Current period is first (newest), previous period is last (oldest)
-        const currentPeriodAmount = item.periodValues[0]?.amount || 0;
-        const previousPeriodAmount = item.periodValues[item.periodValues.length - 1]?.amount || 0;
+        // For absolute change calculation, use Sum (Actual + Predicted) for current period
+        // If we have 2 periods: [0] = FY 2025, [1] = FY 2024
+        // Current = Sum amount (if available) or first period, Previous = last period (index length-1)
+        const validPeriods = item.periodValues.filter(pv => pv.period);
+        let currentPeriodAmount = 0;
+        let previousPeriodAmount = 0;
         
-        // Absolute change: current - previous
+        // Use Sum amount if available (for year comparisons), otherwise use actual amount
+        const sumAmount = (compareType === 'year' && item.sumAmount) ? item.sumAmount : 0;
+        const firstPeriodActual = validPeriods[0]?.amount || 0;
+        const firstAmount = sumAmount > 0 ? sumAmount : firstPeriodActual;
+        
+        if (validPeriods.length >= 2) {
+          // We have at least 2 periods
+          // Use Sum (Actual + Predicted) for current period if available
+          currentPeriodAmount = typeof firstAmount === 'number' && !isNaN(firstAmount) ? firstAmount : 
+                               (firstAmount !== null && firstAmount !== undefined ? parseFloat(String(firstAmount)) || 0 : 0);
+          
+          const lastAmount = validPeriods[validPeriods.length - 1]?.amount;
+          previousPeriodAmount = typeof lastAmount === 'number' && !isNaN(lastAmount) ? lastAmount : 
+                                 (lastAmount !== null && lastAmount !== undefined ? parseFloat(String(lastAmount)) || 0 : 0);
+        } else if (validPeriods.length === 1) {
+          // Only one period available
+          currentPeriodAmount = typeof firstAmount === 'number' && !isNaN(firstAmount) ? firstAmount : 
+                               (firstAmount !== null && firstAmount !== undefined ? parseFloat(String(firstAmount)) || 0 : 0);
+          previousPeriodAmount = 0;
+        }
+        
+        // Absolute change: current (Sum) - previous
         const absoluteChange = currentPeriodAmount - previousPeriodAmount;
 
         const growthPercentage = previousPeriodAmount !== 0 
@@ -6255,18 +6408,6 @@ const TeamReportCompare: React.FC = () => {
           : currentPeriodAmount !== 0 ? Infinity : 0;
 
         const isPositive = absoluteChange >= 0;
-        
-        
-        // Debug absolute change calculation
-        console.log(`🔍 Absolute Change Debug for ${item.parameter}:`, {
-          parameter: item.parameter,
-          currentPeriodAmount,
-          previousPeriodAmount,
-          absoluteChange,
-          growthPercentage,
-          isPositive,
-          periodValues: item.periodValues.map(pv => ({ period: pv.period, amount: pv.amount }))
-        });
 
 
 
@@ -6285,37 +6426,57 @@ const TeamReportCompare: React.FC = () => {
             <td style={{ padding: '6px 8px', fontWeight: 500, color: '#000000', fontSize: '10px' }}>{item.parameter}</td>
 
             {item.periodValues.filter(pv => pv.period).map((pv, i) => {
-
+              // Check if this is the default year comparison (current year vs previous year)
+              const isDefaultYearComparison = compareType === 'year' && 
+                comparisonValues.filter(Boolean).length === 2 &&
+                i === 0; // Only show for first period (current year)
+              
+              const isCurrentFY = pv.period?.includes('2025') || (compareType === 'year' && i === 0);
+              
               return (
-
-                <td key={i} style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
-                  <div>
-                    {formatValueForTable(pv.amount, item.parameter)}
-                  </div>
-                  {item.parameter === 'GPM' && (
-                    <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
-                      {(() => {
-                        const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
-                        const revenue = revenueItem?.periodValues[i]?.amount || 0;
-                        const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
-                        return `GPM %: ${percentage}%`;
-                      })()}
+                <React.Fragment key={i}>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
+                    <div>
+                      {formatValueForTable(pv.amount, item.parameter)}
                     </div>
+                    {item.parameter === 'GPM' && (
+                      <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                        {(() => {
+                          const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
+                          const revenue = revenueItem?.periodValues[i]?.amount || 0;
+                          const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
+                          return `GPM %: ${percentage}%`;
+                        })()}
+                      </div>
+                    )}
+                    {item.parameter === 'Net Margin' && (
+                      <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                        {(() => {
+                          const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
+                          const revenue = revenueItem?.periodValues[i]?.amount || 0;
+                          const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
+                          return `Net Margin %: ${percentage}%`;
+                        })()}
+                      </div>
+                    )}
+                  </td>
+                  {/* Add Predicted and Sum columns only for default year comparison (current year vs previous year) */}
+                  {isDefaultYearComparison && isCurrentFY && (
+                    <>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
+                        <div>
+                          {formatValueForTable(item.predictedAmount || 0, item.parameter)}
+                        </div>
+                      </td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
+                        <div>
+                          {formatValueForTable(item.sumAmount || pv.amount, item.parameter)}
+                        </div>
+                      </td>
+                    </>
                   )}
-                  {item.parameter === 'Net Margin' && (
-                    <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
-                      {(() => {
-                        const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
-                        const revenue = revenueItem?.periodValues[i]?.amount || 0;
-                        const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
-                        return `Net Margin %: ${percentage}%`;
-                      })()}
-                    </div>
-                  )}
-                </td>
-
+                </React.Fragment>
               );
-
             })}
 
             <td style={{ 
@@ -6486,10 +6647,124 @@ const TeamReportCompare: React.FC = () => {
         const currentPeriod = periodData[0];
         const previousPeriod = periodData[periodData.length - 1];
         
-        const revenueChange = currentPeriod.revenue - previousPeriod.revenue;
-        const gpmChange = currentPeriod.gpm - previousPeriod.gpm;
-        const netMarginChange = currentPeriod.netMargin - previousPeriod.netMargin;
-        const hcChange = currentPeriod.hc - previousPeriod.hc;
+        // Calculate projections for each parameter (only for default year comparison)
+        const isDefaultYearComparison = compareType === 'year' && periods.length === 2;
+        let revenuePredicted = 0, revenueSum = currentPeriod.revenue;
+        let gpmPredicted = 0, gpmSum = currentPeriod.gpm;
+        let netMarginPredicted = 0, netMarginSum = currentPeriod.netMargin;
+        let hcPredicted = 0, hcSum = currentPeriod.hc;
+        
+        if (isDefaultYearComparison) {
+          // Calculate projections for this specific business unit using the same logic as calculateKPIs
+          const currentFY = getCurrentFinancialYear();
+          const currentFYData = data.filter(item => {
+            if (item.business_unit !== businessUnit) return false;
+            const date = parseDate(item.month, item.year);
+            if (isNaN(date.getTime())) return false;
+            const itemYear = date.getFullYear();
+            const itemMonth = date.getMonth() + 1;
+            if (itemMonth >= 4) {
+              return itemYear === currentFY;
+            } else {
+              return itemYear === currentFY + 1;
+            }
+          });
+          
+          // Calculate projections for each parameter (same logic as calculateKPIs)
+          const calculateProjection = (paramName: string) => {
+            if (paramName === 'HC') {
+              // HC doesn't need projection - use actual value
+              return { predicted: 0, sum: currentPeriod.hc };
+            }
+            
+            // Calculate monthly totals
+            const monthlyTotals: {[key: string]: number} = {};
+            currentFYData.forEach(item => {
+              const monthKey = `${item.month} ${item.year}`;
+              if (!monthlyTotals[monthKey]) {
+                monthlyTotals[monthKey] = 0;
+              }
+              
+              let value = 0;
+              switch (paramName) {
+                case 'Revenue': value = item.revenue || 0; break;
+                case 'GPM': value = item.gpm || 0; break;
+                case 'Net Margin': value = item.net_margin || 0; break;
+                default: value = 0;
+              }
+              monthlyTotals[monthKey] += value;
+            });
+            
+            const actual = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+            
+            if (Object.keys(monthlyTotals).length > 0) {
+              const monthKeys = Object.keys(monthlyTotals);
+              const sortedMonths = monthKeys.sort((a, b) => {
+                const [monthA, yearA] = a.split(' ');
+                const [monthB, yearB] = b.split(' ');
+                const dateA = parseDate(monthA, parseInt(yearA));
+                const dateB = parseDate(monthB, parseInt(yearB));
+                return dateA.getTime() - dateB.getTime();
+              });
+              
+              // Find the last month with non-zero value (same logic as KPI dashboard)
+              let lastMonthWithData = null;
+              let lastMonthValue = 0;
+              for (let i = sortedMonths.length - 1; i >= 0; i--) {
+                const monthKey = sortedMonths[i];
+                const value = monthlyTotals[monthKey] || 0;
+                if (value > 0) {
+                  lastMonthWithData = monthKey;
+                  lastMonthValue = value;
+                  break;
+                }
+              }
+              
+              if (lastMonthWithData && lastMonthValue > 0) {
+                const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+                const fullMonthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
+                const [lastMonth, lastYear] = lastMonthWithData.split(' ');
+                let lastMonthIndex = financialYearMonths.indexOf(lastMonth);
+                if (lastMonthIndex === -1) {
+                  lastMonthIndex = fullMonthNames.indexOf(lastMonth);
+                }
+                
+                if (lastMonthIndex !== -1) {
+                  // Calculate remaining months from the last month with data (+1 because index is 0-based)
+                  const actualMonthsRemaining = 12 - (lastMonthIndex + 1);
+                  // Project: actual + (last month value * remaining months)
+                  const projected = actual + (lastMonthValue * actualMonthsRemaining);
+                  return { predicted: projected - actual, sum: projected };
+                }
+              }
+            }
+            
+            // If no projection can be calculated, return 0 predicted and actual as sum
+            return { predicted: 0, sum: actual };
+          };
+          
+          const revenueProj = calculateProjection('Revenue');
+          revenuePredicted = revenueProj.predicted;
+          revenueSum = revenueProj.sum;
+          
+          const gpmProj = calculateProjection('GPM');
+          gpmPredicted = gpmProj.predicted;
+          gpmSum = gpmProj.sum;
+          
+          const netMarginProj = calculateProjection('Net Margin');
+          netMarginPredicted = netMarginProj.predicted;
+          netMarginSum = netMarginProj.sum;
+          
+          // HC doesn't need projection
+          hcPredicted = 0;
+          hcSum = currentPeriod.hc;
+        }
+        
+        // Use Sum values for change calculations when available
+        const revenueChange = (isDefaultYearComparison && revenueSum > 0 ? revenueSum : currentPeriod.revenue) - previousPeriod.revenue;
+        const gpmChange = (isDefaultYearComparison && gpmSum > 0 ? gpmSum : currentPeriod.gpm) - previousPeriod.gpm;
+        const netMarginChange = (isDefaultYearComparison && netMarginSum > 0 ? netMarginSum : currentPeriod.netMargin) - previousPeriod.netMargin;
+        const hcChange = (isDefaultYearComparison && hcSum > 0 ? hcSum : currentPeriod.hc) - previousPeriod.hc;
         
         const revenueGrowth = previousPeriod.revenue > 0 ? (revenueChange / previousPeriod.revenue) * 100 : 0;
         const gpmGrowth = previousPeriod.gpm > 0 ? (gpmChange / previousPeriod.gpm) * 100 : 0;
@@ -6507,7 +6782,16 @@ const TeamReportCompare: React.FC = () => {
           revenueGrowth,
           gpmGrowth,
           netMarginGrowth,
-          hcGrowth
+          hcGrowth,
+          // Projection values
+          revenuePredicted,
+          revenueSum,
+          gpmPredicted,
+          gpmSum,
+          netMarginPredicted,
+          netMarginSum,
+          hcPredicted,
+          hcSum
         };
       });
       
@@ -6525,26 +6809,77 @@ const TeamReportCompare: React.FC = () => {
               <tr style={{ backgroundColor: '#d8e8f0' }}>
                 <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Business Unit</th>
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Parameter</th>
-                {comparisonValues.filter(Boolean).map((period, i) => (
-                  <th key={i} style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-                    {(() => {
-                      // Only show month range for current FY (FY 2025), not for previous FY (FY 2024)
-                      const isCurrentFY = period?.includes('2025');
-                      return isCurrentFY ? getMonthRangeForFY(period || '') : period || '';
-                    })()}
-                  </th>
-                ))}
+                {comparisonValues.filter(Boolean).map((period, i) => {
+                  // Check if this is the default year comparison (current year vs previous year)
+                  const isDefaultYearComparison = compareType === 'year' && 
+                    comparisonValues.filter(Boolean).length === 2 &&
+                    i === 0; // Only show for first period (current year)
+                  
+                  const isCurrentFY = period?.includes('2025') || (compareType === 'year' && i === 0);
+                  
+                  return (
+                    <React.Fragment key={i}>
+                      <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                        {isCurrentFY ? getMonthRangeForFY(period || '') : period || ''}
+                      </th>
+                      {/* Add Predicted and Sum columns only for default year comparison (current year vs previous year) */}
+                      {isDefaultYearComparison && isCurrentFY && (
+                        <>
+                          <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                            Predicted
+                          </th>
+                          <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
+                            Sum (Actual + Predicted)
+                          </th>
+                        </>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Growth %</th>
               </tr>
             </thead>
             <tbody>
               {businessUnitSummaries.map((summary, index) => {
+                const isDefaultYearComparison = compareType === 'year' && comparisonValues.filter(Boolean).length === 2;
                 const parameters = [
-                  { name: 'Revenue', current: summary.currentPeriod.revenue, previous: summary.previousPeriod.revenue, change: summary.revenueChange, growth: summary.revenueGrowth },
-                  { name: 'GPM', current: summary.currentPeriod.gpm, previous: summary.previousPeriod.gpm, change: summary.gpmChange, growth: summary.gpmGrowth },
-                  { name: 'Net Margin', current: summary.currentPeriod.netMargin, previous: summary.previousPeriod.netMargin, change: summary.netMarginChange, growth: summary.netMarginGrowth },
-                  { name: 'HC', current: summary.currentPeriod.hc, previous: summary.previousPeriod.hc, change: summary.hcChange, growth: summary.hcGrowth }
+                  { 
+                    name: 'Revenue', 
+                    current: summary.currentPeriod.revenue, 
+                    previous: summary.previousPeriod.revenue, 
+                    change: summary.revenueChange, 
+                    growth: summary.revenueGrowth,
+                    predicted: isDefaultYearComparison ? summary.revenuePredicted : 0,
+                    sum: isDefaultYearComparison ? summary.revenueSum : summary.currentPeriod.revenue
+                  },
+                  { 
+                    name: 'GPM', 
+                    current: summary.currentPeriod.gpm, 
+                    previous: summary.previousPeriod.gpm, 
+                    change: summary.gpmChange, 
+                    growth: summary.gpmGrowth,
+                    predicted: isDefaultYearComparison ? summary.gpmPredicted : 0,
+                    sum: isDefaultYearComparison ? summary.gpmSum : summary.currentPeriod.gpm
+                  },
+                  { 
+                    name: 'Net Margin', 
+                    current: summary.currentPeriod.netMargin, 
+                    previous: summary.previousPeriod.netMargin, 
+                    change: summary.netMarginChange, 
+                    growth: summary.netMarginGrowth,
+                    predicted: isDefaultYearComparison ? summary.netMarginPredicted : 0,
+                    sum: isDefaultYearComparison ? summary.netMarginSum : summary.currentPeriod.netMargin
+                  },
+                  { 
+                    name: 'HC', 
+                    current: summary.currentPeriod.hc, 
+                    previous: summary.previousPeriod.hc, 
+                    change: summary.hcChange, 
+                    growth: summary.hcGrowth,
+                    predicted: isDefaultYearComparison ? summary.hcPredicted : 0,
+                    sum: isDefaultYearComparison ? summary.hcSum : summary.currentPeriod.hc
+                  }
                 ];
                 
                 // Use alternating grey pattern like Growth Analysis
@@ -6572,52 +6907,73 @@ const TeamReportCompare: React.FC = () => {
                     <td style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 'bold' }}>
                       {param.name}
                     </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>
-                      <div>
-                        {formatValueForTable(param.current, param.name)}
-                      </div>
-                      {param.name === 'GPM' && (
-                        <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
-                          {(() => {
-                            const revenue = summary.currentPeriod.revenue;
-                            const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
-                            return `GPM %: ${percentage}%`;
-                          })()}
-                        </div>
-                      )}
-                      {param.name === 'Net Margin' && (
-                        <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
-                          {(() => {
-                            const revenue = summary.currentPeriod.revenue;
-                            const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
-                            return `Net Margin %: ${percentage}%`;
-                          })()}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>
-                      <div>
-                        {formatValueForTable(param.previous, param.name)}
-                      </div>
-                      {param.name === 'GPM' && (
-                        <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
-                          {(() => {
-                            const revenue = summary.previousPeriod.revenue;
-                            const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
-                            return `GPM %: ${percentage}%`;
-                          })()}
-                        </div>
-                      )}
-                      {param.name === 'Net Margin' && (
-                        <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
-                          {(() => {
-                            const revenue = summary.previousPeriod.revenue;
-                            const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
-                            return `Net Margin %: ${percentage}%`;
-                          })()}
-                        </div>
-                      )}
-                    </td>
+                    {comparisonValues.filter(Boolean).map((period, periodIndex) => {
+                      const isDefaultYearComparison = compareType === 'year' && 
+                        comparisonValues.filter(Boolean).length === 2 &&
+                        periodIndex === 0; // Only show for first period (current year)
+                      
+                      const isCurrentFY = period?.includes('2025') || (compareType === 'year' && periodIndex === 0);
+                      const isFirstPeriod = periodIndex === 0;
+                      const value = isFirstPeriod ? param.current : param.previous;
+                      const revenue = isFirstPeriod ? summary.currentPeriod.revenue : summary.previousPeriod.revenue;
+                      
+                      return (
+                        <React.Fragment key={periodIndex}>
+                          <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                            <div>
+                              {formatValueForTable(value, param.name)}
+                            </div>
+                            {isFirstPeriod && param.name === 'GPM' && (
+                              <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                                {(() => {
+                                  const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
+                                  return `GPM %: ${percentage}%`;
+                                })()}
+                              </div>
+                            )}
+                            {isFirstPeriod && param.name === 'Net Margin' && (
+                              <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                                {(() => {
+                                  const percentage = revenue > 0 ? ((param.current / revenue) * 100).toFixed(2) : '0.00';
+                                  return `Net Margin %: ${percentage}%`;
+                                })()}
+                              </div>
+                            )}
+                            {!isFirstPeriod && param.name === 'GPM' && (
+                              <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                                {(() => {
+                                  const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
+                                  return `GPM %: ${percentage}%`;
+                                })()}
+                              </div>
+                            )}
+                            {!isFirstPeriod && param.name === 'Net Margin' && (
+                              <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                                {(() => {
+                                  const percentage = revenue > 0 ? ((param.previous / revenue) * 100).toFixed(2) : '0.00';
+                                  return `Net Margin %: ${percentage}%`;
+                                })()}
+                              </div>
+                            )}
+                          </td>
+                          {/* Add Predicted and Sum columns only for default year comparison (current year vs previous year) */}
+                          {isDefaultYearComparison && isCurrentFY && isFirstPeriod && (
+                            <>
+                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                                <div>
+                                  {formatValueForTable(param.predicted || 0, param.name)}
+                                </div>
+                              </td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                                <div>
+                                  {formatValueForTable(param.sum || param.current, param.name)}
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                     <td style={{ 
                       padding: '6px 8px', 
                       textAlign: 'right',
@@ -6648,307 +7004,6 @@ const TeamReportCompare: React.FC = () => {
   </div>
 )}
 
-                {/* Summary Cards */}
-
-<div style={{ 
-
-  display: 'grid', 
-
-  gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', // Increased min width
-
-  gap: 16,
-
-  marginTop: 24
-
-}}>
-
-  <div style={{
-
-    backgroundColor: '#ffffff',
-
-    borderRadius: 8,
-
-    padding: 16,
-
-    boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-
-    minWidth: '380px', // Added min-width
-
-    border: '1px solid #d9d9d9'
-
-  }}>
-
-    <div style={{ 
-      backgroundColor: '#000000', 
-      color: '#ffffff', 
-      padding: '6px 12px', 
-      borderRadius: 4, 
-      fontSize: 12, 
-      fontWeight: 700,
-      display: 'inline-block',
-      marginBottom: 8,
-      borderBottom: '3px solid #ff8c00'
-    }}>
-      Top Growth
-    </div>
-
-    {growthAnalysis
-
-      .flatMap(item => 
-
-        item.changes
-
-          .filter(change => change.isPositive)
-
-          .map(change => ({
-
-            ...change,
-
-            parameter: item.parameter // Include parameter name
-
-          }))
-
-      )
-
-      .sort((a, b) => b.percentageChange - a.percentageChange)
-
-      .slice(0, 3)
-
-      .map((change, i) => (
-
-        <div key={i} style={{ marginBottom: 8 }}>
-
-                      <div style={{ 
-
-              display: 'flex', 
-
-              justifyContent: 'space-between',
-
-              alignItems: 'center'
-
-            }}>
-
-              <div>
-
-                <div style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>{change.parameter}</div>
-
-                <div style={{ fontSize: 10, color: '#666666' }}>
-
-                  {change.fromPeriod} → {change.toPeriod}
-
-                </div>
-
-              </div>
-
-              <span style={{ 
-
-                color: '#4ade80', 
-
-                fontWeight: 600,
-
-                fontSize: 14
-
-              }}>
-
-                +{change.percentageChange.toFixed(2)}%
-
-              </span>
-
-            </div>
-
-        </div>
-
-      ))}
-
-  </div>
-
-
-
-  <div style={{
-
-    backgroundColor: '#ffffff',
-
-    borderRadius: 8,
-
-    padding: 16,
-
-    boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-
-    minWidth: '380px', // Added min-width
-
-    border: '1px solid #d9d9d9'
-
-  }}>
-
-    <div style={{ 
-      backgroundColor: '#000000', 
-      color: '#ffffff', 
-      padding: '6px 12px', 
-      borderRadius: 4, 
-      fontSize: 12, 
-      fontWeight: 700,
-      display: 'inline-block',
-      marginBottom: 8,
-      borderBottom: '3px solid #ff8c00'
-    }}>
-      Top Decline
-    </div>
-
-    {growthAnalysis
-
-      .flatMap(item => 
-
-        item.changes
-
-          .filter(change => !change.isPositive)
-
-          .map(change => ({
-
-            ...change,
-
-            parameter: item.parameter // Include parameter name
-
-          }))
-
-      )
-
-      .sort((a, b) => a.percentageChange - b.percentageChange)
-
-      .slice(0, 3)
-
-      .map((change, i) => (
-
-        <div key={i} style={{ marginBottom: 8 }}>
-
-                      <div style={{ 
-
-              display: 'flex', 
-
-              justifyContent: 'space-between',
-
-              alignItems: 'center'
-
-            }}>
-
-              <div>
-
-                <div style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>{change.parameter}</div>
-
-                <div style={{ fontSize: 10, color: '#666666' }}>
-
-                  {change.fromPeriod} → {change.toPeriod}
-
-                </div>
-
-              </div>
-
-              <span style={{ 
-
-                color: '#f87171', 
-
-                fontWeight: 600,
-
-                fontSize: 14
-
-              }}>
-
-                {change.percentageChange.toFixed(2)}%
-
-              </span>
-
-            </div>
-
-        </div>
-
-      ))}
-
-  </div>
-
-
-
-  <div style={{
-
-    backgroundColor: '#ffffff',
-
-    borderRadius: 8,
-
-    padding: 16,
-
-    boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
-
-    minWidth: '380px', // Added min-width
-
-    border: '1px solid #d9d9d9'
-
-  }}>
-
-    <div style={{ 
-      backgroundColor: '#000000', 
-      color: '#ffffff', 
-      padding: '6px 12px', 
-      borderRadius: 4, 
-      fontSize: 12, 
-      fontWeight: 700,
-      display: 'inline-block',
-      marginBottom: 8,
-      borderBottom: '3px solid #ff8c00'
-    }}>
-      Summary
-    </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-
-        <span style={{ color: '#000000', fontSize: '10px' }}>Parameters Increased:</span>
-
-        <span style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>
-
-          {growthAnalysis
-
-            .flatMap(item => item.changes)
-
-            .filter(change => change.isPositive).length}
-
-        </span>
-
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-
-        <span style={{ color: '#000000', fontSize: '10px' }}>Parameters Decreased:</span>
-
-        <span style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>
-
-          {growthAnalysis
-
-            .flatMap(item => item.changes)
-
-            .filter(change => !change.isPositive).length}
-
-        </span>
-
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-
-        <span style={{ color: '#000000', fontSize: '10px' }}>Highest Growth:</span>
-
-        <span style={{ fontWeight: 500, color: '#000000', fontSize: '10px' }}>
-
-          {growthAnalysis.length > 0 
-
-            ? `${Math.max(...growthAnalysis.flatMap(item => 
-
-                item.changes.map(c => c.percentageChange))).toFixed(2)}%`
-
-            : '-'}
-
-        </span>
-
-      </div>
-
-  </div>
-
-</div>
 
 
 
