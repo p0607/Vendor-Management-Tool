@@ -708,9 +708,18 @@ const ClientMFSCompare: React.FC = () => {
 
       const kpiResults = {
         Revenue: calculateParameterKPI('Revenue'),
+        'Salary Cost': calculateParameterKPI('Salary Cost'),
         GPM: calculateParameterKPI('GPM'),
+        'GPM %': calculateParameterKPI('GPM %'),
+        NP: calculateParameterKPI('Net Margin'),
+        'NP %': calculateParameterKPI('NP %'),
+        'Leave Encashment': calculateParameterKPI('Leave Encashment'),
         'Team Cost': calculateParameterKPI('Team Cost'),
-        NP: calculateParameterKPI('Net Margin')
+        'Opr Cost': calculateParameterKPI('Opr Cost'),
+        'Funding Cost': calculateParameterKPI('Funding Cost'),
+        Rebate: calculateParameterKPI('Rebate'),
+        Passthrough: calculateParameterKPI('Passthrough'),
+        HC: calculateParameterKPI('HC')
       };
       
       console.log("🔍 Month KPI Results:", kpiResults);
@@ -793,10 +802,18 @@ const ClientMFSCompare: React.FC = () => {
 
       return {
         Revenue: calculateParameterKPI('revenue'),
+        'Salary Cost': calculateParameterKPI('salary_cost'),
         GPM: calculateParameterKPI('gpm'),
+        'GPM %': calculateParameterKPI('gpm_percentage'),
+        NP: calculateParameterKPI('net_margin'),
+        'NP %': calculateParameterKPI('np_percentage'),
+        'Leave Encashment': calculateParameterKPI('leave_encashment'),
         'Team Cost': calculateParameterKPI('team_cost'),
-        NP: calculateParameterKPI('net_margin')
-        // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment', 'HC'
+        'Opr Cost': calculateParameterKPI('opr_cost'),
+        'Funding Cost': calculateParameterKPI('funding_cost'),
+        Rebate: calculateParameterKPI('rebate'),
+        Passthrough: calculateParameterKPI('passthrough'),
+        HC: calculateParameterKPI('hc')
       };
     }
 
@@ -1169,10 +1186,18 @@ const ClientMFSCompare: React.FC = () => {
 
     return {
       Revenue: calculateParameterKPI('revenue'),
+      'Salary Cost': calculateParameterKPI('salary_cost'),
       GPM: calculateParameterKPI('gpm'),
+      'GPM %': calculateParameterKPI('gpm_percentage'),
+      NP: calculateParameterKPI('net_margin'),
+      'NP %': calculateParameterKPI('np_percentage'),
+      'Leave Encashment': calculateParameterKPI('leave_encashment'),
       'Team Cost': calculateParameterKPI('team_cost'),
-      NP: calculateParameterKPI('net_margin')
-      // Removed unused KPIs: 'Salary Cost', 'Opr Cost', 'Funding Cost', 'Leave Encashment', 'HC'
+      'Opr Cost': calculateParameterKPI('opr_cost'),
+      'Funding Cost': calculateParameterKPI('funding_cost'),
+      Rebate: calculateParameterKPI('rebate'),
+      Passthrough: calculateParameterKPI('passthrough'),
+      HC: calculateParameterKPI('hc')
     };
   };
 
@@ -1243,7 +1268,9 @@ const ClientMFSCompare: React.FC = () => {
   });
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
 
-  // Removed showAllKPIs state - only 5 KPIs available
+  // State for showing all KPIs
+  const [showAllKPIs, setShowAllKPIs] = useState<boolean>(false);
+  const [showAllGrowthParams, setShowAllGrowthParams] = useState<boolean>(false);
   const [comparisonData, setComparisonData] = useState<{[key: string]: any}[]>([]);
 
   const [growthAnalysis, setGrowthAnalysis] = useState<GrowthAnalysis[]>([]);
@@ -2436,35 +2463,28 @@ const ClientMFSCompare: React.FC = () => {
 
 
 
-  // Extract available parameters from data and add calculated metrics
-
+  // Extract available parameters - all financial columns from team_report
+  // Set available parameters independently of data since we know the schema
   useEffect(() => {
-
-    if (data.length === 0) return;
-
-    
-    
-    // Define available parameters - only the financial columns that behave like particulars
-
+    // Define available parameters - all financial columns from team_report
     const baseParameters = [
-
-      'HC',
-
       'Revenue',
-
+      'Salary Cost',
       'GPM',
-
+      'GPM %',
+      'NP',
+      'NP %',
+      'Leave Encashment',
       'Team Cost',
-
-      'Net Margin'
-
+      'Opr Cost',
+      'Funding Cost',
+      'Rebate',
+      'Passthrough',
+      'HC'
     ];
 
-    
-    
     setAvailableParameters(baseParameters);
-
-  }, [data]);
+  }, []); // Run once on mount, not dependent on data
 
 
 
@@ -3132,12 +3152,6 @@ const ClientMFSCompare: React.FC = () => {
 
   }, []);
 
-
-
-
-
-
-
   // Handle client name search
 
   const handleClientNameSearch = (value: string) => {
@@ -3149,9 +3163,6 @@ const ClientMFSCompare: React.FC = () => {
       return;
 
     }
-
-    
-    
     const filtered = clientNames.filter(name => 
 
       name.toLowerCase().includes(value.toLowerCase())
@@ -3161,9 +3172,6 @@ const ClientMFSCompare: React.FC = () => {
     setFilteredClientNames(filtered);
 
   };
-
-
-
   // Fetch client names when business unit changes
 
   useEffect(() => {
@@ -3173,9 +3181,6 @@ const ClientMFSCompare: React.FC = () => {
     setSelectedClientName(null); // Reset client name selection
 
   }, [selectedBusinessUnit]);
-
-
-
   // Fetch BU heads when business unit changes
 
   useEffect(() => {
@@ -3185,8 +3190,6 @@ const ClientMFSCompare: React.FC = () => {
     setSelectedBUHead(null); // Reset BU head selection
 
   }, [selectedBusinessUnit]);
-
-
 
   // Helper function to get filtered data using KPI dashboard logic
   const getFilteredDataByPeriod = useCallback((periodValue: string | null, compareType: string): any[] => {
@@ -3329,10 +3332,19 @@ const ClientMFSCompare: React.FC = () => {
         }
         // Map parameter names to database field names
         let fieldName = parameter.toLowerCase();
+        if (parameter === 'Revenue') fieldName = 'revenue';
+        if (parameter === 'Salary Cost') fieldName = 'salary_cost';
+        if (parameter === 'GPM') fieldName = 'gpm';
+        if (parameter === 'GPM %') fieldName = 'gpm_percentage';
         if (parameter === 'Team Cost') fieldName = 'team_cost';
         if (parameter === 'NP' || parameter === 'Net Margin') fieldName = 'net_margin';
-        if (parameter === 'GPM') fieldName = 'gpm';
-        if (parameter === 'Revenue') fieldName = 'revenue';
+        if (parameter === 'NP %') fieldName = 'np_percentage';
+        if (parameter === 'Leave Encashment') fieldName = 'leave_encashment';
+        if (parameter === 'Opr Cost') fieldName = 'opr_cost';
+        if (parameter === 'Funding Cost') fieldName = 'funding_cost';
+        if (parameter === 'Rebate') fieldName = 'rebate';
+        if (parameter === 'Passthrough') fieldName = 'passthrough';
+        if (parameter === 'HC') fieldName = 'hc';
         
         // Debug Net Margin mapping
         if (parameter === 'Net Margin') {
@@ -3410,9 +3422,6 @@ const ClientMFSCompare: React.FC = () => {
   const getBaseParameterValue = useCallback((periodValue: string | null, index: number, parameter: string): number => {
 
     if (!periodValue) return 0;
-
-    
-    
     // Debug: Only log for July issues
     if (periodValue && periodValue.includes('July')) {
       console.warn(`⚠️ Processing July period: ${periodValue} for parameter: ${parameter}`);
@@ -3518,29 +3527,24 @@ const ClientMFSCompare: React.FC = () => {
                   let value = 0;
 
                   switch (parameter) {
-
                     case 'Revenue': value = item.revenue || 0; break;
-
+                    case 'Salary Cost': value = item.salary_cost || 0; break;
                     case 'GPM': value = item.gpm || 0; break;
-
+                    case 'GPM %': value = item.gpm_percentage || 0; break;
                     case 'Net Margin': value = item.net_margin || 0; break;
                     case 'NP': value = item.net_margin || 0; break; // NP maps to net_margin
-
+                    case 'NP %': value = item.np_percentage || 0; break;
+                    case 'Leave Encashment': value = item.leave_encashment || 0; break;
                     case 'Team Cost': value = item.team_cost || 0; break;
-
-                    // Old fields removed for team_summary_report structure
-                    // case 'Opr Cost': value = item.opr_cost || 0; break;
-                    // case 'Funding Cost': value = item.funding_cost || 0; break;
-                    // case 'Leave Encashment': value = item.leave_encashment || 0; break;
-
+                    case 'Opr Cost': value = item.opr_cost || 0; break;
+                    case 'Funding Cost': value = item.funding_cost || 0; break;
+                    case 'Rebate': value = item.rebate || 0; break;
+                    case 'Passthrough': value = item.passthrough || 0; break;
                     case 'HC': value = item.hc || 0; break;
 
                     default: 
-
                       console.warn(`🔍 Unknown parameter in combined period: ${parameter}`);
-
                       value = 0;
-
                   }
 
             return sum + value;
@@ -3695,29 +3699,24 @@ const ClientMFSCompare: React.FC = () => {
         let value = 0;
 
         switch (parameter) {
-
           case 'Revenue': value = item.revenue || 0; break;
-
+          case 'Salary Cost': value = item.salary_cost || 0; break;
           case 'GPM': value = item.gpm || 0; break;
-
+          case 'GPM %': value = item.gpm_percentage || 0; break;
           case 'Net Margin': value = item.net_margin || 0; break;
           case 'NP': value = item.net_margin || 0; break; // NP maps to net_margin
-
+          case 'NP %': value = item.np_percentage || 0; break;
+          case 'Leave Encashment': value = item.leave_encashment || 0; break;
           case 'Team Cost': value = item.team_cost || 0; break;
-
-          // Old fields removed for team_summary_report structure
-          // case 'Opr Cost': value = item.opr_cost || 0; break;
-          // case 'Funding Cost': value = item.funding_cost || 0; break;
-          // case 'Leave Encashment': value = item.leave_encashment || 0; break;
-
+          case 'Opr Cost': value = item.opr_cost || 0; break;
+          case 'Funding Cost': value = item.funding_cost || 0; break;
+          case 'Rebate': value = item.rebate || 0; break;
+          case 'Passthrough': value = item.passthrough || 0; break;
           case 'HC': value = item.hc || 0; break;
 
           default: 
-
             console.warn(`🔍 Unknown parameter: ${parameter}`);
-
             value = 0;
-
         }
 
         
@@ -4068,24 +4067,22 @@ const ClientMFSCompare: React.FC = () => {
                   let value = 0;
 
                   switch (param) {
-
                     case 'Revenue': value = item.revenue || 0; break;
-
+                    case 'Salary Cost': value = item.salary_cost || 0; break;
                     case 'GPM': value = item.gpm || 0; break;
-
+                    case 'GPM %': value = item.gpm_percentage || 0; break;
                     case 'Net Margin': value = item.net_margin || 0; break;
-
+                    case 'NP': value = item.net_margin || 0; break;
+                    case 'NP %': value = item.np_percentage || 0; break;
+                    case 'Leave Encashment': value = item.leave_encashment || 0; break;
                     case 'Team Cost': value = item.team_cost || 0; break;
-
-                    // Old fields removed for team_summary_report structure
-                    // case 'Opr Cost': value = item.opr_cost || 0; break;
-                    // case 'Funding Cost': value = item.funding_cost || 0; break;
-                    // case 'Leave Encashment': value = item.leave_encashment || 0; break;
-
+                    case 'Opr Cost': value = item.opr_cost || 0; break;
+                    case 'Funding Cost': value = item.funding_cost || 0; break;
+                    case 'Rebate': value = item.rebate || 0; break;
+                    case 'Passthrough': value = item.passthrough || 0; break;
                     case 'HC': value = item.hc || 0; break;
 
                     default: value = 0;
-
                   }
 
                   return sum + value;
@@ -6052,18 +6049,31 @@ const ClientMFSCompare: React.FC = () => {
             {(() => {
               const kpis = kpiData;
               const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP'];
-              const additionalKPIs = []; // No additional KPIs available
-              const displayKPIs = mainKPIs; // Only show the 5 available KPIs
+              const allKPIs = Object.keys(kpis).filter(k => kpis[k]); // All available KPIs
+              const additionalKPIs = allKPIs.filter(k => !mainKPIs.includes(k));
+              const displayKPIs = showAllKPIs ? allKPIs : mainKPIs;
               
-              return displayKPIs.map((kpiName) => {
+              return (
+                <>
+                  {displayKPIs.map((kpiName) => {
                 const kpi = kpis[kpiName];
                 if (!kpi) return null;
                 
                 const formatValue = (value: number) => {
-                  if (kpiName === 'Revenue' || kpiName === 'GPM' || kpiName === 'Team Cost' || kpiName === 'NP' || kpiName === 'HC') {
+                  // Format large values (currency-like) with toggle
+                  const largeValueParams = ['Revenue', 'GPM', 'Team Cost', 'NP', 'Salary Cost', 'Leave Encashment', 'Opr Cost', 'Funding Cost', 'Rebate', 'Passthrough'];
+                  if (largeValueParams.includes(kpiName)) {
                     return formatValueWithToggle(value, true);
                   }
-                  return value.toFixed(0);
+                  // Format percentages
+                  if (kpiName === 'GPM %' || kpiName === 'NP %') {
+                    return `${value.toFixed(2)}%`;
+                  }
+                  // Format HC as integer
+                  if (kpiName === 'HC') {
+                    return value.toFixed(0);
+                  }
+                  return value.toFixed(2);
                 };
                 
                 return (
@@ -6284,13 +6294,31 @@ const ClientMFSCompare: React.FC = () => {
                     </div>
                   </div>
                 );
-              });
+                  })}
+                  {additionalKPIs.length > 0 && (
+                    <div style={{ textAlign: 'center', width: '100%', marginTop: '16px' }}>
+                      <button
+                        onClick={() => setShowAllKPIs(!showAllKPIs)}
+                        style={{
+                          padding: '8px 24px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          backgroundColor: showAllKPIs ? '#ff6b35' : '#1890ff',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        {showAllKPIs ? 'Show Less KPIs' : `Show More KPIs (${additionalKPIs.length} more)`}
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
             })()}
-          </div>
-          
-          {/* Show More/Less Button */}
-          <div style={{ textAlign: 'center' }}>
-            {/* Removed Show More KPIs button - only 5 KPIs available */}
           </div>
         </div>
       )}
@@ -6443,7 +6471,15 @@ const ClientMFSCompare: React.FC = () => {
 
     <tbody>
 
-      {growthAnalysis.filter(item => item.parameter !== 'Team Cost').map((item, index) => {
+      {(() => {
+        const mainGrowthParams = ['Revenue', 'GPM', 'NP'];
+        const allGrowthParams = growthAnalysis.filter(item => item.parameter !== 'Team Cost');
+        const additionalGrowthParams = allGrowthParams.filter(item => !mainGrowthParams.includes(item.parameter));
+        const displayGrowthParams = showAllGrowthParams ? allGrowthParams : allGrowthParams.filter(item => mainGrowthParams.includes(item.parameter));
+        
+        return (
+          <>
+            {displayGrowthParams.map((item, index) => {
 
         // Calculate growth between current and previous period for each parameter
         // Current period is first (newest), previous period is last (oldest)
@@ -6565,7 +6601,33 @@ const ClientMFSCompare: React.FC = () => {
 
         );
 
-      })}
+            })}
+            {additionalGrowthParams.length > 0 && (
+              <tr>
+                <td colSpan={comparisonValues.filter(Boolean).length + 3} style={{ padding: '12px', textAlign: 'center', borderTop: '2px solid #d9d9d9' }}>
+                  <button
+                    onClick={() => setShowAllGrowthParams(!showAllGrowthParams)}
+                    style={{
+                      padding: '8px 24px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      backgroundColor: showAllGrowthParams ? '#ff6b35' : '#1890ff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    {showAllGrowthParams ? 'Show Less Parameters' : `Show More Parameters (${additionalGrowthParams.length} more)`}
+                  </button>
+                </td>
+              </tr>
+            )}
+          </>
+        );
+      })()}
 
     </tbody>
 
@@ -6663,10 +6725,19 @@ const ClientMFSCompare: React.FC = () => {
           
           // Map parameter names to database field names
           let fieldName = parameter.toLowerCase();
+          if (parameter === 'Revenue') fieldName = 'revenue';
+          if (parameter === 'Salary Cost') fieldName = 'salary_cost';
+          if (parameter === 'GPM') fieldName = 'gpm';
+          if (parameter === 'GPM %') fieldName = 'gpm_percentage';
           if (parameter === 'Team Cost') fieldName = 'team_cost';
           if (parameter === 'NP' || parameter === 'Net Margin') fieldName = 'net_margin';
-          if (parameter === 'GPM') fieldName = 'gpm';
-          if (parameter === 'Revenue') fieldName = 'revenue';
+          if (parameter === 'NP %') fieldName = 'np_percentage';
+          if (parameter === 'Leave Encashment') fieldName = 'leave_encashment';
+          if (parameter === 'Opr Cost') fieldName = 'opr_cost';
+          if (parameter === 'Funding Cost') fieldName = 'funding_cost';
+          if (parameter === 'Rebate') fieldName = 'rebate';
+          if (parameter === 'Passthrough') fieldName = 'passthrough';
+          if (parameter === 'HC') fieldName = 'hc';
           
           monthlyTotals[monthKey] += (item[fieldName] || 0);
         });

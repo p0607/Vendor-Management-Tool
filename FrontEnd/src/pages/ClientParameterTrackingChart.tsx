@@ -38,19 +38,21 @@ const ClientParameterTrackingChart: React.FC<ClientParameterTrackingChartProps> 
   const [databaseData, setDatabaseData] = useState<any[]>(data || []);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Use parameters from props or fallback to default
+  // Use parameters from props or fallback to all available parameters from team_report
   const availableParameters = propAvailableParameters.length > 0 ? propAvailableParameters : [
-    'Revenue', 
-    'GPM', 
-    'NP', 
-    'Team Cost', 
-    'Salary Cost', 
-    'Opr Cost', 
-    'Funding Cost', 
-    'Leave Encashment', 
-    'HC', 
-    'GPM %', 
-    'NP %'
+    'Revenue',
+    'Salary Cost',
+    'GPM',
+    'GPM %',
+    'NP',
+    'NP %',
+    'Leave Encashment',
+    'Team Cost',
+    'Opr Cost',
+    'Funding Cost',
+    'Rebate',
+    'Passthrough',
+    'HC'
   ];
 
   // Update databaseData when data prop changes
@@ -467,17 +469,19 @@ const ClientParameterTrackingChart: React.FC<ClientParameterTrackingChartProps> 
       // Map parameter names to database field names (same as KPI Dashboard)
       const parameterMapping: { [key: string]: string[] } = {
         'Revenue': ['sales', 'amount', 'revenue'],
+        'Salary Cost': ['salary_cost', 'salarycost', 'salaryCost'],
         'GPM': ['gpm', 'gross_profit_margin'],
+        'GPM %': ['gpm_percentage', 'gpm_percent', 'gpm%', 'gpmPercent'],
         'Net Margin': ['net_margin', 'np', 'net_profit'],
         'NP': ['np', 'net_profit', 'net_margin'],
+        'NP %': ['np_percentage', 'np_percent', 'np%', 'npPercent'],
+        'Leave Encashment': ['leave_encashment', 'leaveencashment', 'leaveEncashment'],
         'Team Cost': ['team_cost', 'teamcost', 'teamCost'],
-        'Salary Cost': ['salary_cost', 'salarycost', 'salaryCost'],
         'Opr Cost': ['opr_cost', 'oprcost', 'oprCost'],
         'Funding Cost': ['funding_cost', 'fundingcost', 'fundingCost'],
-        'Leave Encashment': ['leave_encashment', 'leaveencashment', 'leaveEncashment'],
-        'HC': ['hc', 'headcount', 'head_count'],
-        'GPM %': ['gpm_percentage', 'gpm_percent', 'gpm%', 'gpmPercent'],
-        'NP %': ['np_percentage', 'np_percent', 'np%', 'npPercent']
+        'Rebate': ['rebate'],
+        'Passthrough': ['passthrough'],
+        'HC': ['hc', 'headcount', 'head_count']
       };
       
       // Find the actual field name in the database
