@@ -6823,13 +6823,16 @@ const ClientMFSCompare: React.FC = () => {
             });
             
             // Calculate projections for each parameter (same logic as calculateKPIs)
-            const calculateProjection = (paramName: string) => {
+            const calculateProjection = (paramName: string, currentActual: number) => {
               if (paramName === 'HC') {
                 // HC doesn't need projection - use actual value
-                return { predicted: 0, sum: currentPeriod.hc };
+                return { predicted: 0, sum: currentActual };
               }
               
-              // Calculate monthly totals
+              // Use the actual value passed in (from currentPeriod) instead of recalculating
+              const actual = currentActual;
+              
+              // Calculate monthly totals to find last month with data
               const monthlyTotals: {[key: string]: number} = {};
               currentFYData.forEach(item => {
                 const monthKey = `${item.month} ${item.year}`;
@@ -6846,8 +6849,6 @@ const ClientMFSCompare: React.FC = () => {
                 }
                 monthlyTotals[monthKey] += value;
               });
-              
-              const actual = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
               
               if (Object.keys(monthlyTotals).length > 0) {
                 const monthKeys = Object.keys(monthlyTotals);
@@ -6895,15 +6896,15 @@ const ClientMFSCompare: React.FC = () => {
               return { predicted: 0, sum: actual };
             };
             
-            const revenueProj = calculateProjection('Revenue');
+            const revenueProj = calculateProjection('Revenue', currentPeriod.revenue);
             revenuePredicted = revenueProj.predicted;
             revenueSum = revenueProj.sum;
             
-            const gpmProj = calculateProjection('GPM');
+            const gpmProj = calculateProjection('GPM', currentPeriod.gpm);
             gpmPredicted = gpmProj.predicted;
             gpmSum = gpmProj.sum;
             
-            const npProj = calculateProjection('NP');
+            const npProj = calculateProjection('NP', currentPeriod.np);
             npPredicted = npProj.predicted;
             npSum = npProj.sum;
             
@@ -7272,13 +7273,16 @@ const ClientMFSCompare: React.FC = () => {
           });
           
           // Calculate projections for each parameter (same logic as calculateKPIs)
-          const calculateProjection = (paramName: string) => {
+          const calculateProjection = (paramName: string, currentActual: number) => {
             if (paramName === 'HC') {
               // HC doesn't need projection - use actual value
-              return { predicted: 0, sum: currentPeriod.hc };
+              return { predicted: 0, sum: currentActual };
             }
             
-            // Calculate monthly totals
+            // Use the actual value passed in (from currentPeriod) instead of recalculating
+            const actual = currentActual;
+            
+            // Calculate monthly totals to find last month with data
             const monthlyTotals: {[key: string]: number} = {};
             currentFYData.forEach(item => {
               const monthKey = `${item.month} ${item.year}`;
@@ -7296,8 +7300,6 @@ const ClientMFSCompare: React.FC = () => {
               monthlyTotals[monthKey] += value;
             });
             
-            const actual = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
-            
             if (Object.keys(monthlyTotals).length > 0) {
               const monthKeys = Object.keys(monthlyTotals);
               const sortedMonths = monthKeys.sort((a, b) => {
@@ -7308,46 +7310,51 @@ const ClientMFSCompare: React.FC = () => {
                 return dateA.getTime() - dateB.getTime();
               });
               
+              // Find the last month with non-zero value (same logic as KPI dashboard)
+              let lastMonthWithData = null;
               let lastMonthValue = 0;
               for (let i = sortedMonths.length - 1; i >= 0; i--) {
                 const monthKey = sortedMonths[i];
                 const value = monthlyTotals[monthKey] || 0;
                 if (value > 0) {
+                  lastMonthWithData = monthKey;
                   lastMonthValue = value;
                   break;
                 }
               }
               
-              if (lastMonthValue > 0) {
+              if (lastMonthWithData && lastMonthValue > 0) {
                 const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
                 const fullMonthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-                const lastMonthKey = sortedMonths[sortedMonths.length - 1];
-                const [lastMonth, lastYear] = lastMonthKey.split(' ');
+                const [lastMonth, lastYear] = lastMonthWithData.split(' ');
                 let lastMonthIndex = financialYearMonths.indexOf(lastMonth);
                 if (lastMonthIndex === -1) {
                   lastMonthIndex = fullMonthNames.indexOf(lastMonth);
                 }
                 
                 if (lastMonthIndex !== -1) {
+                  // Calculate remaining months from the last month with data (+1 because index is 0-based)
                   const actualMonthsRemaining = 12 - (lastMonthIndex + 1);
+                  // Project: actual + (last month value * remaining months)
                   const projected = actual + (lastMonthValue * actualMonthsRemaining);
                   return { predicted: projected - actual, sum: projected };
                 }
               }
             }
             
+            // If no projection can be calculated, return 0 predicted and actual as sum
             return { predicted: 0, sum: actual };
           };
           
-          const revenueProj = calculateProjection('Revenue');
+          const revenueProj = calculateProjection('Revenue', currentPeriod.revenue);
           revenuePredicted = revenueProj.predicted;
           revenueSum = revenueProj.sum;
           
-          const gpmProj = calculateProjection('GPM');
+          const gpmProj = calculateProjection('GPM', currentPeriod.gpm);
           gpmPredicted = gpmProj.predicted;
           gpmSum = gpmProj.sum;
           
-          const npProj = calculateProjection('NP');
+          const npProj = calculateProjection('NP', currentPeriod.np);
           npPredicted = npProj.predicted;
           npSum = npProj.sum;
           
