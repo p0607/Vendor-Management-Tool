@@ -16,7 +16,7 @@ import styles from './TeamReportDashboard.module.css';
 
 import axios from "axios";
 
-import TargetTrackingChart from './TargetTrackingChart';
+import ClientParameterTrackingChart from './ClientParameterTrackingChart';
 
 import { formatValueForTable } from '../utils/formatUtils';
 
@@ -7831,7 +7831,7 @@ const ClientMFSCompare: React.FC = () => {
 
       {/* Target Tracking Chart - Always visible */}
 
-      <TargetTrackingChart
+      <ClientParameterTrackingChart
 
         selectedBusinessUnit={selectedBusinessUnit}
 
