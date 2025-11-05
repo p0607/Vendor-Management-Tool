@@ -4020,17 +4020,16 @@ const ClientMFSCompare: React.FC = () => {
         
         // Only calculate projection for year comparisons and if we have actual data
         if (compareType === 'year' && firstPeriodActual > 0 && comparisonValues[0]) {
-          // Get KPI data for this parameter to use the same projection logic
-          const kpiDataForParam = calculateKPIs();
+          // Use existing kpiData state instead of recalculating - this avoids redundant calculations
           // Map parameter names to match KPI keys
           let paramKey = param;
           if (param === 'Net Margin') paramKey = 'NP';
           // Also handle GPM % and NP % if needed
           
-          const kpiForParam = kpiDataForParam[paramKey];
+          const kpiForParam = kpiData[paramKey];
           
           if (kpiForParam && kpiForParam.projectedAmount !== undefined && kpiForParam.projectedAmount > 0) {
-            // Use the same projection logic from KPI dashboard
+            // Use the same projection logic from KPI dashboard (already calculated)
             predictedAmount = kpiForParam.projectedAmount || 0;
             sumAmount = kpiForParam.currentFY || firstPeriodActual; // currentFY is the projected value
           } else {
@@ -4170,10 +4169,12 @@ const ClientMFSCompare: React.FC = () => {
 
 
     // Use the calculateGrowth function which properly handles multiple periods
+    // Note: kpiData is used in calculateGrowth, so we need to wait for it to be calculated first
+    // This ensures we reuse the already-calculated projections instead of recalculating
     const chartData = calculateGrowth();
     // Removed verbose debug logs for performance
     setGrowthAnalysis(chartData);
-  }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
+  }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, kpiData]);
 
   // Calculate KPIs when data or comparison values change
   useEffect(() => {
