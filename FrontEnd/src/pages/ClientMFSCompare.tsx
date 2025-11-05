@@ -6874,21 +6874,39 @@ const ClientMFSCompare: React.FC = () => {
                 }
                 
                 if (lastMonthWithData && lastMonthValue > 0) {
-                  const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
-                  const fullMonthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-                  const [lastMonth, lastYear] = lastMonthWithData.split(' ');
-                  let lastMonthIndex = financialYearMonths.indexOf(lastMonth);
-                  if (lastMonthIndex === -1) {
-                    lastMonthIndex = fullMonthNames.indexOf(lastMonth);
-                  }
+                  // Use parseDate to handle month name variations (same as KPI dashboard)
+                  const [lastMonthName, lastYearStr] = lastMonthWithData.split(' ');
+                  const lastMonthDate = parseDate(lastMonthName, parseInt(lastYearStr));
                   
-                  if (lastMonthIndex !== -1) {
+                  if (!isNaN(lastMonthDate.getTime())) {
+                    // Financial year months: Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Jan, Feb, Mar (0-11 index)
+                    const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+                    const monthIndex = lastMonthDate.getMonth(); // 0-11 (Jan=0, Dec=11)
+                    
+                    // Map calendar month to financial year month index
+                    // Apr (month 3) = index 0, May (month 4) = index 1, ..., Mar (month 2) = index 11
+                    let financialYearIndex = -1;
+                    if (monthIndex >= 3) {
+                      // Apr-Dec (months 3-11) map to indices 0-8
+                      financialYearIndex = monthIndex - 3;
+                    } else {
+                      // Jan-Mar (months 0-2) map to indices 9-11
+                      financialYearIndex = monthIndex + 9;
+                    }
+                    
                     // Calculate remaining months from the last month with data (+1 because index is 0-based)
-                    const actualMonthsRemaining = 12 - (lastMonthIndex + 1);
+                    const actualMonthsRemaining = 12 - (financialYearIndex + 1);
+                    
                     // Project: actual + (last month value * remaining months)
                     const projected = actual + (lastMonthValue * actualMonthsRemaining);
                     return { predicted: projected - actual, sum: projected };
                   }
+                  
+                  // Fallback: if date parsing fails, calculate based on months completed
+                  const monthsCompleted = Object.keys(monthlyTotals).length;
+                  const actualMonthsRemaining = Math.max(0, 12 - monthsCompleted);
+                  const projected = actual + (lastMonthValue * actualMonthsRemaining);
+                  return { predicted: projected - actual, sum: projected };
                 }
               }
               
@@ -7323,21 +7341,38 @@ const ClientMFSCompare: React.FC = () => {
               }
               
               if (lastMonthWithData && lastMonthValue > 0) {
-                const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
-                const fullMonthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-                const [lastMonth, lastYear] = lastMonthWithData.split(' ');
-                let lastMonthIndex = financialYearMonths.indexOf(lastMonth);
-                if (lastMonthIndex === -1) {
-                  lastMonthIndex = fullMonthNames.indexOf(lastMonth);
-                }
+                // Use parseDate to handle month name variations (same as KPI dashboard)
+                const [lastMonthName, lastYearStr] = lastMonthWithData.split(' ');
+                const lastMonthDate = parseDate(lastMonthName, parseInt(lastYearStr));
                 
-                if (lastMonthIndex !== -1) {
+                if (!isNaN(lastMonthDate.getTime())) {
+                  // Financial year months: Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Jan, Feb, Mar (0-11 index)
+                  const monthIndex = lastMonthDate.getMonth(); // 0-11 (Jan=0, Dec=11)
+                  
+                  // Map calendar month to financial year month index
+                  // Apr (month 3) = index 0, May (month 4) = index 1, ..., Mar (month 2) = index 11
+                  let financialYearIndex = -1;
+                  if (monthIndex >= 3) {
+                    // Apr-Dec (months 3-11) map to indices 0-8
+                    financialYearIndex = monthIndex - 3;
+                  } else {
+                    // Jan-Mar (months 0-2) map to indices 9-11
+                    financialYearIndex = monthIndex + 9;
+                  }
+                  
                   // Calculate remaining months from the last month with data (+1 because index is 0-based)
-                  const actualMonthsRemaining = 12 - (lastMonthIndex + 1);
+                  const actualMonthsRemaining = 12 - (financialYearIndex + 1);
+                  
                   // Project: actual + (last month value * remaining months)
                   const projected = actual + (lastMonthValue * actualMonthsRemaining);
                   return { predicted: projected - actual, sum: projected };
                 }
+                
+                // Fallback: if date parsing fails, calculate based on months completed
+                const monthsCompleted = Object.keys(monthlyTotals).length;
+                const actualMonthsRemaining = Math.max(0, 12 - monthsCompleted);
+                const projected = actual + (lastMonthValue * actualMonthsRemaining);
+                return { predicted: projected - actual, sum: projected };
               }
             }
             
