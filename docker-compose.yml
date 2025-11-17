@@ -79,6 +79,8 @@ services:
     build:
       context: ./FrontEnd
       dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://q9lab.in
     container_name: vendor-management-frontend
     environment:
       - REACT_APP_API_URL=http://q9lab.in
