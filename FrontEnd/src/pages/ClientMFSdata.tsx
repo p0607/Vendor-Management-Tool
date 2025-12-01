@@ -129,11 +129,53 @@ const ClientMFSdata: React.FC = () => {
     return Array.from(yearSet).sort((a, b) => b - a);
   }, [teamReportData]);
 
-  // Helper to normalize month name to full name (handles both full names and abbreviations)
-  const normalizeToFullMonthName = (monthName: string): string => {
-    if (!monthName || typeof monthName !== 'string') return '';
+  // Helper to extract month from various formats (date string, month name, etc.)
+  const extractMonthFromValue = (monthValue: any): string => {
+    if (!monthValue) return '';
     
-    const normalized = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+    // If it's already a string
+    if (typeof monthValue === 'string') {
+      // Check if it's a date string (ISO format like "2025-08-01T00:00:00.000Z" or "2025-08-01" or "2025-08-01t00:00:00.000z")
+      // Match YYYY-MM-DD pattern (case-insensitive for 'T' and 'Z')
+      const dateMatch = monthValue.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?(?:[Tt].*)?$/);
+      if (dateMatch) {
+        const monthNum = parseInt(dateMatch[2]);
+        const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        if (monthNum >= 1 && monthNum <= 12) {
+          return monthNames[monthNum];
+        }
+      }
+      
+      // Try parsing as Date object (handles various date formats)
+      const date = new Date(monthValue);
+      if (!isNaN(date.getTime())) {
+        const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        return monthNames[date.getMonth() + 1];
+      }
+      
+      // Otherwise treat as month name string
+      return monthValue;
+    }
+    
+    // If it's a Date object
+    if (monthValue instanceof Date) {
+      const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                         'July', 'August', 'September', 'October', 'November', 'December'];
+      return monthNames[monthValue.getMonth() + 1];
+    }
+    
+    return String(monthValue);
+  };
+
+  // Helper to normalize month name to full name (handles both full names and abbreviations)
+  const normalizeToFullMonthName = (monthName: any): string => {
+    // First extract month from the value (handles date strings, Date objects, etc.)
+    const extractedMonth = extractMonthFromValue(monthName);
+    if (!extractedMonth) return '';
+    
+    const normalized = extractedMonth.charAt(0).toUpperCase() + extractedMonth.slice(1).toLowerCase();
     
     // Map abbreviations to full names
     const abbreviationMap: { [key: string]: string } = {
@@ -316,6 +358,14 @@ const ClientMFSdata: React.FC = () => {
   // Build pivot table data - grouped by client if business unit is selected
   const pivotData = useMemo(() => {
     // Debug: Log filtering state
+    const sampleMonthKeys = filteredData.slice(0, 10).map(item => {
+      if (item.month && item.year) {
+        const fullMonthName = normalizeToFullMonthName(item.month);
+        return getMonthKey(fullMonthName, item.year);
+      }
+      return null;
+    }).filter(Boolean);
+    
     console.log('🔍 ClientMFSdata Pivot Data Debug:', {
       selectedBusinessUnit,
       selectedClientName,
@@ -331,7 +381,10 @@ const ClientMFSdata: React.FC = () => {
         hc: item.hc
       })),
       monthsCount: months.length,
-      months: months.slice(0, 5)
+      months: months.slice(0, 5),
+      sampleMonthKeysFromData: sampleMonthKeys,
+      monthKeyMatch: months.length > 0 && sampleMonthKeys.length > 0 ? 
+        months.some(m => sampleMonthKeys.includes(m)) : 'N/A'
     });
 
     // If business unit is selected, group by client
@@ -372,6 +425,19 @@ const ClientMFSdata: React.FC = () => {
               
               const monthKey = getMonthKey(fullMonthName, item.year);
               const paramValue = item[param.key];
+              
+              // Debug: Log first few items for first parameter
+              if (client === clientsToShow[0] && param.key === parameters[0].key && Object.keys(values).length < 3) {
+                console.log(`🔍 Processing item:`, {
+                  originalMonth: item.month,
+                  fullMonthName,
+                  year: item.year,
+                  monthKey,
+                  paramKey: param.key,
+                  paramValue,
+                  itemId: item.id
+                });
+              }
               
               if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
                 const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
@@ -422,6 +488,19 @@ const ClientMFSdata: React.FC = () => {
             
             const monthKey = getMonthKey(fullMonthName, item.year);
             const paramValue = item[param.key];
+            
+            // Debug: Log first few items for first parameter
+            if (param.key === parameters[0].key && Object.keys(values).length < 3) {
+              console.log(`🔍 Processing aggregated item:`, {
+                originalMonth: item.month,
+                fullMonthName,
+                year: item.year,
+                monthKey,
+                paramKey: param.key,
+                paramValue,
+                itemId: item.id
+              });
+            }
             
             if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
               const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
@@ -841,6 +920,16 @@ const ClientMFSdata: React.FC = () => {
                       const cellData = paramData.values[monthKey];
                       const isEditing = editingCell?.parameter === paramData.parameter && 
                                        editingCell?.monthKey === monthKey;
+                      
+                      // Debug: Log missing data for first few cells
+                      if (!cellData && paramData.parameter === parameters[0].key && monthKey === months[0]) {
+                        console.log(`🔍 Missing aggregated cell data:`, {
+                          parameter: paramData.parameter,
+                          monthKey,
+                          availableMonthKeys: Object.keys(paramData.values),
+                          allMonths: months.slice(0, 5)
+                        });
+                      }
                       
                       return (
                         <td key={monthKey} className="data-cell">
