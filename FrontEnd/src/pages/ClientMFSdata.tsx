@@ -735,49 +735,37 @@ const ClientMFSdata: React.FC = () => {
             <table className="pivot-table">
               <thead>
                 <tr>
-                  <th className="parameter-header" rowSpan={months.length > 1 ? 2 : 1}>LOB</th>
-                  {months.length === 1 ? (
-                    // Single month: parameters as columns
-                    parameters.map(param => (
-                      <th key={param.key} className="month-header">
-                        {param.label}
+                  <th className="parameter-header" rowSpan={parameters.length > 1 ? 2 : 1}>LOB</th>
+                  {months.map(monthKey => {
+                    const [year, monthNum] = monthKey.split('-');
+                    const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const monthName = monthNames[parseInt(monthNum)];
+                    return (
+                      <th key={monthKey} className="month-header" colSpan={parameters.length}>
+                        {monthName} {year}
                       </th>
-                    ))
-                  ) : (
-                    // Multiple months: parameters with month sub-headers
-                    <>
-                      {parameters.map(param => (
-                        <th key={param.key} className="month-header" colSpan={months.length}>
+                    );
+                  })}
+                </tr>
+                {parameters.length > 1 ? (
+                  <tr>
+                    {months.map(monthKey => 
+                      parameters.map(param => (
+                        <th key={`${monthKey}_${param.key}`} className="month-header">
                           {param.label}
                         </th>
-                      ))}
-                    </>
-                  )}
-                </tr>
-                {months.length > 1 && (
-                  <tr>
-                    {parameters.map(param => 
-                      months.map(monthKey => {
-                        const [year, monthNum] = monthKey.split('-');
-                        const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        const monthName = monthNames[parseInt(monthNum)];
-                        return (
-                          <th key={`${param.key}_${monthKey}`} className="month-header">
-                            {monthName} {year}
-                          </th>
-                        );
-                      })
+                      ))
                     )}
                   </tr>
-                )}
+                ) : null}
               </thead>
               <tbody>
                 {tableData.map((row, rowIndex) => (
                   <tr key={row.client}>
                     <td className="parameter-cell">{row.client}</td>
-                    {parameters.map(param => 
-                      months.map(monthKey => {
+                    {months.map(monthKey => 
+                      parameters.map(param => {
                         const cellKey = `${param.key}_${monthKey}`;
                         const cellValue = row[cellKey] || 0;
                         const isEditing = editingCell?.parameter === param.key && 
@@ -785,7 +773,7 @@ const ClientMFSdata: React.FC = () => {
                                          editingCell?.clientName === row.client;
                         
                         return (
-                          <td key={`${param.key}_${monthKey}`} className="data-cell">
+                          <td key={`${monthKey}_${param.key}`} className="data-cell">
                             {isEditing ? (
                               <div className="edit-container">
                                 <input
