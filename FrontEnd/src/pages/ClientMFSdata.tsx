@@ -54,10 +54,17 @@ const ClientMFSdata: React.FC = () => {
   const parameters = [
     { key: 'hc', label: 'HC' },
     { key: 'revenue', label: 'Revenue' },
+    { key: 'salary_cost', label: 'Salary Cost' },
     { key: 'gpm', label: 'GPM' },
     { key: 'gpm_percentage', label: 'GPM %' },
-    { key: 'np', label: 'Net Margin' },
-    { key: 'np_percentage', label: 'Net Margin %' }
+    { key: 'np', label: 'NP' },
+    { key: 'np_percentage', label: 'NP %' },
+    { key: 'leave_encashment', label: 'Leave Encashment' },
+    { key: 'team_cost', label: 'Team Cost' },
+    { key: 'opr_cost', label: 'Opr Cost' },
+    { key: 'funding_cost', label: 'Funding Cost' },
+    { key: 'rebate', label: 'Rebate' },
+    { key: 'passthrough', label: 'Passthrough' }
   ];
 
   // Fetch data from API - using team-report endpoint (same as ClientMFSCompare)
@@ -308,12 +315,53 @@ const ClientMFSdata: React.FC = () => {
 
   // Build pivot table data - grouped by client if business unit is selected
   const pivotData = useMemo(() => {
+    // Debug: Log filtering state
+    console.log('🔍 ClientMFSdata Pivot Data Debug:', {
+      selectedBusinessUnit,
+      selectedClientName,
+      clientsCount: clients.length,
+      clients: clients.slice(0, 5),
+      filteredDataCount: filteredData.length,
+      sampleFilteredData: filteredData.slice(0, 3).map(item => ({
+        client_name: item.client_name,
+        business_unit: item.business_unit,
+        month: item.month,
+        year: item.year,
+        revenue: item.revenue,
+        hc: item.hc
+      })),
+      monthsCount: months.length,
+      months: months.slice(0, 5)
+    });
+
     // If business unit is selected, group by client
     if (selectedBusinessUnit && clients.length > 0) {
       const data: { client: string; parameters: ParameterData[] }[] = [];
       
-      clients.forEach(client => {
+      // If client name is also selected, only show that client
+      const clientsToShow = selectedClientName ? [selectedClientName] : clients;
+      
+      if (clientsToShow.length === 0) {
+        // No clients found, return empty grouped data
+        return { grouped: true, data: [] };
+      }
+      
+      clientsToShow.forEach(client => {
         const clientData = filteredData.filter(item => item.client_name === client);
+        
+        // Debug: Log client data
+        if (client === clientsToShow[0]) {
+          console.log(`🔍 Processing client "${client}":`, {
+            clientDataCount: clientData.length,
+            sampleClientData: clientData.slice(0, 3).map(item => ({
+              month: item.month,
+              year: item.year,
+              revenue: item.revenue,
+              hc: item.hc
+            }))
+          });
+        }
+        
         const paramData: ParameterData[] = parameters.map(param => {
           const values: { [monthKey: string]: { value: number; id: number; record: TeamReportItem } } = {};
           
@@ -342,6 +390,14 @@ const ClientMFSdata: React.FC = () => {
               }
             }
           });
+          
+          // Debug: Log parameter values for first parameter of first client
+          if (client === clientsToShow[0] && param.key === parameters[0].key) {
+            console.log(`🔍 Parameter "${param.key}" values:`, Object.keys(values).map(key => ({
+              monthKey: key,
+              value: values[key].value
+            })));
+          }
           
           return {
             parameter: param.key,
