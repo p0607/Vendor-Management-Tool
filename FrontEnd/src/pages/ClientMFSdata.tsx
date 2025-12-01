@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Select } from 'antd';
 import './MFSdata.css';
 import apiClient from '../config/api';
 import logo from '../assets/logo_1.png';
@@ -611,24 +612,18 @@ const ClientMFSdata: React.FC = () => {
 
             <div className="filter-group">
               <label htmlFor="parameter-filter">Parameters:</label>
-              <select
-                id="parameter-filter"
-                multiple
+              <Select
+                mode="multiple"
                 value={selectedParameters}
-                onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions, option => option.value);
-                  setSelectedParameters(selected);
-                }}
-                className="filter-select"
-                style={{ minHeight: '100px' }}
+                onChange={(values) => setSelectedParameters(values)}
+                placeholder="Select Parameters"
+                style={{ width: '100%', minWidth: '200px' }}
+                allowClear
               >
                 {allParameters.map(param => (
-                  <option key={param.key} value={param.key}>{param.label}</option>
+                  <Select.Option key={param.key} value={param.key}>{param.label}</Select.Option>
                 ))}
-              </select>
-              <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#666' }}>
-                Hold Ctrl/Cmd to select multiple
-              </small>
+              </Select>
             </div>
 
             <div className="filter-group">
@@ -685,49 +680,26 @@ const ClientMFSdata: React.FC = () => {
             )}
 
             {periodFilter === 'month' && (
-              <>
-                <div className="filter-group">
-                  <label htmlFor="month-filter">Single Month:</label>
-                  <select
-                    id="month-filter"
-                    value={periodValue}
-                    onChange={(e) => {
-                      setPeriodValue(e.target.value);
-                      setSelectedMonths([]);
-                    }}
-                    className="filter-select"
-                  >
-                    <option value="">Select Month</option>
-                    {monthOptions.map(month => (
-                      <option key={month} value={month}>{month}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="filter-group">
-                  <label htmlFor="month-multi-filter">Multiple Months:</label>
-                  <select
-                    id="month-multi-filter"
-                    multiple
-                    value={selectedMonths}
-                    onChange={(e) => {
-                      const selected = Array.from(e.target.selectedOptions, option => option.value);
-                      setSelectedMonths(selected);
-                      if (selected.length > 0) {
-                        setPeriodValue('');
-                      }
-                    }}
-                    className="filter-select"
-                    style={{ minHeight: '100px' }}
-                  >
-                    {availableMonths.map(month => (
-                      <option key={month} value={month}>{month}</option>
-                    ))}
-                  </select>
-                  <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#666' }}>
-                    Hold Ctrl/Cmd to select multiple
-                  </small>
-                </div>
-              </>
+              <div className="filter-group">
+                <label htmlFor="month-multi-filter">Months:</label>
+                <Select
+                  mode="multiple"
+                  value={selectedMonths}
+                  onChange={(values) => {
+                    setSelectedMonths(values);
+                    if (values.length > 0) {
+                      setPeriodValue('');
+                    }
+                  }}
+                  placeholder="Select Months"
+                  style={{ width: '100%', minWidth: '200px' }}
+                  allowClear
+                >
+                  {availableMonths.map(month => (
+                    <Select.Option key={month} value={month}>{month}</Select.Option>
+                  ))}
+                </Select>
+              </div>
             )}
           </div>
           
@@ -810,6 +782,28 @@ const ClientMFSdata: React.FC = () => {
                     )}
                   </tr>
                 ))}
+                {/* Total Row */}
+                <tr className="total-row">
+                  <td className="parameter-cell total-label">Total</td>
+                  {months.map(monthKey => 
+                    parameters.map(param => {
+                      const cellKey = `${param.key}_${monthKey}`;
+                      let totalValue = 0;
+                      tableData.forEach(row => {
+                        const value = row[cellKey] || 0;
+                        if (!isNaN(value)) {
+                          totalValue += value;
+                        }
+                      });
+                      
+                      return (
+                        <td key={`total_${monthKey}_${param.key}`} className="data-cell total-cell">
+                          {formatValue(totalValue, param.key)}
+                        </td>
+                      );
+                    })
+                  )}
+                </tr>
               </tbody>
             </table>
           ) : (
