@@ -48,21 +48,20 @@ const MFSdata: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // Define parameters to display
+  // Define parameters to display - matching team_summary_report table structure
   const parameters = [
     { key: 'hc', label: 'HC' },
     { key: 'revenue', label: 'Revenue' },
     { key: 'gpm', label: 'GPM' },
-    { key: 'gpm_percentage', label: 'GPM %' },
-    { key: 'np', label: 'Net Margin' },
-    { key: 'np_percentage', label: 'Net Margin %' }
+    { key: 'team_cost', label: 'Team Cost' },
+    { key: 'net_margin', label: 'Net Margin' }
   ];
 
-  // Fetch data from API
+  // Fetch data from API - using same endpoint as TeamReportCompare
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await apiClient.get('/team-report');
+        const response = await apiClient.get('/team-summary-report');
         
         if (!Array.isArray(response.data)) {
           throw new Error("Data is not an array");
@@ -70,8 +69,9 @@ const MFSdata: React.FC = () => {
 
         // Debug: Log sample data to see structure
         if (response.data.length > 0) {
-          console.log('Sample team report data:', response.data[0]);
+          console.log('Sample team summary report data:', response.data[0]);
           console.log('Total records:', response.data.length);
+          console.log('Sample month values:', response.data.slice(0, 5).map((item: any) => ({ month: item.month, year: item.year })));
         }
 
         setTeamReportData(response.data as TeamReportItem[]);
@@ -319,6 +319,7 @@ const MFSdata: React.FC = () => {
   const formatValue = (value: number, parameter: string): string => {
     if (value === null || value === undefined || isNaN(value)) return 'N/A';
     
+    // team_summary_report doesn't have percentage fields, but keep this for compatibility
     if (parameter.includes('percentage') || parameter.includes('_percentage')) {
       return `${value.toFixed(2)}%`;
     }
@@ -367,15 +368,15 @@ const MFSdata: React.FC = () => {
 
       // Update all records for this month (in case of multiple records per month)
       const updatePromises = records.map(record => {
-        return apiClient.patch(`/team-report/${record.id}`, {
+        return apiClient.patch(`/team-summary-report/${record.id}`, {
           [editingCell.parameter]: updateValue
         });
       });
 
       await Promise.all(updatePromises);
 
-      // Refresh data
-      const response = await apiClient.get('/team-report');
+      // Refresh data - using same endpoint as fetch
+      const response = await apiClient.get('/team-summary-report');
       if (Array.isArray(response.data)) {
         setTeamReportData(response.data as TeamReportItem[]);
         setError(null); // Clear any previous errors

@@ -1598,6 +1598,36 @@ app.post('/api/team-summary-report/bulk', async (req, res, next) => {
   }
 });
 
+// PATCH endpoint for team summary report (for editing)
+app.patch('/api/team-summary-report/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    // Build dynamic update query
+    const fields = Object.keys(updates);
+    const values = Object.values(updates);
+    
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
+    const query = `UPDATE team_summary_report SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`;
+    
+    const result = await executeQuery(query, [...values, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    logger.info('Team summary report record patched', { recordId: id });
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // HRMS Data Routes
 app.post('/api/hrms_data', async (req, res, next) => {
   try {
