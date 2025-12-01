@@ -20,6 +20,7 @@ import AddHRMSData from './pages/AddHRMSData';
 import TeamReportCompare from "./pages/TeamReportCompare";
 import ClientMFSCompare from "./pages/ClientMFSCompare";
 import MFSdata from "./pages/MFSdata";
+import ClientMFSdata from "./pages/ClientMFSdata";
 
 const App: React.FC = () => {
   // Set document title
@@ -50,6 +51,7 @@ const App: React.FC = () => {
         <Route path="/team-report/compare" element={<TeamReportCompare />} />
         <Route path="/client-mfs/compare" element={<ClientMFSCompare />} />
         <Route path="/mfs-data" element={<MFSdata />} />
+        <Route path="/client-mfs-data" element={<ClientMFSdata />} />
       </Routes>
     </Router>
   );

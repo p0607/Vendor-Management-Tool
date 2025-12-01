@@ -5386,6 +5386,9 @@ const ClientMFSCompare: React.FC = () => {
             <button className="auth-button" onClick={() => navigate('/team-report/compare')}>
               MFS comparison
             </button>
+            <button className="auth-button" onClick={() => navigate('/client-mfs-data')}>
+              Data
+            </button>
           </div>
 
 

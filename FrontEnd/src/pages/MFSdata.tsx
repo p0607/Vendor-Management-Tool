@@ -45,6 +45,7 @@ const MFSdata: React.FC = () => {
   const [periodValue, setPeriodValue] = useState<string>(''); // The actual year/quarter/month value
   const [editingCell, setEditingCell] = useState<{ parameter: string; monthKey: string } | null>(null);
   const [editedValue, setEditedValue] = useState<string>('');
+  const [editMode, setEditMode] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
@@ -453,7 +454,17 @@ const MFSdata: React.FC = () => {
       </div>
       
       <div className="routing-table-container">
-        <div className="search-controls">
+        <div className="table-wrapper">
+          <div className="table-controls">
+            <button 
+              onClick={() => setEditMode(!editMode)}
+              className="edit-mode-button"
+            >
+              {editMode ? 'Exit Edit Mode' : 'Edit Mode'}
+            </button>
+          </div>
+          
+          <div className="search-controls">
           <div className="filter-group">
             <label htmlFor="business-unit-filter">Business Unit:</label>
             <select
@@ -541,9 +552,8 @@ const MFSdata: React.FC = () => {
               </select>
             </div>
           )}
-        </div>
-        
-        <div className="table-wrapper">
+          </div>
+          
           <table className="pivot-table">
             <thead>
               <tr>
@@ -559,6 +569,7 @@ const MFSdata: React.FC = () => {
                     </th>
                   );
                 })}
+                <th className="total-header">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -604,34 +615,36 @@ const MFSdata: React.FC = () => {
                         ) : (
                           <div className="cell-content">
                             <span>{cellData ? formatValue(cellData.value, paramData.parameter) : 'N/A'}</span>
-                            <button
-                              onClick={() => handleEditClick(paramData.parameter, monthKey, cellData?.value || 0)}
-                              className="edit-pen-button"
-                              title="Edit"
-                            >
-                              ✏️
-                            </button>
+                            {editMode && (
+                              <button
+                                onClick={() => handleEditClick(paramData.parameter, monthKey, cellData?.value || 0)}
+                                className="edit-pen-button"
+                                title="Edit"
+                              >
+                                ✏️
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
                     );
                   })}
+                  <td className="data-cell parameter-total-cell">
+                    {(() => {
+                      // Calculate total for this parameter across all months
+                      let paramTotal = 0;
+                      months.forEach(monthKey => {
+                        const cellData = paramData.values[monthKey];
+                        if (cellData && !isNaN(cellData.value)) {
+                          paramTotal += cellData.value;
+                        }
+                      });
+                      return formatValue(paramTotal, paramData.parameter);
+                    })()}
+                  </td>
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="total-row">
-                <td className="parameter-cell total-label">Total</td>
-                {months.map(monthKey => {
-                  const totalValue = totals[monthKey] || 0;
-                  return (
-                    <td key={monthKey} className="data-cell total-cell">
-                      <span>{formatValue(totalValue, 'total')}</span>
-                    </td>
-                  );
-                })}
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>
