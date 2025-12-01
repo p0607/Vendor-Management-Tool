@@ -122,29 +122,44 @@ const ClientMFSdata: React.FC = () => {
     return Array.from(yearSet).sort((a, b) => b - a);
   }, [teamReportData]);
 
+  // Helper to normalize month name to full name (handles both full names and abbreviations)
+  const normalizeToFullMonthName = (monthName: string): string => {
+    if (!monthName || typeof monthName !== 'string') return '';
+    
+    const normalized = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+    
+    // Map abbreviations to full names
+    const abbreviationMap: { [key: string]: string } = {
+      'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+      'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+      'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+    };
+    
+    // If it's an abbreviation, convert to full name
+    if (abbreviationMap[normalized]) {
+      return abbreviationMap[normalized];
+    }
+    
+    // Otherwise return normalized (should be full name already)
+    return normalized;
+  };
+
   // Helper to get month number from month name
   const getMonthNumber = (monthName: string): number => {
-    // Normalize month name
-    const normalizedMonth = typeof monthName === 'string' 
-      ? monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase()
-      : '';
+    const fullMonthName = normalizeToFullMonthName(monthName);
     
     const months: { [key: string]: number } = {
       'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
-      'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12,
-      'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
-      'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+      'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12
     };
-    return months[normalizedMonth] || 0;
+    return months[fullMonthName] || 0;
   };
 
   // Helper to format month key
   const getMonthKey = (month: string, year: number): string => {
-    // Normalize month name first
-    const normalizedMonth = typeof month === 'string' 
-      ? month.charAt(0).toUpperCase() + month.slice(1).toLowerCase()
-      : '';
-    const monthNum = getMonthNumber(normalizedMonth);
+    // Normalize month name to full name first
+    const fullMonthName = normalizeToFullMonthName(month);
+    const monthNum = getMonthNumber(fullMonthName);
     if (monthNum === 0) {
       console.warn('Invalid month name:', month);
     }
@@ -186,10 +201,8 @@ const ClientMFSdata: React.FC = () => {
           const monthsInQuarter = quarterMonthNames[quarter] || [];
           filtered = filtered.filter(item => {
             if (!item.month || !item.year) return false;
-            // Normalize month name for comparison
-            const normalizedMonth = typeof item.month === 'string' 
-              ? item.month.charAt(0).toUpperCase() + item.month.slice(1).toLowerCase()
-              : item.month;
+            // Normalize month name to full name for comparison
+            const normalizedMonth = normalizeToFullMonthName(item.month);
             // Handle Q4 which spans across years
             if (quarter === 4) {
               return monthsInQuarter.includes(normalizedMonth) && item.year === year + 1;
@@ -204,13 +217,11 @@ const ClientMFSdata: React.FC = () => {
         if (parts.length === 2) {
           const monthName = parts[0];
           const year = parseInt(parts[1]);
-          // Normalize month name for comparison
-          const normalizedMonthName = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+          // Normalize month name to full name for comparison
+          const normalizedMonthName = normalizeToFullMonthName(monthName);
           filtered = filtered.filter(item => {
             if (!item.month || !item.year) return false;
-            const normalizedItemMonth = typeof item.month === 'string' 
-              ? item.month.charAt(0).toUpperCase() + item.month.slice(1).toLowerCase()
-              : item.month;
+            const normalizedItemMonth = normalizeToFullMonthName(item.month);
             return normalizedItemMonth === normalizedMonthName && item.year === year;
           });
         }
@@ -264,11 +275,9 @@ const ClientMFSdata: React.FC = () => {
     const monthSet = new Set<string>();
     filteredData.forEach(item => {
       if (item.month && item.year) {
-        // Normalize month name before generating key
-        const normalizedMonth = typeof item.month === 'string' 
-          ? item.month.charAt(0).toUpperCase() + item.month.slice(1).toLowerCase()
-          : item.month;
-        monthSet.add(getMonthKey(normalizedMonth, item.year));
+        // Normalize month name to full name before generating key
+        const fullMonthName = normalizeToFullMonthName(item.month);
+        monthSet.add(getMonthKey(fullMonthName, item.year));
       }
     });
     return Array.from(monthSet).sort();
@@ -310,13 +319,10 @@ const ClientMFSdata: React.FC = () => {
           
           clientData.forEach(item => {
             if (item.month && item.year) {
-              // Normalize month name - handle different formats
-              let monthName = item.month;
-              if (typeof monthName === 'string') {
-                monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
-              }
+              // Normalize month name to full name - handles both full names and abbreviations
+              const fullMonthName = normalizeToFullMonthName(item.month);
               
-              const monthKey = getMonthKey(monthName, item.year);
+              const monthKey = getMonthKey(fullMonthName, item.year);
               const paramValue = item[param.key];
               
               if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
@@ -355,13 +361,10 @@ const ClientMFSdata: React.FC = () => {
         
         filteredData.forEach(item => {
           if (item.month && item.year) {
-            // Normalize month name - handle different formats
-            let monthName = item.month;
-            if (typeof monthName === 'string') {
-              monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
-            }
+            // Normalize month name to full name - handles both full names and abbreviations
+            const fullMonthName = normalizeToFullMonthName(item.month);
             
-            const monthKey = getMonthKey(monthName, item.year);
+            const monthKey = getMonthKey(fullMonthName, item.year);
             const paramValue = item[param.key];
             
             if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
