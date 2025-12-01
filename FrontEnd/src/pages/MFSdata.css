@@ -83,7 +83,7 @@ body, html {
   width: 100%;
   border-collapse: collapse;
   font-family: 'Montserrat', sans-serif;
-  font-size: 12px !important;
+  font-size: 10px !important;
   background-color: #ffffff;
   color: black;
   margin: 1rem 0;
@@ -102,7 +102,7 @@ body, html {
   font-weight: 600;
   text-align: center;
   border: 1px solid #000000;
-  font-size: 11px;
+  font-size: 9px;
 }
 
 .parameter-header {
@@ -151,7 +151,24 @@ body, html {
   border: 1px solid #000000;
   text-align: right;
   vertical-align: middle;
-  font-size: 11px;
+  font-size: 9px;
+}
+
+.total-row {
+  background-color: #f0f0f0 !important;
+  font-weight: 700;
+}
+
+.total-label {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.total-cell {
+  background-color: #f0f0f0 !important;
+  font-weight: 700;
+  color: #000000 !important;
 }
 
 .routing-table thead {

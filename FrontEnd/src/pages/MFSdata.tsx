@@ -68,6 +68,12 @@ const MFSdata: React.FC = () => {
           throw new Error("Data is not an array");
         }
 
+        // Debug: Log sample data to see structure
+        if (response.data.length > 0) {
+          console.log('Sample team report data:', response.data[0]);
+          console.log('Total records:', response.data.length);
+        }
+
         setTeamReportData(response.data as TeamReportItem[]);
       } catch (err: any) {
         console.error("Fetch failed:", err);
@@ -113,7 +119,14 @@ const MFSdata: React.FC = () => {
 
   // Helper to format month key
   const getMonthKey = (month: string, year: number): string => {
-    const monthNum = getMonthNumber(month);
+    // Normalize month name first
+    const normalizedMonth = typeof month === 'string' 
+      ? month.charAt(0).toUpperCase() + month.slice(1).toLowerCase()
+      : '';
+    const monthNum = getMonthNumber(normalizedMonth);
+    if (monthNum === 0) {
+      console.warn('Invalid month name:', month);
+    }
     return `${year}-${String(monthNum).padStart(2, '0')}`;
   };
 
@@ -138,21 +151,24 @@ const MFSdata: React.FC = () => {
         if (quarterMatch && yearMatch) {
           const quarter = parseInt(quarterMatch[1]);
           const year = parseInt(yearMatch[1]);
-          const quarterMonths: { [key: number]: number[] } = {
-            1: [4, 5, 6],   // Apr, May, Jun
-            2: [7, 8, 9],   // Jul, Aug, Sep
-            3: [10, 11, 12], // Oct, Nov, Dec
-            4: [1, 2, 3]    // Jan, Feb, Mar
+          const quarterMonthNames: { [key: number]: string[] } = {
+            1: ['April', 'May', 'June'],
+            2: ['July', 'August', 'September'],
+            3: ['October', 'November', 'December'],
+            4: ['January', 'February', 'March']
           };
-          const monthsInQuarter = quarterMonths[quarter] || [];
+          const monthsInQuarter = quarterMonthNames[quarter] || [];
           filtered = filtered.filter(item => {
             if (!item.month || !item.year) return false;
-            const monthNum = getMonthNumber(item.month);
+            // Normalize month name for comparison
+            const normalizedMonth = typeof item.month === 'string' 
+              ? item.month.charAt(0).toUpperCase() + item.month.slice(1).toLowerCase()
+              : item.month;
             // Handle Q4 which spans across years
             if (quarter === 4) {
-              return monthsInQuarter.includes(monthNum) && item.year === year + 1;
+              return monthsInQuarter.includes(normalizedMonth) && item.year === year + 1;
             } else {
-              return monthsInQuarter.includes(monthNum) && item.year === year;
+              return monthsInQuarter.includes(normalizedMonth) && item.year === year;
             }
           });
         }
@@ -162,9 +178,15 @@ const MFSdata: React.FC = () => {
         if (parts.length === 2) {
           const monthName = parts[0];
           const year = parseInt(parts[1]);
-          filtered = filtered.filter(item => 
-            item.month === monthName && item.year === year
-          );
+          // Normalize month name for comparison
+          const normalizedMonthName = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+          filtered = filtered.filter(item => {
+            if (!item.month || !item.year) return false;
+            const normalizedItemMonth = typeof item.month === 'string' 
+              ? item.month.charAt(0).toUpperCase() + item.month.slice(1).toLowerCase()
+              : item.month;
+            return normalizedItemMonth === normalizedMonthName && item.year === year;
+          });
         }
       }
     }
@@ -182,11 +204,45 @@ const MFSdata: React.FC = () => {
       return monthNames.map(month => getMonthKey(month, year));
     }
     
+    // If quarter filter is selected, show all 3 months of that quarter
+    if (periodFilter === 'quarter' && periodValue) {
+      const quarterMatch = periodValue.match(/Q(\d)/);
+      const yearMatch = periodValue.match(/(\d{4})/);
+      if (quarterMatch && yearMatch) {
+        const quarter = parseInt(quarterMatch[1]);
+        const year = parseInt(yearMatch[1]);
+        const quarterMonthNames: { [key: number]: string[] } = {
+          1: ['April', 'May', 'June'],
+          2: ['July', 'August', 'September'],
+          3: ['October', 'November', 'December'],
+          4: ['January', 'February', 'March']
+        };
+        const monthsInQuarter = quarterMonthNames[quarter] || [];
+        // Handle Q4 which spans across years
+        const displayYear = quarter === 4 ? year + 1 : year;
+        return monthsInQuarter.map(month => getMonthKey(month, displayYear));
+      }
+    }
+    
+    // If month filter is selected, show just that month
+    if (periodFilter === 'month' && periodValue) {
+      const parts = periodValue.split('-');
+      if (parts.length === 2) {
+        const monthName = parts[0];
+        const year = parseInt(parts[1]);
+        return [getMonthKey(monthName, year)];
+      }
+    }
+    
     // Otherwise, show only months that have data
     const monthSet = new Set<string>();
     filteredData.forEach(item => {
       if (item.month && item.year) {
-        monthSet.add(getMonthKey(item.month, item.year));
+        // Normalize month name before generating key
+        const normalizedMonth = typeof item.month === 'string' 
+          ? item.month.charAt(0).toUpperCase() + item.month.slice(1).toLowerCase()
+          : item.month;
+        monthSet.add(getMonthKey(normalizedMonth, item.year));
       }
     });
     return Array.from(monthSet).sort();
@@ -199,15 +255,23 @@ const MFSdata: React.FC = () => {
       
       filteredData.forEach(item => {
         if (item.month && item.year) {
-          const monthKey = getMonthKey(item.month, item.year);
+          // Normalize month name - handle different formats
+          let monthName = item.month;
+          if (typeof monthName === 'string') {
+            // Capitalize first letter, lowercase rest
+            monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+          }
+          
+          const monthKey = getMonthKey(monthName, item.year);
           const paramValue = item[param.key];
           
-          if (paramValue !== null && paramValue !== undefined) {
+          if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
             const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
             if (!isNaN(numValue)) {
               // If multiple records exist for same month, sum them
               if (values[monthKey]) {
                 values[monthKey].value += numValue;
+                // Keep the first record's ID for editing (or we could track all IDs)
               } else {
                 values[monthKey] = {
                   value: numValue,
@@ -229,6 +293,27 @@ const MFSdata: React.FC = () => {
     
     return data;
   }, [filteredData, parameters]);
+
+  // Calculate totals for each month (excluding percentage fields)
+  const totals = useMemo(() => {
+    const totalsByMonth: { [monthKey: string]: number } = {};
+    
+    months.forEach(monthKey => {
+      let total = 0;
+      pivotData.forEach(paramData => {
+        // Exclude percentage fields from totals
+        if (!paramData.parameter.includes('percentage') && !paramData.parameter.includes('_percentage')) {
+          const cellData = paramData.values[monthKey];
+          if (cellData && !isNaN(cellData.value)) {
+            total += cellData.value;
+          }
+        }
+      });
+      totalsByMonth[monthKey] = total;
+    });
+    
+    return totalsByMonth;
+  }, [pivotData, months]);
 
   // Format value for display
   const formatValue = (value: number, parameter: string): string => {
@@ -484,6 +569,19 @@ const MFSdata: React.FC = () => {
                     const isEditing = editingCell?.parameter === paramData.parameter && 
                                      editingCell?.monthKey === monthKey;
                     
+                    // Debug: Log when cellData is missing
+                    if (!cellData && filteredData.length > 0) {
+                      // Only log once per parameter to avoid spam
+                      if (paramData.parameter === 'hc' && monthKey === months[0]) {
+                        console.log('Missing data for:', {
+                          parameter: paramData.parameter,
+                          monthKey,
+                          availableKeys: Object.keys(paramData.values),
+                          sampleItem: filteredData[0]
+                        });
+                      }
+                    }
+                    
                     return (
                       <td key={monthKey} className="data-cell">
                         {isEditing ? (
@@ -520,6 +618,19 @@ const MFSdata: React.FC = () => {
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="total-row">
+                <td className="parameter-cell total-label">Total</td>
+                {months.map(monthKey => {
+                  const totalValue = totals[monthKey] || 0;
+                  return (
+                    <td key={monthKey} className="data-cell total-cell">
+                      <span>{formatValue(totalValue, 'total')}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
