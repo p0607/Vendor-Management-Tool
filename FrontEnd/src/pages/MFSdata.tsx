@@ -174,6 +174,15 @@ const MFSdata: React.FC = () => {
 
   // Get unique months from filtered data
   const months = useMemo(() => {
+    // If year filter is selected, show all 12 months of that year
+    if (periodFilter === 'year' && periodValue) {
+      const year = parseInt(periodValue);
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                         'July', 'August', 'September', 'October', 'November', 'December'];
+      return monthNames.map(month => getMonthKey(month, year));
+    }
+    
+    // Otherwise, show only months that have data
     const monthSet = new Set<string>();
     filteredData.forEach(item => {
       if (item.month && item.year) {
@@ -181,7 +190,7 @@ const MFSdata: React.FC = () => {
       }
     });
     return Array.from(monthSet).sort();
-  }, [filteredData]);
+  }, [filteredData, periodFilter, periodValue]);
 
   // Build pivot table data
   const pivotData = useMemo(() => {
