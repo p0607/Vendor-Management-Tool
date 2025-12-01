@@ -30,12 +30,6 @@ interface TeamReportItem {
   [key: string]: any;
 }
 
-interface ParameterData {
-  parameter: string;
-  label: string;
-  values: { [monthKey: string]: { value: number; id: number; record: TeamReportItem } };
-}
-
 const ClientMFSdata: React.FC = () => {
   const [teamReportData, setTeamReportData] = useState<TeamReportItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -44,14 +38,16 @@ const ClientMFSdata: React.FC = () => {
   const [selectedClientName, setSelectedClientName] = useState<string>('');
   const [periodFilter, setPeriodFilter] = useState<string>(''); // 'year', 'quarter', or 'month'
   const [periodValue, setPeriodValue] = useState<string>(''); // The actual year/quarter/month value
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]); // Multiple month selection
+  const [selectedParameters, setSelectedParameters] = useState<string[]>([]); // Multiple parameter selection
   const [editingCell, setEditingCell] = useState<{ parameter: string; monthKey: string; clientName?: string } | null>(null);
   const [editedValue, setEditedValue] = useState<string>('');
   const [editMode, setEditMode] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
-  // Define parameters to display - matching team_report table structure
-  const parameters = [
+  // Define all available parameters
+  const allParameters = [
     { key: 'hc', label: 'HC' },
     { key: 'revenue', label: 'Revenue' },
     { key: 'salary_cost', label: 'Salary Cost' },
@@ -67,6 +63,14 @@ const ClientMFSdata: React.FC = () => {
     { key: 'passthrough', label: 'Passthrough' }
   ];
 
+  // Get selected parameters or default to all
+  const parameters = useMemo(() => {
+    if (selectedParameters.length === 0) {
+      return allParameters;
+    }
+    return allParameters.filter(p => selectedParameters.includes(p.key));
+  }, [selectedParameters]);
+
   // Fetch data from API - using team-report endpoint (same as ClientMFSCompare)
   useEffect(() => {
     const fetchData = async () => {
@@ -77,11 +81,9 @@ const ClientMFSdata: React.FC = () => {
           throw new Error("Data is not an array");
         }
 
-        // Debug: Log sample data to see structure
         if (response.data.length > 0) {
           console.log('Sample team report data:', response.data[0]);
           console.log('Total records:', response.data.length);
-          console.log('Sample month values:', response.data.slice(0, 5).map((item: any) => ({ month: item.month, year: item.year, client_name: item.client_name })));
         }
 
         setTeamReportData(response.data as TeamReportItem[]);
@@ -133,10 +135,8 @@ const ClientMFSdata: React.FC = () => {
   const extractMonthFromValue = (monthValue: any): string => {
     if (!monthValue) return '';
     
-    // If it's already a string
     if (typeof monthValue === 'string') {
       // Check if it's a date string (ISO format like "2025-08-01T00:00:00.000Z" or "2025-08-01" or "2025-08-01t00:00:00.000z")
-      // Match YYYY-MM-DD pattern (case-insensitive for 'T' and 'Z')
       const dateMatch = monthValue.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?(?:[Tt].*)?$/);
       if (dateMatch) {
         const monthNum = parseInt(dateMatch[2]);
@@ -147,7 +147,6 @@ const ClientMFSdata: React.FC = () => {
         }
       }
       
-      // Try parsing as Date object (handles various date formats)
       const date = new Date(monthValue);
       if (!isNaN(date.getTime())) {
         const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
@@ -155,11 +154,9 @@ const ClientMFSdata: React.FC = () => {
         return monthNames[date.getMonth() + 1];
       }
       
-      // Otherwise treat as month name string
       return monthValue;
     }
     
-    // If it's a Date object
     if (monthValue instanceof Date) {
       const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
                          'July', 'August', 'September', 'October', 'November', 'December'];
@@ -171,25 +168,21 @@ const ClientMFSdata: React.FC = () => {
 
   // Helper to normalize month name to full name (handles both full names and abbreviations)
   const normalizeToFullMonthName = (monthName: any): string => {
-    // First extract month from the value (handles date strings, Date objects, etc.)
     const extractedMonth = extractMonthFromValue(monthName);
     if (!extractedMonth) return '';
     
     const normalized = extractedMonth.charAt(0).toUpperCase() + extractedMonth.slice(1).toLowerCase();
     
-    // Map abbreviations to full names
     const abbreviationMap: { [key: string]: string } = {
       'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
       'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
       'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
     };
     
-    // If it's an abbreviation, convert to full name
     if (abbreviationMap[normalized]) {
       return abbreviationMap[normalized];
     }
     
-    // Otherwise return normalized (should be full name already)
     return normalized;
   };
 
@@ -206,7 +199,6 @@ const ClientMFSdata: React.FC = () => {
 
   // Helper to format month key
   const getMonthKey = (month: string, year: number): string => {
-    // Normalize month name to full name first
     const fullMonthName = normalizeToFullMonthName(month);
     const monthNum = getMonthNumber(fullMonthName);
     if (monthNum === 0) {
@@ -219,12 +211,10 @@ const ClientMFSdata: React.FC = () => {
   const filteredData = useMemo(() => {
     let filtered = [...teamReportData];
 
-    // Filter by business unit
     if (selectedBusinessUnit) {
       filtered = filtered.filter(item => item.business_unit === selectedBusinessUnit);
     }
 
-    // Filter by client name
     if (selectedClientName) {
       filtered = filtered.filter(item => item.client_name === selectedClientName);
     }
@@ -235,7 +225,6 @@ const ClientMFSdata: React.FC = () => {
         const year = parseInt(periodValue);
         filtered = filtered.filter(item => item.year === year);
       } else if (periodFilter === 'quarter') {
-        // Parse quarter (format: "Q1-2025" or "Q1(Apr-Jun) 2025")
         const quarterMatch = periodValue.match(/Q(\d)/);
         const yearMatch = periodValue.match(/(\d{4})/);
         if (quarterMatch && yearMatch) {
@@ -250,9 +239,7 @@ const ClientMFSdata: React.FC = () => {
           const monthsInQuarter = quarterMonthNames[quarter] || [];
           filtered = filtered.filter(item => {
             if (!item.month || !item.year) return false;
-            // Normalize month name to full name for comparison
             const normalizedMonth = normalizeToFullMonthName(item.month);
-            // Handle Q4 which spans across years
             if (quarter === 4) {
               return monthsInQuarter.includes(normalizedMonth) && item.year === year + 1;
             } else {
@@ -260,13 +247,12 @@ const ClientMFSdata: React.FC = () => {
             }
           });
         }
-      } else if (periodFilter === 'month') {
-        // Parse month (format: "January-2025" or "Jan-2025")
+      } else if (periodFilter === 'month' && selectedMonths.length === 0) {
+        // Single month filter (when no multiple months selected)
         const parts = periodValue.split('-');
         if (parts.length === 2) {
           const monthName = parts[0];
           const year = parseInt(parts[1]);
-          // Normalize month name to full name for comparison
           const normalizedMonthName = normalizeToFullMonthName(monthName);
           filtered = filtered.filter(item => {
             if (!item.month || !item.year) return false;
@@ -277,12 +263,64 @@ const ClientMFSdata: React.FC = () => {
       }
     }
 
-    return filtered;
-  }, [teamReportData, selectedBusinessUnit, selectedClientName, periodFilter, periodValue]);
+    // Filter by selected months if multiple months are selected
+    if (selectedMonths.length > 0) {
+      const monthKeys = selectedMonths.map(monthStr => {
+        const parts = monthStr.split(' ');
+        const monthName = parts[0];
+        const year = parseInt(parts[1]);
+        const monthNames: { [key: string]: number } = {
+          'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+          'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+        };
+        const monthNum = monthNames[monthName] || 1;
+        return `${year}-${String(monthNum).padStart(2, '0')}`;
+      });
 
-  // Get unique months from filtered data
+      filtered = filtered.filter(item => {
+        if (!item.month || !item.year) return false;
+        const fullMonthName = normalizeToFullMonthName(item.month);
+        const monthKey = getMonthKey(fullMonthName, item.year);
+        return monthKeys.includes(monthKey);
+      });
+    }
+
+    return filtered;
+  }, [teamReportData, selectedBusinessUnit, selectedClientName, periodFilter, periodValue, selectedMonths]);
+
+  // Get available months for multi-select
+  const availableMonths = useMemo(() => {
+    const monthSet = new Set<string>();
+    filteredData.forEach(item => {
+      if (item.month && item.year) {
+        const fullMonthName = normalizeToFullMonthName(item.month);
+        const monthKey = getMonthKey(fullMonthName, item.year);
+        const [year, monthNum] = monthKey.split('-');
+        const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthName = monthNames[parseInt(monthNum)];
+        monthSet.add(`${monthName} ${year}`);
+      }
+    });
+    return Array.from(monthSet).sort();
+  }, [filteredData]);
+
+  // Get months to display
   const months = useMemo(() => {
-    // If year filter is selected, show all 12 months of that year
+    if (selectedMonths.length > 0) {
+      return selectedMonths.map(monthStr => {
+        const parts = monthStr.split(' ');
+        const monthName = parts[0];
+        const year = parseInt(parts[1]);
+        const monthNames: { [key: string]: number } = {
+          'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+          'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+        };
+        const monthNum = monthNames[monthName] || 1;
+        return `${year}-${String(monthNum).padStart(2, '0')}`;
+      });
+    }
+    
     if (periodFilter === 'year' && periodValue) {
       const year = parseInt(periodValue);
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -290,7 +328,6 @@ const ClientMFSdata: React.FC = () => {
       return monthNames.map(month => getMonthKey(month, year));
     }
     
-    // If quarter filter is selected, show all 3 months of that quarter
     if (periodFilter === 'quarter' && periodValue) {
       const quarterMatch = periodValue.match(/Q(\d)/);
       const yearMatch = periodValue.match(/(\d{4})/);
@@ -304,14 +341,12 @@ const ClientMFSdata: React.FC = () => {
           4: ['January', 'February', 'March']
         };
         const monthsInQuarter = quarterMonthNames[quarter] || [];
-        // Handle Q4 which spans across years
         const displayYear = quarter === 4 ? year + 1 : year;
         return monthsInQuarter.map(month => getMonthKey(month, displayYear));
       }
     }
     
-    // If month filter is selected, show just that month
-    if (periodFilter === 'month' && periodValue) {
+    if (periodFilter === 'month' && periodValue && selectedMonths.length === 0) {
       const parts = periodValue.split('-');
       if (parts.length === 2) {
         const monthName = parts[0];
@@ -320,216 +355,73 @@ const ClientMFSdata: React.FC = () => {
       }
     }
     
-    // Otherwise, show only months that have data
     const monthSet = new Set<string>();
     filteredData.forEach(item => {
       if (item.month && item.year) {
-        // Normalize month name to full name before generating key
         const fullMonthName = normalizeToFullMonthName(item.month);
         monthSet.add(getMonthKey(fullMonthName, item.year));
       }
     });
     return Array.from(monthSet).sort();
-  }, [filteredData, periodFilter, periodValue]);
+  }, [filteredData, periodFilter, periodValue, selectedMonths]);
 
-  // Get unique clients from filtered data (for grouping)
+  // Get unique clients from filtered data
   const clients = useMemo(() => {
     if (!selectedBusinessUnit) {
-      // If no business unit selected, show all clients
-      const clientSet = new Set<string>();
-      filteredData.forEach(item => {
-        if (item.client_name) {
-          clientSet.add(item.client_name);
-        }
-      });
-      return Array.from(clientSet).sort();
-    } else {
-      // If business unit selected, group by client
-      const clientSet = new Set<string>();
-      filteredData.forEach(item => {
-        if (item.client_name && item.business_unit === selectedBusinessUnit) {
-          clientSet.add(item.client_name);
-        }
-      });
-      return Array.from(clientSet).sort();
+      return [];
     }
+    const clientSet = new Set<string>();
+    filteredData.forEach(item => {
+      if (item.client_name && item.business_unit === selectedBusinessUnit) {
+        clientSet.add(item.client_name);
+      }
+    });
+    return Array.from(clientSet).sort();
   }, [filteredData, selectedBusinessUnit]);
 
-  // Build pivot table data - grouped by client if business unit is selected
-  const pivotData = useMemo(() => {
-    // Debug: Log filtering state
-    const sampleMonthKeys = filteredData.slice(0, 10).map(item => {
-      if (item.month && item.year) {
-        const fullMonthName = normalizeToFullMonthName(item.month);
-        return getMonthKey(fullMonthName, item.year);
-      }
-      return null;
-    }).filter(Boolean);
-    
-    console.log('🔍 ClientMFSdata Pivot Data Debug:', {
-      selectedBusinessUnit,
-      selectedClientName,
-      clientsCount: clients.length,
-      clients: clients.slice(0, 5),
-      filteredDataCount: filteredData.length,
-      sampleFilteredData: filteredData.slice(0, 3).map(item => ({
-        client_name: item.client_name,
-        business_unit: item.business_unit,
-        month: item.month,
-        year: item.year,
-        revenue: item.revenue,
-        hc: item.hc
-      })),
-      monthsCount: months.length,
-      months: months.slice(0, 5),
-      sampleMonthKeysFromData: sampleMonthKeys,
-      monthKeyMatch: months.length > 0 && sampleMonthKeys.length > 0 ? 
-        months.some(m => sampleMonthKeys.includes(m)) : 'N/A'
-    });
+  // Build data structure: clients as rows, parameters as columns
+  const tableData = useMemo(() => {
+    if (!selectedBusinessUnit || clients.length === 0) {
+      return [];
+    }
 
-    // If business unit is selected, group by client
-    if (selectedBusinessUnit && clients.length > 0) {
-      const data: { client: string; parameters: ParameterData[] }[] = [];
+    const clientsToShow = selectedClientName ? [selectedClientName] : clients;
+    
+    return clientsToShow.map(client => {
+      const clientData = filteredData.filter(item => item.client_name === client);
+      const clientRow: { client: string; [key: string]: any } = { client };
       
-      // If client name is also selected, only show that client
-      const clientsToShow = selectedClientName ? [selectedClientName] : clients;
-      
-      if (clientsToShow.length === 0) {
-        // No clients found, return empty grouped data
-        return { grouped: true, data: [] };
-      }
-      
-      clientsToShow.forEach(client => {
-        const clientData = filteredData.filter(item => item.client_name === client);
-        
-        // Debug: Log client data
-        if (client === clientsToShow[0]) {
-          console.log(`🔍 Processing client "${client}":`, {
-            clientDataCount: clientData.length,
-            sampleClientData: clientData.slice(0, 3).map(item => ({
-              month: item.month,
-              year: item.year,
-              revenue: item.revenue,
-              hc: item.hc
-            }))
-          });
-        }
-        
-        const paramData: ParameterData[] = parameters.map(param => {
-          const values: { [monthKey: string]: { value: number; id: number; record: TeamReportItem } } = {};
+      // For each parameter and month combination
+      parameters.forEach(param => {
+        months.forEach(monthKey => {
+          let totalValue = 0;
           
           clientData.forEach(item => {
             if (item.month && item.year) {
-              // Normalize month name to full name - handles both full names and abbreviations
               const fullMonthName = normalizeToFullMonthName(item.month);
+              const itemMonthKey = getMonthKey(fullMonthName, item.year);
               
-              const monthKey = getMonthKey(fullMonthName, item.year);
-              const paramValue = item[param.key];
-              
-              // Debug: Log first few items for first parameter
-              if (client === clientsToShow[0] && param.key === parameters[0].key && Object.keys(values).length < 3) {
-                console.log(`🔍 Processing item:`, {
-                  originalMonth: item.month,
-                  fullMonthName,
-                  year: item.year,
-                  monthKey,
-                  paramKey: param.key,
-                  paramValue,
-                  itemId: item.id
-                });
-              }
-              
-              if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
-                const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
-                if (!isNaN(numValue)) {
-                  // If multiple records exist for same month, sum them
-                  if (values[monthKey]) {
-                    values[monthKey].value += numValue;
-                  } else {
-                    values[monthKey] = {
-                      value: numValue,
-                      id: item.id,
-                      record: item
-                    };
+              if (itemMonthKey === monthKey) {
+                const paramValue = item[param.key];
+                if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
+                  const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
+                  if (!isNaN(numValue)) {
+                    totalValue += numValue;
                   }
                 }
               }
             }
           });
           
-          // Debug: Log parameter values for first parameter of first client
-          if (client === clientsToShow[0] && param.key === parameters[0].key) {
-            console.log(`🔍 Parameter "${param.key}" values:`, Object.keys(values).map(key => ({
-              monthKey: key,
-              value: values[key].value
-            })));
-          }
-          
-          return {
-            parameter: param.key,
-            label: param.label,
-            values
-          };
+          // Create key: parameter_monthKey (e.g., "hc_2025-01")
+          const cellKey = `${param.key}_${monthKey}`;
+          clientRow[cellKey] = totalValue;
         });
-        
-        data.push({ client, parameters: paramData });
       });
       
-      return { grouped: true, data };
-    } else {
-      // No business unit selected, show aggregated data
-      const data: ParameterData[] = parameters.map(param => {
-        const values: { [monthKey: string]: { value: number; id: number; record: TeamReportItem } } = {};
-        
-        filteredData.forEach(item => {
-          if (item.month && item.year) {
-            // Normalize month name to full name - handles both full names and abbreviations
-            const fullMonthName = normalizeToFullMonthName(item.month);
-            
-            const monthKey = getMonthKey(fullMonthName, item.year);
-            const paramValue = item[param.key];
-            
-            // Debug: Log first few items for first parameter
-            if (param.key === parameters[0].key && Object.keys(values).length < 3) {
-              console.log(`🔍 Processing aggregated item:`, {
-                originalMonth: item.month,
-                fullMonthName,
-                year: item.year,
-                monthKey,
-                paramKey: param.key,
-                paramValue,
-                itemId: item.id
-              });
-            }
-            
-            if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
-              const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
-              if (!isNaN(numValue)) {
-                // If multiple records exist for same month, sum them
-                if (values[monthKey]) {
-                  values[monthKey].value += numValue;
-                } else {
-                  values[monthKey] = {
-                    value: numValue,
-                    id: item.id,
-                    record: item
-                  };
-                }
-              }
-            }
-          }
-        });
-        
-        return {
-          parameter: param.key,
-          label: param.label,
-          values
-        };
-      });
-      
-      return { grouped: false, data };
-    }
-  }, [filteredData, parameters, selectedBusinessUnit, clients]);
+      return clientRow;
+    });
+  }, [filteredData, selectedBusinessUnit, selectedClientName, clients, parameters, months]);
 
   // Format value for display
   const formatValue = (value: number, parameter: string): string => {
@@ -553,7 +445,6 @@ const ClientMFSdata: React.FC = () => {
     if (!editingCell) return;
 
     try {
-      // Find the record(s) for this month and parameter
       const monthParts = editingCell.monthKey.split('-');
       const year = parseInt(monthParts[0]);
       const monthNum = parseInt(monthParts[1]);
@@ -561,12 +452,10 @@ const ClientMFSdata: React.FC = () => {
                          'July', 'August', 'September', 'October', 'November', 'December'];
       const monthName = monthNames[monthNum];
 
-      // Find records that match the current filters and month
       let records = filteredData.filter(item => 
         item.month === monthName && item.year === year
       );
 
-      // If client name is specified in editing cell, filter by it
       if (editingCell.clientName) {
         records = records.filter(item => item.client_name === editingCell.clientName);
       }
@@ -576,7 +465,6 @@ const ClientMFSdata: React.FC = () => {
         return;
       }
 
-      // Parse the value
       const updateValue = editingCell.parameter.includes('percentage') 
         ? parseFloat(editedValue)
         : parseFloat(editedValue);
@@ -586,7 +474,6 @@ const ClientMFSdata: React.FC = () => {
         return;
       }
 
-      // Update all records for this month (in case of multiple records per month)
       const updatePromises = records.map(record => {
         return apiClient.patch(`/team-report/${record.id}`, {
           [editingCell.parameter]: updateValue
@@ -595,11 +482,10 @@ const ClientMFSdata: React.FC = () => {
 
       await Promise.all(updatePromises);
 
-      // Refresh data - using same endpoint as fetch
       const response = await apiClient.get('/team-report');
       if (Array.isArray(response.data)) {
         setTeamReportData(response.data as TeamReportItem[]);
-        setError(null); // Clear any previous errors
+        setError(null);
       }
 
       setEditingCell(null);
@@ -623,7 +509,7 @@ const ClientMFSdata: React.FC = () => {
       options.push(`Q1(Apr-Jun) ${year}`);
       options.push(`Q2(Jul-Sep) ${year}`);
       options.push(`Q3(Oct-Dec) ${year}`);
-      options.push(`Q4(Jan-Mar) ${year + 1}`); // Q4 belongs to next calendar year
+      options.push(`Q4(Jan-Mar) ${year + 1}`);
     });
     return options;
   }, [years]);
@@ -644,10 +530,6 @@ const ClientMFSdata: React.FC = () => {
   if (loading) return <div className="loading">Loading data...</div>;
   if (error && !editingCell) return <div className="error">Error: {error}</div>;
   if (teamReportData.length === 0) return <div className="empty">No records found</div>;
-
-  const isGrouped = pivotData.grouped;
-  const dataToRender = isGrouped ? (pivotData as { grouped: true; data: { client: string; parameters: ParameterData[] }[] }).data : 
-                                   (pivotData as { grouped: false; data: ParameterData[] }).data;
 
   return (
     <div className="homepage">
@@ -695,9 +577,10 @@ const ClientMFSdata: React.FC = () => {
                 value={selectedBusinessUnit}
                 onChange={(e) => {
                   setSelectedBusinessUnit(e.target.value);
-                  setSelectedClientName(''); // Reset client when BU changes
+                  setSelectedClientName('');
                   setPeriodFilter('');
                   setPeriodValue('');
+                  setSelectedMonths([]);
                 }}
                 className="filter-select"
               >
@@ -727,6 +610,28 @@ const ClientMFSdata: React.FC = () => {
             </div>
 
             <div className="filter-group">
+              <label htmlFor="parameter-filter">Parameters:</label>
+              <select
+                id="parameter-filter"
+                multiple
+                value={selectedParameters}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, option => option.value);
+                  setSelectedParameters(selected);
+                }}
+                className="filter-select"
+                style={{ minHeight: '100px' }}
+              >
+                {allParameters.map(param => (
+                  <option key={param.key} value={param.key}>{param.label}</option>
+                ))}
+              </select>
+              <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#666' }}>
+                Hold Ctrl/Cmd to select multiple
+              </small>
+            </div>
+
+            <div className="filter-group">
               <label htmlFor="period-type-filter">Period Type:</label>
               <select
                 id="period-type-filter"
@@ -734,6 +639,7 @@ const ClientMFSdata: React.FC = () => {
                 onChange={(e) => {
                   setPeriodFilter(e.target.value);
                   setPeriodValue('');
+                  setSelectedMonths([]);
                 }}
                 className="filter-select"
               >
@@ -779,209 +685,149 @@ const ClientMFSdata: React.FC = () => {
             )}
 
             {periodFilter === 'month' && (
-              <div className="filter-group">
-                <label htmlFor="month-filter">Month:</label>
-                <select
-                  id="month-filter"
-                  value={periodValue}
-                  onChange={(e) => setPeriodValue(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">Select Month</option>
-                  {monthOptions.map(month => (
-                    <option key={month} value={month}>{month}</option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div className="filter-group">
+                  <label htmlFor="month-filter">Single Month:</label>
+                  <select
+                    id="month-filter"
+                    value={periodValue}
+                    onChange={(e) => {
+                      setPeriodValue(e.target.value);
+                      setSelectedMonths([]);
+                    }}
+                    className="filter-select"
+                  >
+                    <option value="">Select Month</option>
+                    {monthOptions.map(month => (
+                      <option key={month} value={month}>{month}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filter-group">
+                  <label htmlFor="month-multi-filter">Multiple Months:</label>
+                  <select
+                    id="month-multi-filter"
+                    multiple
+                    value={selectedMonths}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions, option => option.value);
+                      setSelectedMonths(selected);
+                      if (selected.length > 0) {
+                        setPeriodValue('');
+                      }
+                    }}
+                    className="filter-select"
+                    style={{ minHeight: '100px' }}
+                  >
+                    {availableMonths.map(month => (
+                      <option key={month} value={month}>{month}</option>
+                    ))}
+                  </select>
+                  <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#666' }}>
+                    Hold Ctrl/Cmd to select multiple
+                  </small>
+                </div>
+              </>
             )}
           </div>
           
-          {isGrouped ? (
-            // Render grouped by client
-            (dataToRender as { client: string; parameters: ParameterData[] }[]).map((clientGroup, groupIndex) => (
-              <div key={clientGroup.client} style={{ marginBottom: '2rem' }}>
-                <h3 style={{ 
-                  marginBottom: '1rem', 
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#000000',
-                  color: '#ffffff',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  fontWeight: 700
-                }}>
-                  {clientGroup.client}
-                </h3>
-                <table className="pivot-table">
-                  <thead>
-                    <tr>
-                      <th className="parameter-header">Parameter</th>
-                      {months.map(monthKey => {
+          {selectedBusinessUnit && tableData.length > 0 ? (
+            <table className="pivot-table">
+              <thead>
+                <tr>
+                  <th className="parameter-header" rowSpan={months.length > 1 ? 2 : 1}>LOB</th>
+                  {months.length === 1 ? (
+                    // Single month: parameters as columns
+                    parameters.map(param => (
+                      <th key={param.key} className="month-header">
+                        {param.label}
+                      </th>
+                    ))
+                  ) : (
+                    // Multiple months: parameters with month sub-headers
+                    <>
+                      {parameters.map(param => (
+                        <th key={param.key} className="month-header" colSpan={months.length}>
+                          {param.label}
+                        </th>
+                      ))}
+                    </>
+                  )}
+                </tr>
+                {months.length > 1 && (
+                  <tr>
+                    {parameters.map(param => 
+                      months.map(monthKey => {
                         const [year, monthNum] = monthKey.split('-');
                         const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                         const monthName = monthNames[parseInt(monthNum)];
                         return (
-                          <th key={monthKey} className="month-header">
+                          <th key={`${param.key}_${monthKey}`} className="month-header">
                             {monthName} {year}
                           </th>
                         );
-                      })}
-                      <th className="total-header">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientGroup.parameters.map((paramData) => (
-                      <tr key={paramData.parameter}>
-                        <td className="parameter-cell">{paramData.label}</td>
-                        {months.map(monthKey => {
-                          const cellData = paramData.values[monthKey];
-                          const isEditing = editingCell?.parameter === paramData.parameter && 
-                                           editingCell?.monthKey === monthKey &&
-                                           editingCell?.clientName === clientGroup.client;
-                          
-                          return (
-                            <td key={monthKey} className="data-cell">
-                              {isEditing ? (
-                                <div className="edit-container">
-                                  <input
-                                    type="text"
-                                    value={editedValue}
-                                    onChange={(e) => setEditedValue(e.target.value)}
-                                    className="edit-input"
-                                    autoFocus
-                                  />
-                                  <button onClick={handleSaveEdit} className="save-button">
-                                    Save
-                                  </button>
-                                  <button onClick={handleCancelEdit} className="cancel-button">
-                                    Cancel
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="cell-content">
-                                  <span>{cellData ? formatValue(cellData.value, paramData.parameter) : 'N/A'}</span>
-                                  {editMode && (
-                                    <button
-                                      onClick={() => handleEditClick(paramData.parameter, monthKey, cellData?.value || 0, clientGroup.client)}
-                                      className="edit-pen-button"
-                                      title="Edit"
-                                    >
-                                      ✏️
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                        <td className="data-cell parameter-total-cell">
-                          {(() => {
-                            let paramTotal = 0;
-                            months.forEach(monthKey => {
-                              const cellData = paramData.values[monthKey];
-                              if (cellData && !isNaN(cellData.value)) {
-                                paramTotal += cellData.value;
-                              }
-                            });
-                            return formatValue(paramTotal, paramData.parameter);
-                          })()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))
-          ) : (
-            // Render aggregated (no grouping)
-            <table className="pivot-table">
-              <thead>
-                <tr>
-                  <th className="parameter-header">Parameter</th>
-                  {months.map(monthKey => {
-                    const [year, monthNum] = monthKey.split('-');
-                    const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    const monthName = monthNames[parseInt(monthNum)];
-                    return (
-                      <th key={monthKey} className="month-header">
-                        {monthName} {year}
-                      </th>
-                    );
-                  })}
-                  <th className="total-header">Total</th>
-                </tr>
+                      })
+                    )}
+                  </tr>
+                )}
               </thead>
               <tbody>
-                {(dataToRender as ParameterData[]).map((paramData) => (
-                  <tr key={paramData.parameter}>
-                    <td className="parameter-cell">{paramData.label}</td>
-                    {months.map(monthKey => {
-                      const cellData = paramData.values[monthKey];
-                      const isEditing = editingCell?.parameter === paramData.parameter && 
-                                       editingCell?.monthKey === monthKey;
-                      
-                      // Debug: Log missing data for first few cells
-                      if (!cellData && paramData.parameter === parameters[0].key && monthKey === months[0]) {
-                        console.log(`🔍 Missing aggregated cell data:`, {
-                          parameter: paramData.parameter,
-                          monthKey,
-                          availableMonthKeys: Object.keys(paramData.values),
-                          allMonths: months.slice(0, 5)
-                        });
-                      }
-                      
-                      return (
-                        <td key={monthKey} className="data-cell">
-                          {isEditing ? (
-                            <div className="edit-container">
-                              <input
-                                type="text"
-                                value={editedValue}
-                                onChange={(e) => setEditedValue(e.target.value)}
-                                className="edit-input"
-                                autoFocus
-                              />
-                              <button onClick={handleSaveEdit} className="save-button">
-                                Save
-                              </button>
-                              <button onClick={handleCancelEdit} className="cancel-button">
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="cell-content">
-                              <span>{cellData ? formatValue(cellData.value, paramData.parameter) : 'N/A'}</span>
-                              {editMode && (
-                                <button
-                                  onClick={() => handleEditClick(paramData.parameter, monthKey, cellData?.value || 0)}
-                                  className="edit-pen-button"
-                                  title="Edit"
-                                >
-                                  ✏️
+                {tableData.map((row, rowIndex) => (
+                  <tr key={row.client}>
+                    <td className="parameter-cell">{row.client}</td>
+                    {parameters.map(param => 
+                      months.map(monthKey => {
+                        const cellKey = `${param.key}_${monthKey}`;
+                        const cellValue = row[cellKey] || 0;
+                        const isEditing = editingCell?.parameter === param.key && 
+                                         editingCell?.monthKey === monthKey &&
+                                         editingCell?.clientName === row.client;
+                        
+                        return (
+                          <td key={`${param.key}_${monthKey}`} className="data-cell">
+                            {isEditing ? (
+                              <div className="edit-container">
+                                <input
+                                  type="text"
+                                  value={editedValue}
+                                  onChange={(e) => setEditedValue(e.target.value)}
+                                  className="edit-input"
+                                  autoFocus
+                                />
+                                <button onClick={handleSaveEdit} className="save-button">
+                                  Save
                                 </button>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="data-cell parameter-total-cell">
-                      {(() => {
-                        let paramTotal = 0;
-                        months.forEach(monthKey => {
-                          const cellData = paramData.values[monthKey];
-                          if (cellData && !isNaN(cellData.value)) {
-                            paramTotal += cellData.value;
-                          }
-                        });
-                        return formatValue(paramTotal, paramData.parameter);
-                      })()}
-                    </td>
+                                <button onClick={handleCancelEdit} className="cancel-button">
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="cell-content">
+                                <span>{formatValue(cellValue, param.key)}</span>
+                                {editMode && (
+                                  <button
+                                    onClick={() => handleEditClick(param.key, monthKey, cellValue, row.client)}
+                                    className="edit-pen-button"
+                                    title="Edit"
+                                  >
+                                    ✏️
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
+          ) : (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
+              {!selectedBusinessUnit ? 'Please select a Business Unit to view data' : 'No data available for the selected filters'}
+            </div>
           )}
         </div>
       </div>
@@ -990,4 +836,3 @@ const ClientMFSdata: React.FC = () => {
 };
 
 export default ClientMFSdata;
-
