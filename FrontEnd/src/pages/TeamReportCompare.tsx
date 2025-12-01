@@ -5391,6 +5391,10 @@ const TeamReportCompare: React.FC = () => {
               Client MFS comparison
             </button>
 
+            <button className="auth-button" onClick={() => navigate('/mfs-data')}>
+              Data
+            </button>
+
             <button className="auth-button" onClick={() => navigate('/HomePage')}>
 
               Home
