@@ -616,98 +616,106 @@ const MFSdata: React.FC = () => {
           )}
           </div>
           
-          <table className="pivot-table">
-            <thead>
-              <tr>
-                <th className="parameter-header">Parameter</th>
-                {months.map(monthKey => {
-                  const [year, monthNum] = monthKey.split('-');
-                  const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                  const monthName = monthNames[parseInt(monthNum)];
-                  return (
-                    <th key={monthKey} className="month-header">
-                      {monthName} {year}
-                    </th>
-                  );
-                })}
-                <th className="total-header">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pivotData.map((paramData) => (
-                <tr key={paramData.parameter}>
-                  <td className="parameter-cell">{paramData.label}</td>
-                  {months.map(monthKey => {
-                    const cellData = paramData.values[monthKey];
-                    const isEditing = editingCell?.parameter === paramData.parameter && 
-                                     editingCell?.monthKey === monthKey;
-                    
-                    // Debug: Log when cellData is missing
-                    if (!cellData && filteredData.length > 0) {
-                      // Only log once per parameter to avoid spam
-                      if (paramData.parameter === 'hc' && monthKey === months[0]) {
-                        console.log('Missing data for:', {
-                          parameter: paramData.parameter,
-                          monthKey,
-                          availableKeys: Object.keys(paramData.values),
-                          sampleItem: filteredData[0]
-                        });
-                      }
-                    }
-                    
-                    return (
-                      <td key={monthKey} className="data-cell">
-                        {isEditing ? (
-                          <div className="edit-container">
-                            <input
-                              type="text"
-                              value={editedValue}
-                              onChange={(e) => setEditedValue(e.target.value)}
-                              className="edit-input"
-                              autoFocus
-                            />
-                            <button onClick={handleSaveEdit} className="save-button">
-                              Save
-                            </button>
-                            <button onClick={handleCancelEdit} className="cancel-button">
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="cell-content">
-                            <span>{cellData ? formatValue(cellData.value, paramData.parameter) : 'N/A'}</span>
-                            {editMode && (
-                              <button
-                                onClick={() => handleEditClick(paramData.parameter, monthKey, cellData?.value || 0)}
-                                className="edit-pen-button"
-                                title="Edit"
-                              >
-                                ✏️
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="data-cell parameter-total-cell">
-                    {(() => {
-                      // Calculate total for this parameter across all months
-                      let paramTotal = 0;
-                      months.forEach(monthKey => {
+          <div className="split-table-container">
+            {/* Fixed Parameter Column Table */}
+            <div className="fixed-column-table">
+              <table className="pivot-table fixed-table">
+                <thead>
+                  <tr>
+                    <th className="parameter-header">Parameter</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pivotData.map((paramData) => (
+                    <tr key={paramData.parameter}>
+                      <td className="parameter-cell">{paramData.label}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Scrollable Data Columns Table */}
+            <div className="scrollable-columns-table">
+              <table className="pivot-table scrollable-table">
+                <thead>
+                  <tr>
+                    {months.map(monthKey => {
+                      const [year, monthNum] = monthKey.split('-');
+                      const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                      const monthName = monthNames[parseInt(monthNum)];
+                      return (
+                        <th key={monthKey} className="month-header">
+                          {monthName} {year}
+                        </th>
+                      );
+                    })}
+                    <th className="total-header">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pivotData.map((paramData) => (
+                    <tr key={paramData.parameter}>
+                      {months.map(monthKey => {
                         const cellData = paramData.values[monthKey];
-                        if (cellData && !isNaN(cellData.value)) {
-                          paramTotal += cellData.value;
-                        }
-                      });
-                      return formatValue(paramTotal, paramData.parameter);
-                    })()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        const isEditing = editingCell?.parameter === paramData.parameter && 
+                                         editingCell?.monthKey === monthKey;
+                        
+                        return (
+                          <td key={monthKey} className="data-cell">
+                            {isEditing ? (
+                              <div className="edit-container">
+                                <input
+                                  type="text"
+                                  value={editedValue}
+                                  onChange={(e) => setEditedValue(e.target.value)}
+                                  className="edit-input"
+                                  autoFocus
+                                />
+                                <button onClick={handleSaveEdit} className="save-button">
+                                  Save
+                                </button>
+                                <button onClick={handleCancelEdit} className="cancel-button">
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="cell-content">
+                                <span>{cellData ? formatValue(cellData.value, paramData.parameter) : 'N/A'}</span>
+                                {editMode && (
+                                  <button
+                                    onClick={() => handleEditClick(paramData.parameter, monthKey, cellData?.value || 0)}
+                                    className="edit-pen-button"
+                                    title="Edit"
+                                  >
+                                    ✏️
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="data-cell parameter-total-cell">
+                        {(() => {
+                          // Calculate total for this parameter across all months
+                          let paramTotal = 0;
+                          months.forEach(monthKey => {
+                            const cellData = paramData.values[monthKey];
+                            if (cellData && !isNaN(cellData.value)) {
+                              paramTotal += cellData.value;
+                            }
+                          });
+                          return formatValue(paramTotal, paramData.parameter);
+                        })()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>

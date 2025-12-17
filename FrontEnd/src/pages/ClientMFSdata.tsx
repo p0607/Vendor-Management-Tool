@@ -767,108 +767,137 @@ const ClientMFSdata: React.FC = () => {
           </div>
           
           {selectedBusinessUnit && tableData.length > 0 ? (
-            <table className="pivot-table">
-              <thead>
-                <tr>
-                  <th className="parameter-header" rowSpan={parameters.length > 1 ? 2 : 1}>LOB</th>
-                  {months.map(monthKey => {
-                    const [year, monthNum] = monthKey.split('-');
-                    const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    const monthName = monthNames[parseInt(monthNum)];
-                    return (
-                      <th key={monthKey} className="month-header" colSpan={parameters.length}>
-                        {monthName} {year}
-                      </th>
-                    );
-                  })}
-                </tr>
-                {parameters.length > 1 ? (
-                  <tr>
-                    {months.map(monthKey => 
-                      parameters.map(param => (
-                        <th key={`${monthKey}_${param.key}`} className="month-header">
-                          {param.label}
-                        </th>
-                      ))
-                    )}
-                  </tr>
-                ) : null}
-              </thead>
-              <tbody>
-                {tableData.map((row, rowIndex) => (
-                  <tr key={row.client}>
-                    <td className="parameter-cell">{row.client}</td>
-                    {months.map(monthKey => 
-                      parameters.map(param => {
-                        const cellKey = `${param.key}_${monthKey}`;
-                        const cellValue = row[cellKey] || 0;
-                        const isEditing = editingCell?.parameter === param.key && 
-                                         editingCell?.monthKey === monthKey &&
-                                         editingCell?.clientName === row.client;
-                        
+            <div className="split-table-container">
+              {/* Fixed LOB Column Table */}
+              <div className="fixed-column-table">
+                <table className="pivot-table fixed-table">
+                  <thead>
+                    <tr>
+                      <th className="parameter-header" rowSpan={parameters.length > 1 ? 2 : 1}>LOB</th>
+                    </tr>
+                    {parameters.length > 1 ? (
+                      <tr>
+                        <th></th>
+                      </tr>
+                    ) : null}
+                  </thead>
+                  <tbody>
+                    {tableData.map((row, rowIndex) => (
+                      <tr key={row.client}>
+                        <td className="parameter-cell">{row.client}</td>
+                      </tr>
+                    ))}
+                    {/* Total Row */}
+                    <tr className="total-row">
+                      <td className="parameter-cell total-label">Total</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Scrollable Data Columns Table */}
+              <div className="scrollable-columns-table">
+                <table className="pivot-table scrollable-table">
+                  <thead>
+                    <tr>
+                      {months.map(monthKey => {
+                        const [year, monthNum] = monthKey.split('-');
+                        const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const monthName = monthNames[parseInt(monthNum)];
                         return (
-                          <td key={`${monthKey}_${param.key}`} className="data-cell">
-                            {isEditing ? (
-                              <div className="edit-container">
-                                <input
-                                  type="text"
-                                  value={editedValue}
-                                  onChange={(e) => setEditedValue(e.target.value)}
-                                  className="edit-input"
-                                  autoFocus
-                                />
-                                <button onClick={handleSaveEdit} className="save-button">
-                                  Save
-                                </button>
-                                <button onClick={handleCancelEdit} className="cancel-button">
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="cell-content">
-                                <span>{formatValue(cellValue, param.key)}</span>
-                                {editMode && (
-                                  <button
-                                    onClick={() => handleEditClick(param.key, monthKey, cellValue, row.client)}
-                                    className="edit-pen-button"
-                                    title="Edit"
-                                  >
-                                    ✏️
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </td>
+                          <th key={monthKey} className="month-header" colSpan={parameters.length}>
+                            {monthName} {year}
+                          </th>
                         );
-                      })
-                    )}
-                  </tr>
-                ))}
-                {/* Total Row */}
-                <tr className="total-row">
-                  <td className="parameter-cell total-label">Total</td>
-                  {months.map(monthKey => 
-                    parameters.map(param => {
-                      const cellKey = `${param.key}_${monthKey}`;
-                      let totalValue = 0;
-                      tableData.forEach(row => {
-                        const value = row[cellKey] || 0;
-                        if (!isNaN(value)) {
-                          totalValue += value;
-                        }
-                      });
-                      
-                      return (
-                        <td key={`total_${monthKey}_${param.key}`} className="data-cell total-cell">
-                          {formatValue(totalValue, param.key)}
-                        </td>
-                      );
-                    })
-                  )}
-                </tr>
-              </tbody>
-            </table>
+                      })}
+                    </tr>
+                    {parameters.length > 1 ? (
+                      <tr>
+                        {months.map(monthKey => 
+                          parameters.map(param => (
+                            <th key={`${monthKey}_${param.key}`} className="month-header">
+                              {param.label}
+                            </th>
+                          ))
+                        )}
+                      </tr>
+                    ) : null}
+                  </thead>
+                  <tbody>
+                    {tableData.map((row, rowIndex) => (
+                      <tr key={row.client}>
+                        {months.map(monthKey => 
+                          parameters.map(param => {
+                            const cellKey = `${param.key}_${monthKey}`;
+                            const cellValue = row[cellKey] || 0;
+                            const isEditing = editingCell?.parameter === param.key && 
+                                             editingCell?.monthKey === monthKey &&
+                                             editingCell?.clientName === row.client;
+                            
+                            return (
+                              <td key={`${monthKey}_${param.key}`} className="data-cell">
+                                {isEditing ? (
+                                  <div className="edit-container">
+                                    <input
+                                      type="text"
+                                      value={editedValue}
+                                      onChange={(e) => setEditedValue(e.target.value)}
+                                      className="edit-input"
+                                      autoFocus
+                                    />
+                                    <button onClick={handleSaveEdit} className="save-button">
+                                      Save
+                                    </button>
+                                    <button onClick={handleCancelEdit} className="cancel-button">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="cell-content">
+                                    <span>{formatValue(cellValue, param.key)}</span>
+                                    {editMode && (
+                                      <button
+                                        onClick={() => handleEditClick(param.key, monthKey, cellValue, row.client)}
+                                        className="edit-pen-button"
+                                        title="Edit"
+                                      >
+                                        ✏️
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })
+                        )}
+                      </tr>
+                    ))}
+                    {/* Total Row */}
+                    <tr className="total-row">
+                      {months.map(monthKey => 
+                        parameters.map(param => {
+                          const cellKey = `${param.key}_${monthKey}`;
+                          let totalValue = 0;
+                          tableData.forEach(row => {
+                            const value = row[cellKey] || 0;
+                            if (!isNaN(value)) {
+                              totalValue += value;
+                            }
+                          });
+                          
+                          return (
+                            <td key={`total_${monthKey}_${param.key}`} className="data-cell total-cell">
+                              {formatValue(totalValue, param.key)}
+                            </td>
+                          );
+                        })
+                      )}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
             <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
               {!selectedBusinessUnit ? 'Please select a Business Unit to view data' : 'No data available for the selected filters'}
