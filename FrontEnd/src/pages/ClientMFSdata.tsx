@@ -139,22 +139,6 @@ const ClientMFSdata: React.FC = () => {
     return Array.from(clients).sort();
   }, [teamReportData, selectedBusinessUnit]);
 
-  // Get unique project names (only for MS business unit)
-  const projectNames = useMemo(() => {
-    if (selectedBusinessUnit !== 'MS') {
-      return [];
-    }
-    const projects = new Set<string>();
-    teamReportData.forEach(item => {
-      if (item.project_name && item.business_unit === 'MS') {
-        if (!selectedClientName || item.client_name === selectedClientName) {
-          projects.add(item.project_name);
-        }
-      }
-    });
-    return Array.from(projects).sort();
-  }, [teamReportData, selectedBusinessUnit, selectedClientName]);
-
   // Check if MS is selected
   const isMSSelected = selectedBusinessUnit === 'MS';
 
@@ -350,6 +334,26 @@ const ClientMFSdata: React.FC = () => {
     return filtered;
   }, [teamReportData, selectedBusinessUnit, selectedClientName, selectedProject, isMSSelected, periodFilter, periodValue, selectedMonths]);
 
+  // Get unique project names (only for MS business unit)
+  const projectNames = useMemo(() => {
+    if (selectedBusinessUnit !== 'MS') {
+      return [];
+    }
+    const projects = new Set<string>();
+    filteredData.forEach(item => {
+      if (item.project_name && item.business_unit === 'MS') {
+        if (!selectedClientName || item.client_name === selectedClientName) {
+          // Normalize project name: trim whitespace
+          const normalizedProject = String(item.project_name).trim();
+          if (normalizedProject) {
+            projects.add(normalizedProject);
+          }
+        }
+      }
+    });
+    return Array.from(projects).sort();
+  }, [filteredData, selectedBusinessUnit, selectedClientName]);
+
   // Get available months for multi-select
   const availableMonths = useMemo(() => {
     const monthSet = new Set<string>();
@@ -472,7 +476,12 @@ const ClientMFSdata: React.FC = () => {
         const projectsToShow = selectedProject ? [selectedProject] : projectNames;
         
         projectsToShow.forEach(project => {
-          const projectData = clientData.filter(item => item.project_name === project);
+          // Filter by project_name, handling null/empty values and normalizing
+          const projectData = clientData.filter(item => {
+            const itemProject = (item.project_name || '').toString().trim();
+            const normalizedProject = project.toString().trim();
+            return itemProject === normalizedProject;
+          });
           const row: { client: string; project?: string; [key: string]: any } = { 
             client, 
             project 
@@ -885,7 +894,7 @@ const ClientMFSdata: React.FC = () => {
                   </thead>
                   <tbody>
                     {tableData.map((row, rowIndex) => (
-                      <tr key={`${row.client}_${row.project || ''}`}>
+                      <tr key={`fixed_${row.client}_${row.project || ''}_${rowIndex}`}>
                         <td className="parameter-cell">{row.client}</td>
                         {isMSSelected && (
                           <td className="parameter-cell">{row.project || 'N/A'}</td>
@@ -934,7 +943,7 @@ const ClientMFSdata: React.FC = () => {
                   </thead>
                   <tbody>
                     {tableData.map((row, rowIndex) => (
-                      <tr key={row.client}>
+                      <tr key={`scrollable_${row.client}_${row.project || ''}_${rowIndex}`}>
                         {months.map(monthKey => 
                           parameters.map(param => {
                             const cellKey = `${param.key}_${monthKey}`;

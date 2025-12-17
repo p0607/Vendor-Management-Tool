@@ -534,8 +534,15 @@ const MFSdata: React.FC = () => {
               value={selectedBusinessUnit}
               onChange={(e) => {
                 setSelectedBusinessUnit(e.target.value);
-                setPeriodFilter('');
-                setPeriodValue('');
+                // Keep period filter active - don't reset it
+                // Only ensure period filter is set to current FY if it's empty
+                if (!periodFilter || periodFilter === '') {
+                  setPeriodFilter('year');
+                  setPeriodValue(String(getCurrentFYStartYear()));
+                } else if (periodFilter === 'year' && (!periodValue || periodValue === '')) {
+                  // If year filter is selected but no value, set to current FY
+                  setPeriodValue(String(getCurrentFYStartYear()));
+                }
               }}
               className="filter-select"
             >
@@ -552,8 +559,14 @@ const MFSdata: React.FC = () => {
               id="period-type-filter"
               value={periodFilter}
               onChange={(e) => {
-                setPeriodFilter(e.target.value);
-                setPeriodValue('');
+                const newFilter = e.target.value;
+                setPeriodFilter(newFilter);
+                // If year is selected, default to current FY
+                if (newFilter === 'year') {
+                  setPeriodValue(String(getCurrentFYStartYear()));
+                } else {
+                  setPeriodValue('');
+                }
               }}
               className="filter-select"
             >
