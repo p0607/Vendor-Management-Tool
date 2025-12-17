@@ -37,12 +37,29 @@ interface ParameterData {
 }
 
 const MFSdata: React.FC = () => {
+  // Helper function to get current Financial Year start year
+  // FY runs from April to March (e.g., April 2025 to March 2026 = FY 2025-26)
+  const getCurrentFYStartYear = (): number => {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // 1-12 (Jan=1, Apr=4, etc.)
+    const currentYear = now.getFullYear();
+    
+    // If current month is April (4) to December (12), FY started in current year
+    // If current month is January (1) to March (3), FY started in previous year
+    if (currentMonth >= 4) {
+      return currentYear;
+    } else {
+      return currentYear - 1;
+    }
+  };
+
   const [teamReportData, setTeamReportData] = useState<TeamReportItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('');
-  const [periodFilter, setPeriodFilter] = useState<string>(''); // 'year', 'quarter', or 'month'
-  const [periodValue, setPeriodValue] = useState<string>(''); // The actual year/quarter/month value
+  // Set default to current FY (year filter showing FY data)
+  const [periodFilter, setPeriodFilter] = useState<string>('year'); // 'year', 'quarter', or 'month'
+  const [periodValue, setPeriodValue] = useState<string>(String(getCurrentFYStartYear())); // Default to current FY start year
   const [editingCell, setEditingCell] = useState<{ parameter: string; monthKey: string } | null>(null);
   const [editedValue, setEditedValue] = useState<string>('');
   const [editMode, setEditMode] = useState<boolean>(false);
@@ -165,8 +182,27 @@ const MFSdata: React.FC = () => {
     // Filter by period
     if (periodFilter && periodValue) {
       if (periodFilter === 'year') {
-        const year = parseInt(periodValue);
-        filtered = filtered.filter(item => item.year === year);
+        // For year filter, show Financial Year data (April of selected year to March of next year)
+        const fyStartYear = parseInt(periodValue);
+        const fyEndYear = fyStartYear + 1;
+        
+        // FY months: April (4) to December (12) of start year, January (1) to March (3) of end year
+        const fyStartMonths = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const fyEndMonths = ['January', 'February', 'March'];
+        
+        filtered = filtered.filter(item => {
+          if (!item.month || !item.year) return false;
+          const normalizedMonth = normalizeToFullMonthName(item.month);
+          
+          // Check if month is in FY start year (Apr-Dec) or FY end year (Jan-Mar)
+          if (fyStartMonths.includes(normalizedMonth) && item.year === fyStartYear) {
+            return true;
+          }
+          if (fyEndMonths.includes(normalizedMonth) && item.year === fyEndYear) {
+            return true;
+          }
+          return false;
+        });
       } else if (periodFilter === 'quarter') {
         // Parse quarter (format: "Q1-2025" or "Q1(Apr-Jun) 2025")
         const quarterMatch = periodValue.match(/Q(\d)/);
@@ -215,12 +251,26 @@ const MFSdata: React.FC = () => {
 
   // Get unique months from filtered data
   const months = useMemo(() => {
-    // If year filter is selected, show all 12 months of that year
+    // If year filter is selected, show all 12 months of the Financial Year (Apr to Mar)
     if (periodFilter === 'year' && periodValue) {
-      const year = parseInt(periodValue);
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                         'July', 'August', 'September', 'October', 'November', 'December'];
-      return monthNames.map(month => getMonthKey(month, year));
+      const fyStartYear = parseInt(periodValue);
+      const fyEndYear = fyStartYear + 1;
+      // FY months: April to December of start year, then January to March of end year
+      const fyMonths = [
+        { month: 'April', year: fyStartYear },
+        { month: 'May', year: fyStartYear },
+        { month: 'June', year: fyStartYear },
+        { month: 'July', year: fyStartYear },
+        { month: 'August', year: fyStartYear },
+        { month: 'September', year: fyStartYear },
+        { month: 'October', year: fyStartYear },
+        { month: 'November', year: fyStartYear },
+        { month: 'December', year: fyStartYear },
+        { month: 'January', year: fyEndYear },
+        { month: 'February', year: fyEndYear },
+        { month: 'March', year: fyEndYear }
+      ];
+      return fyMonths.map(({ month, year }) => getMonthKey(month, year));
     }
     
     // If quarter filter is selected, show all 3 months of that quarter
