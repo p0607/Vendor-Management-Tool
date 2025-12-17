@@ -75,14 +75,33 @@ body, html {
 }
 
 .fixed-table {
-  width: 150px;
+  width: 100%;
   border-right: 2px solid #000000;
   table-layout: fixed;
 }
 
+/* When not MS, ensure single column fills full width */
 .fixed-table th,
 .fixed-table td {
   width: 100%;
+}
+
+/* When MS is selected, columns should be 50% each */
+.fixed-column-table.ms-selected .fixed-table th,
+.fixed-column-table.ms-selected .fixed-table td {
+  width: 50%;
+}
+
+/* When not MS, ensure the single LOB column fills the full table width */
+.fixed-column-table:not(.ms-selected) .fixed-table {
+  width: 100%;
+}
+
+.fixed-column-table:not(.ms-selected) .fixed-table th,
+.fixed-column-table:not(.ms-selected) .fixed-table td {
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
 }
 
 .scrollable-table {
@@ -207,7 +226,19 @@ body, html {
 
 .fixed-table .parameter-header {
   width: 100%;
+}
+
+/* When MS is selected, headers should be 50% each */
+.fixed-column-table.ms-selected .fixed-table .parameter-header {
+  width: 50%;
   min-width: 150px;
+}
+
+/* When not MS, single header should fill full width */
+.fixed-column-table:not(.ms-selected) .fixed-table .parameter-header {
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
 }
 
 .month-header {
@@ -247,7 +278,19 @@ body, html {
 
 .fixed-table .parameter-cell {
   width: 100%;
+}
+
+/* When MS is selected, parameter cells should be 50% each */
+.fixed-column-table.ms-selected .fixed-table .parameter-cell {
+  width: 50%;
   min-width: 150px;
+}
+
+/* When not MS, single column should fill full width */
+.fixed-column-table:not(.ms-selected) .fixed-table .parameter-cell {
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
 }
 
 .pivot-table tbody tr:nth-child(even) .parameter-cell {
@@ -293,7 +336,19 @@ body, html {
 
 .fixed-table .total-label {
   width: 100%;
+}
+
+/* When MS is selected, total label should be 50% each */
+.fixed-column-table.ms-selected .fixed-table .total-label {
+  width: 50%;
   min-width: 150px;
+}
+
+/* When not MS, single total label should fill full width */
+.fixed-column-table:not(.ms-selected) .fixed-table .total-label {
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
 }
 
 /* Ensure total-label works when combined with parameter-cell */
