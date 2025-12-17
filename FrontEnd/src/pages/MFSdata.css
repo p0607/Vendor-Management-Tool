@@ -167,11 +167,35 @@ body, html {
   vertical-align: middle;
 }
 
-/* Critical: Ensure both theads have the same total height by matching row heights */
-/* When there are 2 header rows, the rowSpan cell should match their combined height */
+/* Critical: Make LOB header match the combined height of two header rows in scrollable table */
+/* Each header row: padding 10px top + 10px bottom = 20px, plus content height ~25px = ~45px per row */
+/* For rowSpan="2": 45px * 2 = 90px total */
 .fixed-table thead tr:first-child th[rowspan="2"] {
-  /* This will naturally span 2 rows, matching the scrollable table's 2 rows */
   vertical-align: middle;
+  min-height: 90px !important; /* Match combined height of two header rows */
+  height: 90px !important; /* Force exact height to match */
+  box-sizing: border-box;
+}
+
+/* When only one parameter (rowSpan="1"), match single row height */
+.fixed-table thead tr:first-child th[rowspan="1"] {
+  vertical-align: middle;
+  min-height: 45px !important; /* Match single header row height */
+  height: 45px !important; /* Force exact height to match */
+  box-sizing: border-box;
+}
+
+/* Ensure scrollable table headers also have consistent heights */
+.scrollable-table thead tr:first-child th {
+  min-height: 45px;
+  height: 45px;
+  box-sizing: border-box;
+}
+
+.scrollable-table thead tr:nth-child(2) th {
+  min-height: 45px;
+  height: 45px;
+  box-sizing: border-box;
 }
 
 /* Ensure empty cells in second row of fixed table don't affect height */
