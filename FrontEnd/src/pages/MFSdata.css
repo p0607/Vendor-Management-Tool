@@ -31,6 +31,25 @@ body, html {
   overflow: visible;
 }
 
+/* When MS is selected, need more width for LOB + Project columns */
+.fixed-column-table.ms-selected {
+  width: 300px;
+}
+
+.fixed-column-table.ms-selected .fixed-table {
+  width: 300px;
+}
+
+.fixed-column-table.ms-selected .fixed-table th:nth-child(1),
+.fixed-column-table.ms-selected .fixed-table td:nth-child(1) {
+  width: 50%;
+}
+
+.fixed-column-table.ms-selected .fixed-table th:nth-child(2),
+.fixed-column-table.ms-selected .fixed-table td:nth-child(2) {
+  width: 50%;
+}
+
 .scrollable-columns-table {
   flex: 1;
   overflow-x: auto;
@@ -59,6 +78,11 @@ body, html {
   width: 150px;
   border-right: 2px solid #000000;
   table-layout: fixed;
+}
+
+.fixed-table th,
+.fixed-table td {
+  width: 100%;
 }
 
 .scrollable-table {
@@ -178,8 +202,12 @@ body, html {
   background-color: #000000 !important;
   color: #ffffff !important;
   text-align: left !important;
+  width: 100%;
+}
+
+.fixed-table .parameter-header {
+  width: 100%;
   min-width: 150px;
-  width: 150px;
 }
 
 .month-header {
@@ -214,8 +242,12 @@ body, html {
   padding: 10px 12px;
   border: 1px solid #000000;
   text-align: left;
+  width: 100%;
+}
+
+.fixed-table .parameter-cell {
+  width: 100%;
   min-width: 150px;
-  width: 150px;
 }
 
 .pivot-table tbody tr:nth-child(even) .parameter-cell {
@@ -256,16 +288,24 @@ body, html {
   background-color: #000000 !important;
   color: #ffffff !important;
   font-weight: 700;
+  width: 100%;
+}
+
+.fixed-table .total-label {
+  width: 100%;
   min-width: 150px;
-  width: 150px;
 }
 
 /* Ensure total-label works when combined with parameter-cell */
 .parameter-cell.total-label {
   background-color: #000000 !important;
   color: #ffffff !important;
+  width: 100% !important;
+}
+
+.fixed-table .parameter-cell.total-label {
+  width: 100% !important;
   min-width: 150px !important;
-  width: 150px !important;
 }
 
 .total-cell {

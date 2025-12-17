@@ -53,12 +53,13 @@ const ClientMFSdata: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('');
   const [selectedClientName, setSelectedClientName] = useState<string>('');
+  const [selectedProject, setSelectedProject] = useState<string>('');
   // Set default to current FY (year filter showing FY data)
   const [periodFilter, setPeriodFilter] = useState<string>('year'); // 'year', 'quarter', or 'month'
   const [periodValue, setPeriodValue] = useState<string>(String(getCurrentFYStartYear())); // Default to current FY start year
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]); // Multiple month selection
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]); // Multiple parameter selection
-  const [editingCell, setEditingCell] = useState<{ parameter: string; monthKey: string; clientName?: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ parameter: string; monthKey: string; clientName?: string; projectName?: string } | null>(null);
   const [editedValue, setEditedValue] = useState<string>('');
   const [editMode, setEditMode] = useState<boolean>(false);
 
@@ -137,6 +138,25 @@ const ClientMFSdata: React.FC = () => {
     });
     return Array.from(clients).sort();
   }, [teamReportData, selectedBusinessUnit]);
+
+  // Get unique project names (only for MS business unit)
+  const projectNames = useMemo(() => {
+    if (selectedBusinessUnit !== 'MS') {
+      return [];
+    }
+    const projects = new Set<string>();
+    teamReportData.forEach(item => {
+      if (item.project_name && item.business_unit === 'MS') {
+        if (!selectedClientName || item.client_name === selectedClientName) {
+          projects.add(item.project_name);
+        }
+      }
+    });
+    return Array.from(projects).sort();
+  }, [teamReportData, selectedBusinessUnit, selectedClientName]);
+
+  // Check if MS is selected
+  const isMSSelected = selectedBusinessUnit === 'MS';
 
   // Get unique years
   const years = useMemo(() => {
@@ -237,6 +257,11 @@ const ClientMFSdata: React.FC = () => {
       filtered = filtered.filter(item => item.client_name === selectedClientName);
     }
 
+    // Filter by project (only when MS is selected)
+    if (isMSSelected && selectedProject) {
+      filtered = filtered.filter(item => item.project_name === selectedProject);
+    }
+
     // Filter by period
     if (periodFilter && periodValue) {
       if (periodFilter === 'year') {
@@ -323,7 +348,7 @@ const ClientMFSdata: React.FC = () => {
     }
 
     return filtered;
-  }, [teamReportData, selectedBusinessUnit, selectedClientName, periodFilter, periodValue, selectedMonths]);
+  }, [teamReportData, selectedBusinessUnit, selectedClientName, selectedProject, isMSSelected, periodFilter, periodValue, selectedMonths]);
 
   // Get available months for multi-select
   const availableMonths = useMemo(() => {
@@ -430,49 +455,97 @@ const ClientMFSdata: React.FC = () => {
     return Array.from(clientSet).sort();
   }, [filteredData, selectedBusinessUnit]);
 
-  // Build data structure: clients as rows, parameters as columns
+  // Build data structure: clients (and projects for MS) as rows, parameters as columns
   const tableData = useMemo(() => {
     if (!selectedBusinessUnit || clients.length === 0) {
       return [];
     }
 
     const clientsToShow = selectedClientName ? [selectedClientName] : clients;
+    const rows: Array<{ client: string; project?: string; [key: string]: any }> = [];
     
-    return clientsToShow.map(client => {
-      const clientData = filteredData.filter(item => item.client_name === client);
-      const clientRow: { client: string; [key: string]: any } = { client };
+    clientsToShow.forEach(client => {
+      let clientData = filteredData.filter(item => item.client_name === client);
       
-      // For each parameter and month combination
-      parameters.forEach(param => {
-        months.forEach(monthKey => {
-          let totalValue = 0;
+      // For MS, group by project_name as well
+      if (isMSSelected) {
+        const projectsToShow = selectedProject ? [selectedProject] : projectNames;
+        
+        projectsToShow.forEach(project => {
+          const projectData = clientData.filter(item => item.project_name === project);
+          const row: { client: string; project?: string; [key: string]: any } = { 
+            client, 
+            project 
+          };
           
-          clientData.forEach(item => {
-            if (item.month && item.year) {
-              const fullMonthName = normalizeToFullMonthName(item.month);
-              const itemMonthKey = getMonthKey(fullMonthName, item.year);
+          // For each parameter and month combination
+          parameters.forEach(param => {
+            months.forEach(monthKey => {
+              let totalValue = 0;
               
-              if (itemMonthKey === monthKey) {
-                const paramValue = item[param.key];
-                if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
-                  const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
-                  if (!isNaN(numValue)) {
-                    totalValue += numValue;
+              projectData.forEach(item => {
+                if (item.month && item.year) {
+                  const fullMonthName = normalizeToFullMonthName(item.month);
+                  const itemMonthKey = getMonthKey(fullMonthName, item.year);
+                  
+                  if (itemMonthKey === monthKey) {
+                    const paramValue = item[param.key];
+                    if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
+                      const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
+                      if (!isNaN(numValue)) {
+                        totalValue += numValue;
+                      }
+                    }
+                  }
+                }
+              });
+              
+              // Create key: parameter_monthKey (e.g., "hc_2025-01")
+              const cellKey = `${param.key}_${monthKey}`;
+              row[cellKey] = totalValue;
+            });
+          });
+          
+          rows.push(row);
+        });
+      } else {
+        // For non-MS, group only by client
+        const row: { client: string; project?: string; [key: string]: any } = { client };
+        
+        // For each parameter and month combination
+        parameters.forEach(param => {
+          months.forEach(monthKey => {
+            let totalValue = 0;
+            
+            clientData.forEach(item => {
+              if (item.month && item.year) {
+                const fullMonthName = normalizeToFullMonthName(item.month);
+                const itemMonthKey = getMonthKey(fullMonthName, item.year);
+                
+                if (itemMonthKey === monthKey) {
+                  const paramValue = item[param.key];
+                  if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
+                    const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
+                    if (!isNaN(numValue)) {
+                      totalValue += numValue;
+                    }
                   }
                 }
               }
-            }
+            });
+            
+            // Create key: parameter_monthKey (e.g., "hc_2025-01")
+            const cellKey = `${param.key}_${monthKey}`;
+            row[cellKey] = totalValue;
           });
-          
-          // Create key: parameter_monthKey (e.g., "hc_2025-01")
-          const cellKey = `${param.key}_${monthKey}`;
-          clientRow[cellKey] = totalValue;
         });
-      });
-      
-      return clientRow;
+        
+        rows.push(row);
+      }
     });
-  }, [filteredData, selectedBusinessUnit, selectedClientName, clients, parameters, months]);
+    
+    return rows;
+  }, [filteredData, selectedBusinessUnit, selectedClientName, selectedProject, isMSSelected, projectNames, clients, parameters, months]);
 
   // Format value for display
   const formatValue = (value: number, parameter: string): string => {
@@ -486,8 +559,8 @@ const ClientMFSdata: React.FC = () => {
   };
 
   // Handle edit click
-  const handleEditClick = (parameter: string, monthKey: string, currentValue: number, clientName?: string) => {
-    setEditingCell({ parameter, monthKey, clientName });
+  const handleEditClick = (parameter: string, monthKey: string, currentValue: number, clientName?: string, projectName?: string) => {
+    setEditingCell({ parameter, monthKey, clientName, projectName });
     setEditedValue(String(currentValue || ''));
   };
 
@@ -509,6 +582,11 @@ const ClientMFSdata: React.FC = () => {
 
       if (editingCell.clientName) {
         records = records.filter(item => item.client_name === editingCell.clientName);
+      }
+
+      // For MS, also filter by project_name
+      if (isMSSelected && editingCell.projectName) {
+        records = records.filter(item => item.project_name === editingCell.projectName);
       }
 
       if (records.length === 0) {
@@ -629,6 +707,7 @@ const ClientMFSdata: React.FC = () => {
                 onChange={(e) => {
                   setSelectedBusinessUnit(e.target.value);
                   setSelectedClientName('');
+                  setSelectedProject('');
                   // Keep period filter active - don't reset it
                   // Only clear selected months if period filter is not 'year'
                   if (periodFilter !== 'year') {
@@ -651,6 +730,7 @@ const ClientMFSdata: React.FC = () => {
                 value={selectedClientName}
                 onChange={(e) => {
                   setSelectedClientName(e.target.value);
+                  setSelectedProject(''); // Clear project when client changes
                 }}
                 className="filter-select"
                 disabled={!selectedBusinessUnit}
@@ -661,6 +741,24 @@ const ClientMFSdata: React.FC = () => {
                 ))}
               </select>
             </div>
+
+            {isMSSelected && (
+              <div className="filter-group">
+                <label htmlFor="project-filter">Project:</label>
+                <select
+                  id="project-filter"
+                  value={selectedProject}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                  className="filter-select"
+                  disabled={!selectedBusinessUnit}
+                >
+                  <option value="">All Projects</option>
+                  {projectNames.map(project => (
+                    <option key={project} value={project}>{project}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="filter-group">
               <label htmlFor="parameter-filter">Parameters:</label>
@@ -768,28 +866,38 @@ const ClientMFSdata: React.FC = () => {
           
           {selectedBusinessUnit && tableData.length > 0 ? (
             <div className="split-table-container">
-              {/* Fixed LOB Column Table */}
-              <div className="fixed-column-table">
+              {/* Fixed LOB/Project Column Table */}
+              <div className={`fixed-column-table ${isMSSelected ? 'ms-selected' : ''}`}>
                 <table className="pivot-table fixed-table">
                   <thead>
                     <tr>
                       <th className="parameter-header" rowSpan={parameters.length > 1 ? 2 : 1}>LOB</th>
+                      {isMSSelected && (
+                        <th className="parameter-header" rowSpan={parameters.length > 1 ? 2 : 1}>Project</th>
+                      )}
                     </tr>
                     {parameters.length > 1 ? (
                       <tr>
                         <th></th>
+                        {isMSSelected && <th></th>}
                       </tr>
                     ) : null}
                   </thead>
                   <tbody>
                     {tableData.map((row, rowIndex) => (
-                      <tr key={row.client}>
+                      <tr key={`${row.client}_${row.project || ''}`}>
                         <td className="parameter-cell">{row.client}</td>
+                        {isMSSelected && (
+                          <td className="parameter-cell">{row.project || 'N/A'}</td>
+                        )}
                       </tr>
                     ))}
                     {/* Total Row */}
                     <tr className="total-row">
                       <td className="parameter-cell total-label">Total</td>
+                      {isMSSelected && (
+                        <td className="parameter-cell total-label"></td>
+                      )}
                     </tr>
                   </tbody>
                 </table>
@@ -831,9 +939,10 @@ const ClientMFSdata: React.FC = () => {
                           parameters.map(param => {
                             const cellKey = `${param.key}_${monthKey}`;
                             const cellValue = row[cellKey] || 0;
-                            const isEditing = editingCell?.parameter === param.key && 
-                                             editingCell?.monthKey === monthKey &&
-                                             editingCell?.clientName === row.client;
+                        const isEditing = editingCell?.parameter === param.key && 
+                                         editingCell?.monthKey === monthKey &&
+                                         editingCell?.clientName === row.client &&
+                                         (!isMSSelected || editingCell?.projectName === row.project);
                             
                             return (
                               <td key={`${monthKey}_${param.key}`} className="data-cell">
@@ -856,15 +965,15 @@ const ClientMFSdata: React.FC = () => {
                                 ) : (
                                   <div className="cell-content">
                                     <span>{formatValue(cellValue, param.key)}</span>
-                                    {editMode && (
-                                      <button
-                                        onClick={() => handleEditClick(param.key, monthKey, cellValue, row.client)}
-                                        className="edit-pen-button"
-                                        title="Edit"
-                                      >
-                                        ✏️
-                                      </button>
-                                    )}
+                                {editMode && (
+                                  <button
+                                    onClick={() => handleEditClick(param.key, monthKey, cellValue, row.client, row.project)}
+                                    className="edit-pen-button"
+                                    title="Edit"
+                                  >
+                                    ✏️
+                                  </button>
+                                )}
                                   </div>
                                 )}
                               </td>
