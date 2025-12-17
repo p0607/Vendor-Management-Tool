@@ -629,9 +629,11 @@ const ClientMFSdata: React.FC = () => {
                 onChange={(e) => {
                   setSelectedBusinessUnit(e.target.value);
                   setSelectedClientName('');
-                  setPeriodFilter('');
-                  setPeriodValue('');
-                  setSelectedMonths([]);
+                  // Keep period filter active - don't reset it
+                  // Only clear selected months if period filter is not 'year'
+                  if (periodFilter !== 'year') {
+                    setSelectedMonths([]);
+                  }
                 }}
                 className="filter-select"
               >
@@ -682,8 +684,19 @@ const ClientMFSdata: React.FC = () => {
                 id="period-type-filter"
                 value={periodFilter}
                 onChange={(e) => {
-                  setPeriodFilter(e.target.value);
-                  setPeriodValue('');
+                  const newPeriodFilter = e.target.value;
+                  setPeriodFilter(newPeriodFilter);
+                  // If changing to 'year' or clearing, restore default to current FY
+                  if (newPeriodFilter === 'year' || newPeriodFilter === '') {
+                    if (newPeriodFilter === 'year') {
+                      setPeriodValue(String(getCurrentFYStartYear()));
+                    } else {
+                      setPeriodValue('');
+                    }
+                  } else {
+                    // For quarter or month, clear the value so user can select
+                    setPeriodValue('');
+                  }
                   setSelectedMonths([]);
                 }}
                 className="filter-select"
