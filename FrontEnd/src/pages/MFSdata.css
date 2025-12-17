@@ -78,6 +78,8 @@ body, html {
   width: 100%;
   border-right: 2px solid #000000;
   table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 /* When not MS, ensure single column fills full width */
@@ -107,6 +109,8 @@ body, html {
 .scrollable-table {
   width: max-content;
   min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 /* Ensure rows align between fixed and scrollable tables */
@@ -121,11 +125,61 @@ body, html {
   vertical-align: middle;
 }
 
-/* Match header heights */
+/* Match header heights - ensure both tables have same header height */
+.fixed-table thead,
+.scrollable-table thead {
+  display: table-header-group;
+  height: auto;
+}
+
+.fixed-table thead tr,
+.scrollable-table thead tr {
+  height: auto;
+  display: table-row;
+}
+
 .fixed-table thead tr th,
 .scrollable-table thead tr th {
-  height: auto;
   vertical-align: middle;
+  padding: 10px 8px;
+  line-height: 1.4;
+  box-sizing: border-box;
+  height: auto;
+  display: table-cell;
+}
+
+/* Ensure consistent header row heights - first row */
+.fixed-table thead tr:first-child th,
+.scrollable-table thead tr:first-child th {
+  padding: 10px 8px;
+  line-height: 1.4;
+}
+
+/* Second header row (for parameters) - ensure same height */
+.fixed-table thead tr:nth-child(2) th,
+.scrollable-table thead tr:nth-child(2) th {
+  padding: 10px 8px;
+  line-height: 1.4;
+}
+
+/* Ensure rowSpan cells align properly and match the combined height of two rows */
+.fixed-table thead tr th[rowspan] {
+  vertical-align: middle;
+}
+
+/* Critical: Ensure both theads have the same total height by matching row heights */
+/* When there are 2 header rows, the rowSpan cell should match their combined height */
+.fixed-table thead tr:first-child th[rowspan="2"] {
+  /* This will naturally span 2 rows, matching the scrollable table's 2 rows */
+  vertical-align: middle;
+}
+
+/* Ensure empty cells in second row of fixed table don't affect height */
+.fixed-table thead tr:nth-child(2) th:empty {
+  padding: 0;
+  height: 0;
+  line-height: 0;
+  border: none;
 }
 
 .auth-buttons-container {
