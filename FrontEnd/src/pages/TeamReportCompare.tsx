@@ -3170,9 +3170,27 @@ const TeamReportCompare: React.FC = () => {
     });
     
     // Get unique months from the filtered data (same data used in KPI calculations)
+    // Normalize month names to match monthOrder array format
+    const monthNameMap: { [key: string]: string } = {
+      'Jan': 'Jan', 'January': 'Jan',
+      'Feb': 'Feb', 'February': 'Feb',
+      'Mar': 'Mar', 'March': 'Mar',
+      'Apr': 'Apr', 'April': 'Apr',
+      'May': 'May',
+      'Jun': 'Jun', 'June': 'Jun',
+      'Jul': 'Jul', 'July': 'Jul',
+      'Aug': 'Aug', 'August': 'Aug',
+      'Sep': 'Sep', 'Sept': 'Sep', 'September': 'Sep',
+      'Oct': 'Oct', 'October': 'Oct',
+      'Nov': 'Nov', 'November': 'Nov',
+      'Dec': 'Dec', 'December': 'Dec'
+    };
+    
     const uniqueMonths = Array.from(new Set(fyData.map(item => {
       const itemDate = parseDate(item.month, item.year);
-      return itemDate.toLocaleString('default', { month: 'short' });
+      const monthShort = itemDate.toLocaleString('default', { month: 'short' });
+      // Normalize month name to match monthOrder array
+      return monthNameMap[monthShort] || monthShort;
     })));
     
     if (uniqueMonths.length === 0) {
@@ -6114,7 +6132,7 @@ const TeamReportCompare: React.FC = () => {
                         } else if (compareType === 'quarter' && comparisonValues[0]) {
                           return `${comparisonValues[0]} (Projected)`;
                         } else {
-                          return `${getMonthRangeForFY('FY 2025')} (Projected)`;
+                          return `${getMonthRangeForFY(comparisonValues[0] || 'FY 2025')} (Projected)`;
                         }
                       })()}</span>
                       <span>{formatValue(kpi.previousFY)} {(() => {
