@@ -725,15 +725,15 @@ const ClientMFSdata: React.FC = () => {
         return;
       }
 
-      const updateValue = editingCell.parameter.includes('percentage') 
-        ? parseFloat(editedValue)
-        : parseFloat(editedValue);
+      // Parse the edited value - use exactly what the user entered
+      const updateValue = parseFloat(editedValue);
 
       if (isNaN(updateValue)) {
         setError('Invalid number');
         return;
       }
 
+      // Update all matching records with the exact value the user entered
       const updatePromises = records.map(record => {
         return apiClient.patch(`/team-report/${record.id}`, {
           [editingCell.parameter]: updateValue
