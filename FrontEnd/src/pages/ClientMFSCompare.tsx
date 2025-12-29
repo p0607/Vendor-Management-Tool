@@ -1719,53 +1719,65 @@ const ClientMFSCompare: React.FC = () => {
 
         // Normalize month format - convert date strings to month names
         let monthValue = row['Month'] || row.month || '';
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+        
         if (monthValue) {
+          // Convert to string first for consistent processing
+          const monthStr = String(monthValue).trim();
+          
+          // Handle numeric month values FIRST (1-12 or 01-12) - this is the most common case
+          if (/^\d+$/.test(monthStr)) {
+            const monthNum = parseInt(monthStr, 10);
+            if (monthNum >= 1 && monthNum <= 12) {
+              monthValue = monthNames[monthNum - 1];
+            } else {
+              // Invalid numeric month, try other formats
+              monthValue = monthStr;
+            }
+          }
           // Handle Excel date serial numbers (if month is stored as Excel date)
-          if (typeof monthValue === 'number' && monthValue > 1 && monthValue < 50000) {
+          else if (typeof monthValue === 'number' && monthValue > 1 && monthValue < 50000) {
             // Excel date serial number - convert to Date then to month name
             const excelEpoch = new Date(1900, 0, 1);
             const date = new Date(excelEpoch.getTime() + (monthValue - 2) * 24 * 60 * 60 * 1000);
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-              'July', 'August', 'September', 'October', 'November', 'December'];
             monthValue = monthNames[date.getMonth()];
           }
           // If it's a date string like "2024-01-01" or "2024/01/01", extract month name
-          else if (typeof monthValue === 'string' && (monthValue.match(/^\d{4}-\d{2}-\d{2}/) || monthValue.match(/^\d{4}\/\d{2}\/\d{2}/))) {
-            const date = new Date(monthValue);
+          else if (monthStr.match(/^\d{4}-\d{2}-\d{2}/) || monthStr.match(/^\d{4}\/\d{2}\/\d{2}/)) {
+            const date = new Date(monthStr);
             if (!isNaN(date.getTime())) {
-              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'];
               monthValue = monthNames[date.getMonth()];
             }
           }
           // If it's a Date object
           else if (monthValue instanceof Date) {
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-              'July', 'August', 'September', 'October', 'November', 'December'];
             monthValue = monthNames[monthValue.getMonth()];
           }
-          // If it's a number (1-12), convert to month name
-          else if (typeof monthValue === 'number' || (typeof monthValue === 'string' && /^\d+$/.test(String(monthValue)))) {
-            const monthNum = parseInt(String(monthValue));
-            if (monthNum >= 1 && monthNum <= 12) {
-              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'];
-              monthValue = monthNames[monthNum - 1];
-            }
-          }
-          // Keep the original value if it's already a valid month name
-          else if (typeof monthValue === 'string') {
+          // Keep the original value if it's already a valid month name or abbreviation
+          else if (typeof monthStr === 'string') {
             const validMonths = ['January', 'February', 'March', 'April', 'May', 'June',
               'July', 'August', 'September', 'October', 'November', 'December',
               'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            if (!validMonths.includes(monthValue.trim())) {
+            const monthAbbrMap: { [key: string]: string } = {
+              'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+              'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+              'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+            };
+            
+            const trimmedMonth = monthStr.trim();
+            if (validMonths.includes(trimmedMonth)) {
+              // If it's an abbreviation, convert to full name
+              monthValue = monthAbbrMap[trimmedMonth] || trimmedMonth;
+            } else {
               // Try to parse it as a date
-              const date = new Date(monthValue);
+              const date = new Date(monthStr);
               if (!isNaN(date.getTime())) {
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                  'July', 'August', 'September', 'October', 'November', 'December'];
                 monthValue = monthNames[date.getMonth()];
+              } else {
+                // Keep original value - backend will handle conversion
+                monthValue = monthStr;
               }
             }
           }
@@ -1822,7 +1834,7 @@ const ClientMFSCompare: React.FC = () => {
 
           bu_head: stringOrNull(row['BU Head'] || row['BU_Head'] || row.bu_head),
 
-          month: stringOrNull(monthValue),
+          month: monthValue ? String(monthValue).trim() : null,
 
           year: yearValue,
 
@@ -1867,8 +1879,11 @@ const ClientMFSCompare: React.FC = () => {
         return;
       }
 
-      // Log first record for debugging
-      // Removed verbose console.log for performance
+      // Log first record for debugging (only in development)
+      if (process.env.NODE_ENV === 'development' && mappedData.length > 0) {
+        console.log('First record being sent:', mappedData[0]);
+        console.log('Sample month values:', mappedData.slice(0, 5).map((r: any) => ({ month: r.month, year: r.year })));
+      }
 
       try {
 
