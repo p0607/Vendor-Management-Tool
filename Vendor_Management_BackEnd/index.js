@@ -1065,28 +1065,32 @@ app.post('/api/team-report', async (req, res, next) => {
         }
       }
       
-      // Convert month name to date format (YYYY-MM-01)
-      // Month and year are already validated above
+      // Normalize month name to full name (e.g., "January", "April") - matching team_summary_report format
       const monthNames = {
-        'January': '01', 'February': '02', 'March': '03', 'April': '04',
-        'May': '05', 'June': '06', 'July': '07', 'August': '08',
-        'September': '09', 'October': '10', 'November': '11', 'December': '12'
+        'January': 'January', 'February': 'February', 'March': 'March', 'April': 'April',
+        'May': 'May', 'June': 'June', 'July': 'July', 'August': 'August',
+        'September': 'September', 'October': 'October', 'November': 'November', 'December': 'December',
+        'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+        'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+        'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
       };
-      const monthNum = monthNames[month];
-      if (!monthNum) {
+      
+      // Normalize month name (handle case variations)
+      const normalizedMonth = monthNames[month] || monthNames[month.charAt(0).toUpperCase() + month.slice(1).toLowerCase()];
+      
+      if (!normalizedMonth) {
         return res.status(400).json({
           success: false,
           error: `Invalid month name "${month}". Valid months: January, February, March, April, May, June, July, August, September, October, November, December`
         });
       }
-      const monthDate = `${year}-${monthNum}-01`;
 
       // Log the incoming data for debugging
       logger.info('Creating team report', { 
         client_name, project_name, business_unit, bu_head, hc, 
         salary_cost, revenue, gpm, gpm_percentage, leave_encashment, 
         team_cost, opr_cost, funding_cost, np, np_percentage, 
-        rebate, passthrough, month, year, monthDate 
+        rebate, passthrough, month, normalizedMonth, year 
       });
       
       // Check for exact duplicate (all columns match)
@@ -1114,7 +1118,7 @@ app.post('/api/team-report', async (req, res, next) => {
           processedFields.np_percentage,
           processedFields.rebate,
           processedFields.passthrough,
-          monthDate,
+          normalizedMonth,
           year
         ]
       );
@@ -1152,7 +1156,7 @@ app.post('/api/team-report', async (req, res, next) => {
           processedFields.np_percentage,
           processedFields.rebate,
           processedFields.passthrough,
-          monthDate,
+          normalizedMonth,
           year
         ]
       );
@@ -1250,46 +1254,57 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         }
       }
 
-      // Convert month name to date format (YYYY-MM-01)
-      // Month and year are already validated above
+      // Normalize month name to full name (e.g., "January", "April") - matching team_summary_report format
       const monthNames = {
-        'January': '01', 'February': '02', 'March': '03', 'April': '04',
-        'May': '05', 'June': '06', 'July': '07', 'August': '08',
-        'September': '09', 'October': '10', 'November': '11', 'December': '12',
-        'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-        'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-        'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+        'January': 'January', 'February': 'February', 'March': 'March', 'April': 'April',
+        'May': 'May', 'June': 'June', 'July': 'July', 'August': 'August',
+        'September': 'September', 'October': 'October', 'November': 'November', 'December': 'December',
+        'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+        'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+        'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
       };
       
-      // Handle different month formats
-      let monthNum = monthNames[record.month];
-      if (!monthNum) {
+      // Handle different month formats - normalize to full month name
+      let normalizedMonth = monthNames[record.month];
+      if (!normalizedMonth) {
+        // Try case-insensitive match
+        const monthStr = String(record.month).trim();
+        const capitalized = monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase();
+        normalizedMonth = monthNames[capitalized];
+        
         // Try to extract month from date strings like "2023-07-01" or "July 2023"
-        const monthStr = String(record.month).toLowerCase();
-        if (monthStr.includes('jan')) monthNum = '01';
-        else if (monthStr.includes('feb')) monthNum = '02';
-        else if (monthStr.includes('mar')) monthNum = '03';
-        else if (monthStr.includes('apr')) monthNum = '04';
-        else if (monthStr.includes('may')) monthNum = '05';
-        else if (monthStr.includes('jun')) monthNum = '06';
-        else if (monthStr.includes('jul')) monthNum = '07';
-        else if (monthStr.includes('aug')) monthNum = '08';
-        else if (monthStr.includes('sep')) monthNum = '09';
-        else if (monthStr.includes('oct')) monthNum = '10';
-        else if (monthStr.includes('nov')) monthNum = '11';
-        else if (monthStr.includes('dec')) monthNum = '12';
-        else if (monthStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          // Already in YYYY-MM-DD format
-          record.monthDate = record.month;
-          continue;
+        if (!normalizedMonth) {
+          const lowerMonthStr = monthStr.toLowerCase();
+          if (lowerMonthStr.includes('jan')) normalizedMonth = 'January';
+          else if (lowerMonthStr.includes('feb')) normalizedMonth = 'February';
+          else if (lowerMonthStr.includes('mar')) normalizedMonth = 'March';
+          else if (lowerMonthStr.includes('apr')) normalizedMonth = 'April';
+          else if (lowerMonthStr.includes('may')) normalizedMonth = 'May';
+          else if (lowerMonthStr.includes('jun')) normalizedMonth = 'June';
+          else if (lowerMonthStr.includes('jul')) normalizedMonth = 'July';
+          else if (lowerMonthStr.includes('aug')) normalizedMonth = 'August';
+          else if (lowerMonthStr.includes('sep')) normalizedMonth = 'September';
+          else if (lowerMonthStr.includes('oct')) normalizedMonth = 'October';
+          else if (lowerMonthStr.includes('nov')) normalizedMonth = 'November';
+          else if (lowerMonthStr.includes('dec')) normalizedMonth = 'December';
+          else if (monthStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Handle DATE format from database - extract month name
+            const date = new Date(monthStr);
+            if (!isNaN(date.getTime())) {
+              const monthIndex = date.getMonth(); // 0-11
+              const fullMonthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+              normalizedMonth = fullMonthNames[monthIndex];
+            }
+          }
         }
       }
       
-      if (!monthNum) {
+      if (!normalizedMonth) {
         logger.error('Invalid month format', { recordIndex: i, month: record.month, record: record });
-        throw new Error(`Record ${i + 1}: Invalid month format "${record.month}". Expected month names like "January", "July", etc. or date format "YYYY-MM-DD"`);
+        throw new Error(`Record ${i + 1}: Invalid month format "${record.month}". Expected month names like "January", "July", etc.`);
       }
-      record.monthDate = `${record.year}-${monthNum}-01`;
+      record.month = normalizedMonth;
       
       // Convert empty strings to null for all fields
       const allFields = ['client_name', 'project_name', 'business_unit', 'bu_head', 'month'];
@@ -1333,7 +1348,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             record.np_percentage || 0,
             record.rebate || 0,
             record.passthrough || 0,
-            record.monthDate,
+            record.month,
             record.year
           ]);
         } catch (insertErr) {

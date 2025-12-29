@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -1220,7 +1220,63 @@ const ClientMFSCompare: React.FC = () => {
 
   const [selectedPeriodsForCombination, setSelectedPeriodsForCombination] = useState<string[]>([]);
 
-  const [data, setData] = useState<ReportData[]>([]);
+  const [rawData, setRawData] = useState<ReportData[]>([]); // Store raw fetched data
+
+  // Memoized filtered data - filters raw data in memory instead of refetching
+  // This is declared early so it can be used throughout the component
+  const data = useMemo(() => {
+    if (!rawData || rawData.length === 0) return [];
+
+    let filtered = rawData.filter(hasValidMonth);
+
+    // Apply all filters in a single pass for better performance
+    filtered = filtered.filter((item: any) => {
+      // Business unit filter
+      if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+        return false;
+      }
+
+      // Client name filter
+      if (selectedClientName) {
+        if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+          if (item.project_name !== selectedClientName) return false;
+        } else {
+          if (item.client_name !== selectedClientName) return false;
+        }
+      }
+
+      // BU head filter
+      if (selectedBUHead && item.bu_head !== selectedBUHead) {
+        return false;
+      }
+
+      // User business unit filter
+      if (isBUHead && user?.business_unit && item.business_unit !== user.business_unit) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Convert amounts to numbers and handle formatting
+    return filtered.map((item: any) => {
+      const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'np', 'np_percentage', 'salary_cost', 'gpm_percentage', 'leave_encashment', 'opr_cost', 'funding_cost', 'rebate', 'passthrough', 'year'];
+      const processedItem = { ...item };
+      
+      for (const field of numericFields) {
+        processedItem[field] = parseNumericValue(processedItem[field]);
+      }
+
+      // Handle 2-digit year conversion
+      if (processedItem.year && processedItem.year < 100) {
+        if (processedItem.year >= 0 && processedItem.year <= 99) {
+          processedItem.year = 2000 + processedItem.year;
+        }
+      }
+
+      return processedItem;
+    }).filter(hasValidMonth);
+  }, [rawData, selectedBusinessUnit, selectedClientName, selectedBUHead, isBUHead, user?.business_unit]);
 
   const [availableOptions, setAvailableOptions] = useState<string[]>([]);
 
@@ -1283,6 +1339,7 @@ const ClientMFSCompare: React.FC = () => {
   };
 
   // Enhanced date parser to handle various date formats
+  // Now prioritizes month names (matching team_summary_report format) but still supports DATE format for backward compatibility
   const parseDate = (dateStr: string, year?: number): Date => {
 
     if (!dateStr || dateStr.trim() === '') {
@@ -1290,15 +1347,7 @@ const ClientMFSCompare: React.FC = () => {
       return new Date(NaN);
     }
 
-    // Handle ISO date format (YYYY-MM-DD) - this is what the database returns
-    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const date = new Date(dateStr);
-      if (!isNaN(date.getTime())) {
-        return date;
-      }
-    }
-
-    // Handle month name format (e.g., "April")
+    // Handle month name format first (e.g., "January", "April") - this is now the primary format
     
     // Fix common misspellings first
     const fixedDateStr = dateStr
@@ -2829,90 +2878,11 @@ const ClientMFSCompare: React.FC = () => {
 
         
         
-        // Filter data on frontend
-
-        let filteredData = (res.data || []).filter(hasValidMonth);
-
+        // Store raw data - filtering and processing will be done in useMemo for better performance
+        const rawDataFromAPI = res.data || [];
         
-        
-        if (selectedBusinessUnit) {
-
-          filteredData = filteredData.filter((item: any) => 
-
-            item.business_unit === selectedBusinessUnit
-
-          );
-
-
-        }
-
-        
-        
-        if (selectedClientName) {
-
-          if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-
-            filteredData = filteredData.filter((item: any) => 
-
-              item.project_name === selectedClientName
-
-            );
-
-
-          } else {
-
-            filteredData = filteredData.filter((item: any) => 
-
-              item.client_name === selectedClientName
-
-            );
-
-
-          }
-
-        }
-
-        
-        
-        if (selectedBUHead) {
-
-          filteredData = filteredData.filter((item: any) => 
-
-            item.bu_head === selectedBUHead
-
-          );
-
-
-        }
-
-        
-        
-        if (isBUHead && user.business_unit) {
-
-          filteredData = filteredData.filter((item: any) => 
-
-            item.business_unit === user.business_unit
-
-          );
-
-
-        }
-
-        
-        
-        
-        // Debug: Check what years are in the data
-        const yearsInData = Array.from(new Set(filteredData.map((item: any) => {
-          const date = parseDate(item.month, item.year);
-          return date ? date.getFullYear() : null;
-        }).filter((year: any) => year !== null))).sort();
-        
-
-        
-        
-        // Convert amounts to numbers and handle formatting
-
-        const convertedData = filteredData.map((item: any) => {
+        // Convert amounts to numbers and handle formatting (minimal processing)
+        const convertedData = rawDataFromAPI.map((item: any) => {
 
           // Convert numeric fields to numbers - include all fields from team_report
 
@@ -3005,12 +2975,12 @@ const ClientMFSCompare: React.FC = () => {
         
         // Filter out records with invalid month data
         const validData = convertedData.filter(hasValidMonth);
-        setData(validData);
+        setRawData(validData); // Store raw data - filtering will be done in useMemo
 
       } catch (error: any) {
         console.error("❌ Error fetching data:", error);
         // Set empty data on error to prevent blank page
-        setData([]);
+        setRawData([]);
       } finally {
 
         setIsLoading(false);
@@ -3023,7 +2993,7 @@ const ClientMFSCompare: React.FC = () => {
 
     fetchData();
 
-  }, [selectedBusinessUnit, selectedClientName, selectedBUHead, isBUHead, user?.business_unit]);
+  }, []); // Fetch data only once on mount - filtering will be done in memory
 
 
 
