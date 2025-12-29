@@ -132,7 +132,8 @@ body, html {
 
 /* Ensure edit containers don't break row alignment */
 .scrollable-table tbody tr td .edit-container {
-  min-height: 32px;
+  min-height: 24px;
+  max-height: 28px;
   display: flex;
   align-items: center;
 }
@@ -168,29 +169,33 @@ body, html {
 
 /* Set column width for scrollable table cells (value table) - override previous rules */
 .scrollable-table tbody tr td {
-  min-width: 50px !important;
-  max-width: 50px !important;
-  width: 50px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+  width: 80px !important;
 }
 
 .scrollable-table thead tr th {
-  min-width: 50px !important;
-  max-width: 50px !important;
-  width: 50px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+  width: 80px !important;
 }
 
 /* Ensure consistent header row heights - first row */
 .fixed-table thead tr:first-child th,
 .scrollable-table thead tr:first-child th {
-  padding: 10px 8px;
+  padding: 8px 6px; /* Match padding with other headers */
   line-height: 1.4;
+  height: auto;
+  min-height: 45px;
 }
 
 /* Second header row (for parameters) - ensure same height */
 .fixed-table thead tr:nth-child(2) th,
 .scrollable-table thead tr:nth-child(2) th {
-  padding: 10px 8px;
+  padding: 8px 6px; /* Match padding with other headers */
   line-height: 1.4;
+  height: auto;
+  min-height: 45px;
 }
 
 /* Ensure rowSpan cells align properly and match the combined height of two rows */
@@ -219,13 +224,26 @@ body, html {
 /* Ensure scrollable table headers also have consistent heights */
 .scrollable-table thead tr:first-child th {
   min-height: 45px;
-  height: 45px;
+  height: auto;
   box-sizing: border-box;
 }
 
 .scrollable-table thead tr:nth-child(2) th {
   min-height: 45px;
-  height: 45px;
+  height: auto;
+  box-sizing: border-box;
+}
+
+/* Ensure fixed table headers match scrollable table header heights */
+.fixed-table thead tr:first-child th {
+  min-height: 45px;
+  height: auto;
+  box-sizing: border-box;
+}
+
+.fixed-table thead tr:nth-child(2) th {
+  min-height: 45px;
+  height: auto;
   box-sizing: border-box;
 }
 
@@ -329,11 +347,11 @@ body, html {
 }
 
 .parameter-header {
-  background-color: #ff6b35 !important; /* Orange color */
-  color: #000000 !important; /* Black text */
+  background-color: #ff8c00 !important; /* Orange color matching button (--button-bg) */
+  color: #000000 !important; /* Black text to match other headers */
   text-align: left !important;
   width: 100%;
-  border: 2px solid #000000 !important; /* Black border */
+  border: 2px solid #000000 !important; /* Black border to match */
 }
 
 .fixed-table .parameter-header {
@@ -356,13 +374,13 @@ body, html {
 .month-header {
   background-color: #ff8c00 !important; /* Orange color matching button (--button-bg) */
   color: #000000 !important; /* Black text */
-  min-width: 50px; /* Decreased to 50px to reduce column width */
-  max-width: 50px; /* Set max-width to match min-width */
+  min-width: 80px; /* Increased to 80px for better column name fit */
+  max-width: 80px; /* Set max-width to match min-width */
   border: 2px solid #000000 !important; /* Black border */
 }
 
 .total-header {
-  background-color: #ff6b35 !important; /* Orange color */
+  background-color: #ff8c00 !important; /* Orange color matching button (--button-bg) */
   color: #000000 !important; /* Black text */
   min-width: 120px;
   font-weight: 700;
@@ -531,9 +549,9 @@ body, html {
   background-color: #e8f4f8;
   text-align: left;
   font-size: 12px; /* Increased font size to match table */
-  min-width: 50px; /* Set min-width to match header */
-  max-width: 50px; /* Set max-width to match header */
-  width: 50px; /* Fixed width for consistent column sizing */
+  min-width: 80px; /* Set min-width to match header */
+  max-width: 80px; /* Set max-width to match header */
+  width: 80px; /* Fixed width for consistent column sizing */
 }
 
 .routing-table tbody tr {
@@ -648,62 +666,87 @@ body, html {
 }
 
 .edit-pen-button {
-  background: none;
+  background: none !important;
   border: none;
   cursor: pointer;
-  margin-left: 8px;
-  font-size: 9px;
+  margin-left: 4px;
+  padding: 2px;
+  font-size: 12px;
   color: #666;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
 }
 
 .edit-pen-button:hover {
   color: #333;
+  transform: scale(1.1);
 }
 
 .edit-container {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  padding: 2px;
 }
 
 .edit-input {
-  padding: 4px;
+  padding: 2px 4px;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 3px;
   flex-grow: 1;
   color: black !important;
   background-color: white !important;
+  font-size: 11px;
+  min-width: 40px;
 }
 
 .save-button {
-  background-color: #4CAF50;
-  color: white;
+  background-color: transparent;
+  color: #4CAF50;
   border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
+  border-radius: 2px;
+  padding: 2px 4px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
 }
 
 .save-button:hover {
-  background-color: #45a049;
+  background-color: #4CAF50;
+  color: white;
 }
 
 .cancel-button {
-  background-color: #f44336;
-  color: white;
+  background-color: transparent;
+  color: #f44336;
   border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
+  border-radius: 2px;
+  padding: 2px 4px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
 }
 
 .cancel-button:hover {
-  background-color: #d32f2f;
+  background-color: #f44336;
+  color: white;
 }
 
 .cell-content {
   display: flex;
   align-items: center;
+  gap: 2px;
 }
 
 .expand-button {
