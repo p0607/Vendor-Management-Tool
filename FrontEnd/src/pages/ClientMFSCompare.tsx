@@ -1228,6 +1228,38 @@ const ClientMFSCompare: React.FC = () => {
     return item.month && item.month.trim() !== '';
   };
 
+  // Helper function to safely parse numeric values from Excel (handles formulas, commas, parentheses, percentages)
+  // Must be declared before useMemo that uses it
+  const parseNumericValue = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
+    
+    // If it's already a number, return it
+    if (typeof value === 'number') return value;
+    
+    // Convert to string and clean it
+    let stringValue = String(value).trim();
+    
+    // Handle empty strings and dashes
+    if (stringValue === '' || stringValue === '-' || stringValue === '########') return 0;
+
+    // Handle negative numbers in parentheses like (54,059) -> -54059
+    if (stringValue.startsWith('(') && stringValue.endsWith(')')) {
+      stringValue = '-' + stringValue.slice(1, -1);
+    }
+
+    // Remove percentage symbol if present
+    if (stringValue.endsWith('%')) {
+      stringValue = stringValue.replace('%', '');
+    }
+
+    // Remove commas (thousands separators)
+    stringValue = stringValue.replace(/,/g, '');
+    
+    // Try to parse as number
+    const parsed = parseFloat(stringValue);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   // Memoized filtered data - filters raw data in memory instead of refetching
   // This is declared early so it can be used throughout the component
   const data = useMemo(() => {
@@ -1599,54 +1631,7 @@ const ClientMFSCompare: React.FC = () => {
 
 
 
-  // Helper function to safely parse numeric values from Excel (handles formulas, commas, parentheses, percentages)
-
-  const parseNumericValue = (value: any): number => {
-
-    if (value === null || value === undefined || value === '') return 0;
-
-    
-    
-    // If it's already a number, return it
-
-    if (typeof value === 'number') return value;
-
-    
-    
-    // Convert to string and clean it
-
-    let stringValue = String(value).trim();
-
-    
-    
-    // Handle empty strings and dashes
-
-    if (stringValue === '' || stringValue === '-' || stringValue === '########') return 0;
-
-    // Handle negative numbers in parentheses like (54,059) -> -54059
-    if (stringValue.startsWith('(') && stringValue.endsWith(')')) {
-      stringValue = '-' + stringValue.slice(1, -1);
-    }
-
-    // Remove percentage symbol if present
-    if (stringValue.endsWith('%')) {
-      stringValue = stringValue.replace('%', '');
-    }
-
-    // Remove commas (thousands separators)
-    stringValue = stringValue.replace(/,/g, '');
-
-    
-    
-    // Try to parse as number
-
-    const parsed = parseFloat(stringValue);
-
-    return isNaN(parsed) ? 0 : parsed;
-
-  };
-
-
+  // DUPLICATE REMOVED - parseNumericValue moved above (line 1233) to be available for useMemo hook
 
   // Handle Excel import
 
