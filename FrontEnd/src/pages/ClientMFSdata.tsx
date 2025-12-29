@@ -473,7 +473,19 @@ const ClientMFSdata: React.FC = () => {
       
       // For MS, group by project_name as well
       if (isMSSelected) {
-        const projectsToShow = selectedProject ? [selectedProject] : projectNames;
+        // Get unique projects for THIS specific client only
+        const clientProjects = new Set<string>();
+        clientData.forEach(item => {
+          if (item.project_name) {
+            const normalizedProject = String(item.project_name).trim();
+            if (normalizedProject) {
+              clientProjects.add(normalizedProject);
+            }
+          }
+        });
+        const clientProjectsList = Array.from(clientProjects).sort();
+        
+        const projectsToShow = selectedProject ? [selectedProject] : clientProjectsList;
         
         projectsToShow.forEach(project => {
           // Filter by project_name, handling null/empty values and normalizing

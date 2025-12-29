@@ -129,6 +129,7 @@ body, html {
   box-sizing: border-box;
 }
 
+
 /* Ensure edit containers don't break row alignment */
 .scrollable-table tbody tr td .edit-container {
   min-height: 32px;
@@ -163,6 +164,19 @@ body, html {
   box-sizing: border-box;
   height: auto;
   display: table-cell;
+}
+
+/* Set column width for scrollable table cells (value table) - override previous rules */
+.scrollable-table tbody tr td {
+  min-width: 50px !important;
+  max-width: 50px !important;
+  width: 50px !important;
+}
+
+.scrollable-table thead tr th {
+  min-width: 50px !important;
+  max-width: 50px !important;
+  width: 50px !important;
 }
 
 /* Ensure consistent header row heights - first row */
@@ -297,7 +311,7 @@ body, html {
 }
 
 .pivot-table thead {
-  background-color: #ff6b35; /* Orange color */
+  background-color: #ff8c00; /* Orange color matching button (--button-bg) */
   color: #000000; /* Black text */
   position: sticky;
   top: 0;
@@ -310,7 +324,7 @@ body, html {
   text-align: center;
   border: 2px solid #000000; /* Black border */
   font-size: 11px; /* Increased from 9px to 11px */
-  background-color: #ff6b35; /* Orange color */
+  background-color: #ff8c00; /* Orange color matching button (--button-bg) */
   color: #000000; /* Black text */
 }
 
@@ -340,9 +354,10 @@ body, html {
 }
 
 .month-header {
-  background-color: #ff6b35 !important; /* Orange color */
+  background-color: #ff8c00 !important; /* Orange color matching button (--button-bg) */
   color: #000000 !important; /* Black text */
-  min-width: 100px; /* Decreased from 120px to reduce cell width */
+  min-width: 50px; /* Decreased to 50px to reduce column width */
+  max-width: 50px; /* Set max-width to match min-width */
   border: 2px solid #000000 !important; /* Black border */
 }
 
@@ -516,6 +531,9 @@ body, html {
   background-color: #e8f4f8;
   text-align: left;
   font-size: 12px; /* Increased font size to match table */
+  min-width: 50px; /* Set min-width to match header */
+  max-width: 50px; /* Set max-width to match header */
+  width: 50px; /* Fixed width for consistent column sizing */
 }
 
 .routing-table tbody tr {
