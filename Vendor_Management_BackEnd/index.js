@@ -1391,14 +1391,22 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
           insertedCount++;
         } catch (insertErr) {
           failedCount++;
-          const errorMsg = `Record ${i + 1}: ${insertErr.message || insertErr.detail || 'Unknown error'}`;
+          const errorMsg = `Record ${i + 1}: ${insertErr.message || insertErr.detail || insertErr.code || 'Unknown error'}`;
           errors.push(errorMsg);
           logger.error('Failed to insert record', { 
             recordIndex: i, 
-            record: { month: record.month, year: record.year, business_unit: record.business_unit },
+            record: { 
+              month: record.month, 
+              year: record.year, 
+              business_unit: record.business_unit,
+              client_name: record.client_name,
+              project_name: record.project_name
+            },
             error: insertErr.message,
             sqlError: insertErr.code,
-            detail: insertErr.detail
+            detail: insertErr.detail,
+            constraint: insertErr.constraint,
+            table: insertErr.table
           });
           // Continue with next record instead of stopping
         }

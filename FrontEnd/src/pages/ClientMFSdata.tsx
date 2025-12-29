@@ -567,6 +567,67 @@ const ClientMFSdata: React.FC = () => {
     return Math.round(value).toLocaleString('en-IN');
   };
 
+  // Sync row heights between fixed and scrollable tables
+  useEffect(() => {
+    const syncRowHeights = () => {
+      const fixedTable = document.querySelector('.fixed-table tbody');
+      const scrollableTable = document.querySelector('.scrollable-table tbody');
+      
+      if (!fixedTable || !scrollableTable) return;
+      
+      const fixedRows = fixedTable.querySelectorAll('tr');
+      const scrollableRows = scrollableTable.querySelectorAll('tr');
+      
+      // Match the number of rows
+      const minRows = Math.min(fixedRows.length, scrollableRows.length);
+      
+      for (let i = 0; i < minRows; i++) {
+        const fixedRow = fixedRows[i] as HTMLElement;
+        const scrollableRow = scrollableRows[i] as HTMLElement;
+        
+        // Get the actual height of the scrollable row (which may have edit container)
+        const scrollableHeight = scrollableRow.offsetHeight;
+        
+        // Set fixed row to match scrollable row height
+        if (scrollableHeight > 0) {
+          fixedRow.style.height = `${scrollableHeight}px`;
+          fixedRow.style.minHeight = `${scrollableHeight}px`;
+        }
+      }
+    };
+    
+    // Sync heights initially and whenever editing state changes
+    syncRowHeights();
+    
+    // Use MutationObserver to watch for DOM changes (like when edit container appears)
+    const observer = new MutationObserver(() => {
+      syncRowHeights();
+    });
+    
+    const scrollableTable = document.querySelector('.scrollable-table tbody');
+    if (scrollableTable) {
+      observer.observe(scrollableTable, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      });
+    }
+    
+    // Also sync on window resize
+    window.addEventListener('resize', syncRowHeights);
+    
+    // Sync when editing state changes
+    if (editingCell) {
+      setTimeout(syncRowHeights, 100); // Small delay to allow DOM to update
+    }
+    
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', syncRowHeights);
+    };
+  }, [editingCell]); // Sync when editing state changes
+
   // Handle edit click
   const handleEditClick = (parameter: string, monthKey: string, currentValue: number, clientName?: string, projectName?: string) => {
     setEditingCell({ parameter, monthKey, clientName, projectName });
@@ -880,7 +941,7 @@ const ClientMFSdata: React.FC = () => {
                 <table className="pivot-table fixed-table">
                   <thead>
                     <tr>
-                      <th className="parameter-header" rowSpan={parameters.length > 1 ? 2 : 1}>LOB</th>
+                      <th className="parameter-header" rowSpan={parameters.length > 1 ? 2 : 1}>Client</th>
                       {isMSSelected && (
                         <th className="parameter-header" rowSpan={parameters.length > 1 ? 2 : 1}>Project</th>
                       )}

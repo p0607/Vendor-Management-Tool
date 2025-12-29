@@ -1974,6 +1974,13 @@ const ClientMFSCompare: React.FC = () => {
             console.error('Status:', batchErr.response?.status);
             console.error('Error message:', batchErr.response?.data?.error || batchErr.response?.data?.message || batchErr.message);
             console.error('Full error response:', batchErr.response?.data);
+            console.error('Specific errors:', batchErr.response?.data?.errors);
+            if (batchErr.response?.data?.errors && Array.isArray(batchErr.response?.data?.errors)) {
+              console.error('Error details for each record:');
+              batchErr.response.data.errors.forEach((err: string, index: number) => {
+                console.error(`  Record ${index + 1}:`, err);
+              });
+            }
             console.error('Sample record from batch:', JSON.stringify(batch[0], null, 2));
             console.error('====================');
 
@@ -2691,6 +2698,16 @@ const ClientMFSCompare: React.FC = () => {
   };
 
 
+
+  // Sync selectedSummaryClient with selectedClientName when client/project is selected
+  useEffect(() => {
+    if (selectedClientName) {
+      setSelectedSummaryClient(selectedClientName);
+    } else {
+      // When no client is selected, reset summary client filter
+      setSelectedSummaryClient(null);
+    }
+  }, [selectedClientName]);
 
   // Fetch client names based on selected business unit
 
