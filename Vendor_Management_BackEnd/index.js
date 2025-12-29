@@ -1324,8 +1324,8 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       }
       
       if (!normalizedMonth) {
-        logger.error('Invalid month format', { recordIndex: i, month: record.month, record: record });
-        throw new Error(`Record ${i + 1}: Invalid month format "${record.month}". Expected month names like "January", "July", etc.`);
+        logger.error('Invalid month format', { recordIndex: i, month: record.month, monthType: typeof record.month, record: record });
+        throw new Error(`Record ${i + 1}: Invalid month format "${record.month}" (type: ${typeof record.month}). Expected month names like "January", "July", etc., or numeric values 1-12.`);
       }
       record.month = normalizedMonth;
       
@@ -1338,7 +1338,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       }
     }
 
-    // Use transaction for bulk insert
+    // Use transaction for bulk insert with optimized batch processing
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -1350,14 +1350,28 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         rebate, passthrough, month, year
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`;
       
+      let insertedCount = 0;
+      let failedCount = 0;
+      const errors = [];
+      
       for (let i = 0; i < data.length; i++) {
         const record = data[i];
         try {
+          // Validate month before insert
+          if (!record.month || record.month === '' || record.month === null) {
+            throw new Error(`Record ${i + 1}: Month is missing or empty`);
+          }
+          
+          // Validate year before insert
+          if (!record.year || record.year === 0) {
+            throw new Error(`Record ${i + 1}: Year is missing or invalid`);
+          }
+          
           await client.query(insertQuery, [
-          record.client_name === '' ? null : record.client_name,
-          record.project_name === '' ? null : record.project_name,
-          record.business_unit === '' ? null : record.business_unit,
-          record.bu_head === '' ? null : record.bu_head,
+            record.client_name === '' ? null : record.client_name,
+            record.project_name === '' ? null : record.project_name,
+            record.business_unit === '' ? null : record.business_unit,
+            record.bu_head === '' ? null : record.bu_head,
             record.hc || 0,
             record.salary_cost || 0,
             record.revenue || 0,
@@ -1374,32 +1388,57 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             record.month,
             record.year
           ]);
+          insertedCount++;
         } catch (insertErr) {
+          failedCount++;
+          const errorMsg = `Record ${i + 1}: ${insertErr.message || insertErr.detail || 'Unknown error'}`;
+          errors.push(errorMsg);
           logger.error('Failed to insert record', { 
             recordIndex: i, 
-            record: record, 
+            record: { month: record.month, year: record.year, business_unit: record.business_unit },
             error: insertErr.message,
-            stack: insertErr.stack,
             sqlError: insertErr.code,
             detail: insertErr.detail
           });
-          throw new Error(`Failed to insert record ${i + 1}: ${insertErr.message} (Code: ${insertErr.code})`);
+          // Continue with next record instead of stopping
         }
       }
       
       await client.query('COMMIT');
       
       logger.info('Team report bulk import completed', { 
-        recordCount: data.length
+        totalRecords: data.length,
+        insertedCount: insertedCount,
+        failedCount: failedCount
       });
       
-      res.status(201).json({
-        success: true,
-        message: `Successfully imported ${data.length} records`,
-        insertedCount: data.length
-      });
+      if (insertedCount === 0) {
+        res.status(400).json({
+          success: false,
+          message: `Failed to import all ${data.length} records`,
+          errors: errors.slice(0, 10) // Return first 10 errors
+        });
+      } else if (failedCount > 0) {
+        res.status(207).json({ // 207 Multi-Status
+          success: true,
+          message: `Imported ${insertedCount} records successfully, ${failedCount} records failed`,
+          insertedCount: insertedCount,
+          failedCount: failedCount,
+          errors: errors.slice(0, 10) // Return first 10 errors
+        });
+      } else {
+        res.status(201).json({
+          success: true,
+          message: `Successfully imported ${insertedCount} records`,
+          insertedCount: insertedCount
+        });
+      }
     } catch (err) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackErr) {
+        logger.error('Failed to rollback transaction', { error: rollbackErr });
+      }
       throw err;
     } finally {
       client.release();
