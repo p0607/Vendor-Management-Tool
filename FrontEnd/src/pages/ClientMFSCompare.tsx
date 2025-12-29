@@ -1222,6 +1222,12 @@ const ClientMFSCompare: React.FC = () => {
 
   const [rawData, setRawData] = useState<ReportData[]>([]); // Store raw fetched data
 
+  // Helper function to check if a record has valid month data
+  // Must be declared before useMemo that uses it
+  const hasValidMonth = (item: any): boolean => {
+    return item.month && item.month.trim() !== '';
+  };
+
   // Memoized filtered data - filters raw data in memory instead of refetching
   // This is declared early so it can be used throughout the component
   const data = useMemo(() => {
@@ -1281,7 +1287,6 @@ const ClientMFSCompare: React.FC = () => {
   const [availableOptions, setAvailableOptions] = useState<string[]>([]);
 
   const [selectedParameters, setSelectedParameters] = useState<string[]>(() => {
-
     // Force default parameters
     const defaultParams = ['Revenue', 'GPM', 'NP', 'Team Cost'];
     return defaultParams;
@@ -1299,7 +1304,7 @@ const ClientMFSCompare: React.FC = () => {
 
   const [growthAnalysis, setGrowthAnalysis] = useState<GrowthAnalysis[]>([]);
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [activeTab, setActiveTab] = useState<string>('chart');
 
@@ -1320,7 +1325,6 @@ const ClientMFSCompare: React.FC = () => {
     // Ensure value is a valid number
     const numValue = typeof value === 'number' && !isNaN(value) ? value : 0;
     if (!isLargeValue) return numValue.toFixed(0);
-    
     if (isCroreMode) {
       return `${(numValue / 10000000).toFixed(1)}Cr`;
     } else {
@@ -1330,13 +1334,6 @@ const ClientMFSCompare: React.FC = () => {
 
   // Chart tab visibility state
   const [activeChartTab, setActiveChartTab] = useState<string>('none');
-
-
-
-  // Helper function to check if a record has valid month data
-  const hasValidMonth = (item: any): boolean => {
-    return item.month && item.month.trim() !== '';
-  };
 
   // Enhanced date parser to handle various date formats
   // Now prioritizes month names (matching team_summary_report format) but still supports DATE format for backward compatibility
