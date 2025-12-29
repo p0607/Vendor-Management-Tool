@@ -1846,11 +1846,30 @@ const ClientMFSCompare: React.FC = () => {
 
           gpm: parseNumericValue(row['GPM'] || row.gpm),
 
-          gpm_percentage: parseNumericValue(row['GPM -%'] || row['GPM-%'] || row['GPM %'] || row.gpm_percentage),
+          // Handle GPM percentage column - try multiple variations of column names
+          gpm_percentage: parseNumericValue(
+            row['GPM -%'] || 
+            row['GPM-%'] || 
+            row['GPM %'] || 
+            row['GPM-%'] ||
+            row['GPM%'] ||
+            row['GPM_Percentage'] ||
+            row['GPM_Percent'] ||
+            row.gpm_percentage
+          ),
 
           np: parseNumericValue(row['NP'] || row.np),
 
-          np_percentage: parseNumericValue(row['NP %'] || row['NP%'] || row['NP_Percentage'] || row.np_percentage),
+          // Handle NP percentage column - try multiple variations of column names
+          np_percentage: parseNumericValue(
+            row['NP %'] || 
+            row['NP%'] || 
+            row['NP_Percentage'] || 
+            row['NP_Percent'] ||
+            row['NP-%'] ||
+            row['NP -%'] ||
+            row.np_percentage
+          ),
 
           leave_encashment: parseNumericValue(row['Leave Encsh'] || row['Leave Enc'] || row['Leave_Encsh'] || row['Leave Encashment'] || row.leave_encashment),
 
@@ -1879,10 +1898,21 @@ const ClientMFSCompare: React.FC = () => {
         return;
       }
 
-      // Log first record for debugging (only in development)
-      if (process.env.NODE_ENV === 'development' && mappedData.length > 0) {
-        console.log('First record being sent:', mappedData[0]);
-        console.log('Sample month values:', mappedData.slice(0, 5).map((r: any) => ({ month: r.month, year: r.year })));
+      // Log first record and column names for debugging
+      if (mappedData.length > 0) {
+        console.log('=== IMPORT DEBUG INFO ===');
+        console.log('Total records to import:', mappedData.length);
+        console.log('Excel column names found:', Object.keys(jsonData[0] || {}));
+        console.log('First record being sent:', JSON.stringify(mappedData[0], null, 2));
+        console.log('Sample month values:', mappedData.slice(0, 3).map((r: any) => ({ 
+          month: r.month, 
+          monthType: typeof r.month,
+          year: r.year,
+          yearType: typeof r.year,
+          business_unit: r.business_unit,
+          client_name: r.client_name
+        })));
+        console.log('========================');
       }
 
       try {
@@ -1940,6 +1970,12 @@ const ClientMFSCompare: React.FC = () => {
           } catch (batchErr: any) {
 
             console.error(`Batch ${batchNumber} failed:`, batchErr);
+            console.error('=== ERROR DETAILS ===');
+            console.error('Status:', batchErr.response?.status);
+            console.error('Error message:', batchErr.response?.data?.error || batchErr.response?.data?.message || batchErr.message);
+            console.error('Full error response:', batchErr.response?.data);
+            console.error('Sample record from batch:', JSON.stringify(batch[0], null, 2));
+            console.error('====================');
 
             errorCount += batch.length;
 
