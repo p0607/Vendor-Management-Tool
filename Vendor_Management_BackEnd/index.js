@@ -1075,13 +1075,26 @@ app.post('/api/team-report', async (req, res, next) => {
         'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
       };
       
-      // Normalize month name (handle case variations)
-      const normalizedMonth = monthNames[month] || monthNames[month.charAt(0).toUpperCase() + month.slice(1).toLowerCase()];
+      // Full month names array for numeric conversion
+      const fullMonthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      
+      // Normalize month name (handle case variations and numeric values)
+      let normalizedMonth = monthNames[month] || monthNames[month.charAt(0).toUpperCase() + month.slice(1).toLowerCase()];
+      
+      // Handle numeric month values (1-12 or 01-12)
+      if (!normalizedMonth) {
+        const monthStr = String(month).trim();
+        const monthNum = parseInt(monthStr, 10);
+        if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+          normalizedMonth = fullMonthNames[monthNum - 1]; // Convert 1-12 to 0-11 index
+        }
+      }
       
       if (!normalizedMonth) {
         return res.status(400).json({
           success: false,
-          error: `Invalid month name "${month}". Valid months: January, February, March, April, May, June, July, August, September, October, November, December`
+          error: `Invalid month name "${month}". Valid months: January, February, March, April, May, June, July, August, September, October, November, December or numeric values 1-12`
         });
       }
 
@@ -1264,6 +1277,10 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
       };
       
+      // Full month names array for numeric conversion
+      const fullMonthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      
       // Handle different month formats - normalize to full month name
       let normalizedMonth = monthNames[record.month];
       if (!normalizedMonth) {
@@ -1271,6 +1288,14 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         const monthStr = String(record.month).trim();
         const capitalized = monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase();
         normalizedMonth = monthNames[capitalized];
+        
+        // Handle numeric month values (1-12 or 01-12)
+        if (!normalizedMonth) {
+          const monthNum = parseInt(monthStr, 10);
+          if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+            normalizedMonth = fullMonthNames[monthNum - 1]; // Convert 1-12 to 0-11 index
+          }
+        }
         
         // Try to extract month from date strings like "2023-07-01" or "July 2023"
         if (!normalizedMonth) {
@@ -1292,8 +1317,6 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             const date = new Date(monthStr);
             if (!isNaN(date.getTime())) {
               const monthIndex = date.getMonth(); // 0-11
-              const fullMonthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'];
               normalizedMonth = fullMonthNames[monthIndex];
             }
           }
