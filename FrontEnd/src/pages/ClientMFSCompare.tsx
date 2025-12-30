@@ -1221,6 +1221,7 @@ const ClientMFSCompare: React.FC = () => {
   const [selectedPeriodsForCombination, setSelectedPeriodsForCombination] = useState<string[]>([]);
 
   const [rawData, setRawData] = useState<ReportData[]>([]); // Store raw fetched data
+  const [routingData, setRoutingData] = useState<any[]>([]);
 
   // Helper function to check if a record has valid month data
   // Must be declared before useMemo that uses it
@@ -3045,7 +3046,162 @@ const ClientMFSCompare: React.FC = () => {
 
   }, []); // Fetch data only once on mount - filtering will be done in memory
 
+  // Fetch routing data
+  useEffect(() => {
+    const fetchRoutingData = async () => {
+      try {
+        const response = await apiClient.get('/Alchemy_Routing');
+        if (Array.isArray(response.data)) {
+          setRoutingData(response.data);
+        }
+      } catch (error: any) {
+        console.error("Error fetching routing data:", error);
+      }
+    };
+    fetchRoutingData();
+  }, []);
 
+  // Helper function to parse billing month from routing data (similar to RoutingDashboard)
+  const parseRoutingBillingMonth = (billingMonthStr: string): Date | null => {
+    if (!billingMonthStr || billingMonthStr === 'N/A' || billingMonthStr === '') {
+      return null;
+    }
+    
+    // Handle DD-MM-YYYY format (e.g., "01-09-2024")
+    if (/^\d{2}-\d{2}-\d{4}$/.test(billingMonthStr.trim())) {
+      const [day, month, year] = billingMonthStr.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    
+    // Handle Excel serial numbers (5-digit numbers)
+    if (/^\d{5}$/.test(billingMonthStr.trim())) {
+      const serialNumber = parseInt(billingMonthStr, 10);
+      const excelEpoch = new Date(1899, 11, 30);
+      let daysToAdd = serialNumber;
+      if (serialNumber > 59) {
+        daysToAdd = serialNumber + 1;
+      }
+      return new Date(excelEpoch.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    }
+    
+    // Handle MMM-YY format (e.g., "Sep-24", "Aug-24")
+    if (billingMonthStr.includes('-') && billingMonthStr.length === 6) {
+      const [monthStr, yearStr] = billingMonthStr.split('-');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthIndex = monthNames.indexOf(monthStr);
+      if (monthIndex !== -1 && yearStr) {
+        const year = 2000 + parseInt(yearStr);
+        return new Date(year, monthIndex, 1);
+      }
+    }
+    
+    // Handle ISO date format
+    if (billingMonthStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const date = new Date(billingMonthStr);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+    
+    // Try parsing as date string
+    const date = new Date(billingMonthStr);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+    
+    return null;
+  };
+
+  // Calculate routing billing for the same period as revenue
+  const calculateRoutingBilling = (): number => {
+    if (!routingData || routingData.length === 0) return 0;
+
+    // Get the same period logic as revenue KPI calculation
+    let targetMonths: { month: number; year: number }[] = [];
+    
+    if (compareType === 'month' && comparisonValues[0]) {
+      // Single month comparison
+      const monthMatch = comparisonValues[0].match(/(\w+) (\d{4})/);
+      if (monthMatch) {
+        const monthName = monthMatch[1];
+        const year = parseInt(monthMatch[2]);
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase().startsWith(monthName.toLowerCase()));
+        if (monthIndex !== -1) {
+          targetMonths = [{ month: monthIndex + 1, year }];
+        }
+      }
+    } else if (compareType === 'quarter' && comparisonValues[0]) {
+      // Quarter comparison
+      const quarterMatch = comparisonValues[0].match(/Q(\d)/);
+      const yearMatch = comparisonValues[0].match(/(\d{4})/);
+      if (quarterMatch && yearMatch) {
+        const quarter = parseInt(quarterMatch[1]);
+        const year = parseInt(yearMatch[1]);
+        const quarterMonthNames: { [key: number]: number[] } = {
+          1: [4, 5, 6],   // Apr, May, Jun
+          2: [7, 8, 9],   // Jul, Aug, Sep
+          3: [10, 11, 12], // Oct, Nov, Dec
+          4: [1, 2, 3]    // Jan, Feb, Mar
+        };
+        const monthsInQuarter = quarterMonthNames[quarter] || [];
+        const displayYear = quarter === 4 ? year + 1 : year;
+        targetMonths = monthsInQuarter.map(month => ({ month, year: displayYear }));
+      }
+    } else {
+      // Default: Current FY (April to current month)
+      const currentFY = getCurrentFinancialYear();
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+      
+      // FY months: April (4) to March (3)
+      if (currentMonth >= 4) {
+        // April to current month of current year
+        for (let m = 4; m <= currentMonth; m++) {
+          targetMonths.push({ month: m, year: currentYear });
+        }
+      } else {
+        // April to December of previous year, then January to current month
+        for (let m = 4; m <= 12; m++) {
+          targetMonths.push({ month: m, year: currentFY });
+        }
+        for (let m = 1; m <= currentMonth; m++) {
+          targetMonths.push({ month: m, year: currentFY + 1 });
+        }
+      }
+    }
+
+    // Filter routing data for target months
+    let totalBilling = 0;
+    routingData.forEach(item => {
+      // Check both 'Billing Month' and 'Costing Date' fields
+      const billingMonth = item['Billing Month'] || item['Costing Date'];
+      if (!billingMonth) return;
+
+      const billingDate = parseRoutingBillingMonth(String(billingMonth));
+      if (!billingDate) return;
+
+      const billingYear = billingDate.getFullYear();
+      const billingMonthNum = billingDate.getMonth() + 1;
+
+      // Check if this billing date matches any target month
+      const matches = targetMonths.some(target => 
+        target.month === billingMonthNum && target.year === billingYear
+      );
+
+      if (matches) {
+        const billingValue = parseFloat(item['Alchemy Billing Value'] || 0);
+        if (!isNaN(billingValue)) {
+          totalBilling += billingValue;
+        }
+      }
+    });
+
+    return totalBilling;
+  };
 
   // Fetch business units on component mount
 
@@ -6121,16 +6277,34 @@ const ClientMFSCompare: React.FC = () => {
 
                     {/* KPI Label */}
                     <div style={{ 
-                      backgroundColor: '#f5f5f5', 
-                      color: '#666666', 
-                      padding: '4px 8px', 
-                      borderRadius: 4, 
-                      fontSize: 10, 
-                      fontWeight: 500,
-                      display: 'inline-block',
+                      display: 'flex',
+                      gap: 8,
                       marginBottom: 12
                     }}>
-                      {kpiName}
+                      <div style={{ 
+                        backgroundColor: '#f5f5f5', 
+                        color: '#666666', 
+                        padding: '4px 8px', 
+                        borderRadius: 4, 
+                        fontSize: 10, 
+                        fontWeight: 500,
+                        display: 'inline-block'
+                      }}>
+                        {kpiName}
+                      </div>
+                      {kpiName === 'Revenue' && (
+                        <div style={{ 
+                          backgroundColor: '#f5f5f5', 
+                          color: '#666666', 
+                          padding: '4px 8px', 
+                          borderRadius: 4, 
+                          fontSize: 10, 
+                          fontWeight: 500,
+                          display: 'inline-block'
+                        }}>
+                          Routing
+                        </div>
+                      )}
                     </div>
 
                     {/* Current FY Value */}
@@ -6141,6 +6315,11 @@ const ClientMFSCompare: React.FC = () => {
                       marginBottom: 2
                     }}>
                       {formatValue(kpi.currentFY)}
+                      {kpiName === 'Revenue' && (
+                        <>
+                          {' '}+ {formatValue(calculateRoutingBilling())}
+                        </>
+                      )}
                     </div>
 
                     {/* FY Projected and Actual on same row */}
