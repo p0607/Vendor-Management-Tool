@@ -6357,7 +6357,9 @@ const ClientMFSCompare: React.FC = () => {
                     <div style={{ 
                       display: 'flex',
                       gap: 8,
-                      marginBottom: 12
+                      marginBottom: 12,
+                      alignItems: 'center',
+                      flexWrap: 'wrap'
                     }}>
                       <div style={{ 
                         backgroundColor: '#f5f5f5', 
@@ -6370,17 +6372,64 @@ const ClientMFSCompare: React.FC = () => {
                       }}>
                         {kpiName}
                       </div>
-                      {(kpiName === 'Revenue' || kpiName === 'GPM' || kpiName === 'NP') && (
+                      {kpiName === 'Revenue' && (
                         <div style={{ 
-                          backgroundColor: '#f5f5f5', 
-                          color: '#666666', 
-                          padding: '4px 8px', 
-                          borderRadius: 4, 
-                          fontSize: 10, 
-                          fontWeight: 500,
-                          display: 'inline-block'
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
                         }}>
-                          Routing
+                          <div style={{ 
+                            backgroundColor: '#f5f5f5', 
+                            color: '#666666', 
+                            padding: '4px 8px', 
+                            borderRadius: 4, 
+                            fontSize: 10, 
+                            fontWeight: 500,
+                            display: 'inline-block'
+                          }}>
+                            Routing
+                          </div>
+                          <span style={{ fontSize: 8, color: '#666666' }}>(Alchemy Billing)</span>
+                        </div>
+                      )}
+                      {kpiName === 'GPM' && (
+                        <div style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}>
+                          <div style={{ 
+                            backgroundColor: '#f5f5f5', 
+                            color: '#666666', 
+                            padding: '4px 8px', 
+                            borderRadius: 4, 
+                            fontSize: 10, 
+                            fontWeight: 500,
+                            display: 'inline-block'
+                          }}>
+                            Routing
+                          </div>
+                          <span style={{ fontSize: 8, color: '#666666' }}>(Alchemy billing - Vendor invoice amount)</span>
+                        </div>
+                      )}
+                      {kpiName === 'NP' && (
+                        <div style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}>
+                          <div style={{ 
+                            backgroundColor: '#f5f5f5', 
+                            color: '#666666', 
+                            padding: '4px 8px', 
+                            borderRadius: 4, 
+                            fontSize: 10, 
+                            fontWeight: 500,
+                            display: 'inline-block'
+                          }}>
+                            Routing
+                          </div>
+                          <span style={{ fontSize: 8, color: '#666666' }}>(Net Margin)</span>
                         </div>
                       )}
                     </div>
@@ -6393,21 +6442,33 @@ const ClientMFSCompare: React.FC = () => {
                       marginBottom: 2
                     }}>
                       {formatValue(kpi.currentFY)}
-                      {kpiName === 'Revenue' && (
-                        <>
-                          {' '}+ {formatValue(calculateRoutingBilling())}
-                        </>
-                      )}
-                      {kpiName === 'GPM' && (
-                        <>
-                          {' '}+ ({formatValue(calculateRoutingMargin())})
-                        </>
-                      )}
-                      {kpiName === 'NP' && (
-                        <>
-                          {' '}+ {formatValue(calculateRoutingNetMargin())}
-                        </>
-                      )}
+                      {kpiName === 'Revenue' && (() => {
+                        const routingBilling = calculateRoutingBilling();
+                        const total = kpi.currentFY + routingBilling;
+                        return (
+                          <>
+                            {' '}+ {formatValue(routingBilling)} = {formatValue(total)}
+                          </>
+                        );
+                      })()}
+                      {kpiName === 'GPM' && (() => {
+                        const routingMargin = calculateRoutingMargin();
+                        const total = kpi.currentFY + routingMargin;
+                        return (
+                          <>
+                            {' '}+ {formatValue(routingMargin)} = {formatValue(total)}
+                          </>
+                        );
+                      })()}
+                      {kpiName === 'NP' && (() => {
+                        const routingNetMargin = calculateRoutingNetMargin();
+                        const total = kpi.currentFY + routingNetMargin;
+                        return (
+                          <>
+                            {' '}+ {formatValue(routingNetMargin)} = {formatValue(total)}
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* FY Projected and Actual on same row */}
