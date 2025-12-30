@@ -3113,11 +3113,8 @@ const ClientMFSCompare: React.FC = () => {
     return null;
   };
 
-  // Calculate routing billing for the same period as revenue
-  const calculateRoutingBilling = (): number => {
-    if (!routingData || routingData.length === 0) return 0;
-
-    // Get the same period logic as revenue KPI calculation
+  // Helper function to get target months based on current comparison period
+  const getTargetMonthsForRouting = (): { month: number; year: number }[] => {
     let targetMonths: { month: number; year: number }[] = [];
     
     if (compareType === 'month' && comparisonValues[0]) {
@@ -3173,6 +3170,15 @@ const ClientMFSCompare: React.FC = () => {
         }
       }
     }
+    
+    return targetMonths;
+  };
+
+  // Calculate routing billing for the same period as revenue
+  const calculateRoutingBilling = (): number => {
+    if (!routingData || routingData.length === 0) return 0;
+
+    const targetMonths = getTargetMonthsForRouting();
 
     // Filter routing data for target months
     let totalBilling = 0;
@@ -3201,6 +3207,78 @@ const ClientMFSCompare: React.FC = () => {
     });
 
     return totalBilling;
+  };
+
+  // Calculate routing margin (Alchemy Billing - Vendor Invoice Amount) for GPM
+  const calculateRoutingMargin = (): number => {
+    if (!routingData || routingData.length === 0) return 0;
+
+    const targetMonths = getTargetMonthsForRouting();
+
+    // Filter routing data for target months
+    let totalMargin = 0;
+    routingData.forEach(item => {
+      // Check both 'Billing Month' and 'Costing Date' fields
+      const billingMonth = item['Billing Month'] || item['Costing Date'];
+      if (!billingMonth) return;
+
+      const billingDate = parseRoutingBillingMonth(String(billingMonth));
+      if (!billingDate) return;
+
+      const billingYear = billingDate.getFullYear();
+      const billingMonthNum = billingDate.getMonth() + 1;
+
+      // Check if this billing date matches any target month
+      const matches = targetMonths.some(target => 
+        target.month === billingMonthNum && target.year === billingYear
+      );
+
+      if (matches) {
+        const billingValue = parseFloat(item['Alchemy Billing Value'] || 0);
+        const vendorInvoice = parseFloat(item['Vendor Inv. Amount'] || item['Vendor Invoice Amount'] || 0);
+        const margin = billingValue - vendorInvoice;
+        if (!isNaN(margin)) {
+          totalMargin += margin;
+        }
+      }
+    });
+
+    return totalMargin;
+  };
+
+  // Calculate routing net margin for NP
+  const calculateRoutingNetMargin = (): number => {
+    if (!routingData || routingData.length === 0) return 0;
+
+    const targetMonths = getTargetMonthsForRouting();
+
+    // Filter routing data for target months
+    let totalNetMargin = 0;
+    routingData.forEach(item => {
+      // Check both 'Billing Month' and 'Costing Date' fields
+      const billingMonth = item['Billing Month'] || item['Costing Date'];
+      if (!billingMonth) return;
+
+      const billingDate = parseRoutingBillingMonth(String(billingMonth));
+      if (!billingDate) return;
+
+      const billingYear = billingDate.getFullYear();
+      const billingMonthNum = billingDate.getMonth() + 1;
+
+      // Check if this billing date matches any target month
+      const matches = targetMonths.some(target => 
+        target.month === billingMonthNum && target.year === billingYear
+      );
+
+      if (matches) {
+        const netMargin = parseFloat(item['Net Margin'] || 0);
+        if (!isNaN(netMargin)) {
+          totalNetMargin += netMargin;
+        }
+      }
+    });
+
+    return totalNetMargin;
   };
 
   // Fetch business units on component mount
@@ -6292,7 +6370,7 @@ const ClientMFSCompare: React.FC = () => {
                       }}>
                         {kpiName}
                       </div>
-                      {kpiName === 'Revenue' && (
+                      {(kpiName === 'Revenue' || kpiName === 'GPM' || kpiName === 'NP') && (
                         <div style={{ 
                           backgroundColor: '#f5f5f5', 
                           color: '#666666', 
@@ -6318,6 +6396,16 @@ const ClientMFSCompare: React.FC = () => {
                       {kpiName === 'Revenue' && (
                         <>
                           {' '}+ {formatValue(calculateRoutingBilling())}
+                        </>
+                      )}
+                      {kpiName === 'GPM' && (
+                        <>
+                          {' '}+ ({formatValue(calculateRoutingMargin())})
+                        </>
+                      )}
+                      {kpiName === 'NP' && (
+                        <>
+                          {' '}+ {formatValue(calculateRoutingNetMargin())}
                         </>
                       )}
                     </div>
