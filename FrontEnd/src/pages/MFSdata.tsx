@@ -390,6 +390,116 @@ const MFSdata: React.FC = () => {
     return Math.round(value).toLocaleString('en-IN');
   };
 
+  // Sync row heights and column widths between fixed and scrollable tables
+  useEffect(() => {
+    const syncTables = () => {
+      const fixedTable = document.querySelector('.fixed-table tbody');
+      const scrollableTable = document.querySelector('.scrollable-table tbody');
+      const fixedHeader = document.querySelector('.fixed-table thead');
+      const scrollableHeader = document.querySelector('.scrollable-table thead');
+      
+      if (!fixedTable || !scrollableTable) return;
+      
+      // Sync row heights
+      const fixedRows = fixedTable.querySelectorAll('tr');
+      const scrollableRows = scrollableTable.querySelectorAll('tr');
+      
+      // Match the number of rows
+      const minRows = Math.min(fixedRows.length, scrollableRows.length);
+      
+      for (let i = 0; i < minRows; i++) {
+        const fixedRow = fixedRows[i] as HTMLElement;
+        const scrollableRow = scrollableRows[i] as HTMLElement;
+        
+        // Get the actual height of the scrollable row (which may have edit container)
+        const scrollableHeight = scrollableRow.offsetHeight;
+        
+        // Set fixed row to match scrollable row height
+        if (scrollableHeight > 0) {
+          fixedRow.style.height = `${scrollableHeight}px`;
+          fixedRow.style.minHeight = `${scrollableHeight}px`;
+        }
+      }
+      
+      // Sync header heights
+      if (fixedHeader && scrollableHeader) {
+        const fixedHeaderHeight = (fixedHeader as HTMLElement).offsetHeight;
+        const scrollableHeaderHeight = (scrollableHeader as HTMLElement).offsetHeight;
+        const maxHeaderHeight = Math.max(fixedHeaderHeight, scrollableHeaderHeight);
+        
+        if (maxHeaderHeight > 0) {
+          (fixedHeader as HTMLElement).style.height = `${maxHeaderHeight}px`;
+          (fixedHeader as HTMLElement).style.minHeight = `${maxHeaderHeight}px`;
+          (scrollableHeader as HTMLElement).style.height = `${maxHeaderHeight}px`;
+          (scrollableHeader as HTMLElement).style.minHeight = `${maxHeaderHeight}px`;
+        }
+      }
+      
+      // Sync column widths - ensure both tables have same cell widths
+      if (scrollableRows.length > 0 && fixedRows.length > 0) {
+        const firstScrollableRow = scrollableRows[0] as HTMLElement;
+        const firstFixedRow = fixedRows[0] as HTMLElement;
+        
+        // Sync cell widths from scrollable to fixed (for consistency)
+        const scrollableCells = firstScrollableRow.querySelectorAll('td');
+        scrollableCells.forEach((cell, index) => {
+          const cellWidth = (cell as HTMLElement).offsetWidth;
+          if (cellWidth > 0 && index < fixedRows.length) {
+            // Ensure corresponding cells have same width
+            const fixedCell = firstFixedRow.querySelectorAll('td')[index] as HTMLElement;
+            if (fixedCell) {
+              fixedCell.style.width = `${cellWidth}px`;
+              fixedCell.style.minWidth = `${cellWidth}px`;
+              fixedCell.style.maxWidth = `${cellWidth}px`;
+            }
+          }
+        });
+      }
+    };
+    
+    // Sync initially and whenever editing state changes
+    syncTables();
+    
+    // Use MutationObserver to watch for DOM changes (like when edit container appears)
+    const observer = new MutationObserver(() => {
+      syncTables();
+    });
+    
+    const scrollableTable = document.querySelector('.scrollable-table tbody');
+    const fixedTable = document.querySelector('.fixed-table tbody');
+    
+    if (scrollableTable) {
+      observer.observe(scrollableTable, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      });
+    }
+    
+    if (fixedTable) {
+      observer.observe(fixedTable, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      });
+    }
+    
+    // Also sync on window resize
+    window.addEventListener('resize', syncTables);
+    
+    // Sync when editing state changes
+    if (editingCell || editMode) {
+      setTimeout(syncTables, 100); // Small delay to allow DOM to update
+    }
+    
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', syncTables);
+    };
+  }, [editingCell, editMode, pivotData]); // Sync when editing state or data changes
+
   // Handle edit click
   const handleEditClick = (parameter: string, monthKey: string, currentValue: number) => {
     setEditingCell({ parameter, monthKey });

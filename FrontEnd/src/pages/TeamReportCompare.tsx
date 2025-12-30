@@ -1908,7 +1908,7 @@ const TeamReportCompare: React.FC = () => {
 
       key: 'template',
 
-      label: 'Download Summary Sheet Template',
+      label: 'Download MFS Template',
 
       onClick: handleDownloadTemplate
 
@@ -1918,7 +1918,7 @@ const TeamReportCompare: React.FC = () => {
 
       key: 'import',
 
-      label: 'Upload Summary Sheet',
+      label: 'Import MFS',
 
       onClick: () => {
 

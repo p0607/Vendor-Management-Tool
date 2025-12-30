@@ -2193,7 +2193,7 @@ const ClientMFSCompare: React.FC = () => {
 
       key: 'template',
 
-      label: 'Download Summary Sheet Template',
+      label: 'Download Client MFS Template',
 
       onClick: handleDownloadTemplate
 
@@ -2203,7 +2203,7 @@ const ClientMFSCompare: React.FC = () => {
 
       key: 'import',
 
-      label: 'Upload Summary Sheet',
+      label: 'Import Client MFS',
 
       onClick: () => {
 
