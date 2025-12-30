@@ -71,6 +71,15 @@ const BUSINESS_UNIT_OPTIONS = [
     }));
   };
 
+  // Helper function to normalize business unit name (title case)
+  const normalizeBusinessUnitName = (name: string | null): string | null => {
+    if (!name) return null;
+    const trimmed = String(name).trim();
+    if (trimmed === '') return null;
+    // Convert to title case: first letter uppercase, rest lowercase
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -97,7 +106,7 @@ const BUSINESS_UNIT_OPTIONS = [
       // Convert empty strings to null for text fields
       client_name: formData.client_name || null,
       project_name: formData.project_name || null,
-      business_unit: formData.business_unit || null,
+      business_unit: normalizeBusinessUnitName(formData.business_unit || null),
       bu_head: formData.bu_head || null,
       tower: formData.tower || null,
       month: formData.month || null

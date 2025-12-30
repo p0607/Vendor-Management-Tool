@@ -1209,9 +1209,23 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       });
     }
 
+    // Helper function to normalize business unit name (title case)
+    const normalizeBusinessUnitName = (name) => {
+      if (!name || name === '') return null;
+      const trimmed = String(name).trim();
+      if (trimmed === '') return null;
+      // Convert to title case: first letter uppercase, rest lowercase
+      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+    };
+
     // Process and validate each record - allow null values for all fields
     for (let i = 0; i < data.length; i++) {
       const record = data[i];
+      
+      // Normalize business unit name to title case
+      if (record.business_unit) {
+        record.business_unit = normalizeBusinessUnitName(record.business_unit);
+      }
       
       // Handle backward compatibility: if 'sales' is provided, use it as 'revenue'
       if (record.sales !== undefined && record.revenue === undefined) {
@@ -1573,9 +1587,23 @@ app.post('/api/team-summary-report/bulk', async (req, res, next) => {
       });
     }
 
+    // Helper function to normalize business unit name (title case)
+    const normalizeBusinessUnitName = (name) => {
+      if (!name || name === '') return null;
+      const trimmed = String(name).trim();
+      if (trimmed === '') return null;
+      // Convert to title case: first letter uppercase, rest lowercase
+      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+    };
+
     // Process and validate each record
     for (let i = 0; i < data.length; i++) {
       const record = data[i];
+      
+      // Normalize business unit name to title case
+      if (record.business_unit) {
+        record.business_unit = normalizeBusinessUnitName(record.business_unit);
+      }
       
       // Validate required fields
       if (!record.business_unit || record.business_unit === '') {

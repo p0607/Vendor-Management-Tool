@@ -1636,6 +1636,15 @@ const TeamReportCompare: React.FC = () => {
 
       
       
+      // Helper function to normalize business unit name (title case)
+      const normalizeBusinessUnitName = (name: string | null): string | null => {
+        if (!name) return null;
+        const trimmed = String(name).trim();
+        if (trimmed === '') return null;
+        // Convert to title case: first letter uppercase, rest lowercase
+        return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+      };
+
       const mappedData = jsonData.map((row: any) => {
 
         // Helper function to convert empty strings to null
@@ -1652,7 +1661,7 @@ const TeamReportCompare: React.FC = () => {
 
         return {
 
-          business_unit: stringOrNull(row['Business_Unit'] || row['Business Unit'] || row.business_unit),
+          business_unit: normalizeBusinessUnitName(stringOrNull(row['Business_Unit'] || row['Business Unit'] || row.business_unit)),
 
           month: stringOrNull(row['Month'] || row.month),
 
