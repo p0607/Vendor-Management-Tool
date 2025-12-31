@@ -146,25 +146,16 @@ const ClientMFSdata: React.FC = () => {
 
   // Get unique business units (normalized to handle case differences)
   const businessUnits = useMemo(() => {
-    const unitsMap = new Map<string, string>(); // normalized name -> original name (prefer title case)
+    const unitsSet = new Set<string>();
     teamReportData.forEach(item => {
       if (item.business_unit) {
         const normalized = normalizeBusinessUnitName(item.business_unit);
-        // If we haven't seen this normalized name, or if current is title case and stored isn't
-        if (!unitsMap.has(normalized)) {
-          unitsMap.set(normalized, item.business_unit);
-        } else {
-          // Prefer title case version if available
-          const stored = unitsMap.get(normalized)!;
-          const currentIsTitleCase = item.business_unit === normalized;
-          const storedIsTitleCase = stored === normalized;
-          if (currentIsTitleCase && !storedIsTitleCase) {
-            unitsMap.set(normalized, item.business_unit);
-          }
+        if (normalized) {
+          unitsSet.add(normalized);
         }
       }
     });
-    return Array.from(unitsMap.values()).sort();
+    return Array.from(unitsSet).sort();
   }, [teamReportData]);
 
   // Get unique client names (filtered by business unit if selected)
