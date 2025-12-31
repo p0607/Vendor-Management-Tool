@@ -3349,9 +3349,16 @@ const ClientMFSCompare: React.FC = () => {
     if (!periodValue) return [];
     
     return data.filter(item => {
-      // Business unit filter
-      if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+      // Business unit filter (case-insensitive comparison)
+      if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
         return false;
+      }
+      
+      // BU head filter - ensure BU head only sees their business unit's data
+      if (isBUHead && user?.business_unit) {
+        if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+          return false;
+        }
       }
       
       // Client name/project name filter - enabled for team_report
@@ -3597,10 +3604,18 @@ const ClientMFSCompare: React.FC = () => {
 
           .filter(item => {
 
-            if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+            // Business unit filter (case-insensitive comparison)
+            if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
 
               return false;
 
+            }
+            
+            // BU head filter - ensure BU head only sees their business unit's data
+            if (isBUHead && user?.business_unit) {
+              if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+                return false;
+              }
             }
 
             // Client name/project name filter - enabled for team_report
@@ -3715,12 +3730,19 @@ const ClientMFSCompare: React.FC = () => {
 
     const filteredData = data.filter(item => {
 
-      // Business unit filter
+      // Business unit filter (case-insensitive comparison)
 
-      if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+      if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
 
         return false;
 
+      }
+      
+      // BU head filter - ensure BU head only sees their business unit's data
+      if (isBUHead && user?.business_unit) {
+        if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+          return false;
+        }
       }
 
       
@@ -3984,7 +4006,13 @@ const ClientMFSCompare: React.FC = () => {
             if (param === 'HC') {
               const allPeriodData = combinedPeriod.periods.flatMap(period => 
                 data.filter(item => {
-                  if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+                  // Business unit filter (case-insensitive comparison)
+                  if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
+                  
+                  // BU head filter - ensure BU head only sees their business unit's data
+                  if (isBUHead && user?.business_unit) {
+                    if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+                  }
                   // Client name/project name filter - enabled for team_report
                   if (selectedClientName) {
                     if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
@@ -4070,7 +4098,13 @@ const ClientMFSCompare: React.FC = () => {
 
                 .filter(item => {
 
-                  if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+                  // Business unit filter (case-insensitive comparison)
+                  if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
+                  
+                  // BU head filter - ensure BU head only sees their business unit's data
+                  if (isBUHead && user?.business_unit) {
+                    if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+                  }
 
                   // Filter by client name/project name if selected
 
@@ -4181,13 +4215,20 @@ const ClientMFSCompare: React.FC = () => {
 
           const filteredData = data.filter(item => {
 
-              if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+              // Business unit filter (case-insensitive comparison)
+              if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
+
+              // BU head filter - ensure BU head only sees their business unit's data
+              if (isBUHead && user?.business_unit) {
+                if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+              }
 
               // Filter by client name/project name if selected
 
               if (selectedClientName) {
 
-                if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+                const normalizedBU = normalizeBusinessUnitName(selectedBusinessUnit);
+                if (normalizedBU === 'MS' || selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
 
                   if (item.project_name !== selectedClientName) return false;
 
@@ -4324,7 +4365,13 @@ const ClientMFSCompare: React.FC = () => {
             // This uses the same logic as calculateKPIs
             const currentFY = getCurrentFinancialYear();
             const currentFYData = data.filter(item => {
-              if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+              // Business unit filter (case-insensitive comparison)
+              if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
+              
+              // BU head filter - ensure BU head only sees their business unit's data
+              if (isBUHead && user?.business_unit) {
+                if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+              }
               if (selectedClientName) {
                 if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
                   if (item.project_name !== selectedClientName) return false;
@@ -7016,7 +7063,7 @@ const ClientMFSCompare: React.FC = () => {
     // Get client names for the selected business unit
     const clientNamesForBU = Array.from(new Set(
       data
-        .filter(item => item.business_unit === selectedBusinessUnit)
+        .filter(item => compareBusinessUnits(item.business_unit, selectedBusinessUnit))
         .map(item => {
           // For MS business unit, use project_name, otherwise use client_name
           if (selectedBusinessUnit === 'MS' || selectedBusinessUnit === 'Managed Services') {
@@ -7073,7 +7120,7 @@ const ClientMFSCompare: React.FC = () => {
         // Get client names for the selected business unit
         const clientNamesForBU = Array.from(new Set(
           data
-            .filter(item => item.business_unit === selectedBusinessUnit)
+            .filter(item => compareBusinessUnits(item.business_unit, selectedBusinessUnit))
             .map(item => {
               // For MS business unit, use project_name, otherwise use client_name
               if (selectedBusinessUnit === 'MS' || selectedBusinessUnit === 'Managed Services') {
@@ -7098,7 +7145,13 @@ const ClientMFSCompare: React.FC = () => {
         // Helper function to get parameter value for specific client
         const getParameterValueForClient = (period: string, parameter: string, clientName: string) => {
           const filteredData = getFilteredDataByPeriod(period, compareType).filter(item => {
-            if (item.business_unit !== selectedBusinessUnit) return false;
+            // Business unit filter (case-insensitive comparison)
+            if (!compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
+            
+            // BU head filter - ensure BU head only sees their business unit's data
+            if (isBUHead && user?.business_unit) {
+              if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+            }
             // For MS, match project_name; otherwise match client_name
             if (selectedBusinessUnit === 'MS' || selectedBusinessUnit === 'Managed Services') {
               return item.project_name === clientName;
@@ -7189,7 +7242,13 @@ const ClientMFSCompare: React.FC = () => {
             // Calculate projections for this specific client using the same logic as calculateKPIs
             const currentFY = getCurrentFinancialYear();
             const currentFYData = data.filter(item => {
-              if (item.business_unit !== selectedBusinessUnit) return false;
+              // Business unit filter (case-insensitive comparison)
+              if (!compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
+              
+              // BU head filter - ensure BU head only sees their business unit's data
+              if (isBUHead && user?.business_unit) {
+                if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+              }
               // For MS, match project_name; otherwise match client_name
               if (selectedBusinessUnit === 'MS' || selectedBusinessUnit === 'Managed Services') {
                 if (item.project_name !== clientName) return false;
