@@ -20,6 +20,8 @@ import TargetTrackingChart from './TargetTrackingChart';
 
 import { formatValueForTable } from '../utils/formatUtils';
 
+import { compareBusinessUnits, normalizeBusinessUnitName } from '../utils/businessUnitUtils';
+
 import apiClient from '../config/api';
 
 
@@ -1636,14 +1638,7 @@ const TeamReportCompare: React.FC = () => {
 
       
       
-      // Helper function to normalize business unit name (title case)
-      const normalizeBusinessUnitName = (name: string | null): string | null => {
-        if (!name) return null;
-        const trimmed = String(name).trim();
-        if (trimmed === '') return null;
-        // Convert to title case: first letter uppercase, rest lowercase
-        return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-      };
+      // Use centralized normalizeBusinessUnitName function (imported from utils)
 
       const mappedData = jsonData.map((row: any) => {
 
@@ -2732,7 +2727,7 @@ const TeamReportCompare: React.FC = () => {
 
           filteredData = filteredData.filter((item: any) => 
 
-            item.business_unit === selectedBusinessUnit
+            compareBusinessUnits(item.business_unit, selectedBusinessUnit)
 
           );
 
@@ -2743,7 +2738,8 @@ const TeamReportCompare: React.FC = () => {
         
         if (selectedClientName) {
 
-          if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+          const normalizedBU = normalizeBusinessUnitName(selectedBusinessUnit);
+          if (normalizedBU === 'MS' || selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
 
             filteredData = filteredData.filter((item: any) => 
 
@@ -2784,7 +2780,7 @@ const TeamReportCompare: React.FC = () => {
 
           filteredData = filteredData.filter((item: any) => 
 
-            item.business_unit === user.business_unit
+            compareBusinessUnits(item.business_unit, user.business_unit)
 
           );
 

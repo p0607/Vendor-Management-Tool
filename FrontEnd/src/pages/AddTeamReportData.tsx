@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { normalizeBusinessUnitName } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import './AddTeamReportData.css';
 
@@ -71,14 +72,7 @@ const BUSINESS_UNIT_OPTIONS = [
     }));
   };
 
-  // Helper function to normalize business unit name (title case)
-  const normalizeBusinessUnitName = (name: string | null): string | null => {
-    if (!name) return null;
-    const trimmed = String(name).trim();
-    if (trimmed === '') return null;
-    // Convert to title case: first letter uppercase, rest lowercase
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-  };
+  // Use centralized normalizeBusinessUnitName function (imported from utils)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

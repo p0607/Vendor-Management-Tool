@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './MFSdata.css';
+import { compareBusinessUnits, normalizeBusinessUnitName } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import logo from '../assets/logo_1.png';
 
@@ -104,34 +105,20 @@ const MFSdata: React.FC = () => {
     fetchData();
   }, []);
 
-  // Helper function to normalize business unit name (title case)
-  const normalizeBusinessUnitName = (name: string): string => {
-    if (!name) return '';
-    // Convert to title case: first letter uppercase, rest lowercase
-    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-  };
+  // Use centralized normalizeBusinessUnitName function (imported from utils)
 
   // Get unique business units (normalized to handle case differences)
   const businessUnits = useMemo(() => {
-    const unitsMap = new Map<string, string>(); // normalized name -> original name (prefer title case)
+    const unitsSet = new Set<string>();
     teamReportData.forEach(item => {
       if (item.business_unit) {
         const normalized = normalizeBusinessUnitName(item.business_unit);
-        // If we haven't seen this normalized name, or if current is title case and stored isn't
-        if (!unitsMap.has(normalized)) {
-          unitsMap.set(normalized, item.business_unit);
-        } else {
-          // Prefer title case version if available
-          const stored = unitsMap.get(normalized)!;
-          const currentIsTitleCase = item.business_unit === normalized;
-          const storedIsTitleCase = stored === normalized;
-          if (currentIsTitleCase && !storedIsTitleCase) {
-            unitsMap.set(normalized, item.business_unit);
-          }
+        if (normalized) {
+          unitsSet.add(normalized);
         }
       }
     });
-    return Array.from(unitsMap.values()).sort();
+    return Array.from(unitsSet).sort();
   }, [teamReportData]);
 
   // Get unique years
@@ -193,12 +180,10 @@ const MFSdata: React.FC = () => {
   const filteredData = useMemo(() => {
     let filtered = [...teamReportData];
 
-    // Filter by business unit (case-insensitive)
+    // Filter by business unit (case-insensitive comparison)
     if (selectedBusinessUnit) {
-      const normalizedSelected = normalizeBusinessUnitName(selectedBusinessUnit);
       filtered = filtered.filter(item => {
-        if (!item.business_unit) return false;
-        return normalizeBusinessUnitName(item.business_unit) === normalizedSelected;
+        return compareBusinessUnits(item.business_unit, selectedBusinessUnit);
       });
     }
 

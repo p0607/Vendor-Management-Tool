@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Select } from 'antd';
 import './MFSdata.css';
+import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import logo from '../assets/logo_1.png';
 
@@ -62,6 +63,8 @@ const ClientMFSdata: React.FC = () => {
   const [editingCell, setEditingCell] = useState<{ parameter: string; monthKey: string; clientName?: string; projectName?: string } | null>(null);
   const [editedValue, setEditedValue] = useState<string>('');
   const [editMode, setEditMode] = useState<boolean>(false);
+  const [user, setUser] = useState<any>({});
+  const [isBUHead, setIsBUHead] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
@@ -117,58 +120,29 @@ const ClientMFSdata: React.FC = () => {
     fetchData();
   }, []);
 
-  // Helper function to normalize business unit name (title case)
-  const normalizeBusinessUnitName = (name: string): string => {
-    if (!name) return '';
-    // Convert to title case: first letter uppercase, rest lowercase
-    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-  };
-
-  // Helper function to map Client MFS business unit names to MFS business unit names
-  const mapClientMFSToMFSBusinessUnit = (name: string | null | undefined): string | null => {
-    if (!name) return null;
-    const trimmed = String(name).trim();
-    if (trimmed === '') return null;
-    
-    // Normalize to title case first
-    const normalized = normalizeBusinessUnitName(trimmed);
-    
-    // Map Client MFS names to MFS names
-    const mapping: { [key: string]: string } = {
-      'It - si': 'Si',
-      'It - Si': 'Si',
-      'IT - SI': 'Si',
-      'it - si': 'Si',
-      'It captive': 'Captive',
-      'It Captive': 'Captive',
-      'IT Captive': 'Captive',
-      'it captive': 'Captive',
-      'Engg': 'Egg',
-      'engg': 'Egg',
-      'ENGG': 'Egg'
-    };
-    
-    // Check if there's a mapping (case-insensitive check)
-    const lowerKey = normalized.toLowerCase();
-    for (const [key, value] of Object.entries(mapping)) {
-      if (key.toLowerCase() === lowerKey) {
-        return value;
+  // Check user authentication and set BU head status
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser && storedUser !== "undefined") {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        
+        const userIsBUHead = parsedUser?.designation === 'BU HEAD';
+        setIsBUHead(userIsBUHead);
+        
+        // Auto-select business unit for BU head
+        if (userIsBUHead && parsedUser.business_unit) {
+          const normalizedBU = normalizeBusinessUnitName(parsedUser.business_unit);
+          setSelectedBusinessUnit(normalizedBU || parsedUser.business_unit);
+        }
       }
+    } catch (error) {
+      console.error("Failed to parse user data:", error);
     }
-    
-    // Also check direct matches with variations
-    if (normalized.includes('IT') && normalized.includes('SI')) {
-      return 'Si';
-    }
-    if (normalized.includes('IT') && normalized.includes('Captive')) {
-      return 'Captive';
-    }
-    if (normalized === 'Engg' || normalized.toLowerCase() === 'engg') {
-      return 'Egg';
-    }
-    
-    return normalized;
-  };
+  }, []);
+
+  // Use centralized business unit utility functions (imported from utils)
 
   // Get unique business units (normalized to handle case differences)
   const businessUnits = useMemo(() => {
@@ -196,10 +170,9 @@ const ClientMFSdata: React.FC = () => {
   // Get unique client names (filtered by business unit if selected)
   const clientNames = useMemo(() => {
     const clients = new Set<string>();
-    const normalizedSelectedBU = selectedBusinessUnit ? normalizeBusinessUnitName(selectedBusinessUnit) : null;
     teamReportData.forEach(item => {
       if (item.client_name) {
-        if (!normalizedSelectedBU || (item.business_unit && normalizeBusinessUnitName(item.business_unit) === normalizedSelectedBU)) {
+        if (!selectedBusinessUnit || compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
           clients.add(item.client_name);
         }
       }
@@ -302,17 +275,17 @@ const ClientMFSdata: React.FC = () => {
   const filteredData = useMemo(() => {
     let filtered = [...teamReportData];
 
-    // Filter by business unit (case-insensitive and with mapping)
+    // Filter by business unit (case-insensitive comparison)
     if (selectedBusinessUnit) {
-      const normalizedSelected = normalizeBusinessUnitName(selectedBusinessUnit);
-      const mappedSelected = mapClientMFSToMFSBusinessUnit(selectedBusinessUnit);
       filtered = filtered.filter(item => {
-        if (!item.business_unit) return false;
-        const itemNormalized = normalizeBusinessUnitName(item.business_unit);
-        const itemMapped = mapClientMFSToMFSBusinessUnit(item.business_unit);
-        // Compare normalized versions and mapped versions
-        return itemNormalized === normalizedSelected ||
-               (itemMapped && mappedSelected && itemMapped === mappedSelected);
+        return compareBusinessUnits(item.business_unit, selectedBusinessUnit);
+      });
+    }
+
+    // BU head filter - ensure BU head only sees their business unit's data
+    if (isBUHead && user?.business_unit) {
+      filtered = filtered.filter(item => {
+        return compareBusinessUnits(item.business_unit, user.business_unit);
       });
     }
 
@@ -415,13 +388,12 @@ const ClientMFSdata: React.FC = () => {
 
   // Get unique project names (only for MS business unit)
   const projectNames = useMemo(() => {
-    const normalizedSelectedBU = selectedBusinessUnit ? normalizeBusinessUnitName(selectedBusinessUnit) : '';
-    if (normalizedSelectedBU !== 'Ms') {
+    if (!selectedBusinessUnit || !compareBusinessUnits(selectedBusinessUnit, 'MS')) {
       return [];
     }
     const projects = new Set<string>();
     filteredData.forEach(item => {
-      if (item.project_name && item.business_unit && normalizeBusinessUnitName(item.business_unit) === 'Ms') {
+      if (item.project_name && item.business_unit && compareBusinessUnits(item.business_unit, 'MS')) {
         if (!selectedClientName || item.client_name === selectedClientName) {
           // Normalize project name: trim whitespace
           const normalizedProject = String(item.project_name).trim();
@@ -533,7 +505,7 @@ const ClientMFSdata: React.FC = () => {
     const normalizedSelectedBU = normalizeBusinessUnitName(selectedBusinessUnit);
     const clientSet = new Set<string>();
     filteredData.forEach(item => {
-      if (item.client_name && item.business_unit && normalizeBusinessUnitName(item.business_unit) === normalizedSelectedBU) {
+      if (item.client_name && item.business_unit && compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
         clientSet.add(item.client_name);
       }
     });
@@ -927,6 +899,7 @@ const ClientMFSdata: React.FC = () => {
                   }
                 }}
                 className="filter-select"
+                disabled={isBUHead}
               >
                 <option value="">All Business Units</option>
                 {businessUnits.map(unit => (

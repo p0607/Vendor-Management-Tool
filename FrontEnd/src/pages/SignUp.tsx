@@ -1,6 +1,7 @@
 import React, { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './signup.css';
+import { normalizeBusinessUnitName } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import logo from '../assets/logo_1.png';
 
@@ -44,7 +45,12 @@ const SignUp = () => {
   setIsLoading(true);
 
   try {
-    const response = await apiClient.post<SignUpResponse>('/signup', formData);
+    // Normalize business unit before submitting to ensure consistency
+    const normalizedFormData = {
+      ...formData,
+      business_unit: normalizeBusinessUnitName(formData.business_unit) || formData.business_unit
+    };
+    const response = await apiClient.post<SignUpResponse>('/signup', normalizedFormData);
     
     if (response.data.success) {
       alert('User signed up successfully!');
