@@ -64,6 +64,8 @@ const MFSdata: React.FC = () => {
   const [editingCell, setEditingCell] = useState<{ parameter: string; monthKey: string } | null>(null);
   const [editedValue, setEditedValue] = useState<string>('');
   const [editMode, setEditMode] = useState<boolean>(false);
+  const [user, setUser] = useState<any>({});
+  const [isBUHead, setIsBUHead] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
@@ -103,6 +105,28 @@ const MFSdata: React.FC = () => {
     };
 
     fetchData();
+  }, []);
+
+  // Check user authentication and set BU head status
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser && storedUser !== "undefined") {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        
+        const userIsBUHead = parsedUser?.designation === 'BU HEAD';
+        setIsBUHead(userIsBUHead);
+        
+        // Auto-select business unit for BU head
+        if (userIsBUHead && parsedUser.business_unit) {
+          const normalizedBU = normalizeBusinessUnitName(parsedUser.business_unit);
+          setSelectedBusinessUnit(normalizedBU || parsedUser.business_unit);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse user data:", error);
+    }
   }, []);
 
   // Use centralized normalizeBusinessUnitName function (imported from utils)
@@ -184,6 +208,13 @@ const MFSdata: React.FC = () => {
     if (selectedBusinessUnit) {
       filtered = filtered.filter(item => {
         return compareBusinessUnits(item.business_unit, selectedBusinessUnit);
+      });
+    }
+
+    // BU head filter - ensure BU head only sees their business unit's data
+    if (isBUHead && user?.business_unit) {
+      filtered = filtered.filter(item => {
+        return compareBusinessUnits(item.business_unit, user.business_unit);
       });
     }
 
@@ -663,6 +694,7 @@ const MFSdata: React.FC = () => {
                 }
               }}
               className="filter-select"
+              disabled={isBUHead}
             >
               <option value="">All Business Units</option>
               {businessUnits.map(unit => (
