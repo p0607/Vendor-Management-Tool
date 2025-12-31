@@ -188,8 +188,26 @@ const SignUp = () => {
               </select>
             </div>
 
-            <button type="submit" className="submit-btn">Sign Up</button>
+            <button type="submit" className="submit-btn" disabled={isLoading}>Sign Up</button>
           </form>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', gap: '1rem' }}>
+            <button 
+              type="button" 
+              onClick={() => navigate('/forgot_password')}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                color: '#4299e1', 
+                cursor: 'pointer', 
+                fontSize: '0.9rem',
+                textDecoration: 'underline',
+                padding: 0
+              }}
+            >
+              Forgot Password?
+            </button>
+          </div>
 
           <p className="form-footer">
             Already have an account? <Link to="/">Log in</Link>

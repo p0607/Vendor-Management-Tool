@@ -1,9 +1,11 @@
 import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import RoutingTable from './pages/RoutingTable'; 
 import RoutingDashboard from './pages/RoutingDashboard'; 
 import RoutingDashboardBarChart from './pages/RoutingDashboardBarChart'; 
@@ -35,6 +37,14 @@ const App: React.FC = () => {
         <Route path="/HomePage" element={<HomePage/>} />
         <Route path="/SignUp" element={<SignUp/>} />
         <Route path="/forgot_password" element={<ForgotPassword />} />
+        <Route 
+          path="/reset-password" 
+          element={
+            <ProtectedRoute allowedDesignations={['SUPER ADMIN', 'ADMIN']}>
+              <ResetPassword />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="/RoutingTable" element={<RoutingTable />} />
         <Route path="/RoutingDashboard" element={<RoutingDashboard/>} />
         <Route path="/RoutingDashboardBarChart" element={<RoutingDashboardBarChart data={[]} />} />

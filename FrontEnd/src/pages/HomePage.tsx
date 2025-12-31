@@ -88,12 +88,20 @@ const HomePage: React.FC = () => {
       </div>
       <div className="auth-buttons-container">
         {(userDesignation === 'SUPER ADMIN' || userDesignation === 'ADMIN') && (
-          <button 
-            className="auth-button"
-            onClick={() => navigate('/SignUp')}
-          >
-            Sign Up
-          </button>  
+          <>
+            <button 
+              className="auth-button"
+              onClick={() => navigate('/SignUp')}
+            >
+              Sign Up
+            </button>
+            <button 
+              className="auth-button"
+              onClick={() => navigate('/reset-password')}
+            >
+              Reset Password
+            </button>
+          </>
         )}
         <button 
           className="auth-button"

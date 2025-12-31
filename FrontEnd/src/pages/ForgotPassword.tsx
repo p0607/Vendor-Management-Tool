@@ -4,7 +4,8 @@ import apiClient from '../config/api';
 import './ForgotPassword.css';
 
 interface ForgotPasswordResponse {
-  message: string;
+  message?: string;
+  error?: string;
   success?: boolean;
 }
 
@@ -32,10 +33,18 @@ const ForgotPassword: React.FC = () => {
         '/forgot-password', 
         { email }
       );
-      setMessage(response.data.message);
+      
+      // Handle both success and error responses from backend
+      if (response.data.success === false) {
+        setError(response.data.error || response.data.message || 'Failed to send reset link. Please try again later.');
+      } else {
+        setMessage(response.data.message || 'Password reset instructions sent to your email');
+      }
     } catch (err: any) {
       console.error('Forgot password error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to send reset link. Please try again later.');
+      // Backend returns error in error field for 404/400, or message field
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to send reset link. Please try again later.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

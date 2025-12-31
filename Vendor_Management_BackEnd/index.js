@@ -826,6 +826,65 @@ app.post('/api/forgot-password', async (req, res, next) => {
   }
 });
 
+// Reset Password endpoint - allows admin to change user password by email
+app.post('/api/reset-password', async (req, res, next) => {
+  try {
+    const { email, newPassword } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'New password is required'
+      });
+    }
+
+    // Check if user exists
+    const userResult = await executeQuery('SELECT * FROM users WHERE email = $1', [email]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found with the provided email'
+      });
+    }
+
+    // Update password
+    const updateResult = await executeQuery(
+      'UPDATE users SET password = $1 WHERE email = $2 RETURNING id, name, email',
+      [newPassword, email]
+    );
+
+    if (updateResult.rows.length === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update password'
+      });
+    }
+
+    logger.info('Password reset successfully', { email, userId: updateResult.rows[0].id });
+    
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully',
+      user: {
+        id: updateResult.rows[0].id,
+        name: updateResult.rows[0].name,
+        email: updateResult.rows[0].email
+      }
+    });
+  } catch (err) {
+    logger.error('Password reset error', { error: err.message, stack: err.stack });
+    next(err);
+  }
+});
+
 // Bulk Alchemy Routing endpoint
 app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
   try {
