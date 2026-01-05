@@ -463,20 +463,6 @@ const AddActiveData: React.FC = () => {
           <div className="import-section">
             <div style={{ marginBottom: '1rem' }}>
               <h3>Import Active Data from Excel</h3>
-              <p>Please ensure your Excel file has the following columns (case-insensitive):</p>
-              <ul style={{ textAlign: 'left', display: 'inline-block' }}>
-                <li>Employee Name / Employee_Name</li>
-                <li>Vendor</li>
-                <li>Skill</li>
-                <li>OB Month / OB_Month / Onboarding Month</li>
-                <li>DOJ / Date of Joining</li>
-                <li>Employment Status / Employment_Status</li>
-                <li>PO Value / PO_Value</li>
-                <li>Vendor Value / Vendor_Value</li>
-                <li>Alchemy Routing / Alchemy_Routing</li>
-                <li>Gross Margin / Gross_Margin</li>
-                <li>GM Percentage / GM_Percentage</li>
-              </ul>
             </div>
 
             <div style={{ marginBottom: '1rem' }}>

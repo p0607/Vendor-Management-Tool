@@ -219,18 +219,25 @@ const AddAttritionData: React.FC = () => {
     // Import each record
     const importPromises = validData.map(async (item) => {
       try {
+        // Helper to convert empty strings to null
+        const nullIfEmpty = (value: string | null | undefined): string | null => {
+          if (!value || typeof value !== 'string') return null;
+          const trimmed = value.trim();
+          return trimmed === '' ? null : trimmed;
+        };
+        
         const formattedData = {
-          attrition_employee_name: item.attrition_employee_name?.trim() || null,
-          attrition_vendor: item.attrition_vendor?.trim() || null,
-          attrition_skill: item.attrition_skill?.trim() || null,
-          attrition_b_month: item.attrition_b_month?.trim() || null,
-          attrition_doj: item.attrition_doj?.trim() || null,
-          attrition_employment_status: item.attrition_employment_status?.trim() || null,
-          attrition_month: item.attrition_month?.trim() || null,
-          attrition_date: item.attrition_date?.trim() || null,
+          attrition_employee_name: nullIfEmpty(item.attrition_employee_name),
+          attrition_vendor: nullIfEmpty(item.attrition_vendor),
+          attrition_skill: nullIfEmpty(item.attrition_skill),
+          attrition_b_month: nullIfEmpty(item.attrition_b_month),
+          attrition_doj: nullIfEmpty(item.attrition_doj),
+          attrition_employment_status: nullIfEmpty(item.attrition_employment_status),
+          attrition_month: nullIfEmpty(item.attrition_month),
+          attrition_date: nullIfEmpty(item.attrition_date),
           attrition_po_value: parseNumericValue(item.attrition_po_value),
           attrition_vendor_value: parseNumericValue(item.attrition_vendor_value),
-          attrition_alchemy_routing: item.attrition_alchemy_routing?.trim() || null,
+          attrition_alchemy_routing: nullIfEmpty(item.attrition_alchemy_routing),
           attrition_gross_margin: parseNumericValue(item.attrition_gross_margin),
           attrition_gm_percentage: parseNumericValue(item.attrition_gm_percentage)
         };
@@ -499,22 +506,6 @@ const AddAttritionData: React.FC = () => {
           <div className="import-section">
             <div style={{ marginBottom: '1rem' }}>
               <h3>Import Attrition Data from Excel</h3>
-              <p>Please ensure your Excel file has the following columns (case-insensitive):</p>
-              <ul style={{ textAlign: 'left', display: 'inline-block' }}>
-                <li>Employee Name / Employee_Name</li>
-                <li>Vendor</li>
-                <li>Skill</li>
-                <li>B Month / B_Month / Onboarding Month</li>
-                <li>DOJ / Date of Joining</li>
-                <li>Employment Status / Employment_Status</li>
-                <li>Attrition Month / Attrition_Month</li>
-                <li>Attrition Date / Attrition_Date</li>
-                <li>PO Value / PO_Value</li>
-                <li>Vendor Value / Vendor_Value</li>
-                <li>Alchemy Routing / Alchemy_Routing</li>
-                <li>Gross Margin / Gross_Margin</li>
-                <li>GM Percentage / GM_Percentage</li>
-              </ul>
             </div>
 
             <div style={{ marginBottom: '1rem' }}>

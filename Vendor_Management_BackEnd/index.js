@@ -187,10 +187,21 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // For database errors, provide more context
+  if (err.code && err.code.startsWith('23')) {
+    // PostgreSQL constraint violation errors
+    return res.status(400).json({
+      success: false,
+      error: 'Database Constraint Error',
+      message: err.message || 'Invalid data provided'
+    });
+  }
+  
   res.status(err.status || 500).json({
     success: false,
     error: isProduction ? 'Internal Server Error' : err.message,
-    ...(isProduction ? {} : { stack: err.stack })
+    message: isProduction ? 'An error occurred while processing your request' : err.message,
+    ...(isProduction ? {} : { stack: err.stack, code: err.code })
   });
 };
 
@@ -349,31 +360,45 @@ app.post('/api/login', async (req, res, next) => {
 
 // Helper functions for Active/Attrition validation
 const validateDateField = (value) => {
-  if (!value || value === '' || value === 'null' || value === 'undefined' || value === '1') {
+  // Return null for empty, null, undefined, or invalid values
+  if (!value || value === '' || value === 'null' || value === 'undefined' || value === '1' || value === null || value === undefined) {
+    return null;
+  }
+  
+  // Convert to string and trim
+  const strValue = String(value).trim();
+  if (strValue === '' || strValue.toLowerCase() === 'null' || strValue.toLowerCase() === 'undefined') {
     return null;
   }
   
   // Handle date ranges (e.g., "10-09-2025 to 15-09-2025" -> use start date)
-  if (typeof value === 'string' && value.includes(' to ')) {
-    const startDate = value.split(' to ')[0].trim();
+  if (strValue.includes(' to ')) {
+    const startDate = strValue.split(' to ')[0].trim();
     const date = new Date(startDate);
     if (!isNaN(date.getTime())) {
       return startDate;
     }
   }
   
-  if (!isNaN(value) && value > 1000) {
+  // Handle Excel date serial numbers
+  if (!isNaN(value) && typeof value === 'number' && value > 1000) {
     const excelDate = new Date((value - 25569) * 86400 * 1000);
     if (!isNaN(excelDate.getTime())) {
       return excelDate.toISOString().split('T')[0];
     }
   }
   
-  const date = new Date(value);
+  // Try to parse as date
+  const date = new Date(strValue);
   if (isNaN(date.getTime())) {
     return null;
   }
-  return value;
+  
+  // Return date in YYYY-MM-DD format
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const validateNumericField = (value) => {
@@ -520,6 +545,34 @@ app.post('/api/Attrition', async (req, res, next) => {
   try {
     const data = req.body;
     
+    // Prepare values with proper validation
+    const values = [
+      data.attrition_employee_name && String(data.attrition_employee_name).trim() ? String(data.attrition_employee_name).trim() : null,
+      data.attrition_vendor && String(data.attrition_vendor).trim() ? String(data.attrition_vendor).trim() : null,
+      data.attrition_skill && String(data.attrition_skill).trim() ? String(data.attrition_skill).trim() : null,
+      validateDateField(data.attrition_b_month),
+      validateDateField(data.attrition_doj),
+      data.attrition_employment_status && String(data.attrition_employment_status).trim() ? String(data.attrition_employment_status).trim() : null,
+      validateDateField(data.attrition_month),
+      validateDateField(data.attrition_date),
+      validateNumericField(data.attrition_po_value),
+      validateNumericField(data.attrition_vendor_value),
+      data.attrition_alchemy_routing && String(data.attrition_alchemy_routing).trim() ? String(data.attrition_alchemy_routing).trim() : null,
+      validateNumericField(data.attrition_gross_margin),
+      validateNumericField(data.attrition_gm_percentage)
+    ];
+    
+    logger.info('Creating Attrition record', { 
+      employee: values[0], 
+      vendor: values[1],
+      dateFields: {
+        b_month: values[3],
+        doj: values[4],
+        month: values[6],
+        date: values[7]
+      }
+    });
+    
     const result = await executeQuery(
       `INSERT INTO attrition (
         attrition_employee_name, attrition_vendor, attrition_skill, attrition_b_month, attrition_doj,
@@ -528,26 +581,18 @@ app.post('/api/Attrition', async (req, res, next) => {
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
       ) RETURNING *`,
-      [
-        data.attrition_employee_name || null,
-        data.attrition_vendor || null,
-        data.attrition_skill || null,
-        validateDateField(data.attrition_b_month),
-        validateDateField(data.attrition_doj),
-        data.attrition_employment_status || null,
-        validateDateField(data.attrition_month),
-        validateDateField(data.attrition_date),
-        validateNumericField(data.attrition_po_value),
-        validateNumericField(data.attrition_vendor_value),
-        data.attrition_alchemy_routing || null,
-        validateNumericField(data.attrition_gross_margin),
-        validateNumericField(data.attrition_gm_percentage)
-      ]
+      values
     );
     
     logger.info('Attrition record created', { recordId: result.rows[0].id });
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    logger.error('Error creating Attrition record', {
+      error: err.message,
+      stack: err.stack,
+      body: req.body,
+      code: err.code
+    });
     next(err);
   }
 });
