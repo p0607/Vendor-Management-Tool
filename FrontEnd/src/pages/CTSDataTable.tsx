@@ -157,6 +157,92 @@ const CTSDataTable: React.FC = () => {
     };
   }, []);
 
+  // Download Active Data Excel Template
+  const downloadActiveFormat = () => {
+    const headers = [
+      'Employee Name',
+      'Vendor',
+      'Skill',
+      'OB Month',
+      'DOJ',
+      'Employment Status',
+      'PO Value',
+      'Vendor Value',
+      'Alchemy Routing',
+      'Gross Margin',
+      'GM Percentage'
+    ];
+    
+    // Create worksheet with headers only
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+    
+    // Set column widths
+    const columnWidths = [
+      { wch: 20 }, // Employee Name
+      { wch: 20 }, // Vendor
+      { wch: 15 }, // Skill
+      { wch: 12 }, // OB Month
+      { wch: 12 }, // DOJ
+      { wch: 18 }, // Employment Status
+      { wch: 12 }, // PO Value
+      { wch: 12 }, // Vendor Value
+      { wch: 18 }, // Alchemy Routing
+      { wch: 15 }, // Gross Margin
+      { wch: 15 }  // GM Percentage
+    ];
+    worksheet['!cols'] = columnWidths;
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Active Data Template');
+    XLSX.writeFile(workbook, 'Active_Data_Template.xlsx');
+    setIsActionsDropdownOpen(false);
+  };
+
+  // Download Attrition Data Excel Template
+  const downloadAttritionFormat = () => {
+    const headers = [
+      'Employee Name',
+      'Vendor',
+      'Skill',
+      'B Month',
+      'DOJ',
+      'Employment Status',
+      'Attrition Month',
+      'Attrition Date',
+      'PO Value',
+      'Vendor Value',
+      'Alchemy Routing',
+      'Gross Margin',
+      'GM Percentage'
+    ];
+    
+    // Create worksheet with headers only
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+    
+    // Set column widths
+    const columnWidths = [
+      { wch: 20 }, // Employee Name
+      { wch: 20 }, // Vendor
+      { wch: 15 }, // Skill
+      { wch: 12 }, // B Month
+      { wch: 12 }, // DOJ
+      { wch: 18 }, // Employment Status
+      { wch: 15 }, // Attrition Month
+      { wch: 15 }, // Attrition Date
+      { wch: 12 }, // PO Value
+      { wch: 12 }, // Vendor Value
+      { wch: 18 }, // Alchemy Routing
+      { wch: 15 }, // Gross Margin
+      { wch: 15 }  // GM Percentage
+    ];
+    worksheet['!cols'] = columnWidths;
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Attrition Data Template');
+    XLSX.writeFile(workbook, 'Attrition_Data_Template.xlsx');
+    setIsActionsDropdownOpen(false);
+  };
+
   // Export to Excel
   const exportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(summaryData);
@@ -260,8 +346,8 @@ const CTSDataTable: React.FC = () => {
 
   return (
     <div className="homepage">
-      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem 0 2rem' }}>
-        <div className="homepage-logo-top-left" style={{ width: '120px', height: 'auto' }}>
+      <div className="routing-header-bar" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem', minHeight: '80px' }}>
+        <div className="homepage-logo-top-left" style={{ position: 'absolute', left: '2rem', top: '1rem', width: '120px', height: 'auto', zIndex: 10 }}>
           <img src={logo} alt="Alchemy Logo" style={{ width: '100%', height: 'auto', maxWidth: '120px' }} />
         </div>
         <h2 style={{ 
@@ -275,10 +361,10 @@ const CTSDataTable: React.FC = () => {
           margin: 0, 
           zIndex: 1 
         }}>CTS Data Table</h2>
-        <div className="auth-buttons-container">
+        <div className="auth-buttons-container" style={{ position: 'absolute', right: '2rem', top: '1rem', zIndex: 10 }}>
           <button className="auth-button" onClick={() => navigate('/HomePage')}>Data</button>
           <button className="auth-button" onClick={() => navigate('/HomePage')}>Home</button>
-          <div className="action-dropdown-container" ref={actionsDropdownRef} style={{ position: 'relative' }}>
+          <div className="action-dropdown-container" ref={actionsDropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
             <button
               className="auth-button action-button"
               onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)}
@@ -290,8 +376,14 @@ const CTSDataTable: React.FC = () => {
                 <div className="dropdown-item" onClick={() => { navigate('/AddActiveData'); setIsActionsDropdownOpen(false); }} style={{ padding: '10px 15px', cursor: 'pointer', borderBottom: '1px solid #eee' }}>
                   Add Active Data
                 </div>
-                <div className="dropdown-item" onClick={() => { navigate('/AddAttritionData'); setIsActionsDropdownOpen(false); }} style={{ padding: '10px 15px', cursor: 'pointer' }}>
+                <div className="dropdown-item" onClick={() => { navigate('/AddAttritionData'); setIsActionsDropdownOpen(false); }} style={{ padding: '10px 15px', cursor: 'pointer', borderBottom: '1px solid #eee' }}>
                   Add Attrition Data
+                </div>
+                <div className="dropdown-item" onClick={downloadActiveFormat} style={{ padding: '10px 15px', cursor: 'pointer', borderBottom: '1px solid #eee' }}>
+                  Download Active Format
+                </div>
+                <div className="dropdown-item" onClick={downloadAttritionFormat} style={{ padding: '10px 15px', cursor: 'pointer' }}>
+                  Download Attrition Format
                 </div>
               </div>
             )}
@@ -299,9 +391,9 @@ const CTSDataTable: React.FC = () => {
         </div>
       </div>
 
-      <div className="routing-container" style={{ marginTop: '2rem', padding: '0 2rem 2rem 2rem' }}>
+      <div className="routing-container" style={{ marginTop: '3rem', padding: '0 2rem 2rem 2rem' }}>
         {/* Filter Section */}
-        <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: '1.5rem', marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Filter by:</label>
           <select
             value={filterType}
