@@ -347,118 +347,136 @@ app.post('/api/login', async (req, res, next) => {
   }
 });
 
-// CTS Routes
-app.get('/api/CTS', async (req, res, next) => {
+// Helper functions for Active/Attrition validation
+const validateDateField = (value) => {
+  if (!value || value === '' || value === 'null' || value === 'undefined' || value === '1') {
+    return null;
+  }
+  
+  // Handle date ranges (e.g., "10-09-2025 to 15-09-2025" -> use start date)
+  if (typeof value === 'string' && value.includes(' to ')) {
+    const startDate = value.split(' to ')[0].trim();
+    const date = new Date(startDate);
+    if (!isNaN(date.getTime())) {
+      return startDate;
+    }
+  }
+  
+  if (!isNaN(value) && value > 1000) {
+    const excelDate = new Date((value - 25569) * 86400 * 1000);
+    if (!isNaN(excelDate.getTime())) {
+      return excelDate.toISOString().split('T')[0];
+    }
+  }
+  
+  const date = new Date(value);
+  if (isNaN(date.getTime())) {
+    return null;
+  }
+  return value;
+};
+
+const validateNumericField = (value) => {
+  if (!value || value === '' || value === 'null' || value === 'undefined') {
+    return null;
+  }
+  
+  // Handle percentage values (e.g., "10%" -> 10)
+  if (typeof value === 'string' && value.includes('%')) {
+    const numericValue = parseFloat(value.replace('%', ''));
+    return isNaN(numericValue) ? null : numericValue;
+  }
+  
+  // If it's a string that's not a valid number, return null
+  if (typeof value === 'string' && isNaN(parseFloat(value))) {
+    return null;
+  }
+  return parseFloat(value);
+};
+
+// Active Routes
+app.get('/api/Active', async (req, res, next) => {
   try {
-    const result = await executeQuery('SELECT * FROM "cts" ORDER BY created_at DESC');
+    const result = await executeQuery('SELECT * FROM active ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
     next(err);
   }
 });
 
-app.post('/api/CTS', async (req, res, next) => {
+app.get('/api/Active/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery('SELECT * FROM active WHERE id = $1', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/Active', async (req, res, next) => {
   try {
     const data = req.body;
     
-    const validateDateField = (value) => {
-      if (!value || value === '' || value === 'null' || value === 'undefined' || value === '1') {
-        return null;
-      }
-      
-      // Handle date ranges (e.g., "10-09-2025 to 15-09-2025" -> use start date)
-      if (typeof value === 'string' && value.includes(' to ')) {
-        const startDate = value.split(' to ')[0].trim();
-        const date = new Date(startDate);
-        if (!isNaN(date.getTime())) {
-          return startDate;
-        }
-      }
-      
-      if (!isNaN(value) && value > 1000) {
-        const excelDate = new Date((value - 25569) * 86400 * 1000);
-        if (!isNaN(excelDate.getTime())) {
-          return excelDate.toISOString().split('T')[0];
-        }
-      }
-      
-      const date = new Date(value);
-      if (isNaN(date.getTime())) {
-        return null;
-      }
-      return value;
-    };
-
-    const validateNumericField = (value) => {
-      if (!value || value === '' || value === 'null' || value === 'undefined') {
-        return null;
-      }
-      
-      // Handle percentage values (e.g., "10%" -> 10)
-      if (typeof value === 'string' && value.includes('%')) {
-        const numericValue = parseFloat(value.replace('%', ''));
-        return isNaN(numericValue) ? null : numericValue;
-      }
-      
-      // If it's a string that's not a valid number, return null
-      if (typeof value === 'string' && isNaN(parseFloat(value))) {
-        return null;
-      }
-      return parseFloat(value);
-    };
-    
     const result = await executeQuery(
-      `INSERT INTO cts (
-        sl_no, vendor_name, booking_month, resource_name, vendor_invoice_no,
-        vendor_invoice_date, atipl_invoice_base_amount, gst, total_invoice_amount,
-        tds, net_receivable, payment_receive_from_client, balance_receivable_from_client, tally_book_entry_date,
-        sub_vendor_invoice_date, sub_vendor_invoice_no, base_amt_as_per_tally_vendor, margin, vendor_invoice_status,
-        payment_date, instrument_no, payment_mode, payment_status, receipts_status, extra, service_month
+      `INSERT INTO active (
+        active_employee_name, active_vendor, active_skill, active_ob_month, active_doj,
+        active_employment_status, active_po_value, active_vendor_value, active_alchemy_routing,
+        active_gross_margin, active_gm_percentage
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, $19,
-        $20, $21, $22, $23, $24, $25, $26
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
       ) RETURNING *`,
       [
-        data.sl_no, data.vendor_name, validateDateField(data.booking_month), data.resource_name, data.vendor_invoice_no,
-        validateDateField(data.vendor_invoice_date), validateNumericField(data.atipl_invoice_base_amount), validateNumericField(data.gst), validateNumericField(data.total_invoice_amount),
-        validateNumericField(data.tds), validateNumericField(data.net_receivable), validateNumericField(data.payment_receive_from_client), validateNumericField(data.balance_receivable_from_client), validateDateField(data.tally_book_entry_date),
-        validateDateField(data.sub_vendor_invoice_date), data.sub_vendor_invoice_no, validateNumericField(data.base_amt_as_per_tally_vendor), validateNumericField(data.margin),
-        data.vendor_invoice_status, validateDateField(data.payment_date), data.instrument_no, data.payment_mode, data.payment_status,
-        data.receipts_status, data.extra || null, validateDateField(data.service_month)
+        data.active_employee_name || null,
+        data.active_vendor || null,
+        data.active_skill || null,
+        validateDateField(data.active_ob_month),
+        validateDateField(data.active_doj),
+        data.active_employment_status || null,
+        validateNumericField(data.active_po_value),
+        validateNumericField(data.active_vendor_value),
+        data.active_alchemy_routing || null,
+        validateNumericField(data.active_gross_margin),
+        validateNumericField(data.active_gm_percentage)
       ]
     );
     
-    logger.info('CTS record created', { recordId: result.rows[0].id });
+    logger.info('Active record created', { recordId: result.rows[0].id });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     next(err);
   }
 });
 
-app.put('/api/CTS/:id', async (req, res, next) => {
+app.put('/api/Active/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const data = req.body;
     
     const result = await executeQuery(
-      `UPDATE cts SET
-        vendor_name = $1, booking_month = $2, resource_name = $3, vendor_invoice_no = $4,
-        vendor_invoice_date = $5, atipl_invoice_base_amount = $6, gst = $7, total_invoice_amount = $8,
-        tds = $9, net_receivable = $10, payment_receive_from_client = $11, balance_receivable_from_client = $12,
-        tally_book_entry_date = $13, sub_vendor_invoice_date = $14, sub_vendor_invoice_no = $15,
-        base_amt_as_per_tally_vendor = $16, margin = $17, vendor_invoice_status = $18, payment_date = $19,
-        instrument_no = $20, payment_mode = $21, payment_status = $22, receipts_status = $23,
-        extra = $24, service_month = $25
-      WHERE id = $26 RETURNING *`,
+      `UPDATE active SET
+        active_employee_name = $1, active_vendor = $2, active_skill = $3, active_ob_month = $4, active_doj = $5,
+        active_employment_status = $6, active_po_value = $7, active_vendor_value = $8, active_alchemy_routing = $9,
+        active_gross_margin = $10, active_gm_percentage = $11
+      WHERE id = $12 RETURNING *`,
       [
-        data.vendor_name, data.booking_month, data.resource_name, data.vendor_invoice_no,
-        data.vendor_invoice_date, data.atipl_invoice_base_amount, data.gst, data.total_invoice_amount,
-        data.tds, data.net_receivable, data.payment_receive_from_client, data.balance_receivable_from_client,
-        data.tally_book_entry_date, data.sub_vendor_invoice_date, data.sub_vendor_invoice_no,
-        data.base_amt_as_per_tally_vendor, data.margin, data.vendor_invoice_status, data.payment_date,
-        data.instrument_no, data.payment_mode, data.payment_status, data.receipts_status,
-        data.extra || null, data.service_month, id
+        data.active_employee_name || null,
+        data.active_vendor || null,
+        data.active_skill || null,
+        validateDateField(data.active_ob_month),
+        validateDateField(data.active_doj),
+        data.active_employment_status || null,
+        validateNumericField(data.active_po_value),
+        validateNumericField(data.active_vendor_value),
+        data.active_alchemy_routing || null,
+        validateNumericField(data.active_gross_margin),
+        validateNumericField(data.active_gm_percentage),
+        id
       ]
     );
     
@@ -466,7 +484,108 @@ app.put('/api/CTS/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Record not found' });
     }
     
-    logger.info('CTS record updated', { recordId: id });
+    logger.info('Active record updated', { recordId: id });
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Attrition Routes
+app.get('/api/Attrition', async (req, res, next) => {
+  try {
+    const result = await executeQuery('SELECT * FROM attrition ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get('/api/Attrition/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery('SELECT * FROM attrition WHERE id = $1', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/Attrition', async (req, res, next) => {
+  try {
+    const data = req.body;
+    
+    const result = await executeQuery(
+      `INSERT INTO attrition (
+        attrition_employee_name, attrition_vendor, attrition_skill, attrition_b_month, attrition_doj,
+        attrition_employment_status, attrition_month, attrition_date, attrition_po_value, attrition_vendor_value,
+        attrition_alchemy_routing, attrition_gross_margin, attrition_gm_percentage
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+      ) RETURNING *`,
+      [
+        data.attrition_employee_name || null,
+        data.attrition_vendor || null,
+        data.attrition_skill || null,
+        validateDateField(data.attrition_b_month),
+        validateDateField(data.attrition_doj),
+        data.attrition_employment_status || null,
+        validateDateField(data.attrition_month),
+        validateDateField(data.attrition_date),
+        validateNumericField(data.attrition_po_value),
+        validateNumericField(data.attrition_vendor_value),
+        data.attrition_alchemy_routing || null,
+        validateNumericField(data.attrition_gross_margin),
+        validateNumericField(data.attrition_gm_percentage)
+      ]
+    );
+    
+    logger.info('Attrition record created', { recordId: result.rows[0].id });
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.put('/api/Attrition/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+    
+    const result = await executeQuery(
+      `UPDATE attrition SET
+        attrition_employee_name = $1, attrition_vendor = $2, attrition_skill = $3, attrition_b_month = $4, attrition_doj = $5,
+        attrition_employment_status = $6, attrition_month = $7, attrition_date = $8, attrition_po_value = $9, attrition_vendor_value = $10,
+        attrition_alchemy_routing = $11, attrition_gross_margin = $12, attrition_gm_percentage = $13
+      WHERE id = $14 RETURNING *`,
+      [
+        data.attrition_employee_name || null,
+        data.attrition_vendor || null,
+        data.attrition_skill || null,
+        validateDateField(data.attrition_b_month),
+        validateDateField(data.attrition_doj),
+        data.attrition_employment_status || null,
+        validateDateField(data.attrition_month),
+        validateDateField(data.attrition_date),
+        validateNumericField(data.attrition_po_value),
+        validateNumericField(data.attrition_vendor_value),
+        data.attrition_alchemy_routing || null,
+        validateNumericField(data.attrition_gross_margin),
+        validateNumericField(data.attrition_gm_percentage),
+        id
+      ]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    logger.info('Attrition record updated', { recordId: id });
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
@@ -655,21 +774,34 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
 });
 
 // PATCH routes for updating records
-app.patch('/api/CTS/:id', async (req, res, next) => {
+app.patch('/api/Active/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
     
-    // Build dynamic update query
-    const fields = Object.keys(updates);
-    const values = Object.values(updates);
-    
-    if (fields.length === 0) {
+    if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
     
+    // Define date and numeric fields for validation
+    const dateFields = ['active_ob_month', 'active_doj'];
+    const numericFields = ['active_po_value', 'active_vendor_value', 'active_gross_margin', 'active_gm_percentage'];
+    
+    // Process updates with validation
+    const fields = Object.keys(updates);
+    const values = fields.map(field => {
+      const value = updates[field];
+      
+      if (dateFields.includes(field)) {
+        return validateDateField(value);
+      } else if (numericFields.includes(field)) {
+        return validateNumericField(value);
+      }
+      return value || null;
+    });
+    
     const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
-    const query = `UPDATE cts SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`;
+    const query = `UPDATE active SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`;
     
     const result = await executeQuery(query, [...values, id]);
     
@@ -677,9 +809,151 @@ app.patch('/api/CTS/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Record not found' });
     }
     
-    logger.info('CTS record patched', { recordId: id });
+    logger.info('Active record patched', { recordId: id });
     res.json(result.rows[0]);
   } catch (err) {
+    next(err);
+  }
+});
+
+app.patch('/api/Attrition/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    // Define date and numeric fields for validation
+    const dateFields = ['attrition_b_month', 'attrition_doj', 'attrition_month', 'attrition_date'];
+    const numericFields = ['attrition_po_value', 'attrition_vendor_value', 'attrition_gross_margin', 'attrition_gm_percentage'];
+    
+    // Process updates with validation
+    const fields = Object.keys(updates);
+    const values = fields.map(field => {
+      const value = updates[field];
+      
+      if (dateFields.includes(field)) {
+        return validateDateField(value);
+      } else if (numericFields.includes(field)) {
+        return validateNumericField(value);
+      }
+      return value || null;
+    });
+    
+    const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
+    const query = `UPDATE attrition SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`;
+    
+    const result = await executeQuery(query, [...values, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    logger.info('Attrition record patched', { recordId: id });
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE endpoints
+app.delete('/api/Active/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery('DELETE FROM active WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    logger.info('Active record deleted', { recordId: id });
+    res.json({ message: 'Record deleted successfully', deletedRecord: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.delete('/api/Attrition/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery('DELETE FROM attrition WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    
+    logger.info('Attrition record deleted', { recordId: id });
+    res.json({ message: 'Record deleted successfully', deletedRecord: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// CTS Summary Report Route - Aggregates data from Active and Attrition tables
+app.get('/api/CTS-Summary', async (req, res, next) => {
+  try {
+    // Query to aggregate data from Active and Attrition tables grouped by Month & Year
+    const query = `
+      WITH active_summary AS (
+        SELECT 
+          TO_CHAR(active_ob_month, 'YYYY-MM') as month_year,
+          EXTRACT(YEAR FROM active_ob_month)::INTEGER as year,
+          EXTRACT(MONTH FROM active_ob_month)::INTEGER as month,
+          COUNT(DISTINCT active_employee_name) as ob_hc,
+          COALESCE(SUM(active_po_value), 0) as ob_po_value,
+          COALESCE(SUM(active_vendor_value), 0) as ob_vendor_po_value,
+          COALESCE(SUM(active_gross_margin), 0) as active_gross_margin
+        FROM active
+        WHERE active_ob_month IS NOT NULL
+        GROUP BY TO_CHAR(active_ob_month, 'YYYY-MM'), EXTRACT(YEAR FROM active_ob_month), EXTRACT(MONTH FROM active_ob_month)
+      ),
+      attrition_summary AS (
+        SELECT 
+          TO_CHAR(attrition_month, 'YYYY-MM') as month_year,
+          EXTRACT(YEAR FROM attrition_month)::INTEGER as year,
+          EXTRACT(MONTH FROM attrition_month)::INTEGER as month,
+          COUNT(DISTINCT attrition_employee_name) as attrition_hc,
+          COALESCE(SUM(attrition_po_value), 0) as attrition_po_value,
+          COALESCE(SUM(attrition_vendor_value), 0) as attrition_vendor_po_value,
+          COALESCE(SUM(attrition_gross_margin), 0) as attrition_gross_margin
+        FROM attrition
+        WHERE attrition_month IS NOT NULL
+        GROUP BY TO_CHAR(attrition_month, 'YYYY-MM'), EXTRACT(YEAR FROM attrition_month), EXTRACT(MONTH FROM attrition_month)
+      ),
+      all_months AS (
+        SELECT month_year, year, month FROM active_summary
+        UNION
+        SELECT month_year, year, month FROM attrition_summary
+      )
+      SELECT 
+        am.month_year as "Month & Year",
+        am.year,
+        am.month,
+        COALESCE(a.ob_hc, 0) as "OB - HC",
+        COALESCE(attr.attrition_hc, 0) as "Attrition - HC",
+        COALESCE(a.ob_hc, 0) - COALESCE(attr.attrition_hc, 0) as "Net - HC",
+        COALESCE(a.ob_po_value, 0) as "OB - PO Value",
+        COALESCE(attr.attrition_po_value, 0) as "Attrition PO Value",
+        COALESCE(a.ob_po_value, 0) - COALESCE(attr.attrition_po_value, 0) as "Net - OB PO Value",
+        COALESCE(a.ob_vendor_po_value, 0) as "OB - Vendor PO Value",
+        COALESCE(attr.attrition_vendor_po_value, 0) as "Attrition Vendor PO Value",
+        COALESCE(a.ob_vendor_po_value, 0) - COALESCE(attr.attrition_vendor_po_value, 0) as "Net Vendor Po Value",
+        COALESCE(a.active_gross_margin, 0) as "Active Gross Margin",
+        COALESCE(attr.attrition_gross_margin, 0) as "Attrition Gross Margin"
+      FROM all_months am
+      LEFT JOIN active_summary a ON am.month_year = a.month_year
+      LEFT JOIN attrition_summary attr ON am.month_year = attr.month_year
+      ORDER BY am.year DESC, am.month DESC
+    `;
+    
+    const result = await executeQuery(query);
+    
+    logger.info('CTS Summary report fetched', { recordCount: result.rows.length });
+    res.json(result.rows);
+  } catch (err) {
+    logger.error('Error fetching CTS Summary report', { error: err.message, stack: err.stack });
     next(err);
   }
 });
