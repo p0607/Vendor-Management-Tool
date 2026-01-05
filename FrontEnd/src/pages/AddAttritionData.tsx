@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import './AddRoutingData.css';
 import * as XLSX from 'xlsx';
 import apiClient from '../config/api';
-import logo from '../assets/logo_1.png';
 
 interface AttritionData {
   attrition_employee_name: string;
@@ -58,17 +57,28 @@ const AddAttritionData: React.FC = () => {
 
   // Convert Excel date serial number to proper date string
   const convertExcelDate = (value: any): string => {
-    if (!value) return '';
+    if (!value || value === '' || value === null || value === undefined) return '';
     
-    // If it's already a string, return as is
+    // If it's already a string, trim and return
     if (typeof value === 'string') {
-      return value;
+      const trimmed = value.trim();
+      if (trimmed === '' || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') {
+        return '';
+      }
+      return trimmed;
     }
     
     // If it's a number (Excel date serial), convert it
     if (typeof value === 'number') {
+      // Check if it's a valid date serial number (not NaN, not 0, not negative)
+      if (isNaN(value) || value <= 0) return '';
+      
       const excelEpoch = new Date(1900, 0, 1);
       const date = new Date(excelEpoch.getTime() + (value - 2) * 24 * 60 * 60 * 1000);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) return '';
+      
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
@@ -77,13 +87,14 @@ const AddAttritionData: React.FC = () => {
     
     // If it's a Date object, format it
     if (value instanceof Date) {
+      if (isNaN(value.getTime())) return '';
       const year = value.getFullYear();
       const month = String(value.getMonth() + 1).padStart(2, '0');
       const day = String(value.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
     
-    return String(value);
+    return String(value).trim();
   };
 
   // Read Excel file and convert to JSON
@@ -191,6 +202,13 @@ const AddAttritionData: React.FC = () => {
     });
   };
 
+  // Helper function to safely parse numeric values
+  const parseNumericValue = (value: string | null | undefined): number | null => {
+    if (!value || value.trim() === '') return null;
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? null : parsed;
+  };
+
   const importData = async (data: AttritionData[]) => {
     const validData = data.filter(item => item.attrition_employee_name || item.attrition_vendor);
     
@@ -202,25 +220,27 @@ const AddAttritionData: React.FC = () => {
     const importPromises = validData.map(async (item) => {
       try {
         const formattedData = {
-          attrition_employee_name: item.attrition_employee_name || null,
-          attrition_vendor: item.attrition_vendor || null,
-          attrition_skill: item.attrition_skill || null,
-          attrition_b_month: item.attrition_b_month || null,
-          attrition_doj: item.attrition_doj || null,
-          attrition_employment_status: item.attrition_employment_status || null,
-          attrition_month: item.attrition_month || null,
-          attrition_date: item.attrition_date || null,
-          attrition_po_value: item.attrition_po_value ? parseFloat(item.attrition_po_value) : null,
-          attrition_vendor_value: item.attrition_vendor_value ? parseFloat(item.attrition_vendor_value) : null,
-          attrition_alchemy_routing: item.attrition_alchemy_routing || null,
-          attrition_gross_margin: item.attrition_gross_margin ? parseFloat(item.attrition_gross_margin) : null,
-          attrition_gm_percentage: item.attrition_gm_percentage ? parseFloat(item.attrition_gm_percentage) : null
+          attrition_employee_name: item.attrition_employee_name?.trim() || null,
+          attrition_vendor: item.attrition_vendor?.trim() || null,
+          attrition_skill: item.attrition_skill?.trim() || null,
+          attrition_b_month: item.attrition_b_month?.trim() || null,
+          attrition_doj: item.attrition_doj?.trim() || null,
+          attrition_employment_status: item.attrition_employment_status?.trim() || null,
+          attrition_month: item.attrition_month?.trim() || null,
+          attrition_date: item.attrition_date?.trim() || null,
+          attrition_po_value: parseNumericValue(item.attrition_po_value),
+          attrition_vendor_value: parseNumericValue(item.attrition_vendor_value),
+          attrition_alchemy_routing: item.attrition_alchemy_routing?.trim() || null,
+          attrition_gross_margin: parseNumericValue(item.attrition_gross_margin),
+          attrition_gm_percentage: parseNumericValue(item.attrition_gm_percentage)
         };
         
         const response = await apiClient.post('/Attrition', formattedData);
         return response.data;
       } catch (error: any) {
-        throw new Error(`Failed to import record: ${error.response?.data?.error || error.message || 'Unknown error'}`);
+        const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
+        const recordInfo = `Employee: ${item.attrition_employee_name || 'N/A'}, Vendor: ${item.attrition_vendor || 'N/A'}`;
+        throw new Error(`Failed to import record (${recordInfo}): ${errorMessage}`);
       }
     });
 
@@ -301,9 +321,6 @@ const AddAttritionData: React.FC = () => {
   return (
     <div className="homepage">
       <div className="routing-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 2rem' }}>
-        <div className="homepage-logo-top-left">
-          <img src={logo} alt="Alchemy Logo" style={{ width: '120px', height: 'auto' }} />
-        </div>
         <h2 style={{ color: 'white', fontWeight: 700, fontSize: '2rem', fontFamily: 'Montserrat, sans-serif', margin: 0 }}>
           Add Attrition Data
         </h2>
@@ -331,7 +348,7 @@ const AddAttritionData: React.FC = () => {
 
         {activeTab === 'manual' && (
           <form onSubmit={handleSubmit} className="routing-form">
-            <div className="form-grid">
+            <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
               <div className="form-group">
                 <label>Employee Name</label>
                 <input

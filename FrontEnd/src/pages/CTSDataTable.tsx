@@ -458,28 +458,28 @@ const CTSDataTable: React.FC = () => {
         <table className="routing-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th rowSpan={2} style={{ border: '1px solid #000', padding: '10px', backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>Month & Year</th>
-              <th colSpan={3} style={{ border: '1px solid #000', padding: '10px', backgroundColor: '#f0f0f0', fontWeight: 'bold', textAlign: 'center' }}>HC</th>
-              <th colSpan={3} style={{ border: '1px solid #000', padding: '10px', backgroundColor: '#f0f0f0', fontWeight: 'bold', textAlign: 'center' }}>Alchemy Status</th>
-              <th colSpan={3} style={{ border: '1px solid #000', padding: '10px', backgroundColor: '#f0f0f0', fontWeight: 'bold', textAlign: 'center' }}>Vendor Status</th>
-              <th colSpan={2} style={{ border: '1px solid #000', padding: '10px', backgroundColor: '#f0f0f0', fontWeight: 'bold', textAlign: 'center' }}>Gross Margin</th>
+              <th rowSpan={2} style={{ border: '2px solid #ff6b35', padding: '10px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>Month & Year</th>
+              <th colSpan={3} style={{ border: '2px solid #ff6b35', padding: '10px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', textAlign: 'center' }}>HC</th>
+              <th colSpan={3} style={{ border: '2px solid #ff6b35', padding: '10px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', textAlign: 'center' }}>Alchemy Status</th>
+              <th colSpan={3} style={{ border: '2px solid #ff6b35', padding: '10px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', textAlign: 'center' }}>Vendor Status</th>
+              <th colSpan={2} style={{ border: '2px solid #ff6b35', padding: '10px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', textAlign: 'center' }}>Gross Margin</th>
             </tr>
             <tr>
               {/* HC Columns */}
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>OB - HC</th>
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>Attrition - HC</th>
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>Net - HC</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>OB - HC</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>Attrition - HC</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>Net - HC</th>
               {/* Alchemy Status Columns */}
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>OB - PO Value</th>
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>Attrition PO Value</th>
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>Net - OB PO Value</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>OB - PO Value</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>Attrition PO Value</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>Net - OB PO Value</th>
               {/* Vendor Status Columns */}
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>OB - Vendor PO Value</th>
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>Attrition Vendor PO Value</th>
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>Net Vendor Po Value</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>OB - Vendor PO Value</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>Attrition Vendor PO Value</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>Net Vendor Po Value</th>
               {/* Gross Margin Columns */}
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>Active Gross Margin</th>
-              <th style={{ border: '1px solid #000', padding: '8px', backgroundColor: '#f9f9f9', fontWeight: 'bold' }}>Attrition Gross Margin</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>Active Gross Margin</th>
+              <th style={{ border: '2px solid #ff6b35', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold' }}>Attrition Gross Margin</th>
             </tr>
           </thead>
           <tbody>
