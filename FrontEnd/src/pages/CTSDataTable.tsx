@@ -434,7 +434,7 @@ useEffect(() => {
           </div>
           <h2 style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 700, fontSize: '2rem', fontFamily: 'Montserrat, sans-serif', margin: 0, zIndex: 1 }}>CTS Data Table</h2>
           <div className="auth-buttons-container">
-            <button className="auth-button" onClick={() => navigate('/HomePage')}>Data</button>
+            <button className="auth-button" onClick={() => navigate('/CTSDataView')}>Data</button>
             <button className="auth-button" onClick={() => navigate('/HomePage')}>Home</button>
             <div className="action-dropdown-container" ref={actionsDropdownRef} style={{ position: 'relative' }}>
               <button className="auth-button action-button">Actions ▼</button>
@@ -457,7 +457,7 @@ useEffect(() => {
           </div>
           <h2 style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 700, fontSize: '2rem', fontFamily: 'Montserrat, sans-serif', margin: 0, zIndex: 1 }}>CTS Data Table</h2>
           <div className="auth-buttons-container">
-            <button className="auth-button" onClick={() => navigate('/HomePage')}>Data</button>
+            <button className="auth-button" onClick={() => navigate('/CTSDataView')}>Data</button>
             <button className="auth-button" onClick={() => navigate('/HomePage')}>Home</button>
             <div className="action-dropdown-container" ref={actionsDropdownRef} style={{ position: 'relative' }}>
               <button className="auth-button action-button">Actions ▼</button>

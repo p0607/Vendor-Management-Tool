@@ -764,3 +764,35 @@ input, .date-input {
     font-size: 12px;
   }
 }
+
+/* Tab Styles */
+.tabs-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  background-color: #f5f5f5;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+  background-color: #e8f4f8;
+  color: #004a7a;
+}
+
+.tab-button.active {
+  background-color: #004a7a;
+  color: white;
+  border-bottom-color: #ff6600;
+}

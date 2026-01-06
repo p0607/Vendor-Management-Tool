@@ -942,11 +942,36 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
     // First, let's check if tables exist and have data
     const checkActive = await executeQuery('SELECT COUNT(*) as count FROM active');
     const checkAttrition = await executeQuery('SELECT COUNT(*) as count FROM attrition');
+    const checkAttritionWithMonth = await executeQuery('SELECT COUNT(*) as count FROM attrition WHERE attrition_month IS NOT NULL');
+    const checkAttritionWithoutMonth = await executeQuery('SELECT COUNT(*) as count FROM attrition WHERE attrition_month IS NULL');
+    
+    // Check sample attrition records to see what fields are populated
+    const sampleAttrition = await executeQuery(`
+      SELECT 
+        id, 
+        attrition_employee_name, 
+        attrition_month, 
+        attrition_b_month,
+        attrition_po_value,
+        attrition_vendor_value,
+        attrition_gross_margin
+      FROM attrition 
+      ORDER BY id DESC 
+      LIMIT 5
+    `);
     
     logger.info('CTS Summary - Table check', {
       activeCount: checkActive.rows[0]?.count || 0,
-      attritionCount: checkAttrition.rows[0]?.count || 0
+      attritionCount: checkAttrition.rows[0]?.count || 0,
+      attritionWithMonth: checkAttritionWithMonth.rows[0]?.count || 0,
+      attritionWithoutMonth: checkAttritionWithoutMonth.rows[0]?.count || 0,
+      sampleAttritionRecords: sampleAttrition.rows
     });
+    
+    // Warn if attrition records exist but don't have attrition_month populated
+    if (checkAttrition.rows[0]?.count > 0 && checkAttritionWithMonth.rows[0]?.count === 0) {
+      logger.warn('CTS Summary - WARNING: Attrition records exist but none have attrition_month populated. These records will not appear in the summary report.');
+    }
 
     // Query to aggregate data from Active and Attrition tables grouped by Month & Year
     const query = `
@@ -1027,6 +1052,50 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
       FROM monthly_data md
       ORDER BY md.year DESC, md.month DESC
     `;
+    
+    // Debug: Check attrition_summary CTE separately
+    try {
+      const attritionSummaryCheck = await executeQuery(`
+        SELECT 
+          TO_CHAR(attrition_month, 'YYYY-MM') as month_year,
+          EXTRACT(YEAR FROM attrition_month)::INTEGER as year,
+          EXTRACT(MONTH FROM attrition_month)::INTEGER as month,
+          COUNT(DISTINCT CASE WHEN attrition_employee_name IS NOT NULL AND attrition_employee_name != '' THEN attrition_employee_name END) as attrition_hc,
+          COALESCE(SUM(attrition_po_value), 0) as attrition_po_value,
+          COALESCE(SUM(attrition_vendor_value), 0) as attrition_vendor_po_value,
+          COALESCE(SUM(attrition_gross_margin), 0) as attrition_gross_margin
+        FROM attrition
+        WHERE attrition_month IS NOT NULL
+        GROUP BY TO_CHAR(attrition_month, 'YYYY-MM'), EXTRACT(YEAR FROM attrition_month), EXTRACT(MONTH FROM attrition_month)
+        ORDER BY month_year DESC
+      `);
+      
+      const activeSummaryCheck = await executeQuery(`
+        SELECT 
+          TO_CHAR(active_ob_month, 'YYYY-MM') as month_year,
+          EXTRACT(YEAR FROM active_ob_month)::INTEGER as year,
+          EXTRACT(MONTH FROM active_ob_month)::INTEGER as month,
+          COUNT(DISTINCT CASE WHEN active_employee_name IS NOT NULL AND active_employee_name != '' THEN active_employee_name END) as ob_hc,
+          COALESCE(SUM(active_po_value), 0) as ob_po_value
+        FROM active
+        WHERE active_ob_month IS NOT NULL
+        GROUP BY TO_CHAR(active_ob_month, 'YYYY-MM'), EXTRACT(YEAR FROM active_ob_month), EXTRACT(MONTH FROM active_ob_month)
+        ORDER BY month_year DESC
+      `);
+      
+      logger.info('CTS Summary - Debug CTE check', {
+        attritionSummaryRows: attritionSummaryCheck.rows.length,
+        attritionSummaryData: attritionSummaryCheck.rows,
+        activeSummaryRows: activeSummaryCheck.rows.length,
+        activeSummaryData: activeSummaryCheck.rows,
+        attritionTotalRecords: await executeQuery('SELECT COUNT(*) as count FROM attrition').then(r => r.rows[0].count),
+        attritionWithMonth: await executeQuery('SELECT COUNT(*) as count FROM attrition WHERE attrition_month IS NOT NULL').then(r => r.rows[0].count),
+        activeTotalRecords: await executeQuery('SELECT COUNT(*) as count FROM active').then(r => r.rows[0].count),
+        activeWithMonth: await executeQuery('SELECT COUNT(*) as count FROM active WHERE active_ob_month IS NOT NULL').then(r => r.rows[0].count)
+      });
+    } catch (debugErr) {
+      logger.error('CTS Summary - CTE debug query failed', { error: debugErr.message, stack: debugErr.stack });
+    }
     
     logger.info('CTS Summary - Executing query');
     const result = await executeQuery(query);

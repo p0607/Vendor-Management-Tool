@@ -17,6 +17,7 @@ import CTSDashboard from './pages/CTSDashboard';
 import AddCTSData from './pages/AddCTSData';
 import AddActiveData from './pages/AddActiveData';
 import AddAttritionData from './pages/AddAttritionData';
+import CTSDataView from './pages/CTSDataView';
 import VendorGanttChart from './pages/VendorGanttChart';
 import VendorResourcePieAnalysis from './pages/VendorResourcePieAnalysis';
 import AddTeamReportData from './pages/AddTeamReportData';
@@ -58,6 +59,7 @@ const App: React.FC = () => {
         <Route path="/AddCTSData" element={<AddCTSData />} />
         <Route path="/AddActiveData" element={<AddActiveData />} />
         <Route path="/AddAttritionData" element={<AddAttritionData />} />
+        <Route path="/CTSDataView" element={<CTSDataView />} />
         <Route path="/VendorGanttChart" element={<VendorGanttChart data={[]} view="monthly" metric="head_count" />} />
         <Route path="/VendorResourcePieAnalysis" element={<VendorResourcePieAnalysis data={[]} />} />
         <Route path="/AddTeamReportData" element={<AddTeamReportData />} />
