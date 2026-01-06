@@ -977,17 +977,28 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
           am.month_year as "Month & Year",
           am.year,
           am.month,
+          -- OB-HC: COUNT of Active Employee Name
           COALESCE(a.ob_hc, 0) as "OB - HC",
+          -- Attrition HC: COUNT of Attrition Employee Name
           COALESCE(attr.attrition_hc, 0) as "Attrition - HC",
+          -- Net-HC: Active - Attrition Employee Count
           COALESCE(a.ob_hc, 0) - COALESCE(attr.attrition_hc, 0) as "Net - HC",
+          -- OB-PO Value: Active PO Value
           COALESCE(a.ob_po_value, 0) as "OB - PO Value",
+          -- Attrition PO Value: Attrition PO Value
           COALESCE(attr.attrition_po_value, 0) as "Attrition PO Value",
+          -- Net OB PO Value: Active PO - Attrition PO Value
           COALESCE(a.ob_po_value, 0) - COALESCE(attr.attrition_po_value, 0) as "Net - OB PO Value",
+          -- OB-Vendor PO Value: Active Vendor Value
           COALESCE(a.ob_vendor_po_value, 0) as "OB - Vendor PO Value",
+          -- Attrition Vendor PO Value: Attrition Vendor Value
           COALESCE(attr.attrition_vendor_po_value, 0) as "Attrition Vendor PO Value",
+          -- Net Vendor PO Value: Active Vendor Value - Attrition Vendor Value
           COALESCE(a.ob_vendor_po_value, 0) - COALESCE(attr.attrition_vendor_po_value, 0) as "Net Vendor Po Value",
+          -- Month OB Margin (Month): SUM of Active Gross Margin (for that specific month)
           COALESCE(a.active_gross_margin, 0) as "Month OB Margin (Month)",
-          (COALESCE(a.ob_po_value, 0) - COALESCE(attr.attrition_po_value, 0)) - (COALESCE(a.ob_vendor_po_value, 0) - COALESCE(attr.attrition_vendor_po_value, 0)) as "Month Net Margin (Month)"
+          -- Month Net Margin (Month): SUM of Attrition Gross Margin (for the same month)
+          COALESCE(attr.attrition_gross_margin, 0) as "Month Net Margin (Month)"
         FROM all_months am
         LEFT JOIN active_summary a ON am.month_year = a.month_year
         LEFT JOIN attrition_summary attr ON am.month_year = attr.month_year
