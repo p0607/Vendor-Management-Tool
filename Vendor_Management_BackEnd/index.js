@@ -1102,7 +1102,13 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
     
     logger.info('CTS Summary report fetched', { 
       recordCount: result.rows.length,
-      sampleRecord: result.rows.length > 0 ? result.rows[0] : null
+      sampleRecord: result.rows.length > 0 ? result.rows[0] : null,
+      sampleAttritionFields: result.rows.length > 0 ? {
+        'Attrition - HC': result.rows[0]['Attrition - HC'],
+        'Attrition PO Value': result.rows[0]['Attrition PO Value'],
+        'Attrition Vendor PO Value': result.rows[0]['Attrition Vendor PO Value'],
+        'Month Net Margin (Month)': result.rows[0]['Month Net Margin (Month)']
+      } : null
     });
     
     if (result.rows.length === 0) {

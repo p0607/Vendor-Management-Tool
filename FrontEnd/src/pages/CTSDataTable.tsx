@@ -158,7 +158,13 @@ const CTSDataTable: React.FC = () => {
           status: response.status,
           dataLength: response.data?.length,
           sampleData: response.data?.[0],
-          allKeys: response.data?.[0] ? Object.keys(response.data[0]) : []
+          allKeys: response.data?.[0] ? Object.keys(response.data[0]) : [],
+          attritionFields: response.data?.[0] ? {
+            'Attrition - HC': response.data[0]['Attrition - HC'],
+            'Attrition PO Value': response.data[0]['Attrition PO Value'],
+            'Attrition Vendor PO Value': response.data[0]['Attrition Vendor PO Value'],
+            'Month Net Margin (Month)': response.data[0]['Month Net Margin (Month)']
+          } : null
         });
         
         // Validate response data
@@ -489,7 +495,7 @@ useEffect(() => {
           zIndex: 1 
         }}>CTS Data Table</h2>
         <div className="auth-buttons-container" style={{ position: 'absolute', right: '2rem', top: '1rem', zIndex: 10 }}>
-          <button className="auth-button" onClick={() => navigate('/HomePage')}>Data</button>
+          <button className="auth-button" onClick={() => navigate('/CTSDataView')}>Data</button>
           <button className="auth-button" onClick={() => navigate('/HomePage')}>Home</button>
           <div className="action-dropdown-container" ref={actionsDropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
             <button 
