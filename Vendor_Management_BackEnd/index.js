@@ -971,26 +971,41 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
         SELECT month_year, year, month FROM active_summary
         UNION
         SELECT month_year, year, month FROM attrition_summary
+      ),
+      monthly_data AS (
+        SELECT 
+          am.month_year as "Month & Year",
+          am.year,
+          am.month,
+          COALESCE(a.ob_hc, 0) as "OB - HC",
+          COALESCE(attr.attrition_hc, 0) as "Attrition - HC",
+          COALESCE(a.ob_hc, 0) - COALESCE(attr.attrition_hc, 0) as "Net - HC",
+          COALESCE(a.ob_po_value, 0) as "OB - PO Value",
+          COALESCE(attr.attrition_po_value, 0) as "Attrition PO Value",
+          COALESCE(a.ob_po_value, 0) - COALESCE(attr.attrition_po_value, 0) as "Net - OB PO Value",
+          COALESCE(a.ob_vendor_po_value, 0) as "OB - Vendor PO Value",
+          COALESCE(attr.attrition_vendor_po_value, 0) as "Attrition Vendor PO Value",
+          COALESCE(a.ob_vendor_po_value, 0) - COALESCE(attr.attrition_vendor_po_value, 0) as "Net Vendor Po Value",
+          COALESCE(a.active_gross_margin, 0) as "Month OB Margin (Month)",
+          (COALESCE(a.ob_po_value, 0) - COALESCE(attr.attrition_po_value, 0)) - (COALESCE(a.ob_vendor_po_value, 0) - COALESCE(attr.attrition_vendor_po_value, 0)) as "Month Net Margin (Month)"
+        FROM all_months am
+        LEFT JOIN active_summary a ON am.month_year = a.month_year
+        LEFT JOIN attrition_summary attr ON am.month_year = attr.month_year
       )
       SELECT 
-        am.month_year as "Month & Year",
-        am.year,
-        am.month,
-        COALESCE(a.ob_hc, 0) as "OB - HC",
-        COALESCE(attr.attrition_hc, 0) as "Attrition - HC",
-        COALESCE(a.ob_hc, 0) - COALESCE(attr.attrition_hc, 0) as "Net - HC",
-        COALESCE(a.ob_po_value, 0) as "OB - PO Value",
-        COALESCE(attr.attrition_po_value, 0) as "Attrition PO Value",
-        COALESCE(a.ob_po_value, 0) - COALESCE(attr.attrition_po_value, 0) as "Net - OB PO Value",
-        COALESCE(a.ob_vendor_po_value, 0) as "OB - Vendor PO Value",
-        COALESCE(attr.attrition_vendor_po_value, 0) as "Attrition Vendor PO Value",
-        COALESCE(a.ob_vendor_po_value, 0) - COALESCE(attr.attrition_vendor_po_value, 0) as "Net Vendor Po Value",
-        COALESCE(a.active_gross_margin, 0) as "Active Gross Margin",
-        COALESCE(attr.attrition_gross_margin, 0) as "Attrition Gross Margin"
-      FROM all_months am
-      LEFT JOIN active_summary a ON am.month_year = a.month_year
-      LEFT JOIN attrition_summary attr ON am.month_year = attr.month_year
-      ORDER BY am.year DESC, am.month DESC
+        md.*,
+        SUM(md."Net - HC") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as "Current HC",
+        SUM(md."Net - OB PO Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as "Current PO Value",
+        SUM(md."Net Vendor Po Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as "Current Vendor Cost",
+        SUM(md."Month Net Margin (Month)") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as "Current Margin",
+        CASE 
+          WHEN SUM(md."Net - OB PO Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) != 0
+          THEN (SUM(md."Month Net Margin (Month)") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) / 
+                SUM(md."Net - OB PO Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)) * 100
+          ELSE 0
+        END as "%- Margin"
+      FROM monthly_data md
+      ORDER BY md.year DESC, md.month DESC
     `;
     
     const result = await executeQuery(query);
