@@ -151,42 +151,69 @@ const CTSDataTable: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
+        console.log('Fetching CTS Summary data from /CTS-Summary...');
         const response = await apiClient.get('/CTS-Summary');
+        
+        console.log('CTS Summary API Response:', {
+          status: response.status,
+          dataLength: response.data?.length,
+          sampleData: response.data?.[0],
+          allKeys: response.data?.[0] ? Object.keys(response.data[0]) : []
+        });
         
         // Validate response data
         if (!response || !response.data) {
+          console.error('Invalid response structure:', response);
           throw new Error('Invalid response from server');
         }
         
         // Ensure data is an array and validate each item
         const validatedData = Array.isArray(response.data) 
-          ? response.data.map((item: any) => ({
-              "Month & Year": item["Month & Year"] || '',
-              year: typeof item.year === 'number' && !isNaN(item.year) ? item.year : 0,
-              month: typeof item.month === 'number' && !isNaN(item.month) ? item.month : 0,
-              "OB - HC": typeof item["OB - HC"] === 'number' && !isNaN(item["OB - HC"]) ? item["OB - HC"] : 0,
-              "Attrition - HC": typeof item["Attrition - HC"] === 'number' && !isNaN(item["Attrition - HC"]) ? item["Attrition - HC"] : 0,
-              "Net - HC": typeof item["Net - HC"] === 'number' && !isNaN(item["Net - HC"]) ? item["Net - HC"] : 0,
-              "OB - PO Value": typeof item["OB - PO Value"] === 'number' && !isNaN(item["OB - PO Value"]) ? item["OB - PO Value"] : 0,
-              "Attrition PO Value": typeof item["Attrition PO Value"] === 'number' && !isNaN(item["Attrition PO Value"]) ? item["Attrition PO Value"] : 0,
-              "Net - OB PO Value": typeof item["Net - OB PO Value"] === 'number' && !isNaN(item["Net - OB PO Value"]) ? item["Net - OB PO Value"] : 0,
-              "OB - Vendor PO Value": typeof item["OB - Vendor PO Value"] === 'number' && !isNaN(item["OB - Vendor PO Value"]) ? item["OB - Vendor PO Value"] : 0,
-              "Attrition Vendor PO Value": typeof item["Attrition Vendor PO Value"] === 'number' && !isNaN(item["Attrition Vendor PO Value"]) ? item["Attrition Vendor PO Value"] : 0,
-              "Net Vendor Po Value": typeof item["Net Vendor Po Value"] === 'number' && !isNaN(item["Net Vendor Po Value"]) ? item["Net Vendor Po Value"] : 0,
-              "Month OB Margin (Month)": typeof item["Month OB Margin (Month)"] === 'number' && !isNaN(item["Month OB Margin (Month)"]) ? item["Month OB Margin (Month)"] : 0,
-              "Month Net Margin (Month)": typeof item["Month Net Margin (Month)"] === 'number' && !isNaN(item["Month Net Margin (Month)"]) ? item["Month Net Margin (Month)"] : 0,
-              "Current HC": typeof item["Current HC"] === 'number' && !isNaN(item["Current HC"]) ? item["Current HC"] : 0,
-              "Current PO Value": typeof item["Current PO Value"] === 'number' && !isNaN(item["Current PO Value"]) ? item["Current PO Value"] : 0,
-              "Current Vendor Cost": typeof item["Current Vendor Cost"] === 'number' && !isNaN(item["Current Vendor Cost"]) ? item["Current Vendor Cost"] : 0,
-              "Current Margin": typeof item["Current Margin"] === 'number' && !isNaN(item["Current Margin"]) ? item["Current Margin"] : 0,
-              "%- Margin": typeof item["%- Margin"] === 'number' && !isNaN(item["%- Margin"]) ? item["%- Margin"] : 0
-            }))
+          ? response.data.map((item: any, index: number) => {
+              if (index === 0) {
+                console.log('First item before validation:', item);
+                console.log('First item keys:', Object.keys(item));
+              }
+              return {
+                "Month & Year": item["Month & Year"] || item["month_year"] || '',
+                year: typeof item.year === 'number' && !isNaN(item.year) ? item.year : 0,
+                month: typeof item.month === 'number' && !isNaN(item.month) ? item.month : 0,
+                "OB - HC": typeof item["OB - HC"] === 'number' && !isNaN(item["OB - HC"]) ? item["OB - HC"] : (typeof item["ob_hc"] === 'number' ? item["ob_hc"] : 0),
+                "Attrition - HC": typeof item["Attrition - HC"] === 'number' && !isNaN(item["Attrition - HC"]) ? item["Attrition - HC"] : (typeof item["attrition_hc"] === 'number' ? item["attrition_hc"] : 0),
+                "Net - HC": typeof item["Net - HC"] === 'number' && !isNaN(item["Net - HC"]) ? item["Net - HC"] : 0,
+                "OB - PO Value": typeof item["OB - PO Value"] === 'number' && !isNaN(item["OB - PO Value"]) ? item["OB - PO Value"] : (typeof item["ob_po_value"] === 'number' ? item["ob_po_value"] : 0),
+                "Attrition PO Value": typeof item["Attrition PO Value"] === 'number' && !isNaN(item["Attrition PO Value"]) ? item["Attrition PO Value"] : (typeof item["attrition_po_value"] === 'number' ? item["attrition_po_value"] : 0),
+                "Net - OB PO Value": typeof item["Net - OB PO Value"] === 'number' && !isNaN(item["Net - OB PO Value"]) ? item["Net - OB PO Value"] : 0,
+                "OB - Vendor PO Value": typeof item["OB - Vendor PO Value"] === 'number' && !isNaN(item["OB - Vendor PO Value"]) ? item["OB - Vendor PO Value"] : (typeof item["ob_vendor_po_value"] === 'number' ? item["ob_vendor_po_value"] : 0),
+                "Attrition Vendor PO Value": typeof item["Attrition Vendor PO Value"] === 'number' && !isNaN(item["Attrition Vendor PO Value"]) ? item["Attrition Vendor PO Value"] : (typeof item["attrition_vendor_po_value"] === 'number' ? item["attrition_vendor_po_value"] : 0),
+                "Net Vendor Po Value": typeof item["Net Vendor Po Value"] === 'number' && !isNaN(item["Net Vendor Po Value"]) ? item["Net Vendor Po Value"] : 0,
+                "Month OB Margin (Month)": typeof item["Month OB Margin (Month)"] === 'number' && !isNaN(item["Month OB Margin (Month)"]) ? item["Month OB Margin (Month)"] : (typeof item["active_gross_margin"] === 'number' ? item["active_gross_margin"] : 0),
+                "Month Net Margin (Month)": typeof item["Month Net Margin (Month)"] === 'number' && !isNaN(item["Month Net Margin (Month)"]) ? item["Month Net Margin (Month)"] : (typeof item["attrition_gross_margin"] === 'number' ? item["attrition_gross_margin"] : 0),
+                "Current HC": typeof item["Current HC"] === 'number' && !isNaN(item["Current HC"]) ? item["Current HC"] : 0,
+                "Current PO Value": typeof item["Current PO Value"] === 'number' && !isNaN(item["Current PO Value"]) ? item["Current PO Value"] : 0,
+                "Current Vendor Cost": typeof item["Current Vendor Cost"] === 'number' && !isNaN(item["Current Vendor Cost"]) ? item["Current Vendor Cost"] : 0,
+                "Current Margin": typeof item["Current Margin"] === 'number' && !isNaN(item["Current Margin"]) ? item["Current Margin"] : 0,
+                "%- Margin": typeof item["%- Margin"] === 'number' && !isNaN(item["%- Margin"]) ? item["%- Margin"] : 0
+              };
+            })
           : [];
+        
+        console.log('Validated data:', {
+          count: validatedData.length,
+          firstItem: validatedData[0],
+          allItems: validatedData
+        });
         
         setAllSummaryData(validatedData);
         setSummaryData(validatedData);
       } catch (err: any) {
         console.error('Error fetching CTS Summary:', err);
+        console.error('Error details:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+          url: err.config?.url
+        });
         setError(err.response?.data?.error || err.message || 'An unknown error occurred');
         setAllSummaryData([]);
         setSummaryData([]);
