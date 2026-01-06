@@ -226,11 +226,11 @@ const CTSDataView: React.FC = () => {
 
   return (
     <div className="routing-table-container">
-      <div className="routing-table-header">
-        <div className="logo-section">
-          <img src={logo} alt="Logo" className="small-logo" />
+      <div className="routing-table-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem', minHeight: '80px' }}>
+        <div className="homepage-logo-top-left" style={{ position: 'absolute', left: '2rem', top: '1rem', width: '120px', height: 'auto', zIndex: 10 }}>
+          <img src={logo} alt="Alchemy Logo" style={{ width: '100%', height: 'auto', maxWidth: '120px' }} />
         </div>
-        <div className="header-actions">
+        <div className="header-actions" style={{ position: 'absolute', right: '2rem', top: '1rem', zIndex: 10 }}>
           <div className="search-section">
             <input
               type="text"
@@ -287,40 +287,40 @@ const CTSDataView: React.FC = () => {
         </div>
       ) : (
         <div className="table-wrapper">
-          <table className="routing-table">
+          <table className="routing-table" style={{ tableLayout: 'fixed', width: '100%' }}>
             <thead>
               <tr>
                 {activeTab === 'active' ? (
                   <>
-                    <th>Sl.No</th>
-                    <th>Employee Name</th>
-                    <th>Vendor</th>
-                    <th>Skill</th>
-                    <th>OB Month</th>
-                    <th>DOJ</th>
-                    <th>Employment Status</th>
-                    <th>PO Value</th>
-                    <th>Vendor Value</th>
-                    <th>Alchemy Routing</th>
-                    <th>Gross Margin</th>
-                    <th>GM %</th>
+                    <th style={{ width: '8.33%' }}>Sl.No</th>
+                    <th style={{ width: '8.33%' }}>Employee Name</th>
+                    <th style={{ width: '8.33%' }}>Vendor</th>
+                    <th style={{ width: '8.33%' }}>Skill</th>
+                    <th style={{ width: '8.33%' }}>OB Month</th>
+                    <th style={{ width: '8.33%' }}>DOJ</th>
+                    <th style={{ width: '8.33%' }}>Employment Status</th>
+                    <th style={{ width: '8.33%' }}>PO Value</th>
+                    <th style={{ width: '8.33%' }}>Vendor Value</th>
+                    <th style={{ width: '8.33%' }}>Alchemy Routing</th>
+                    <th style={{ width: '8.33%' }}>Gross Margin</th>
+                    <th style={{ width: '8.33%' }}>GM %</th>
                   </>
                 ) : (
                   <>
-                    <th>Sl.No</th>
-                    <th>Employee Name</th>
-                    <th>Vendor</th>
-                    <th>Skill</th>
-                    <th>B Month</th>
-                    <th>DOJ</th>
-                    <th>Employment Status</th>
-                    <th>Attrition Month</th>
-                    <th>Attrition Date</th>
-                    <th>PO Value</th>
-                    <th>Vendor Value</th>
-                    <th>Alchemy Routing</th>
-                    <th>Gross Margin</th>
-                    <th>GM %</th>
+                    <th style={{ width: '7.14%' }}>Sl.No</th>
+                    <th style={{ width: '7.14%' }}>Employee Name</th>
+                    <th style={{ width: '7.14%' }}>Vendor</th>
+                    <th style={{ width: '7.14%' }}>Skill</th>
+                    <th style={{ width: '7.14%' }}>B Month</th>
+                    <th style={{ width: '7.14%' }}>DOJ</th>
+                    <th style={{ width: '7.14%' }}>Employment Status</th>
+                    <th style={{ width: '7.14%' }}>Attrition Month</th>
+                    <th style={{ width: '7.14%' }}>Attrition Date</th>
+                    <th style={{ width: '7.14%' }}>PO Value</th>
+                    <th style={{ width: '7.14%' }}>Vendor Value</th>
+                    <th style={{ width: '7.14%' }}>Alchemy Routing</th>
+                    <th style={{ width: '7.14%' }}>Gross Margin</th>
+                    <th style={{ width: '7.14%' }}>GM %</th>
                   </>
                 )}
               </tr>

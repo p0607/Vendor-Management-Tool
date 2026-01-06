@@ -298,7 +298,7 @@ body, html {
   }
   
   .routing-table td.centered {
-    /* text-align: center; - removed to prevent conflicts */
+    text-align: center;
   }
   
   .routing-table td.truncate {
@@ -795,4 +795,17 @@ input, .date-input {
   background-color: #004a7a;
   color: white;
   border-bottom-color: #ff6600;
+}
+
+/* Equal width columns for CTSDataView table */
+.routing-table-container .routing-table {
+  table-layout: fixed;
+}
+
+.routing-table-container .routing-table th,
+.routing-table-container .routing-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-wrap: break-word;
 }
