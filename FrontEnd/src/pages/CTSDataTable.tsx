@@ -42,22 +42,28 @@ const CTSDataTable: React.FC = () => {
 
   // Format number with commas (Indian numbering system)
   const formatNumber = (value: number | null | undefined): string => {
-    if (value === null || value === undefined) return '0';
+    if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) return '0';
     return value.toLocaleString('en-IN');
   };
 
   // Format month-year string (e.g., "2024-01" -> "Jan-2024")
-  const formatMonthYear = (monthYear: string): string => {
-    if (!monthYear) return '';
-    const [year, month] = monthYear.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+  const formatMonthYear = (monthYear: string | null | undefined): string => {
+    if (!monthYear || typeof monthYear !== 'string') return '';
+    const parts = monthYear.split('-');
+    if (parts.length !== 2) return monthYear;
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) return monthYear;
+    const date = new Date(year, month - 1, 1);
+    if (isNaN(date.getTime())) return monthYear;
     const monthName = date.toLocaleString('default', { month: 'short' });
-    const shortYear = year.slice(-2);
+    const shortYear = String(year).slice(-2);
     return `${monthName}-${shortYear}`;
   };
 
   // Get quarter from month (Financial Year: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar)
-  const getQuarter = (month: number): number => {
+  const getQuarter = (month: number | null | undefined): number => {
+    if (month === null || month === undefined || typeof month !== 'number' || isNaN(month)) return 4;
     if (month >= 4 && month <= 6) return 1; // Q1: Apr-Jun
     if (month >= 7 && month <= 9) return 2; // Q2: Jul-Sep
     if (month >= 10 && month <= 12) return 3; // Q3: Oct-Dec
@@ -75,17 +81,23 @@ const CTSDataTable: React.FC = () => {
     } else if (filterType === 'quarter') {
       const quarters = new Set<string>();
       allSummaryData.forEach(item => {
+        if (item.month === null || item.month === undefined || isNaN(item.month) || 
+            item.year === null || item.year === undefined || isNaN(item.year)) return;
         const quarter = getQuarter(item.month);
         const year = item.year;
         // Q4 spans across years (Jan-Mar belongs to next FY)
         const displayYear = quarter === 4 ? year - 1 : year;
-        quarters.add(`Q${quarter} ${displayYear}`);
+        if (!isNaN(displayYear)) {
+          quarters.add(`Q${quarter} ${displayYear}`);
+        }
       });
       return Array.from(quarters).sort().reverse();
     } else if (filterType === 'year') {
       const years = new Set<number>();
       allSummaryData.forEach(item => {
-        years.add(item.year);
+        if (item.year !== null && item.year !== undefined && typeof item.year === 'number' && !isNaN(item.year)) {
+          years.add(item.year);
+        }
       });
       return Array.from(years).sort((a, b) => b - a).map(y => y.toString());
     }
@@ -104,6 +116,9 @@ const CTSDataTable: React.FC = () => {
         if (quarterMatch) {
           const targetQuarter = parseInt(quarterMatch[1]);
           const targetYear = parseInt(quarterMatch[2]);
+          if (isNaN(targetQuarter) || isNaN(targetYear)) return false;
+          if (item.month === null || item.month === undefined || isNaN(item.month) ||
+              item.year === null || item.year === undefined || isNaN(item.year)) return false;
           const itemQuarter = getQuarter(item.month);
           // Q4 spans across years
           if (itemQuarter === 4) {
@@ -114,6 +129,9 @@ const CTSDataTable: React.FC = () => {
         return false;
       } else if (filterType === 'year') {
         const targetYear = parseInt(filterValue);
+        if (isNaN(targetYear)) return false;
+        if (item.month === null || item.month === undefined || isNaN(item.month) ||
+            item.year === null || item.year === undefined || isNaN(item.year)) return false;
         // Financial year: April to March
         // If month >= 4, year matches targetYear
         // If month < 4, year should be targetYear + 1
@@ -132,11 +150,46 @@ const CTSDataTable: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setError(null);
         const response = await apiClient.get('/CTS-Summary');
-        setAllSummaryData(response.data);
-        setSummaryData(response.data);
+        
+        // Validate response data
+        if (!response || !response.data) {
+          throw new Error('Invalid response from server');
+        }
+        
+        // Ensure data is an array and validate each item
+        const validatedData = Array.isArray(response.data) 
+          ? response.data.map((item: any) => ({
+              "Month & Year": item["Month & Year"] || '',
+              year: typeof item.year === 'number' && !isNaN(item.year) ? item.year : 0,
+              month: typeof item.month === 'number' && !isNaN(item.month) ? item.month : 0,
+              "OB - HC": typeof item["OB - HC"] === 'number' && !isNaN(item["OB - HC"]) ? item["OB - HC"] : 0,
+              "Attrition - HC": typeof item["Attrition - HC"] === 'number' && !isNaN(item["Attrition - HC"]) ? item["Attrition - HC"] : 0,
+              "Net - HC": typeof item["Net - HC"] === 'number' && !isNaN(item["Net - HC"]) ? item["Net - HC"] : 0,
+              "OB - PO Value": typeof item["OB - PO Value"] === 'number' && !isNaN(item["OB - PO Value"]) ? item["OB - PO Value"] : 0,
+              "Attrition PO Value": typeof item["Attrition PO Value"] === 'number' && !isNaN(item["Attrition PO Value"]) ? item["Attrition PO Value"] : 0,
+              "Net - OB PO Value": typeof item["Net - OB PO Value"] === 'number' && !isNaN(item["Net - OB PO Value"]) ? item["Net - OB PO Value"] : 0,
+              "OB - Vendor PO Value": typeof item["OB - Vendor PO Value"] === 'number' && !isNaN(item["OB - Vendor PO Value"]) ? item["OB - Vendor PO Value"] : 0,
+              "Attrition Vendor PO Value": typeof item["Attrition Vendor PO Value"] === 'number' && !isNaN(item["Attrition Vendor PO Value"]) ? item["Attrition Vendor PO Value"] : 0,
+              "Net Vendor Po Value": typeof item["Net Vendor Po Value"] === 'number' && !isNaN(item["Net Vendor Po Value"]) ? item["Net Vendor Po Value"] : 0,
+              "Month OB Margin (Month)": typeof item["Month OB Margin (Month)"] === 'number' && !isNaN(item["Month OB Margin (Month)"]) ? item["Month OB Margin (Month)"] : 0,
+              "Month Net Margin (Month)": typeof item["Month Net Margin (Month)"] === 'number' && !isNaN(item["Month Net Margin (Month)"]) ? item["Month Net Margin (Month)"] : 0,
+              "Current HC": typeof item["Current HC"] === 'number' && !isNaN(item["Current HC"]) ? item["Current HC"] : 0,
+              "Current PO Value": typeof item["Current PO Value"] === 'number' && !isNaN(item["Current PO Value"]) ? item["Current PO Value"] : 0,
+              "Current Vendor Cost": typeof item["Current Vendor Cost"] === 'number' && !isNaN(item["Current Vendor Cost"]) ? item["Current Vendor Cost"] : 0,
+              "Current Margin": typeof item["Current Margin"] === 'number' && !isNaN(item["Current Margin"]) ? item["Current Margin"] : 0,
+              "%- Margin": typeof item["%- Margin"] === 'number' && !isNaN(item["%- Margin"]) ? item["%- Margin"] : 0
+            }))
+          : [];
+        
+        setAllSummaryData(validatedData);
+        setSummaryData(validatedData);
       } catch (err: any) {
+        console.error('Error fetching CTS Summary:', err);
         setError(err.response?.data?.error || err.message || 'An unknown error occurred');
+        setAllSummaryData([]);
+        setSummaryData([]);
       } finally {
         setLoading(false);
       }
@@ -250,67 +303,88 @@ const CTSDataTable: React.FC = () => {
 
   // Export to Excel
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(summaryData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'CTS Summary');
-    XLSX.writeFile(workbook, `CTS_Summary_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    try {
+      if (!summaryData || summaryData.length === 0) {
+        alert('No data available to export.');
+        return;
+      }
+      const worksheet = XLSX.utils.json_to_sheet(summaryData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'CTS Summary');
+      XLSX.writeFile(workbook, `CTS_Summary_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Failed to export Excel. Please try again.');
+    }
   };
 
   // Export to PDF
   const exportToPDF = () => {
-    const doc = new jsPDF('landscape');
-    doc.setFontSize(16);
-    doc.text('CTS Summary Report', 14, 15);
+    try {
+      const doc = new jsPDF('landscape');
+      doc.setFontSize(16);
+      doc.text('CTS Summary Report', 14, 15);
 
-    const tableData = summaryData.map(item => [
-      formatMonthYear(item["Month & Year"]),
-      formatNumber(item["OB - HC"]),
-      formatNumber(item["Attrition - HC"]),
-      formatNumber(item["Net - HC"]),
-      formatNumber(item["OB - PO Value"]),
-      formatNumber(item["Attrition PO Value"]),
-      formatNumber(item["Net - OB PO Value"]),
-      formatNumber(item["OB - Vendor PO Value"]),
-      formatNumber(item["Attrition Vendor PO Value"]),
-      formatNumber(item["Net Vendor Po Value"]),
-      formatNumber(item["Month OB Margin (Month)"]),
-      formatNumber(item["Month Net Margin (Month)"]),
-      formatNumber(item["Current HC"]),
-      formatNumber(item["Current PO Value"]),
-      formatNumber(item["Current Vendor Cost"]),
-      formatNumber(item["Current Margin"]),
-      item["%- Margin"] !== null && item["%- Margin"] !== undefined ? `${item["%- Margin"].toFixed(2)}%` : '0%'
-    ]);
+      const tableData = summaryData.map(item => {
+        try {
+          return [
+            formatMonthYear(item["Month & Year"] || ''),
+            formatNumber(item["OB - HC"]),
+            formatNumber(item["Attrition - HC"]),
+            formatNumber(item["Net - HC"]),
+            formatNumber(item["OB - PO Value"]),
+            formatNumber(item["Attrition PO Value"]),
+            formatNumber(item["Net - OB PO Value"]),
+            formatNumber(item["OB - Vendor PO Value"]),
+            formatNumber(item["Attrition Vendor PO Value"]),
+            formatNumber(item["Net Vendor Po Value"]),
+            formatNumber(item["Month OB Margin (Month)"]),
+            formatNumber(item["Month Net Margin (Month)"]),
+            formatNumber(item["Current HC"]),
+            formatNumber(item["Current PO Value"]),
+            formatNumber(item["Current Vendor Cost"]),
+            formatNumber(item["Current Margin"]),
+            item["%- Margin"] !== null && item["%- Margin"] !== undefined && typeof item["%- Margin"] === 'number' && !isNaN(item["%- Margin"]) ? `${item["%- Margin"].toFixed(2)}%` : '0%'
+          ];
+        } catch (error) {
+          console.error('Error formatting row for PDF:', error, item);
+          return ['Error', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+        }
+      });
 
-    autoTable(doc, {
-      startY: 20,
-      head: [[
-        'Month & Year',
-        'OB - HC',
-        'Attrition - HC',
-        'Net - HC',
-        'OB - PO Value',
-        'Attrition PO Value',
-        'Net - OB PO Value',
-        'OB - Vendor PO Value',
-        'Attrition Vendor PO Value',
-        'Net Vendor Po Value',
-        'Month OB Margin (Month)',
-        'Month Net Margin (Month)',
-        'Current HC',
-        'Current PO Value',
-        'Current Vendor Cost',
-        'Current Margin',
-        '%- Margin'
-      ]],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [32, 145, 211] },
-      styles: { fontSize: 7, cellPadding: 2 },
-      margin: { left: 10, right: 10 }
-    });
+      autoTable(doc, {
+        startY: 20,
+        head: [[
+          'Month & Year',
+          'OB - HC',
+          'Attrition - HC',
+          'Net - HC',
+          'OB - PO Value',
+          'Attrition PO Value',
+          'Net - OB PO Value',
+          'OB - Vendor PO Value',
+          'Attrition Vendor PO Value',
+          'Net Vendor Po Value',
+          'Month OB Margin (Month)',
+          'Month Net Margin (Month)',
+          'Current HC',
+          'Current PO Value',
+          'Current Vendor Cost',
+          'Current Margin',
+          '%- Margin'
+        ]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [32, 145, 211] },
+        styles: { fontSize: 7, cellPadding: 2 },
+        margin: { left: 10, right: 10 }
+      });
 
-    doc.save(`CTS_Summary_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+      doc.save(`CTS_Summary_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      alert('Failed to export PDF. Please try again.');
+    }
   };
 
   if (loading) {
@@ -444,11 +518,21 @@ const CTSDataTable: React.FC = () => {
                 }}
               >
                 <option value="">All {filterType === 'month' ? 'Months' : filterType === 'quarter' ? 'Quarters' : 'Years'}</option>
-                {getFilterOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {filterType === 'month' ? formatMonthYear(option) : option}
-                  </option>
-                ))}
+                {getFilterOptions.map((option) => {
+                  try {
+                    return (
+                      <option key={option} value={option}>
+                        {filterType === 'month' ? formatMonthYear(option) : option}
+                      </option>
+                    );
+                  } catch (error) {
+                    return (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    );
+                  }
+                })}
               </select>
               
               {filterValue && (
@@ -568,10 +652,12 @@ const CTSDataTable: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              summaryData.map((item, index) => (
+              summaryData.map((item, index) => {
+                if (!item) return null;
+                return (
                 <tr key={index} style={{ fontSize: '11px' }}>
                   <td style={{ width: '100px', border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
-                    {formatMonthYear(item["Month & Year"])}
+                    {formatMonthYear(item["Month & Year"] || '')}
                   </td>
                   <td style={{ width: '90px', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
                     {formatNumber(item["OB - HC"])}
@@ -619,10 +705,11 @@ const CTSDataTable: React.FC = () => {
                     {formatNumber(item["Current Margin"])}
                   </td>
                   <td style={{ width: '90px', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
-                    {item["%- Margin"] !== null && item["%- Margin"] !== undefined ? `${item["%- Margin"].toFixed(2)}%` : '0%'}
+                    {item["%- Margin"] !== null && item["%- Margin"] !== undefined && typeof item["%- Margin"] === 'number' && !isNaN(item["%- Margin"]) ? `${item["%- Margin"].toFixed(2)}%` : '0%'}
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
