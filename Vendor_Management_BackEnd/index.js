@@ -939,6 +939,15 @@ app.delete('/api/Attrition/:id', async (req, res, next) => {
 // CTS Summary Report Route - Aggregates data from Active and Attrition tables
 app.get('/api/CTS-Summary', async (req, res, next) => {
   try {
+    // First, let's check if tables exist and have data
+    const checkActive = await executeQuery('SELECT COUNT(*) as count FROM active');
+    const checkAttrition = await executeQuery('SELECT COUNT(*) as count FROM attrition');
+    
+    logger.info('CTS Summary - Table check', {
+      activeCount: checkActive.rows[0]?.count || 0,
+      attritionCount: checkAttrition.rows[0]?.count || 0
+    });
+
     // Query to aggregate data from Active and Attrition tables grouped by Month & Year
     const query = `
       WITH active_summary AS (
@@ -946,7 +955,7 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
           TO_CHAR(active_ob_month, 'YYYY-MM') as month_year,
           EXTRACT(YEAR FROM active_ob_month)::INTEGER as year,
           EXTRACT(MONTH FROM active_ob_month)::INTEGER as month,
-          COUNT(DISTINCT active_employee_name) as ob_hc,
+          COUNT(DISTINCT CASE WHEN active_employee_name IS NOT NULL AND active_employee_name != '' THEN active_employee_name END) as ob_hc,
           COALESCE(SUM(active_po_value), 0) as ob_po_value,
           COALESCE(SUM(active_vendor_value), 0) as ob_vendor_po_value,
           COALESCE(SUM(active_gross_margin), 0) as active_gross_margin
@@ -959,7 +968,7 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
           TO_CHAR(attrition_month, 'YYYY-MM') as month_year,
           EXTRACT(YEAR FROM attrition_month)::INTEGER as year,
           EXTRACT(MONTH FROM attrition_month)::INTEGER as month,
-          COUNT(DISTINCT attrition_employee_name) as attrition_hc,
+          COUNT(DISTINCT CASE WHEN attrition_employee_name IS NOT NULL AND attrition_employee_name != '' THEN attrition_employee_name END) as attrition_hc,
           COALESCE(SUM(attrition_po_value), 0) as attrition_po_value,
           COALESCE(SUM(attrition_vendor_value), 0) as attrition_vendor_po_value,
           COALESCE(SUM(attrition_gross_margin), 0) as attrition_gross_margin
@@ -1019,9 +1028,50 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
       ORDER BY md.year DESC, md.month DESC
     `;
     
+    logger.info('CTS Summary - Executing query');
     const result = await executeQuery(query);
     
-    logger.info('CTS Summary report fetched', { recordCount: result.rows.length });
+    logger.info('CTS Summary report fetched', { 
+      recordCount: result.rows.length,
+      sampleRecord: result.rows.length > 0 ? result.rows[0] : null
+    });
+    
+    if (result.rows.length === 0) {
+      logger.warn('CTS Summary - No data returned. Checking raw data...');
+      try {
+        const activeData = await executeQuery(`
+          SELECT 
+            active_ob_month, 
+            COUNT(*) as count,
+            COUNT(DISTINCT active_employee_name) as distinct_employees,
+            SUM(active_po_value) as total_po
+          FROM active 
+          GROUP BY active_ob_month 
+          ORDER BY active_ob_month DESC 
+          LIMIT 5
+        `);
+        const attritionData = await executeQuery(`
+          SELECT 
+            attrition_month, 
+            COUNT(*) as count,
+            COUNT(DISTINCT attrition_employee_name) as distinct_employees,
+            SUM(attrition_po_value) as total_po
+          FROM attrition 
+          GROUP BY attrition_month 
+          ORDER BY attrition_month DESC 
+          LIMIT 5
+        `);
+        logger.info('CTS Summary - Raw data check', {
+          activeRecords: activeData.rows,
+          attritionRecords: attritionData.rows,
+          activeTotal: await executeQuery('SELECT COUNT(*) as count FROM active').then(r => r.rows[0].count),
+          attritionTotal: await executeQuery('SELECT COUNT(*) as count FROM attrition').then(r => r.rows[0].count)
+        });
+      } catch (debugErr) {
+        logger.error('CTS Summary - Debug query failed', { error: debugErr.message });
+      }
+    }
+    
     res.json(result.rows);
   } catch (err) {
     logger.error('Error fetching CTS Summary report', { error: err.message, stack: err.stack });
