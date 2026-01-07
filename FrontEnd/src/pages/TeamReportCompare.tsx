@@ -1163,6 +1163,9 @@ const TeamReportCompare: React.FC = () => {
   const [isBUHead, setIsBUHead] = useState(false);
 
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string | null>(null);
+  
+  // State for multiple business unit selection in Parameter Data Chart
+  const [selectedBusinessUnitsForChart, setSelectedBusinessUnitsForChart] = useState<string[]>([]);
 
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
 
@@ -1213,13 +1216,19 @@ const TeamReportCompare: React.FC = () => {
 
   const [selectedParameters, setSelectedParameters] = useState<string[]>(() => {
 
-    // Force default parameters
+    // Force default parameters (unchanged for other components)
     const defaultParams = ['Revenue', 'GPM', 'NP', 'Team Cost'];
     return defaultParams;
   });
+  
+  // Separate state for Parameter Data Chart parameter selection
+  const [selectedParametersForChart, setSelectedParametersForChart] = useState<string[]>(() => {
+    return ['Revenue'];
+  });
+  
   const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(() => {
-    // Force line chart
-    return 'line';
+    // Default to bar chart for Parameter Data Chart
+    return 'bar';
   });
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
 
@@ -2167,6 +2176,19 @@ const TeamReportCompare: React.FC = () => {
 
   }, []);
 
+  // Update selectedBusinessUnitsForChart when user/isBUHead changes (for BU heads)
+  useEffect(() => {
+    if (isBUHead && user?.business_unit && businessUnits.length > 0 && selectedBusinessUnitsForChart.length === 0) {
+      const normalizedBU = normalizeBusinessUnitName(user.business_unit);
+      const matchingBU = businessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
+      if (matchingBU) {
+        setSelectedBusinessUnitsForChart([matchingBU]);
+      } else {
+        setSelectedBusinessUnitsForChart([normalizedBU || user.business_unit]);
+      }
+    }
+  }, [isBUHead, user?.business_unit, businessUnits]);
+
 
 
   // Handle URL parameters for MFS button redirect
@@ -2385,6 +2407,23 @@ const TeamReportCompare: React.FC = () => {
         
         
         setBusinessUnits(uniqueBusinessUnits);
+        
+        // Initialize selectedBusinessUnitsForChart
+        // For BU heads, only show their business unit; otherwise show all
+        if (selectedBusinessUnitsForChart.length === 0 && uniqueBusinessUnits.length > 0) {
+          if (isBUHead && user?.business_unit) {
+            const normalizedBU = normalizeBusinessUnitName(user.business_unit);
+            const matchingBU = uniqueBusinessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
+            if (matchingBU) {
+              setSelectedBusinessUnitsForChart([matchingBU]);
+            } else {
+              // Fallback: use normalized version if exact match not found
+              setSelectedBusinessUnitsForChart([normalizedBU || user.business_unit]);
+            }
+          } else {
+            setSelectedBusinessUnitsForChart(uniqueBusinessUnits);
+          }
+        }
 
         
         
@@ -4528,7 +4567,7 @@ const TeamReportCompare: React.FC = () => {
       activeChartTab: activeChartTab
     });
     
-    if (data.length === 0 || selectedParameters.length === 0 || activeChartTab !== 'growth') {
+    if (data.length === 0 || selectedParametersForChart.length === 0 || selectedBusinessUnitsForChart.length === 0 || activeChartTab !== 'growth') {
       console.log("🔍 Chart useEffect: Not enough data or tab not active, skipping chart render");
       return;
     }
@@ -4596,7 +4635,7 @@ const TeamReportCompare: React.FC = () => {
 
         am5xy.CategoryAxis.new(root, {
 
-          categoryField: "period",
+          categoryField: "businessUnit",
 
           renderer: am5xy.AxisRendererX.new(root, {}),
 
@@ -4608,7 +4647,8 @@ const TeamReportCompare: React.FC = () => {
 
       xAxis.get("renderer").labels.template.setAll({
 
-        fill: am5.color(0x000000)
+        fill: am5.color(0x000000),
+        fontSize: 10
 
       });
 
@@ -4628,7 +4668,8 @@ const TeamReportCompare: React.FC = () => {
 
       yAxis.get("renderer").labels.template.setAll({
 
-        fill: am5.color(0x000000)
+        fill: am5.color(0x000000),
+        fontSize: 10
 
       });
 
@@ -4688,268 +4729,241 @@ const TeamReportCompare: React.FC = () => {
         };
       };
 
-      // Add series based on chart type - one series per parameter for growth analysis
-      if (chartType === 'bar' || chartType === 'combo') {
-
-        selectedParameters.forEach((parameter, index) => {
-
-          const format = getParameterFormat(parameter);
-          const series = chart.series.push(
-
-            am5xy.ColumnSeries.new(root, {
-
-              name: parameter,
-
-              xAxis: xAxis,
-
-              yAxis: yAxis,
-
-              valueYField: "value",
-              categoryXField: "period",
-
-              tooltip: am5.Tooltip.new(root, {
-
-                pointerOrientation: "horizontal",
-
-                labelText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-                autoTextColor: false,
-
-                labelHTML: `
-
-                  <div style="
-
-                    text-align: left; 
-
-                    padding: 8px 12px; 
-
-                    background: #ffffff; 
-
-                    color: #333333; 
-
-                    border-radius: 6px; 
-
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-
-                    font-size: 12px;
-
-                    line-height: 1.4;
-
-                    min-width: 120px;
-
-                  ">
-
-                    <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
-
-                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">{parameter}</div>
-                    <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
-
-                  </div>
-
-                `
-
-              })
-
-            })
-
-          );
-
-
-
-          // Configure column appearance
-
-          series.columns.template.setAll({
-
-            width: am5.percent(60 / selectedParameters.length),
-            strokeOpacity: 0,
-
-            cornerRadiusTL: 5,
-
-            cornerRadiusTR: 5,
-
-            tooltipY: 0,
-
-            tooltipText: `{categoryX} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-
-            fill: colors[index % colors.length]
-
-          });
-
-
-
-          // Add hover state
-
-          series.columns.template.states.create("hover", {
-
-            fill: colors[index % colors.length],
-
-            stroke: am5.color(0x1890ff)
-          });
-
-
-
-          // Add animation
-
-          series.appear(1000, 100 * index);
-
+      // Helper function to get parameter value for a specific business unit and period
+      // This bypasses the global selectedBusinessUnit filter to allow multiple business units in the chart
+      const getParameterValueForBU = (businessUnit: string, periodValue: string | null, parameter: string): number => {
+        if (!periodValue) return 0;
+        
+        // Filter data directly by business unit and period (without using global selectedBusinessUnit filter)
+        let filteredData = data.filter(item => {
+          // Filter by specific business unit
+          const normalizedBU = normalizeBusinessUnitName(item.business_unit);
+          if (!compareBusinessUnits(normalizedBU, businessUnit)) {
+            return false;
+          }
+          
+          // Apply client/BU head filters if set (for consistency with other components)
+          if (selectedClientName) {
+            if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+              if (item.project_name !== selectedClientName) return false;
+            } else {
+              if (item.client_name !== selectedClientName) return false;
+            }
+          }
+          
+          if (isBUHead && user?.business_unit) {
+            if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+              return false;
+            }
+          }
+          
+          // Date parsing and period matching (same logic as getFilteredDataByPeriod)
+          const date = parseDate(item.month, item.year);
+          if (isNaN(date.getTime())) return false;
+          
+          switch (compareType) {
+            case "year":
+              const targetYearMatch = periodValue.match(/(\d{4})/);
+              if (!targetYearMatch) return false;
+              
+              const targetYear = parseInt(targetYearMatch[1]);
+              const itemYear = date.getFullYear();
+              const itemMonth = date.getMonth() + 1;
+              
+              // Financial year filtering: FY 2025 = April 2025 to March 2026
+              return itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
+              
+            case "month":
+              const itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+              return itemValue === periodValue;
+              
+            case "quarter":
+              const quarterValue = getFiscalQuarter(date).label;
+              return quarterValue === periodValue;
+              
+            default:
+              return false;
+          }
         });
+        
+        if (filteredData.length === 0) return 0;
+        
+        // Get parameter key
+        const paramKey = parameter.toLowerCase().replace(/\s+/g, '_');
+        
+        // Sum values for this parameter
+        return filteredData.reduce((sum, item) => {
+          return sum + (parseFloat(item[paramKey]) || 0);
+        }, 0);
+      };
 
+      // Get comparison periods
+      const periods = comparisonValues.filter(Boolean) as string[];
+      
+      // Prepare data: group by business unit, show periods as series
+      const chartData: any[] = [];
+      
+      selectedBusinessUnitsForChart.forEach(bu => {
+        const dataPoint: any = { businessUnit: bu };
+        
+        // For each selected parameter, create a data point with values for each period
+        selectedParametersForChart.forEach(parameter => {
+          periods.forEach((period, periodIndex) => {
+            const value = getParameterValueForBU(bu, period, parameter);
+            // Create a field name like "FY 2025_Revenue" for each period-parameter combination
+            dataPoint[`${period}_${parameter}`] = value;
+          });
+        });
+        
+        chartData.push(dataPoint);
+      });
+      
+      // Set X-axis data (business units)
+      xAxis.data.setAll(chartData.map(item => ({ businessUnit: item.businessUnit })));
+      
+      // Create series: one series per period-parameter combination
+      // For bar chart, we'll show one series per period (grouping parameters)
+      if (chartType === 'bar' || chartType === 'combo') {
+        periods.forEach((period, periodIndex) => {
+          selectedParametersForChart.forEach((parameter, paramIndex) => {
+
+            const format = getParameterFormat(parameter);
+            const seriesKey = `${period}_${parameter}`;
+            const seriesColor = colors[(periodIndex * selectedParametersForChart.length + paramIndex) % colors.length];
+            
+            const series = chart.series.push(
+              am5xy.ColumnSeries.new(root, {
+                name: `${period} - ${parameter}`,
+                xAxis: xAxis,
+                yAxis: yAxis,
+                valueYField: seriesKey,
+                categoryXField: "businessUnit",
+                tooltip: am5.Tooltip.new(root, {
+                  pointerOrientation: "horizontal",
+                  labelText: `${period} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+                  autoTextColor: false,
+                  labelHTML: `
+                    <div style="
+                      text-align: left; 
+                      padding: 8px 12px; 
+                      background: #ffffff; 
+                      color: #333333; 
+                      border-radius: 6px; 
+                      box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      font-size: 10px;
+                      line-height: 1.3;
+                      min-width: 100px;
+                    ">
+                      <div style="font-weight: 600; margin-bottom: 3px; color: #1890ff; font-size: 10px;">{categoryX}</div>
+                      <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 10px;">${period} - ${parameter}</div>
+                      <div style="font-weight: 700; color: #000000; font-size: 10px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
+                    </div>
+                  `
+                })
+              })
+            );
+
+            series.columns.template.setAll({
+              width: am5.percent(80 / (periods.length * selectedParametersForChart.length)),
+              strokeOpacity: 0,
+              cornerRadiusTL: 5,
+              cornerRadiusTR: 5,
+              tooltipY: 0,
+              fill: seriesColor
+            });
+
+            series.columns.template.states.create("hover", {
+              fill: seriesColor,
+              stroke: am5.color(0x1890ff)
+            });
+
+            series.appear(1000, 100 * (periodIndex * selectedParametersForChart.length + paramIndex));
+          });
+        });
       }
 
       
       
       if (chartType === 'line' || chartType === 'combo') {
+        periods.forEach((period, periodIndex) => {
+          selectedParametersForChart.forEach((parameter, paramIndex) => {
+            const format = getParameterFormat(parameter);
+            const seriesKey = `${period}_${parameter}`;
+            const seriesColor = colors[(periodIndex * selectedParametersForChart.length + paramIndex) % colors.length];
+            
+            const lineSeries = chart.series.push(
+              am5xy.LineSeries.new(root, {
+                name: `${period} - ${parameter}`,
+                xAxis: xAxis,
+                yAxis: yAxis,
+                valueYField: seriesKey,
+                categoryXField: "businessUnit",
 
-        selectedParameters.forEach((parameter, index) => {
-
-          const format = getParameterFormat(parameter);
-          const lineSeries = chart.series.push(
-
-            am5xy.LineSeries.new(root, {
-
-              name: parameter,
-
-              xAxis: xAxis,
-
-              yAxis: yAxis,
-
-              valueYField: "value",
-              categoryXField: "period",
-
-              tooltip: am5.Tooltip.new(root, {
-
-                pointerOrientation: "horizontal",
-
-                labelText: `{categoryX}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-                autoTextColor: false,
-
-                labelHTML: `
-
-                  <div style="
-
-                    text-align: left; 
-
-                    padding: 8px 12px; 
-
-                    background: #ffffff; 
-
-                    color: #333333; 
-
-                    border-radius: 6px; 
-
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-
-                    font-size: 12px;
-
-                    line-height: 1.4;
-
-                    min-width: 120px;
-
-                  ">
-
-                    <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
-
-                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">{parameter}</div>
-                    <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
-
-                  </div>
-
-                `
-
+                tooltip: am5.Tooltip.new(root, {
+                  pointerOrientation: "horizontal",
+                  labelText: `${period} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+                  autoTextColor: false,
+                  labelHTML: `
+                    <div style="
+                      text-align: left; 
+                      padding: 8px 12px; 
+                      background: #ffffff; 
+                      color: #333333; 
+                      border-radius: 6px; 
+                      box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      font-size: 10px;
+                      line-height: 1.3;
+                      min-width: 100px;
+                    ">
+                      <div style="font-weight: 600; margin-bottom: 3px; color: #1890ff; font-size: 10px;">{categoryX}</div>
+                      <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 10px;">${period} - ${parameter}</div>
+                      <div style="font-weight: 700; color: #000000; font-size: 10px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
+                    </div>
+                  `
+                })
               })
+            );
 
-            })
-
-          );
-
-
-
-          // Configure line appearance
-
-          lineSeries.strokes.template.setAll({
-
-            strokeWidth: 3,
-
-            stroke: colors[index % colors.length]
-
-          });
-
-
-
-          // Add bullets with data labels
-
-          lineSeries.bullets.push(() => {
-
-            return am5.Bullet.new(root, {
-
-              sprite: am5.Circle.new(root, {
-
-                radius: 5,
-
-                fill: colors[index % colors.length],
-
-                stroke: am5.color(0xffffff),
-
-                strokeWidth: 2
-
-              })
-
+            lineSeries.strokes.template.setAll({
+              strokeWidth: 3,
+              stroke: seriesColor
             });
 
-          });
-
-
-
-          // Add data labels
-
-          lineSeries.bullets.push(() => {
-
-            return am5.Bullet.new(root, {
-
-              sprite: am5.Label.new(root, {
-
-                text: `${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-
-                fill: am5.color(0x000000),
-
-                centerX: am5.p50,
-
-                centerY: am5.p100,
-
-                populateText: true,
-
-                fontSize: 10,
-
-                fontWeight: "500",
-
-                dy: -10
-
-              })
-
+            lineSeries.bullets.push(() => {
+              return am5.Bullet.new(root, {
+                sprite: am5.Circle.new(root, {
+                  radius: 5,
+                  fill: seriesColor,
+                  stroke: am5.color(0xffffff),
+                  strokeWidth: 2
+                })
+              });
             });
 
+            lineSeries.bullets.push(() => {
+              return am5.Bullet.new(root, {
+                sprite: am5.Label.new(root, {
+                  text: `${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
+                  fill: am5.color(0x000000),
+                  centerX: am5.p50,
+                  centerY: am5.p100,
+                  populateText: true,
+                  fontSize: 10,
+                  fontWeight: "500",
+                  dy: -10
+                })
+              });
+            });
+
+            lineSeries.strokes.template.states.create("hover", {
+              strokeWidth: 4,
+              stroke: seriesColor
+            });
+
+            lineSeries.appear(1000, 100 * (periodIndex * selectedParametersForChart.length + paramIndex));
           });
-
-
-
-          // Add hover state
-
-          lineSeries.strokes.template.states.create("hover", {
-
-            strokeWidth: 4,
-
-            stroke: colors[index % colors.length]
-
-          });
-
-
-
-          // Add animation
-
-          lineSeries.appear(1000, 100 * index);
 
         });
 
@@ -4958,112 +4972,11 @@ const TeamReportCompare: React.FC = () => {
 
 
       // Add chart animation
-
       chart.appear(1000, 100);
-
-
-
-      // Set data for Parameter Data Visualization
-      // Create data points for each parameter showing actual values over time
-      const parameterChartData: any[] = [];
       
-      // Use the same data structure as other components - default to year comparison
-      const currentFY = getCurrentFinancialYear();
-      const previousFY = currentFY - 1;
-      
-      // Get periods based on comparison type (default to year)
-      let periods: string[] = [];
-      if (compareType === 'quarter') {
-        // Use quarter comparison if available
-        const currentQuarter = comparisonValues[0] || `Q1(Apr-Jun) ${currentFY}`;
-        const previousQuarter = comparisonValues[1] || `Q1(Apr-Jun) ${previousFY}`;
-        periods = [currentQuarter, previousQuarter];
-      } else {
-        // Default to year comparison
-        periods = [`FY ${currentFY}`, `FY ${previousFY}`];
-      }
-      
-      // Create data for each parameter and period
-      selectedParameters.forEach(parameter => {
-        periods.forEach(period => {
-          // Get the actual value for this parameter and period from the data
-          let value = 0;
-          
-          // Filter data based on period (same logic as KPI calculations)
-          let filteredData: any[] = [];
-          
-          if (compareType === 'quarter' && period.includes('Q')) {
-            // Quarter comparison
-            const quarterMonths = getQuarterMonths(period);
-            const yearMatch = period.match(/(\d{4})/);
-            const year = yearMatch ? parseInt(yearMatch[1]) : currentFY;
-            
-            filteredData = data.filter(item => {
-              const itemDate = parseDate(item.month, item.year);
-              const itemYear = itemDate.getFullYear();
-              const itemMonth = itemDate.getMonth() + 1;
-              
-              // For quarters, we need to handle financial year logic
-              // Q1(Apr-Jun) 2025 = April 2025 to June 2025
-              // Q4(Jan-Mar) 2025 = January 2026 to March 2026
-              if (quarterMonths.includes(1) || quarterMonths.includes(2) || quarterMonths.includes(3)) {
-                // Q4: Jan-Mar belongs to next calendar year
-                return itemYear === year + 1 && quarterMonths.includes(itemMonth);
-              } else {
-                // Q1, Q2, Q3: Apr-Dec belongs to same calendar year
-                return itemYear === year && quarterMonths.includes(itemMonth);
-              }
-            });
-          } else {
-            // Year comparison (default)
-            const yearMatch = period.match(/(\d{4})/);
-            const year = yearMatch ? parseInt(yearMatch[1]) : currentFY;
-            
-            filteredData = data.filter(item => {
-              const itemDate = parseDate(item.month, item.year);
-              const itemYear = itemDate.getFullYear();
-              const itemMonth = itemDate.getMonth() + 1;
-              
-              // Financial year filtering: FY 2025 = April 2025 to March 2026
-              if (itemMonth >= 4) {
-                // April to December: same calendar year
-                return itemYear === year;
-              } else {
-                // January to March: next calendar year
-                return itemYear === year + 1;
-              }
-            });
-          }
-          
-          // Sum up the values for this parameter across all filtered data
-          value = filteredData.reduce((sum, item) => {
-            const paramKey = parameter.toLowerCase().replace(/\s+/g, '_');
-            return sum + (item[paramKey] || 0);
-          }, 0);
-          
-          parameterChartData.push({
-            period: period,
-            value: value,
-            parameter: parameter
-          });
-        });
-      });
-      
-      console.log("🔍 Parameter Data Chart data:", parameterChartData);
-      console.log("🔍 Compare type:", compareType);
-      console.log("🔍 Chart element found:", !!chartElement);
-      console.log("🔍 Chart type:", chartType);
-      
-      // Create unique periods for x-axis (only two periods: FY 2024 and FY 2025)
-      const uniquePeriods = periods.map(period => ({ period }));
-      xAxis.data.setAll(uniquePeriods);
-      
-      // Set data for each series (one line per parameter)
-      chart.series.values.forEach((series, index) => {
-        const parameterName = selectedParameters[index];
-        const seriesData = parameterChartData.filter(item => item.parameter === parameterName);
-        console.log(`🔍 Setting data for series ${parameterName}:`, seriesData);
-        series.data.setAll(seriesData);
+      // Set chart data after all series are created
+      chart.series.values.forEach((series) => {
+        series.data.setAll(chartData);
       });
 
     }, 100); // 100ms delay
@@ -5082,7 +4995,7 @@ const TeamReportCompare: React.FC = () => {
 
     };
 
-  }, [data, selectedParameters, chartType, activeChartTab, compareType, comparisonValues]);
+  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit]);
 
 
   // Render Waterfall Chart
@@ -6615,9 +6528,81 @@ const TeamReportCompare: React.FC = () => {
 
               {/* Parameter Data Chart */}
               {activeChartTab === 'growth' && (
-            <div style={{ width: "100%", height: "500px" }}>
-                  <h3 style={{ color: '#000000' }}>{selectedParameters.join(', ')} Data Visualization</h3>
-              <div id="comparisonChart" style={{ width: "100%", height: "100%" }} />
+            <div style={{ width: "100%" }}>
+                  {/* Filter Dropdowns */}
+                  <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                    {/* Business Unit Filter */}
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                      <div style={{ 
+                        color: '#000000', 
+                        fontWeight: 600, 
+                        marginBottom: 4,
+                        fontSize: '12px'
+                      }}>
+                        Business Unit
+                      </div>
+                      <Select
+                        mode="multiple"
+                        value={selectedBusinessUnitsForChart}
+                        onChange={(value) => setSelectedBusinessUnitsForChart(value)}
+                        style={{ width: '100%' }}
+                        placeholder="Select business units"
+                        loading={isLoading}
+                        allowClear={!isBUHead}
+                        disabled={isBUHead}
+                        showSearch
+                        filterOption={(input, option) =>
+                          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                        }
+                        optionFilterProp="children"
+                      >
+                        {(isBUHead && user?.business_unit 
+                          ? businessUnits.filter(bu => {
+                              const normalizedBU = normalizeBusinessUnitName(user.business_unit);
+                              return compareBusinessUnits(bu, normalizedBU || user.business_unit);
+                            })
+                          : businessUnits
+                        ).map((bu: string) => (
+                          <Option key={bu} value={bu}>{bu}</Option>
+                        ))}
+                      </Select>
+                    </div>
+                    
+                    {/* Parameter Filter */}
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                      <div style={{ 
+                        color: '#000000', 
+                        fontWeight: 600, 
+                        marginBottom: 4,
+                        fontSize: '12px'
+                      }}>
+                        Parameter
+                      </div>
+                      <Select
+                        mode="multiple"
+                        value={selectedParametersForChart}
+                        onChange={(value) => setSelectedParametersForChart(value)}
+                        style={{ width: '100%' }}
+                        placeholder="Select parameters"
+                        loading={isLoading}
+                        allowClear
+                        showSearch
+                        filterOption={(input, option) =>
+                          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                        }
+                        optionFilterProp="children"
+                      >
+                        {availableParameters.map((param: string) => (
+                          <Option key={param} value={param}>{param}</Option>
+                        ))}
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <h3 style={{ color: '#000000', marginBottom: '10px' }}>
+                    {selectedParametersForChart.length > 0 ? selectedParametersForChart.join(', ') : 'Revenue'} Data Visualization
+                  </h3>
+              <div id="comparisonChart" style={{ width: "100%", height: "350px" }} />
             </div>
               )}
 

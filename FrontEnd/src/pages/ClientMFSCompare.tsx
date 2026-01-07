@@ -4722,7 +4722,8 @@ const ClientMFSCompare: React.FC = () => {
 
       xAxis.get("renderer").labels.template.setAll({
 
-        fill: am5.color(0x000000)
+        fill: am5.color(0x000000),
+        fontSize: 10
 
       });
 
@@ -4742,7 +4743,8 @@ const ClientMFSCompare: React.FC = () => {
 
       yAxis.get("renderer").labels.template.setAll({
 
-        fill: am5.color(0x000000)
+        fill: am5.color(0x000000),
+        fontSize: 10
 
       });
 
@@ -4923,13 +4925,13 @@ const ClientMFSCompare: React.FC = () => {
                       border-radius: 6px; 
                       box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
                       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                      font-size: 12px;
-                      line-height: 1.4;
-                      min-width: 120px;
+                      font-size: 10px;
+                      line-height: 1.3;
+                      min-width: 100px;
                     ">
-                      <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
-                      <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${period} - ${parameter}</div>
-                      <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
+                      <div style="font-weight: 600; margin-bottom: 3px; color: #1890ff; font-size: 10px;">{categoryX}</div>
+                      <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 10px;">${period} - ${parameter}</div>
+                      <div style="font-weight: 700; color: #000000; font-size: 10px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
                     </div>
                   `
                 })
@@ -6694,7 +6696,7 @@ const ClientMFSCompare: React.FC = () => {
                   <h3 style={{ color: '#000000', marginBottom: '10px' }}>
                     {selectedParametersForChart.length > 0 ? selectedParametersForChart.join(', ') : 'Revenue'} Data Visualization
                   </h3>
-              <div id="comparisonChart" style={{ width: "100%", height: "500px" }} />
+              <div id="comparisonChart" style={{ width: "100%", height: "350px" }} />
             </div>
               )}
 
