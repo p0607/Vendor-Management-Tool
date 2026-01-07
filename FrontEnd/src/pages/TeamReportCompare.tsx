@@ -229,6 +229,57 @@ const TeamReportCompare: React.FC = () => {
     return [];
   };
 
+  // Helper function to get available years for chart filter (last 5 years)
+  const getAvailableYears = () => {
+    const currentFY = getCurrentFinancialYear();
+    const years = [];
+    for (let i = 0; i < 5; i++) {
+      years.push(currentFY - i);
+    }
+    return years;
+  };
+
+  // Helper function to get available quarters for chart filter
+  const getAvailableQuarters = () => {
+    const currentFY = getCurrentFinancialYear();
+    return [
+      `Q1(Apr-Jun) ${currentFY}`,
+      `Q2(Jul-Sep) ${currentFY}`,
+      `Q3(Oct-Dec) ${currentFY}`,
+      `Q4(Jan-Mar) ${currentFY}`,
+      `Q1(Apr-Jun) ${currentFY - 1}`,
+      `Q2(Jul-Sep) ${currentFY - 1}`,
+      `Q3(Oct-Dec) ${currentFY - 1}`,
+      `Q4(Jan-Mar) ${currentFY - 1}`
+    ];
+  };
+
+  // Helper function to get available months for chart filter
+  const getAvailableMonths = () => {
+    const currentFY = getCurrentFinancialYear();
+    const months = [];
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    // Add months for current FY (Apr to Mar)
+    for (let i = 3; i < 12; i++) {
+      months.push(`${monthNames[i]} ${currentFY}`);
+    }
+    for (let i = 0; i < 3; i++) {
+      months.push(`${monthNames[i]} ${currentFY + 1}`);
+    }
+    
+    // Add months for previous FY
+    for (let i = 3; i < 12; i++) {
+      months.push(`${monthNames[i]} ${currentFY - 1}`);
+    }
+    for (let i = 0; i < 3; i++) {
+      months.push(`${monthNames[i]} ${currentFY}`);
+    }
+    
+    return months;
+  };
+
   // Helper function to get corresponding quarter from previous year
   const getCorrespondingPreviousQuarter = (quarter: string) => {
     const yearMatch = quarter.match(/(\d{4})/);
@@ -1225,6 +1276,10 @@ const TeamReportCompare: React.FC = () => {
   const [selectedParametersForChart, setSelectedParametersForChart] = useState<string[]>(() => {
     return ['Revenue'];
   });
+  
+  // Date filter state for Parameter Data Chart (independent from main comparison)
+  const [chartFilterBy, setChartFilterBy] = useState<'year' | 'quarter' | 'month' | null>(null);
+  const [chartFilterValue, setChartFilterValue] = useState<string | null>(null);
   
   const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(() => {
     // Default to bar chart for Parameter Data Chart
@@ -2494,11 +2549,11 @@ const TeamReportCompare: React.FC = () => {
       
       if (res.data && Array.isArray(res.data)) {
 
-        // Filter data by business unit first
+        // Filter data by business unit first (using normalized comparison)
 
         const filteredData = res.data.filter((item: any) => 
 
-          item.business_unit === businessUnit
+          compareBusinessUnits(item.business_unit, businessUnit)
 
         );
 
@@ -2600,11 +2655,11 @@ const TeamReportCompare: React.FC = () => {
       
       if (res.data && Array.isArray(res.data)) {
 
-        // Filter data by business unit first
+        // Filter data by business unit first (using normalized comparison)
 
         const filteredData = res.data.filter((item: any) => 
 
-          item.business_unit === businessUnit
+          compareBusinessUnits(item.business_unit, businessUnit)
 
         );
 
@@ -4756,32 +4811,32 @@ const TeamReportCompare: React.FC = () => {
             }
           }
           
-          // Date parsing and period matching (same logic as getFilteredDataByPeriod)
+          // Date parsing and period matching
+          // Use chartFilterBy if set, otherwise use compareType
+          const effectiveCompareType = chartFilterBy || compareType;
           const date = parseDate(item.month, item.year);
           if (isNaN(date.getTime())) return false;
           
-          switch (compareType) {
-            case "year":
-              const targetYearMatch = periodValue.match(/(\d{4})/);
-              if (!targetYearMatch) return false;
-              
-              const targetYear = parseInt(targetYearMatch[1]);
-              const itemYear = date.getFullYear();
-              const itemMonth = date.getMonth() + 1;
-              
-              // Financial year filtering: FY 2025 = April 2025 to March 2026
-              return itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
-              
-            case "month":
-              const itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
-              return itemValue === periodValue;
-              
-            case "quarter":
-              const quarterValue = getFiscalQuarter(date).label;
-              return quarterValue === periodValue;
-              
-            default:
-              return false;
+          // Handle different period formats
+          if (periodValue.includes('FY ')) {
+            // Financial year format: FY 2025
+            const targetYearMatch = periodValue.match(/(\d{4})/);
+            if (!targetYearMatch) return false;
+            
+            const targetYear = parseInt(targetYearMatch[1]);
+            const itemYear = date.getFullYear();
+            const itemMonth = date.getMonth() + 1;
+            
+            // Financial year filtering: FY 2025 = April 2025 to March 2026
+            return itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
+          } else if (periodValue.includes('Q')) {
+            // Quarter format: Q1(Apr-Jun) 2025
+            const quarterValue = getFiscalQuarter(date).label;
+            return quarterValue === periodValue;
+          } else {
+            // Month format: January 2025
+            const itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+            return itemValue === periodValue;
           }
         });
         
@@ -4796,8 +4851,44 @@ const TeamReportCompare: React.FC = () => {
         }, 0);
       };
 
-      // Get comparison periods
-      const periods = comparisonValues.filter(Boolean) as string[];
+      // Get comparison periods - use chart filter if set, otherwise use main comparison values
+      let periods: string[] = [];
+      
+      if (chartFilterBy && chartFilterValue) {
+        // Use chart-specific filter
+        if (chartFilterBy === 'year') {
+          // For year filter, show current and previous year
+          const selectedYear = parseInt(chartFilterValue);
+          periods = [`FY ${selectedYear}`, `FY ${selectedYear - 1}`];
+        } else if (chartFilterBy === 'quarter') {
+          // For quarter filter, show current and previous quarter
+          const quarterMatch = chartFilterValue.match(/Q(\d)\(.*?\) (\d{4})/);
+          if (quarterMatch) {
+            const quarterNum = parseInt(quarterMatch[1]);
+            const year = parseInt(quarterMatch[2]);
+            const quarterLabels = ['Apr-Jun', 'Jul-Sep', 'Oct-Dec', 'Jan-Mar'];
+            periods = [
+              chartFilterValue,
+              `Q${quarterNum}(${quarterLabels[quarterNum - 1]}) ${year - 1}`
+            ];
+          } else {
+            periods = [chartFilterValue];
+          }
+        } else if (chartFilterBy === 'month') {
+          // For month filter, show current and previous year same month
+          const monthMatch = chartFilterValue.match(/(\w+) (\d{4})/);
+          if (monthMatch) {
+            const monthName = monthMatch[1];
+            const year = parseInt(monthMatch[2]);
+            periods = [`${monthName} ${year}`, `${monthName} ${year - 1}`];
+          } else {
+            periods = [chartFilterValue];
+          }
+        }
+      } else {
+        // Default: use main comparison values (current FY vs previous FY)
+        periods = comparisonValues.filter(Boolean) as string[];
+      }
       
       // Prepare data: group by business unit, show periods as series
       const chartData: any[] = [];
@@ -4994,7 +5085,7 @@ const TeamReportCompare: React.FC = () => {
 
     };
 
-  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit]);
+  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue]);
 
 
   // Render Waterfall Chart
@@ -6596,6 +6687,63 @@ const TeamReportCompare: React.FC = () => {
                         ))}
                       </Select>
                     </div>
+                    
+                    {/* Date Filter - Filter By */}
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                      <div style={{ 
+                        color: '#000000', 
+                        fontWeight: 600, 
+                        marginBottom: 4,
+                        fontSize: '12px'
+                      }}>
+                        Filter By
+                      </div>
+                      <Select
+                        value={chartFilterBy}
+                        onChange={(value) => {
+                          setChartFilterBy(value);
+                          setChartFilterValue(null); // Reset filter value when filter type changes
+                        }}
+                        style={{ width: '100%' }}
+                        placeholder="Select filter type"
+                        allowClear
+                      >
+                        <Option value="year">Year</Option>
+                        <Option value="quarter">Quarter</Option>
+                        <Option value="month">Month</Option>
+                      </Select>
+                    </div>
+                    
+                    {/* Date Filter - Filter Value */}
+                    {chartFilterBy && (
+                      <div style={{ flex: '1', minWidth: '200px' }}>
+                        <div style={{ 
+                          color: '#000000', 
+                          fontWeight: 600, 
+                          marginBottom: 4,
+                          fontSize: '12px'
+                        }}>
+                          {chartFilterBy === 'year' ? 'Year' : chartFilterBy === 'quarter' ? 'Quarter' : 'Month'}
+                        </div>
+                        <Select
+                          value={chartFilterValue}
+                          onChange={(value) => setChartFilterValue(value)}
+                          style={{ width: '100%' }}
+                          placeholder={`Select ${chartFilterBy}`}
+                          allowClear
+                        >
+                          {chartFilterBy === 'year' && getAvailableYears().map(year => (
+                            <Option key={year} value={String(year)}>FY {year}</Option>
+                          ))}
+                          {chartFilterBy === 'quarter' && getAvailableQuarters().map(quarter => (
+                            <Option key={quarter} value={quarter}>{quarter}</Option>
+                          ))}
+                          {chartFilterBy === 'month' && getAvailableMonths().map(month => (
+                            <Option key={month} value={month}>{month}</Option>
+                          ))}
+                        </Select>
+                      </div>
+                    )}
                   </div>
                   
                   <h3 style={{ color: '#000000', marginBottom: '10px' }}>
@@ -6928,7 +7076,7 @@ const TeamReportCompare: React.FC = () => {
       
       // Helper function to get parameter value for specific business unit using unified logic
       const getParameterValueForBusinessUnit = (period: string, parameter: string, businessUnit: string) => {
-        const filteredData = getFilteredDataByPeriod(period, compareType).filter(item => item.business_unit === businessUnit);
+        const filteredData = getFilteredDataByPeriod(period, compareType).filter(item => compareBusinessUnits(item.business_unit, businessUnit));
         
         if (filteredData.length === 0) return 0;
         
@@ -7006,7 +7154,7 @@ const TeamReportCompare: React.FC = () => {
           // Calculate projections for this specific business unit using the same logic as calculateKPIs
           const currentFY = getCurrentFinancialYear();
           const currentFYData = data.filter(item => {
-            if (item.business_unit !== businessUnit) return false;
+            if (!compareBusinessUnits(item.business_unit, businessUnit)) return false;
             const date = parseDate(item.month, item.year);
             if (isNaN(date.getTime())) return false;
             const itemYear = date.getFullYear();
