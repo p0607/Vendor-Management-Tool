@@ -226,20 +226,23 @@ const CTSDataView: React.FC = () => {
 
   return (
     <div className="routing-table-container">
-      <div className="routing-table-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem', minHeight: '80px' }}>
-        <div className="homepage-logo-top-left" style={{ position: 'absolute', left: '2rem', top: '1rem', width: '120px', height: 'auto', zIndex: 10 }}>
-          <img src={logo} alt="Alchemy Logo" style={{ width: '100%', height: 'auto', maxWidth: '120px' }} />
-        </div>
-        <div className="header-actions" style={{ position: 'absolute', right: '2rem', top: '1rem', zIndex: 10 }}>
-          <div className="search-section">
+      <div className="routing-table-header" style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="homepage-logo-top-left" style={{ width: '120px', height: 'auto', marginBottom: '5px' }}>
+            <img src={logo} alt="Alchemy Logo" style={{ width: '100%', height: 'auto', maxWidth: '120px' }} />
+          </div>
+          <div className="search-section" style={{ width: '300px' }}>
             <input
               type="text"
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
             />
           </div>
+        </div>
+        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
           <div className="actions-dropdown" ref={actionsDropdownRef}>
             <button 
               className="auth-button"
