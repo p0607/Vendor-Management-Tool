@@ -1396,7 +1396,10 @@ const ClientMFSCompare: React.FC = () => {
   
   // Date filter state for Parameter Data Chart (independent from main comparison)
   const [chartFilterBy, setChartFilterBy] = useState<'year' | 'quarter' | 'month' | null>(null);
-  const [chartFilterValue, setChartFilterValue] = useState<string | null>(null);
+  const [chartFilterValue, setChartFilterValue] = useState<string[]>([]);
+  
+  // Sort order for chart data
+  const [chartSortOrder, setChartSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [chartType, setChartType] = useState<'bar' | 'line' | 'combo'>(() => {
     // Default to bar chart for Parameter Data Chart
     return 'bar';
@@ -4934,36 +4937,17 @@ const ClientMFSCompare: React.FC = () => {
       // Get comparison periods - use chart filter if set, otherwise use main comparison values
       let periods: string[] = [];
       
-      if (chartFilterBy && chartFilterValue) {
-        // Use chart-specific filter
+      if (chartFilterBy && chartFilterValue.length > 0) {
+        // Use chart-specific filter with multiple selection support
         if (chartFilterBy === 'year') {
-          // For year filter, show current and previous year
-          const selectedYear = parseInt(chartFilterValue);
-          periods = [`FY ${selectedYear}`, `FY ${selectedYear - 1}`];
+          // For year filter, use selected years directly (no auto-comparison)
+          periods = chartFilterValue.map(year => `FY ${year}`);
         } else if (chartFilterBy === 'quarter') {
-          // For quarter filter, show current and previous quarter
-          const quarterMatch = chartFilterValue.match(/Q(\d)\(.*?\) (\d{4})/);
-          if (quarterMatch) {
-            const quarterNum = parseInt(quarterMatch[1]);
-            const year = parseInt(quarterMatch[2]);
-            const quarterLabels = ['Apr-Jun', 'Jul-Sep', 'Oct-Dec', 'Jan-Mar'];
-            periods = [
-              chartFilterValue,
-              `Q${quarterNum}(${quarterLabels[quarterNum - 1]}) ${year - 1}`
-            ];
-          } else {
-            periods = [chartFilterValue];
-          }
+          // For quarter filter, use selected quarters directly
+          periods = chartFilterValue;
         } else if (chartFilterBy === 'month') {
-          // For month filter, show current and previous year same month
-          const monthMatch = chartFilterValue.match(/(\w+) (\d{4})/);
-          if (monthMatch) {
-            const monthName = monthMatch[1];
-            const year = parseInt(monthMatch[2]);
-            periods = [`${monthName} ${year}`, `${monthName} ${year - 1}`];
-          } else {
-            periods = [chartFilterValue];
-          }
+          // For month filter, use selected months directly
+          periods = chartFilterValue;
         }
       } else {
         // Default: use main comparison values (current FY vs previous FY)
@@ -4976,17 +4960,33 @@ const ClientMFSCompare: React.FC = () => {
       selectedBusinessUnitsForChart.forEach(bu => {
         const dataPoint: any = { businessUnit: bu };
         
+        // Calculate total value for sorting (sum across all periods and parameters)
+        let totalValue = 0;
+        
         // For each selected parameter, create a data point with values for each period
         selectedParametersForChart.forEach(parameter => {
           periods.forEach((period, periodIndex) => {
             const value = getParameterValueForBU(bu, period, parameter);
             // Create a field name like "FY 2025_Revenue" for each period-parameter combination
             dataPoint[`${period}_${parameter}`] = value;
+            totalValue += Math.abs(value); // Use absolute value for sorting
           });
         });
         
+        dataPoint._totalValue = totalValue; // Store total for sorting
         chartData.push(dataPoint);
       });
+      
+      // Sort chart data if sort order is specified
+      if (chartSortOrder) {
+        chartData.sort((a, b) => {
+          if (chartSortOrder === 'asc') {
+            return a._totalValue - b._totalValue;
+          } else {
+            return b._totalValue - a._totalValue;
+          }
+        });
+      }
       
       // Set X-axis data (business units)
       xAxis.data.setAll(chartData.map(item => ({ businessUnit: item.businessUnit })));
@@ -5176,7 +5176,7 @@ const ClientMFSCompare: React.FC = () => {
 
     };
 
-  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue]);
+  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue, chartSortOrder]);
 
 
   // Render Waterfall Chart
@@ -6801,7 +6801,7 @@ const ClientMFSCompare: React.FC = () => {
                         value={chartFilterBy}
                         onChange={(value) => {
                           setChartFilterBy(value);
-                          setChartFilterValue(null); // Reset filter value when filter type changes
+                          setChartFilterValue([]); // Reset filter value when filter type changes
                         }}
                         style={{ width: '100%' }}
                         placeholder="Select filter type"
@@ -6825,10 +6825,11 @@ const ClientMFSCompare: React.FC = () => {
                           {chartFilterBy === 'year' ? 'Year' : chartFilterBy === 'quarter' ? 'Quarter' : 'Month'}
                         </div>
                         <Select
+                          mode="multiple"
                           value={chartFilterValue}
-                          onChange={(value) => setChartFilterValue(value)}
+                          onChange={(value) => setChartFilterValue(value || [])}
                           style={{ width: '100%' }}
-                          placeholder={`Select ${chartFilterBy}`}
+                          placeholder={`Select ${chartFilterBy}(s)`}
                           allowClear
                         >
                           {chartFilterBy === 'year' && getAvailableYears().map(year => (
@@ -6843,6 +6844,53 @@ const ClientMFSCompare: React.FC = () => {
                         </Select>
                       </div>
                     )}
+                    
+                    {/* Sort Buttons */}
+                    <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'flex-end' }}>
+                      <div style={{ 
+                        color: '#000000', 
+                        fontWeight: 600, 
+                        marginBottom: 4,
+                        fontSize: '12px',
+                        height: '20px'
+                      }}>
+                        Sort
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          onClick={() => setChartSortOrder(chartSortOrder === 'asc' ? null : 'asc')}
+                          style={{
+                            padding: '4px 8px',
+                            border: '1px solid #d9d9d9',
+                            backgroundColor: chartSortOrder === 'asc' ? '#1890ff' : '#ffffff',
+                            color: chartSortOrder === 'asc' ? '#ffffff' : '#000000',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontWeight: chartSortOrder === 'asc' ? 'bold' : 'normal'
+                          }}
+                          title="Sort ascending (smallest to largest)"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          onClick={() => setChartSortOrder(chartSortOrder === 'desc' ? null : 'desc')}
+                          style={{
+                            padding: '4px 8px',
+                            border: '1px solid #d9d9d9',
+                            backgroundColor: chartSortOrder === 'desc' ? '#1890ff' : '#ffffff',
+                            color: chartSortOrder === 'desc' ? '#ffffff' : '#000000',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontWeight: chartSortOrder === 'desc' ? 'bold' : 'normal'
+                          }}
+                          title="Sort descending (largest to smallest)"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   
                   <h3 style={{ color: '#000000', marginBottom: '10px' }}>
