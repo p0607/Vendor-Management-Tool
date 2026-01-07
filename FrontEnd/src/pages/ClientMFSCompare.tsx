@@ -2639,7 +2639,13 @@ const ClientMFSCompare: React.FC = () => {
       'Funding Cost',
       'Rebate',
       'Passthrough',
-      'HC'
+      'HC',
+      // Efficiency metrics from Efficiency Dashboard
+      'Cost Efficiency',
+      'Revenue per HC',
+      'NP per Team Cost',
+      'Team Cost % of Revenue',
+      'GPM per HC'
     ];
 
     setAvailableParameters(baseParameters);
@@ -4846,7 +4852,7 @@ const ClientMFSCompare: React.FC = () => {
             suffix: '',
             format: '#,##0'
           };
-        } else if (param === 'GPM %' || param === 'NP %') {
+        } else if (param === 'GPM %' || param === 'NP %' || param === 'Team Cost % of Revenue') {
           return {
             prefix: '',
             suffix: '%',
@@ -4857,6 +4863,13 @@ const ClientMFSCompare: React.FC = () => {
             prefix: '',
             suffix: '',
             format: '#,##0'
+          };
+        } else if (param === 'Cost Efficiency' || param === 'Revenue per HC' || param === 'NP per Team Cost' || param === 'GPM per HC') {
+          // Efficiency metrics - show as decimal numbers
+          return {
+            prefix: '',
+            suffix: '',
+            format: '#,##0.00'
           };
         }
         return {
@@ -4925,7 +4938,35 @@ const ClientMFSCompare: React.FC = () => {
         
         if (filteredData.length === 0) return 0;
         
-        // Get parameter key
+        // Handle efficiency metrics (calculated metrics)
+        if (parameter === 'Cost Efficiency') {
+          // Cost Efficiency = Team Cost / Net Margin (or NP)
+          const totalTeamCost = filteredData.reduce((sum, item) => sum + (Number(item.team_cost) || 0), 0);
+          const totalNP = filteredData.reduce((sum, item) => sum + (Number(item.np) || 0), 0);
+          return totalNP !== 0 ? totalTeamCost / totalNP : 0;
+        } else if (parameter === 'Revenue per HC') {
+          // Revenue per HC = Revenue / HC
+          const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
+          const totalHC = filteredData.reduce((sum, item) => sum + (Number(item.hc) || 0), 0);
+          return totalHC !== 0 ? totalRevenue / totalHC : 0;
+        } else if (parameter === 'NP per Team Cost') {
+          // NP per Team Cost = NP / Team Cost
+          const totalNP = filteredData.reduce((sum, item) => sum + (Number(item.np) || 0), 0);
+          const totalTeamCost = filteredData.reduce((sum, item) => sum + (Number(item.team_cost) || 0), 0);
+          return totalTeamCost !== 0 ? totalNP / totalTeamCost : 0;
+        } else if (parameter === 'Team Cost % of Revenue') {
+          // Team Cost % of Revenue = (Team Cost / Revenue) * 100
+          const totalTeamCost = filteredData.reduce((sum, item) => sum + (Number(item.team_cost) || 0), 0);
+          const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
+          return totalRevenue !== 0 ? (totalTeamCost / totalRevenue) * 100 : 0;
+        } else if (parameter === 'GPM per HC') {
+          // GPM per HC = GPM / HC
+          const totalGPM = filteredData.reduce((sum, item) => sum + (Number(item.gpm) || 0), 0);
+          const totalHC = filteredData.reduce((sum, item) => sum + (Number(item.hc) || 0), 0);
+          return totalHC !== 0 ? totalGPM / totalHC : 0;
+        }
+        
+        // For regular parameters, get parameter key and sum values
         const paramKey = parameter.toLowerCase().replace(/\s+/g, '_');
         
         // Sum values for this parameter
@@ -5155,7 +5196,7 @@ const ClientMFSCompare: React.FC = () => {
       // Add chart animation
       chart.appear(1000, 100);
       
-      // Set chart data after all series are created
+      // Set chart data after all series are created (using sorted chartData)
       chart.series.values.forEach((series) => {
         series.data.setAll(chartData);
       });
@@ -8604,6 +8645,20 @@ const ClientMFSCompare: React.FC = () => {
           }
 
         </div>
+
+        {/* Note for Cost Efficiency */}
+        {metric.name === "Cost Efficiency" && (
+          <div style={{
+            fontSize: 8,
+            color: '#666666',
+            fontWeight: 'normal',
+            marginTop: 2,
+            marginBottom: 4,
+            lineHeight: 1.3
+          }}>
+            Formula: Team Cost ÷ Net Margin. Lower values indicate better cost efficiency (less team cost per unit of net margin).
+          </div>
+        )}
 
         <div style={{ 
 
