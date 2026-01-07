@@ -8492,7 +8492,7 @@ const ClientMFSCompare: React.FC = () => {
 
         name: "Cost Efficiency",
 
-        calculate: (m: typeof metrics[0]) => m.teamCost / (m.netMargin || 1),
+        calculate: (m: typeof metrics[0]) => m.teamCost / (m.np || 1),
 
         ideal: 'decrease',
 
