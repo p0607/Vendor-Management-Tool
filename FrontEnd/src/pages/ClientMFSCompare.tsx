@@ -2683,15 +2683,19 @@ const ClientMFSCompare: React.FC = () => {
         
         
         // Extract business units, normalize them, and filter out null/undefined values
-        const businessUnitsFromData = res.data
-          .map((item: any) => {
-            const normalized = normalizeBusinessUnitName(item.business_unit);
-            return normalized || item.business_unit; // Use normalized version if available, otherwise original
-          })
-          .filter((bu: any) => bu && bu.trim() !== '');
+        const unitsSet = new Set<string>();
         
-        // Get unique business units (normalized names)
-        const uniqueBusinessUnits = Array.from(new Set(businessUnitsFromData)) as string[];
+        res.data.forEach((item: any) => {
+          if (item.business_unit) {
+            const normalized = normalizeBusinessUnitName(item.business_unit);
+            if (normalized) {
+              unitsSet.add(normalized);
+            }
+          }
+        });
+        
+        // Get unique business units (normalized names) and sort them
+        const uniqueBusinessUnits = Array.from(unitsSet).sort() as string[];
 
         setBusinessUnits(uniqueBusinessUnits);
         
@@ -7615,7 +7619,16 @@ const ClientMFSCompare: React.FC = () => {
       
       // Default: Show business unit summaries (when no business unit is selected)
       // Get all unique business units
-      const allBusinessUnits = Array.from(new Set(data.map(item => item.business_unit).filter(Boolean)));
+      const allBusinessUnitsSet = new Set<string>();
+      data.forEach(item => {
+        if (item.business_unit) {
+          const normalized = normalizeBusinessUnitName(item.business_unit);
+          if (normalized) {
+            allBusinessUnitsSet.add(normalized);
+          }
+        }
+      });
+      const allBusinessUnits = Array.from(allBusinessUnitsSet).sort();
       
       if (allBusinessUnits.length === 0) {
         return <div style={{ color: '#000000', padding: 16, textAlign: 'center' }}>

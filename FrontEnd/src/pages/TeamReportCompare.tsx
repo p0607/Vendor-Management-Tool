@@ -2388,20 +2388,19 @@ const TeamReportCompare: React.FC = () => {
 
         
         
-        // Extract business units and filter out null/undefined values
-
-        const businessUnitsFromData = res.data
-
-          .map((item: any) => item.business_unit)
-
-          .filter((bu: any) => bu && bu.trim() !== '');
+        // Extract business units, normalize them, and filter out null/undefined values
+        const unitsSet = new Set<string>();
         
+        res.data.forEach((item: any) => {
+          if (item.business_unit) {
+            const normalized = normalizeBusinessUnitName(item.business_unit);
+            if (normalized) {
+              unitsSet.add(normalized);
+            }
+          }
+        });
         
-        
-
-        
-        
-        const uniqueBusinessUnits = Array.from(new Set(businessUnitsFromData)) as string[];
+        const uniqueBusinessUnits = Array.from(unitsSet).sort() as string[];
 
 
         
@@ -6910,7 +6909,16 @@ const TeamReportCompare: React.FC = () => {
     
     {(() => {
       // Get all unique business units
-      const allBusinessUnits = Array.from(new Set(data.map(item => item.business_unit).filter(Boolean)));
+      const allBusinessUnitsSet = new Set<string>();
+      data.forEach(item => {
+        if (item.business_unit) {
+          const normalized = normalizeBusinessUnitName(item.business_unit);
+          if (normalized) {
+            allBusinessUnitsSet.add(normalized);
+          }
+        }
+      });
+      const allBusinessUnits = Array.from(allBusinessUnitsSet).sort();
       
       if (allBusinessUnits.length === 0) {
         return <div style={{ color: '#000000', padding: 16, textAlign: 'center' }}>
