@@ -4995,30 +4995,7 @@ const TeamReportCompare: React.FC = () => {
                 xAxis: xAxis,
                 yAxis: yAxis,
                 valueYField: seriesKey,
-                categoryXField: "businessUnit",
-                tooltip: am5.Tooltip.new(root, {
-                  pointerOrientation: "horizontal",
-                  labelText: `${period} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-                  autoTextColor: false,
-                  labelHTML: `
-                    <div style="
-                      text-align: left; 
-                      padding: 8px 12px; 
-                      background: #ffffff; 
-                      color: #333333; 
-                      border-radius: 6px; 
-                      box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                      font-size: 10px;
-                      line-height: 1.3;
-                      min-width: 100px;
-                    ">
-                      <div style="font-weight: 600; margin-bottom: 3px; color: #1890ff; font-size: 10px;">{categoryX}</div>
-                      <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 10px;">${period} - ${parameter}</div>
-                      <div style="font-weight: 700; color: #000000; font-size: 10px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
-                    </div>
-                  `
-                })
+                categoryXField: "businessUnit"
               })
             );
 
@@ -5112,31 +5089,7 @@ const TeamReportCompare: React.FC = () => {
                 xAxis: xAxis,
                 yAxis: yAxis,
                 valueYField: seriesKey,
-                categoryXField: "businessUnit",
-
-                tooltip: am5.Tooltip.new(root, {
-                  pointerOrientation: "horizontal",
-                  labelText: `${period} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-                  autoTextColor: false,
-                  labelHTML: `
-                    <div style="
-                      text-align: left; 
-                      padding: 8px 12px; 
-                      background: #ffffff; 
-                      color: #333333; 
-                      border-radius: 6px; 
-                      box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                      font-size: 10px;
-                      line-height: 1.3;
-                      min-width: 100px;
-                    ">
-                      <div style="font-weight: 600; margin-bottom: 3px; color: #1890ff; font-size: 10px;">{categoryX}</div>
-                      <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 10px;">${period} - ${parameter}</div>
-                      <div style="font-weight: 700; color: #000000; font-size: 10px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
-                    </div>
-                  `
-                })
+                categoryXField: "businessUnit"
               })
             );
 
@@ -5225,14 +5178,13 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-      // Add legend at the bottom
+      // Add legend at the bottom, shifted to the right to avoid logo
       const legend = chart.children.push(
         am5.Legend.new(root, {
-          centerX: am5.p50,
-          x: am5.p50,
+          x: am5.percent(10),
           y: am5.p100,
           layout: root.horizontalLayout,
-          width: am5.percent(100),
+          width: am5.percent(90),
           marginTop: 20,
           marginBottom: 10
         })

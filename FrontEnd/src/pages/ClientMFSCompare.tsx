@@ -5061,30 +5061,7 @@ const ClientMFSCompare: React.FC = () => {
                 xAxis: xAxis,
                 yAxis: yAxis,
                 valueYField: seriesKey,
-                categoryXField: "businessUnit",
-                tooltip: am5.Tooltip.new(root, {
-                  pointerOrientation: "horizontal",
-                  labelText: `${period} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-                  autoTextColor: false,
-                  labelHTML: `
-                    <div style="
-                      text-align: left; 
-                      padding: 8px 12px; 
-                      background: #ffffff; 
-                      color: #333333; 
-                      border-radius: 6px; 
-                      box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                      font-size: 10px;
-                      line-height: 1.3;
-                      min-width: 100px;
-                    ">
-                      <div style="font-weight: 600; margin-bottom: 3px; color: #1890ff; font-size: 10px;">{categoryX}</div>
-                      <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 10px;">${period} - ${parameter}</div>
-                      <div style="font-weight: 700; color: #000000; font-size: 10px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
-                    </div>
-                  `
-                })
+                categoryXField: "businessUnit"
               })
             );
 
@@ -5176,46 +5153,9 @@ const ClientMFSCompare: React.FC = () => {
                 xAxis: xAxis,
                 yAxis: yAxis,
                 valueYField: seriesKey,
-                categoryXField: "businessUnit",
-                tooltip: am5.Tooltip.new(root, {
-                  pointerOrientation: "horizontal",
-                  labelText: `${period} - ${parameter}: ${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-                  autoTextColor: false,
-
-                labelHTML: `
-
-                  <div style="
-
-                    text-align: left; 
-
-                    padding: 8px 12px; 
-
-                    background: #ffffff; 
-
-                    color: #333333; 
-
-                    border-radius: 6px; 
-
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-
-                    font-size: 12px;
-
-                    line-height: 1.4;
-
-                    min-width: 120px;
-
-                  ">
-
-                    <div style="font-weight: 600; margin-bottom: 4px; color: #1890ff; font-size: 11px;">{categoryX}</div>
-                    <div style="font-weight: 500; margin-bottom: 2px; color: #666666; font-size: 11px;">${period} - ${parameter}</div>
-                    <div style="font-weight: 700; color: #000000; font-size: 13px;">${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}</div>
-                  </div>
-                `
+                categoryXField: "businessUnit"
               })
-            })
-          );
+            );
 
           lineSeries.strokes.template.setAll({
             strokeWidth: 3,
@@ -5303,14 +5243,13 @@ const ClientMFSCompare: React.FC = () => {
 
 
 
-      // Add legend at the bottom
+      // Add legend at the bottom, shifted to the right to avoid logo
       const legend = chart.children.push(
         am5.Legend.new(root, {
-          centerX: am5.p50,
-          x: am5.p50,
+          x: am5.percent(10),
           y: am5.p100,
           layout: root.horizontalLayout,
-          width: am5.percent(100),
+          width: am5.percent(90),
           marginTop: 20,
           marginBottom: 10
         })
@@ -7183,7 +7122,8 @@ const ClientMFSCompare: React.FC = () => {
 
       {(() => {
         const mainGrowthParams = ['HC', 'Revenue', 'GPM', 'NP']; // Show 4 main parameters initially
-        // Exclude Team Cost and efficiency metrics from growth analysis table
+        // Exclude Team Cost, efficiency metrics, and NP % from growth analysis table
+        // NP % is already displayed below NP values, so no need for separate row
         const efficiencyMetrics = [
           'Cost Efficiency',
           'Revenue per HC',
@@ -7192,7 +7132,9 @@ const ClientMFSCompare: React.FC = () => {
           'GPM per HC'
         ];
         const allGrowthParams = growthAnalysis.filter(item => 
-          item.parameter !== 'Team Cost' && !efficiencyMetrics.includes(item.parameter)
+          item.parameter !== 'Team Cost' && 
+          item.parameter !== 'NP %' && 
+          !efficiencyMetrics.includes(item.parameter)
         );
         const additionalGrowthParams = allGrowthParams.filter(item => !mainGrowthParams.includes(item.parameter));
         const displayGrowthParams = showAllGrowthParams ? allGrowthParams : allGrowthParams.filter(item => mainGrowthParams.includes(item.parameter));
