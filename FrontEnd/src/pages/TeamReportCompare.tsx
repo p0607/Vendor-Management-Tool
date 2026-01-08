@@ -4032,9 +4032,12 @@ const TeamReportCompare: React.FC = () => {
         'Net Margin per HC'
       ];
       
-      // Filter out efficiency metrics and Team Cost from growth analysis
+      // Filter out efficiency metrics, Team Cost, and Net Margin % from growth analysis
+      // Net Margin % is already displayed below Net Margin values, so no need for separate row
       const growthAnalysisParams = availableParameters.filter(param => 
-        param !== 'Team Cost' && !efficiencyMetrics.includes(param)
+        param !== 'Team Cost' && 
+        param !== 'Net Margin %' && 
+        !efficiencyMetrics.includes(param)
       );
       
       return growthAnalysisParams.map(param => {
@@ -7044,7 +7047,8 @@ const TeamReportCompare: React.FC = () => {
     <tbody>
 
       {growthAnalysis.filter(item => {
-        // Exclude Team Cost and efficiency metrics from growth analysis table
+        // Exclude Team Cost, efficiency metrics, and Net Margin % from growth analysis table
+        // Net Margin % is already displayed below Net Margin values, so no need for separate row
         const efficiencyMetrics = [
           'Cost Efficiency',
           'Revenue per HC',
@@ -7052,7 +7056,9 @@ const TeamReportCompare: React.FC = () => {
           'Team Cost % of Revenue',
           'Net Margin per HC'
         ];
-        return item.parameter !== 'Team Cost' && !efficiencyMetrics.includes(item.parameter);
+        return item.parameter !== 'Team Cost' && 
+               item.parameter !== 'Net Margin %' && 
+               !efficiencyMetrics.includes(item.parameter);
       }).map((item, index) => {
 
         // Calculate growth between current and previous period for each parameter

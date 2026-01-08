@@ -4098,9 +4098,10 @@ const ClientMFSCompare: React.FC = () => {
         'GPM per HC'
       ];
       
-      // Filter out efficiency metrics and Team Cost from growth analysis
+      // Filter out only efficiency metrics from growth analysis
+      // Team Cost is needed for efficiency dashboard calculations, but will be filtered from table display
       const growthAnalysisParams = availableParameters.filter(param => 
-        param !== 'Team Cost' && !efficiencyMetrics.includes(param)
+        !efficiencyMetrics.includes(param)
       );
       
       return growthAnalysisParams.map(param => {
