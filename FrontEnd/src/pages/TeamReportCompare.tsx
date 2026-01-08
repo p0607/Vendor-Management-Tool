@@ -4023,7 +4023,21 @@ const TeamReportCompare: React.FC = () => {
     const calculateGrowth = (): GrowthAnalysis[] => {
       console.log("🔍 calculateGrowth called with availableParameters:", availableParameters);
       
-      return availableParameters.map(param => {
+      // Efficiency metrics to exclude from growth analysis (only show in parameter bar chart)
+      const efficiencyMetrics = [
+        'Cost Efficiency',
+        'Revenue per HC',
+        'Margin per Team Cost',
+        'Team Cost % of Revenue',
+        'Net Margin per HC'
+      ];
+      
+      // Filter out efficiency metrics and Team Cost from growth analysis
+      const growthAnalysisParams = availableParameters.filter(param => 
+        param !== 'Team Cost' && !efficiencyMetrics.includes(param)
+      );
+      
+      return growthAnalysisParams.map(param => {
         const periodAmounts = comparisonValues.map((periodValue, index) => {
 
           if (!periodValue) return null;
@@ -5022,6 +5036,62 @@ const TeamReportCompare: React.FC = () => {
               stroke: am5.color(0x1890ff)
             });
 
+            // Add data labels to bars showing only values in crore/lakh format
+            series.bullets.push(() => {
+              const label = am5.Label.new(root, {
+                text: "{valueY}",
+                fill: am5.color(0x000000),
+                centerX: am5.p50,
+                centerY: am5.p100,
+                populateText: true,
+                fontSize: 10,
+                fontWeight: "500",
+                dy: -5
+              });
+              
+              // Adapter to format value in crore/lakh
+              label.adapters.add("text", (text: string | undefined, target: any) => {
+                if (!text) return text || "";
+                const dataItem = target.dataItem;
+                if (dataItem) {
+                  const dataContext = dataItem.dataContext as any;
+                  if (dataContext) {
+                    const seriesKey = `${period}_${parameter}`;
+                    const value = dataContext[seriesKey];
+                    if (value != null && !isNaN(Number(value))) {
+                      const numValue = Number(value);
+                      // Check if this parameter should use crore/lakh formatting
+                      const shouldFormat = parameter === 'Revenue' || parameter === 'GPM' || parameter === 'NP' || 
+                                         parameter === 'Team Cost' || parameter === 'Net Margin' || 
+                                         parameter === 'Salary Cost' || parameter === 'Opr Cost' || 
+                                         parameter === 'Funding Cost' || parameter === 'Leave Encashment';
+                      
+                      if (shouldFormat && Math.abs(numValue) >= 100000) {
+                        // Format in crore/lakh based on toggle
+                        if (isCroreMode) {
+                          return `${(numValue / 10000000).toFixed(1)}Cr`;
+                        } else {
+                          return `${(numValue / 100000).toFixed(1)}L`;
+                        }
+                      } else if (shouldFormat) {
+                        // For smaller values, show as is
+                        return numValue.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+                      } else {
+                        // For other parameters (HC, percentages, etc.), use original format
+                        return `${format.prefix}${numValue.toLocaleString('en-IN', { 
+                          minimumFractionDigits: format.format.includes('.') ? 2 : 0,
+                          maximumFractionDigits: format.format.includes('.') ? 2 : 0
+                        })}${format.suffix}`;
+                      }
+                    }
+                  }
+                }
+                return text || "";
+              });
+              
+              return am5.Bullet.new(root, { sprite: label });
+            });
+
             series.appear(1000, 100 * (periodIndex * selectedParametersForChart.length + paramIndex));
           });
         });
@@ -5087,18 +5157,58 @@ const TeamReportCompare: React.FC = () => {
             });
 
             lineSeries.bullets.push(() => {
-              return am5.Bullet.new(root, {
-                sprite: am5.Label.new(root, {
-                  text: `${format.prefix}{valueY.formatNumber('${format.format}')}${format.suffix}`,
-                  fill: am5.color(0x000000),
-                  centerX: am5.p50,
-                  centerY: am5.p100,
-                  populateText: true,
-                  fontSize: 10,
-                  fontWeight: "500",
-                  dy: -10
-                })
+              const label = am5.Label.new(root, {
+                text: "{valueY}",
+                fill: am5.color(0x000000),
+                centerX: am5.p50,
+                centerY: am5.p100,
+                populateText: true,
+                fontSize: 10,
+                fontWeight: "500",
+                dy: -10
               });
+              
+              // Adapter to format value in crore/lakh
+              label.adapters.add("text", (text: string | undefined, target: any) => {
+                if (!text) return text || "";
+                const dataItem = target.dataItem;
+                if (dataItem) {
+                  const dataContext = dataItem.dataContext as any;
+                  if (dataContext) {
+                    const seriesKey = `${period}_${parameter}`;
+                    const value = dataContext[seriesKey];
+                    if (value != null && !isNaN(Number(value))) {
+                      const numValue = Number(value);
+                      // Check if this parameter should use crore/lakh formatting
+                      const shouldFormat = parameter === 'Revenue' || parameter === 'GPM' || parameter === 'NP' || 
+                                         parameter === 'Team Cost' || parameter === 'Net Margin' || 
+                                         parameter === 'Salary Cost' || parameter === 'Opr Cost' || 
+                                         parameter === 'Funding Cost' || parameter === 'Leave Encashment';
+                      
+                      if (shouldFormat && Math.abs(numValue) >= 100000) {
+                        // Format in crore/lakh based on toggle
+                        if (isCroreMode) {
+                          return `${(numValue / 10000000).toFixed(1)}Cr`;
+                        } else {
+                          return `${(numValue / 100000).toFixed(1)}L`;
+                        }
+                      } else if (shouldFormat) {
+                        // For smaller values, show as is
+                        return numValue.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+                      } else {
+                        // For other parameters (HC, percentages, etc.), use original format
+                        return `${format.prefix}${numValue.toLocaleString('en-IN', { 
+                          minimumFractionDigits: format.format.includes('.') ? 2 : 0,
+                          maximumFractionDigits: format.format.includes('.') ? 2 : 0
+                        })}${format.suffix}`;
+                      }
+                    }
+                  }
+                }
+                return text || "";
+              });
+              
+              return am5.Bullet.new(root, { sprite: label });
             });
 
             lineSeries.strokes.template.states.create("hover", {
@@ -5114,6 +5224,31 @@ const TeamReportCompare: React.FC = () => {
       }
 
 
+
+      // Add legend at the bottom
+      const legend = chart.children.push(
+        am5.Legend.new(root, {
+          centerX: am5.p50,
+          x: am5.p50,
+          y: am5.p100,
+          layout: root.horizontalLayout,
+          width: am5.percent(100),
+          marginTop: 20,
+          marginBottom: 10
+        })
+      );
+
+      legend.labels.template.setAll({
+        fill: am5.color(0x000000),
+        fontSize: 10
+      });
+
+      legend.markers.template.setAll({
+        width: 12,
+        height: 12
+      });
+
+      legend.data.setAll(chart.series.values);
 
       // Add chart animation
       chart.appear(1000, 100);
@@ -5139,7 +5274,7 @@ const TeamReportCompare: React.FC = () => {
 
     };
 
-  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue, chartSortOrder]);
+  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue, chartSortOrder, isCroreMode]);
 
 
   // Render Waterfall Chart
@@ -6956,7 +7091,17 @@ const TeamReportCompare: React.FC = () => {
 
     <tbody>
 
-      {growthAnalysis.filter(item => item.parameter !== 'Team Cost').map((item, index) => {
+      {growthAnalysis.filter(item => {
+        // Exclude Team Cost and efficiency metrics from growth analysis table
+        const efficiencyMetrics = [
+          'Cost Efficiency',
+          'Revenue per HC',
+          'Margin per Team Cost',
+          'Team Cost % of Revenue',
+          'Net Margin per HC'
+        ];
+        return item.parameter !== 'Team Cost' && !efficiencyMetrics.includes(item.parameter);
+      }).map((item, index) => {
 
         // Calculate growth between current and previous period for each parameter
         // For absolute change calculation, use Sum (Actual + Predicted) for current period
