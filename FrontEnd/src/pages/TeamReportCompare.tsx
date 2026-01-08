@@ -1216,7 +1216,7 @@ const TeamReportCompare: React.FC = () => {
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string | null>(null);
   
   // State for multiple business unit selection in Parameter Data Chart
-  const [selectedBusinessUnitsForChart, setSelectedBusinessUnitsForChart] = useState<string[]>([]);
+  const [selectedBusinessUnitsForChart, setSelectedBusinessUnitsForChart] = useState<string | null>(null);
 
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
 
@@ -2236,13 +2236,13 @@ const TeamReportCompare: React.FC = () => {
 
   // Update selectedBusinessUnitsForChart when user/isBUHead changes (for BU heads)
   useEffect(() => {
-    if (isBUHead && user?.business_unit && businessUnits.length > 0 && selectedBusinessUnitsForChart.length === 0) {
+    if (isBUHead && user?.business_unit && businessUnits.length > 0 && !selectedBusinessUnitsForChart) {
       const normalizedBU = normalizeBusinessUnitName(user.business_unit);
       const matchingBU = businessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
       if (matchingBU) {
-        setSelectedBusinessUnitsForChart([matchingBU]);
+        setSelectedBusinessUnitsForChart(matchingBU);
       } else {
-        setSelectedBusinessUnitsForChart([normalizedBU || user.business_unit]);
+        setSelectedBusinessUnitsForChart(normalizedBU || user.business_unit);
       }
     }
   }, [isBUHead, user?.business_unit, businessUnits]);
@@ -2480,19 +2480,20 @@ const TeamReportCompare: React.FC = () => {
         setBusinessUnits(uniqueBusinessUnits);
         
         // Initialize selectedBusinessUnitsForChart
-        // For BU heads, only show their business unit; otherwise show all
-        if (selectedBusinessUnitsForChart.length === 0 && uniqueBusinessUnits.length > 0) {
+        // For BU heads, only show their business unit; otherwise select first available
+        if (!selectedBusinessUnitsForChart && uniqueBusinessUnits.length > 0) {
           if (isBUHead && user?.business_unit) {
             const normalizedBU = normalizeBusinessUnitName(user.business_unit);
             const matchingBU = uniqueBusinessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
             if (matchingBU) {
-              setSelectedBusinessUnitsForChart([matchingBU]);
+              setSelectedBusinessUnitsForChart(matchingBU);
             } else {
               // Fallback: use normalized version if exact match not found
-              setSelectedBusinessUnitsForChart([normalizedBU || user.business_unit]);
+              setSelectedBusinessUnitsForChart(normalizedBU || user.business_unit);
             }
           } else {
-            setSelectedBusinessUnitsForChart(uniqueBusinessUnits);
+            // Select first business unit by default
+            setSelectedBusinessUnitsForChart(uniqueBusinessUnits[0]);
           }
         }
 
@@ -4655,7 +4656,7 @@ const TeamReportCompare: React.FC = () => {
       activeChartTab: activeChartTab
     });
     
-    if (data.length === 0 || selectedParametersForChart.length === 0 || selectedBusinessUnitsForChart.length === 0 || activeChartTab !== 'growth') {
+    if (data.length === 0 || selectedParametersForChart.length === 0 || !selectedBusinessUnitsForChart || activeChartTab !== 'growth') {
       console.log("🔍 Chart useEffect: Not enough data or tab not active, skipping chart render");
       return;
     }
@@ -4946,27 +4947,40 @@ const TeamReportCompare: React.FC = () => {
       }
       
       // Prepare data: group by business unit, show periods as series
-      const chartData: any[] = [];
+      // Only show selected business unit (single selection)
+      if (!selectedBusinessUnitsForChart) {
+        return;
+      }
       
-      selectedBusinessUnitsForChart.forEach(bu => {
-        const dataPoint: any = { businessUnit: bu };
-        
-        // Calculate total value for sorting (sum across all periods and parameters)
-        let totalValue = 0;
-        
-        // For each selected parameter, create a data point with values for each period
-        selectedParametersForChart.forEach(parameter => {
-          periods.forEach((period, periodIndex) => {
-            const value = getParameterValueForBU(bu, period, parameter);
-            // Create a field name like "FY 2025_Revenue" for each period-parameter combination
-            dataPoint[`${period}_${parameter}`] = value;
-            totalValue += Math.abs(value); // Use absolute value for sorting
-          });
+      // For BU heads, ensure only their business unit is shown
+      const businessUnitToShow = isBUHead && user?.business_unit
+        ? (() => {
+            const normalizedBU = normalizeBusinessUnitName(user.business_unit);
+            return compareBusinessUnits(selectedBusinessUnitsForChart, normalizedBU || user.business_unit) 
+              ? selectedBusinessUnitsForChart 
+              : (normalizedBU || user.business_unit);
+          })()
+        : selectedBusinessUnitsForChart;
+      
+      const chartData: any[] = [];
+      const bu = businessUnitToShow;
+      const dataPoint: any = { businessUnit: bu };
+      
+      // Calculate total value for sorting (sum across all periods and parameters)
+      let totalValue = 0;
+      
+      // For each selected parameter, create a data point with values for each period
+      selectedParametersForChart.forEach(parameter => {
+        periods.forEach((period, periodIndex) => {
+          const value = getParameterValueForBU(bu, period, parameter);
+          // Create a field name like "FY 2025_Revenue" for each period-parameter combination
+          dataPoint[`${period}_${parameter}`] = value;
+          totalValue += Math.abs(value); // Use absolute value for sorting
         });
-        
-        dataPoint._totalValue = totalValue; // Store total for sorting
-        chartData.push(dataPoint);
       });
+      
+      dataPoint._totalValue = totalValue; // Store total for sorting
+      chartData.push(dataPoint);
       
       // Sort chart data if sort order is specified
       if (chartSortOrder) {
@@ -6776,11 +6790,10 @@ const TeamReportCompare: React.FC = () => {
                         Business Unit
                       </div>
                       <Select
-                        mode="multiple"
                         value={selectedBusinessUnitsForChart}
                         onChange={(value) => setSelectedBusinessUnitsForChart(value)}
                         style={{ width: '100%' }}
-                        placeholder="Select business units"
+                        placeholder="Select business unit"
                         loading={isLoading}
                         allowClear={!isBUHead}
                         disabled={isBUHead}
