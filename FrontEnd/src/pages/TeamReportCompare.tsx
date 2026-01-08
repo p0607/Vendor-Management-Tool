@@ -4032,10 +4032,10 @@ const TeamReportCompare: React.FC = () => {
         'Net Margin per HC'
       ];
       
-      // Filter out efficiency metrics, Team Cost, and Net Margin % from growth analysis
+      // Filter out efficiency metrics and Net Margin % from growth analysis
       // Net Margin % is already displayed below Net Margin values, so no need for separate row
+      // Team Cost is needed for efficiency dashboard calculations, but will be filtered from table display
       const growthAnalysisParams = availableParameters.filter(param => 
-        param !== 'Team Cost' && 
         param !== 'Net Margin %' && 
         !efficiencyMetrics.includes(param)
       );
