@@ -616,46 +616,46 @@ useEffect(() => {
             </>
           )}
         </div>
-        <table className="routing-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '11px' }}>
+        <table className="routing-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '10px' }}>
           <thead>
             {/* Row 1: Main sections - Monthly (75%) and Cumulative (25%) */}
             <tr>
-              <th rowSpan={3} style={{ width: '5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', verticalAlign: 'middle' }}>
+              <th rowSpan={3} style={{ width: '5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>Month &</div>
                 <div style={{ color: '#ffffff' }}>Year</div>
               </th>
-              <th colSpan={11} style={{ width: '66%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}>Monthly</th>
-              <th colSpan={5} style={{ width: '29%', borderBottom: '2px solid #ff6b35', borderRight: 'none', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}>Cumulative</th>
+              <th colSpan={11} style={{ width: '66%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'center' }}>Monthly</th>
+              <th colSpan={5} style={{ width: '29%', borderBottom: '2px solid #ff6b35', borderRight: 'none', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'center' }}>Cumulative</th>
             </tr>
             {/* Row 2: 4 columns under Monthly + Cumulative headers */}
             <tr>
               {/* Column 1: HC (blank header, 3 sub-columns) */}
-              <th colSpan={3} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}></th>
+              <th colSpan={3} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'center' }}></th>
               {/* Column 2: Alchemy Status (3 sub-columns) */}
-              <th colSpan={3} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}><span style={{ color: '#ffffff' }}>Alchemy Status</span></th>
+              <th colSpan={3} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'center' }}><span style={{ color: '#ffffff' }}>Alchemy Status</span></th>
               {/* Column 3: Vendor Status (3 sub-columns) */}
-              <th colSpan={3} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}><span style={{ color: '#ffffff' }}>Vendor Status</span></th>
+              <th colSpan={3} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'center' }}><span style={{ color: '#ffffff' }}>Vendor Status</span></th>
               {/* Column 4: Margin (2 sub-columns - blank headers in row 2) */}
-              <th colSpan={1} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}></th>
-              <th colSpan={1} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}></th>
+              <th colSpan={1} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'center' }}></th>
+              <th colSpan={1} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'center' }}></th>
               {/* Cumulative columns (span 2 rows) */}
-              <th rowSpan={2} style={{ width: '4%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '4%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '7px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>Current</div>
                 <div style={{ color: '#ffffff' }}>HC</div>
               </th>
-              <th rowSpan={2} style={{ width: '6.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '6.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '7px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>Current PO</div>
                 <div style={{ color: '#ffffff' }}>Value</div>
               </th>
-              <th rowSpan={2} style={{ width: '6.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '6.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '7px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>Current Vendor</div>
                 <div style={{ color: '#ffffff' }}>Cost</div>
               </th>
-              <th rowSpan={2} style={{ width: '6.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '6.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '7px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>Current</div>
                 <div style={{ color: '#ffffff' }}>Margin</div>
               </th>
-              <th rowSpan={2} style={{ width: '6.5%', borderBottom: '2px solid #ff6b35', borderRight: 'none', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '6.5%', borderBottom: '2px solid #ff6b35', borderRight: 'none', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '7px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>%-</div>
                 <div style={{ color: '#ffffff' }}>Margin</div>
               </th>
@@ -663,40 +663,40 @@ useEffect(() => {
             {/* Row 3: Individual column headers */}
             <tr>
               {/* Column 1: HC sub-columns */}
-              <th style={{ width: '3.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '3.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>OB-HC</div>
               </th>
-              <th style={{ width: '3.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '3.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Attrition-HC</div>
               </th>
-              <th style={{ width: '3.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '3.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Net-HC</div>
               </th>
               {/* Column 2: Alchemy Status sub-columns */}
-              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>OB-PO Value</div>
               </th>
-              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Attrition PO Value</div>
               </th>
-              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Net OB-PO Value</div>
               </th>
               {/* Column 3: Vendor Status sub-columns */}
-              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>OB - Vendor PO Value</div>
               </th>
-              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Attrition Vendor PO Value</div>
               </th>
-              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Net Vendor Po Value</div>
               </th>
               {/* Column 4: Margin sub-columns */}
-              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Month OB Margin (Month)</div>
               </th>
-              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '7.1%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '10px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Month Net Margin (Month)</div>
               </th>
             </tr>
@@ -704,7 +704,7 @@ useEffect(() => {
           <tbody>
             {summaryData.length === 0 ? (
               <tr>
-                <td colSpan={17} style={{ textAlign: 'center', padding: '20px', border: '1px solid #000', fontSize: '11px' }}>
+                <td colSpan={17} style={{ textAlign: 'center', padding: '20px', border: '1px solid #000', fontSize: '10px' }}>
                   No data available
                 </td>
               </tr>
@@ -712,61 +712,61 @@ useEffect(() => {
               summaryData.map((item, index) => {
                 if (!item) return null;
                 return (
-                <tr key={index} style={{ fontSize: '11px' }}>
-                  <td style={{ width: '5%', border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '11px' }}>
+                <tr key={index} style={{ fontSize: '10px' }}>
+                  <td style={{ width: '5%', border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '10px' }}>
                     {formatMonthYear(item["Month & Year"] || '')}
                   </td>
                   {/* Column 1: HC */}
-                  <td style={{ width: '3.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '3.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["OB - HC"])}
                   </td>
-                  <td style={{ width: '3.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '3.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["Attrition - HC"])}
                   </td>
-                  <td style={{ width: '3.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '11px' }}>
+                  <td style={{ width: '3.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '10px' }}>
                     {formatNumber(item["Net - HC"])}
                   </td>
                   {/* Column 2: Alchemy Status */}
-                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["OB - PO Value"])}
                   </td>
-                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["Attrition PO Value"])}
                   </td>
-                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '11px' }}>
+                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '10px' }}>
                     {formatNumber(item["Net - OB PO Value"])}
                   </td>
                   {/* Column 3: Vendor Status */}
-                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["OB - Vendor PO Value"])}
                   </td>
-                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["Attrition Vendor PO Value"])}
                   </td>
-                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '11px' }}>
+                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '10px' }}>
                     {formatNumber(item["Net Vendor Po Value"])}
                   </td>
                   {/* Column 4: Margin */}
-                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["Month OB Margin (Month)"])}
                   </td>
-                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '7.1%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["Month Net Margin (Month)"])}
                   </td>
                   {/* Cumulative columns */}
-                  <td style={{ width: '4%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '4%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["Current HC"])}
                   </td>
-                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["Current PO Value"])}
                   </td>
-                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["Current Vendor Cost"])}
                   </td>
-                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {formatNumber(item["Current Margin"])}
   </td>
-                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
                     {item["%- Margin"] !== null && item["%- Margin"] !== undefined && typeof item["%- Margin"] === 'number' && !isNaN(item["%- Margin"]) ? `${item["%- Margin"].toFixed(2)}%` : '0%'}
                   </td>
                 </tr>
