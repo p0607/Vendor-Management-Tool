@@ -1001,55 +1001,102 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
         WHERE attrition_month IS NOT NULL
         GROUP BY TO_CHAR(attrition_month, 'YYYY-MM'), EXTRACT(YEAR FROM attrition_month), EXTRACT(MONTH FROM attrition_month)
       ),
+      historical_summary AS (
+        SELECT 
+          month_year,
+          year,
+          month,
+          "OB - HC" as ob_hc,
+          "Attrition - HC" as attrition_hc,
+          "Net - HC" as net_hc,
+          "OB - PO Value" as ob_po_value,
+          "Attrition PO Value" as attrition_po_value,
+          "Net - OB PO Value" as net_ob_po_value,
+          "OB - Vendor PO Value" as ob_vendor_po_value,
+          "Attrition Vendor PO Value" as attrition_vendor_po_value,
+          "Net Vendor Po Value" as net_vendor_po_value,
+          "Month OB Margin (Month)" as active_gross_margin,
+          "Month Net Margin (Month)" as attrition_gross_margin,
+          -- Cumulative columns (stored directly)
+          "Current HC" as current_hc,
+          "Current PO Value" as current_po_value,
+          "Current Vendor Cost" as current_vendor_cost,
+          "Current Margin" as current_margin,
+          "%- Margin" as margin_percentage
+        FROM cts_summary_historical
+      ),
       all_months AS (
         SELECT month_year, year, month FROM active_summary
         UNION
         SELECT month_year, year, month FROM attrition_summary
+        UNION
+        SELECT month_year, year, month FROM historical_summary
       ),
       monthly_data AS (
         SELECT 
           am.month_year as "Month & Year",
           am.year,
           am.month,
-          -- OB-HC: COUNT of Active Employee Name
-          COALESCE(a.ob_hc, 0) as "OB - HC",
-          -- Attrition HC: COUNT of Attrition Employee Name
-          COALESCE(attr.attrition_hc, 0) as "Attrition - HC",
-          -- Net-HC: Active - Attrition Employee Count
-          COALESCE(a.ob_hc, 0) - COALESCE(attr.attrition_hc, 0) as "Net - HC",
-          -- OB-PO Value: Active PO Value
-          COALESCE(a.ob_po_value, 0) as "OB - PO Value",
-          -- Attrition PO Value: Attrition PO Value
-          COALESCE(attr.attrition_po_value, 0) as "Attrition PO Value",
-          -- Net OB PO Value: Active PO - Attrition PO Value
-          COALESCE(a.ob_po_value, 0) - COALESCE(attr.attrition_po_value, 0) as "Net - OB PO Value",
-          -- OB-Vendor PO Value: Active Vendor Value
-          COALESCE(a.ob_vendor_po_value, 0) as "OB - Vendor PO Value",
-          -- Attrition Vendor PO Value: Attrition Vendor Value
-          COALESCE(attr.attrition_vendor_po_value, 0) as "Attrition Vendor PO Value",
-          -- Net Vendor PO Value: Active Vendor Value - Attrition Vendor Value
-          COALESCE(a.ob_vendor_po_value, 0) - COALESCE(attr.attrition_vendor_po_value, 0) as "Net Vendor Po Value",
-          -- Month OB Margin (Month): SUM of Active Gross Margin (for that specific month)
-          COALESCE(a.active_gross_margin, 0) as "Month OB Margin (Month)",
-          -- Month Net Margin (Month): SUM of Attrition Gross Margin (for the same month)
-          COALESCE(attr.attrition_gross_margin, 0) as "Month Net Margin (Month)"
+          -- Use historical data if available, otherwise use active/attrition data
+          -- OB-HC: Prefer historical, then active summary
+          COALESCE(h.ob_hc, a.ob_hc, 0) as "OB - HC",
+          -- Attrition HC: Prefer historical, then attrition summary
+          COALESCE(h.attrition_hc, attr.attrition_hc, 0) as "Attrition - HC",
+          -- Net-HC: Use historical if available, otherwise calculate from active/attrition
+          COALESCE(h.net_hc, COALESCE(a.ob_hc, 0) - COALESCE(attr.attrition_hc, 0), 0) as "Net - HC",
+          -- OB-PO Value: Prefer historical, then active summary
+          COALESCE(h.ob_po_value, a.ob_po_value, 0) as "OB - PO Value",
+          -- Attrition PO Value: Prefer historical, then attrition summary
+          COALESCE(h.attrition_po_value, attr.attrition_po_value, 0) as "Attrition PO Value",
+          -- Net OB PO Value: Use historical if available, otherwise calculate
+          COALESCE(h.net_ob_po_value, COALESCE(a.ob_po_value, 0) - COALESCE(attr.attrition_po_value, 0), 0) as "Net - OB PO Value",
+          -- OB-Vendor PO Value: Prefer historical, then active summary
+          COALESCE(h.ob_vendor_po_value, a.ob_vendor_po_value, 0) as "OB - Vendor PO Value",
+          -- Attrition Vendor PO Value: Prefer historical, then attrition summary
+          COALESCE(h.attrition_vendor_po_value, attr.attrition_vendor_po_value, 0) as "Attrition Vendor PO Value",
+          -- Net Vendor PO Value: Use historical if available, otherwise calculate
+          COALESCE(h.net_vendor_po_value, COALESCE(a.ob_vendor_po_value, 0) - COALESCE(attr.attrition_vendor_po_value, 0), 0) as "Net Vendor Po Value",
+          -- Month OB Margin (Month): Prefer historical, then active summary
+          COALESCE(h.active_gross_margin, a.active_gross_margin, 0) as "Month OB Margin (Month)",
+          -- Month Net Margin (Month): Prefer historical, then attrition summary
+          COALESCE(h.attrition_gross_margin, attr.attrition_gross_margin, 0) as "Month Net Margin (Month)"
         FROM all_months am
         LEFT JOIN active_summary a ON am.month_year = a.month_year
         LEFT JOIN attrition_summary attr ON am.month_year = attr.month_year
+        LEFT JOIN historical_summary h ON am.month_year = h.month_year
       )
       SELECT 
         md.*,
-        SUM(md."Net - HC") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as "Current HC",
-        SUM(md."Net - OB PO Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as "Current PO Value",
-        SUM(md."Net Vendor Po Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as "Current Vendor Cost",
-        SUM(md."Month Net Margin (Month)") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as "Current Margin",
-        CASE 
-          WHEN SUM(md."Net - OB PO Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) != 0
-          THEN (SUM(md."Month Net Margin (Month)") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) / 
-                SUM(md."Net - OB PO Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)) * 100
-          ELSE 0
-        END as "%- Margin"
+        -- Use stored cumulative values from historical data if available, otherwise calculate
+        -- For historical data: display stored values directly (no calculation)
+        -- For current data: calculate using window functions (calculation logic will be provided later)
+        COALESCE(
+          h.current_hc,
+          SUM(md."Net - HC") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+        ) as "Current HC",
+        COALESCE(
+          h.current_po_value,
+          SUM(md."Net - OB PO Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+        ) as "Current PO Value",
+        COALESCE(
+          h.current_vendor_cost,
+          SUM(md."Net Vendor Po Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+        ) as "Current Vendor Cost",
+        COALESCE(
+          h.current_margin,
+          SUM(md."Month Net Margin (Month)") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+        ) as "Current Margin",
+        COALESCE(
+          h.margin_percentage,
+          CASE 
+            WHEN SUM(md."Net - OB PO Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) != 0
+            THEN (SUM(md."Month Net Margin (Month)") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) / 
+                  SUM(md."Net - OB PO Value") OVER (ORDER BY md.year ASC, md.month ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)) * 100
+            ELSE 0
+          END
+        ) as "%- Margin"
       FROM monthly_data md
+      LEFT JOIN historical_summary h ON md."Month & Year" = h.month_year
       ORDER BY md.year DESC, md.month DESC
     `;
     
@@ -1150,6 +1197,22 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
     res.json(result.rows);
   } catch (err) {
     logger.error('Error fetching CTS Summary report', { error: err.message, stack: err.stack });
+    next(err);
+  }
+});
+
+// CTS Summary Historical - GET all historical records (for display in summary sheet)
+app.get('/api/CTS-Summary-Historical', async (req, res, next) => {
+  try {
+    const query = `
+      SELECT * FROM cts_summary_historical
+      ORDER BY year ASC, month ASC
+    `;
+    const result = await executeQuery(query);
+    logger.info('CTS Summary Historical records fetched', { recordCount: result.rows.length });
+    res.json(result.rows);
+  } catch (err) {
+    logger.error('Error fetching CTS Summary Historical records', { error: err.message, stack: err.stack });
     next(err);
   }
 });

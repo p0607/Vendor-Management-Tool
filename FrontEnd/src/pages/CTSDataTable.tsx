@@ -47,6 +47,7 @@ const CTSDataTable: React.FC = () => {
   };
 
   // Format month-year string (e.g., "2024-01" -> "Jan-2024")
+  // Special handling for "Opening" row (2024-12)
   const formatMonthYear = (monthYear: string | null | undefined): string => {
     if (!monthYear || typeof monthYear !== 'string') return '';
     const parts = monthYear.split('-');
@@ -54,6 +55,12 @@ const CTSDataTable: React.FC = () => {
     const year = parseInt(parts[0]);
     const month = parseInt(parts[1]);
     if (isNaN(year) || isNaN(month) || month < 1 || month > 12) return monthYear;
+    
+    // Special handling for Opening balance (December 2024)
+    if (year === 2024 && month === 12) {
+      return 'Opening';
+    }
+    
     const date = new Date(year, month - 1, 1);
     if (isNaN(date.getTime())) return monthYear;
     const monthName = date.toLocaleString('default', { month: 'short' });
@@ -221,8 +228,19 @@ const CTSDataTable: React.FC = () => {
           allItems: validatedData
         });
         
-        setAllSummaryData(validatedData);
-        setSummaryData(validatedData);
+        // Sort data chronologically (oldest first) for better readability
+        // This ensures historical data appears before current data
+        const sortedData = [...validatedData].sort((a, b) => {
+          // First sort by year
+          if (a.year !== b.year) {
+            return a.year - b.year;
+          }
+          // Then by month
+          return a.month - b.month;
+        });
+        
+        setAllSummaryData(sortedData);
+        setSummaryData(sortedData);
       } catch (err: any) {
         console.error('Error fetching CTS Summary:', err);
         console.error('Error details:', {
