@@ -34,21 +34,27 @@ body, html {
 
 /* When MS is selected, need more width for Client + Project columns */
 .fixed-column-table.ms-selected {
-  width: 300px;
+  width: 320px; /* Increased slightly to accommodate project names */
 }
 
 .fixed-column-table.ms-selected .fixed-table {
-  width: 300px;
+  width: 320px;
 }
 
+/* Client column - smaller width */
 .fixed-column-table.ms-selected .fixed-table th:nth-child(1),
 .fixed-column-table.ms-selected .fixed-table td:nth-child(1) {
-  width: 50%;
+  width: 35%;
+  min-width: 100px;
+  max-width: 35%;
 }
 
+/* Project column - larger width to prevent wrapping */
 .fixed-column-table.ms-selected .fixed-table th:nth-child(2),
 .fixed-column-table.ms-selected .fixed-table td:nth-child(2) {
-  width: 50%;
+  width: 65%;
+  min-width: 200px;
+  max-width: 65%;
 }
 
 .scrollable-columns-table {
@@ -89,11 +95,8 @@ body, html {
   width: 100%;
 }
 
-/* When MS is selected, columns should be 50% each */
-.fixed-column-table.ms-selected .fixed-table th,
-.fixed-column-table.ms-selected .fixed-table td {
-  width: 50%;
-}
+/* When MS is selected, columns have different widths (Client: 35%, Project: 65%) */
+/* Individual column widths are set above with nth-child selectors */
 
 /* When not MS, ensure the single Client column fills the full table width */
 .fixed-column-table:not(.ms-selected) .fixed-table {
@@ -396,10 +399,15 @@ body, html {
   width: 100%;
 }
 
-/* When MS is selected, headers should be 50% each */
-.fixed-column-table.ms-selected .fixed-table .parameter-header {
-  width: 50%;
-  min-width: 100px; /* Decreased from 150px to reduce cell width */
+/* When MS is selected, headers have different widths */
+.fixed-column-table.ms-selected .fixed-table .parameter-header:nth-child(1) {
+  width: 35%;
+  min-width: 100px;
+}
+
+.fixed-column-table.ms-selected .fixed-table .parameter-header:nth-child(2) {
+  width: 65%;
+  min-width: 200px;
 }
 
 /* When not MS, single header should fill full width */
@@ -451,10 +459,18 @@ body, html {
   width: 100%;
 }
 
-/* When MS is selected, parameter cells should be 50% each */
-.fixed-column-table.ms-selected .fixed-table .parameter-cell {
-  width: 50%;
-  min-width: 120px; /* Decreased from 150px to reduce cell width */
+/* When MS is selected, parameter cells have different widths */
+.fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(1) {
+  width: 35%;
+  min-width: 100px;
+}
+
+.fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(2) {
+  width: 65%;
+  min-width: 200px;
+  white-space: nowrap; /* Prevent project names from wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Show ellipsis if text is too long */
 }
 
 /* When not MS, single column should fill full width */
@@ -509,10 +525,15 @@ body, html {
   width: 100%;
 }
 
-/* When MS is selected, total label should be 50% each */
-.fixed-column-table.ms-selected .fixed-table .total-label {
-  width: 50%;
-  min-width: 120px; /* Decreased from 150px to reduce cell width */
+/* When MS is selected, total label has different widths */
+.fixed-column-table.ms-selected .fixed-table .total-label:nth-child(1) {
+  width: 35%;
+  min-width: 100px;
+}
+
+.fixed-column-table.ms-selected .fixed-table .total-label:nth-child(2) {
+  width: 65%;
+  min-width: 200px;
 }
 
 /* When not MS, single total label should fill full width */
