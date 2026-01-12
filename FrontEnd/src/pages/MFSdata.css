@@ -25,40 +25,45 @@ body, html {
   margin: 1rem 0;
   align-items: flex-start; /* Ensure tables align at the top */
   position: relative;
-  gap: 0; /* No gap between tables to prevent overlap */
+  gap: 0; /* No gap - data table starts exactly where client table ends */
 }
 
 .fixed-column-table {
   flex-shrink: 0;
   width: 150px;
-  overflow: visible;
+  overflow: hidden; /* Prevent Project column from overlapping */
   position: relative;
   z-index: 5; /* Ensure fixed columns stay above scrollable table */
+  box-sizing: border-box; /* Include borders in width calculation */
 }
 
 /* When MS is selected, need more width for Client + Project columns */
 .fixed-column-table.ms-selected {
-  width: 320px; /* Reduced from 350px to better fit content */
+  width: 320px; /* Fixed width - includes border */
+  max-width: 320px !important; /* Prevent exceeding this width */
+  box-sizing: border-box; /* Include borders in width calculation */
 }
 
 .fixed-column-table.ms-selected .fixed-table {
-  width: 320px;
+  width: 100%; /* Use 100% of container (320px) */
+  max-width: 100% !important; /* Prevent table from exceeding container */
+  box-sizing: border-box; /* Include borders in width calculation */
 }
 
 /* Client column - smaller width */
 .fixed-column-table.ms-selected .fixed-table th:nth-child(1),
 .fixed-column-table.ms-selected .fixed-table td:nth-child(1) {
-  width: 30%; /* Slightly increased to balance with reduced Project column */
+  width: 35%; /* Increased to balance with further reduced Project column */
   min-width: 90px;
-  max-width: 30%;
+  max-width: 35% !important; /* Force max-width */
 }
 
-/* Project column - reduced width to eliminate blank space */
+/* Project column - reduced width to prevent overlap with data table */
 .fixed-column-table.ms-selected .fixed-table th:nth-child(2),
 .fixed-column-table.ms-selected .fixed-table td:nth-child(2) {
-  width: 70%; /* Reduced from 72% to eliminate excess blank space */
-  min-width: 200px; /* Reduced from 250px */
-  max-width: 70%;
+  width: 65%; /* Further reduced from 70% to prevent overlap */
+  min-width: 180px; /* Reduced from 200px to ensure it fits within container */
+  max-width: 65% !important; /* Force max-width to prevent overflow */
 }
 
 .scrollable-columns-table {
@@ -68,7 +73,8 @@ body, html {
   -webkit-overflow-scrolling: touch;
   position: relative;
   z-index: 1; /* Lower z-index than fixed columns */
-  margin-left: 0; /* Ensure no overlap */
+  margin-left: 0; /* Start exactly where fixed table ends */
+  min-width: 0; /* Allow flex item to shrink below content size */
 }
 
 .scrollable-columns-table::-webkit-scrollbar {
@@ -90,10 +96,12 @@ body, html {
 
 .fixed-table {
   width: 100%;
-  border-right: 2px solid #000000;
+  border-right: 2px solid #000000; /* This border marks where data table should start */
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
+  box-sizing: border-box; /* Include border in width calculation */
+  margin: 0; /* No margin to ensure precise positioning */
 }
 
 /* When not MS, ensure single column fills full width */
@@ -106,8 +114,16 @@ body, html {
 /* Individual column widths are set above with nth-child selectors */
 
 /* When not MS, ensure the single Client column fills the full table width */
+.fixed-column-table:not(.ms-selected) {
+  width: 150px;
+  max-width: 150px !important;
+  box-sizing: border-box;
+}
+
 .fixed-column-table:not(.ms-selected) .fixed-table {
   width: 100%;
+  max-width: 100% !important;
+  box-sizing: border-box;
 }
 
 .fixed-column-table:not(.ms-selected) .fixed-table th,
@@ -122,6 +138,9 @@ body, html {
   min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  margin: 0; /* No margin to ensure it starts exactly where fixed table ends */
+  padding: 0; /* No padding */
+  box-sizing: border-box;
 }
 
 /* Ensure rows align between fixed and scrollable tables */
@@ -413,13 +432,15 @@ body, html {
 
 /* When MS is selected, headers have different widths */
 .fixed-column-table.ms-selected .fixed-table .parameter-header:nth-child(1) {
-  width: 30%; /* Match Client column */
+  width: 35%; /* Match Client column */
   min-width: 90px;
+  max-width: 35% !important;
 }
 
 .fixed-column-table.ms-selected .fixed-table .parameter-header:nth-child(2) {
-  width: 70%; /* Match Project column */
-  min-width: 200px;
+  width: 65%; /* Match Project column - reduced to prevent overlap */
+  min-width: 180px; /* Reduced to fit within container */
+  max-width: 65% !important;
 }
 
 /* When not MS, single header should fill full width */
@@ -473,14 +494,16 @@ body, html {
 
 /* When MS is selected, parameter cells have different widths */
 .fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(1) {
-  width: 30%; /* Match Client column */
+  width: 35%; /* Match Client column */
   min-width: 90px;
+  max-width: 35% !important;
   text-align: left !important; /* Ensure Client names are left-aligned */
 }
 
 .fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(2) {
-  width: 70%; /* Reduced to match Project column and eliminate blank space */
-  min-width: 200px; /* Reduced from 250px */
+  width: 65% !important; /* Reduced to prevent overlap with data table */
+  min-width: 180px; /* Reduced to fit within container */
+  max-width: 65% !important; /* Force max-width to prevent overflow */
   white-space: nowrap; /* Prevent project names from wrapping */
   overflow: hidden;
   text-overflow: ellipsis; /* Show ellipsis if text is too long */
@@ -542,13 +565,15 @@ body, html {
 
 /* When MS is selected, total label has different widths */
 .fixed-column-table.ms-selected .fixed-table .total-label:nth-child(1) {
-  width: 30%; /* Match Client column */
+  width: 35%; /* Match Client column */
   min-width: 90px;
+  max-width: 35% !important;
 }
 
 .fixed-column-table.ms-selected .fixed-table .total-label:nth-child(2) {
-  width: 70%; /* Match Project column */
-  min-width: 200px;
+  width: 65%; /* Match Project column - reduced to prevent overlap */
+  min-width: 180px; /* Reduced to fit within container */
+  max-width: 65% !important;
 }
 
 /* When not MS, single total label should fill full width */
