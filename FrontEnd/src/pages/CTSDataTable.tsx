@@ -624,8 +624,8 @@ useEffect(() => {
                 <div style={{ color: '#ffffff' }}>Month &</div>
                 <div style={{ color: '#ffffff' }}>Year</div>
               </th>
-              <th colSpan={11} style={{ width: '72%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}>Monthly</th>
-              <th colSpan={5} style={{ width: '23%', borderBottom: '2px solid #ff6b35', borderRight: 'none', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}>Cumulative</th>
+              <th colSpan={11} style={{ width: '66%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}>Monthly</th>
+              <th colSpan={5} style={{ width: '29%', borderBottom: '2px solid #ff6b35', borderRight: 'none', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}>Cumulative</th>
             </tr>
             {/* Row 2: 4 columns under Monthly + Cumulative headers */}
             <tr>
@@ -639,23 +639,23 @@ useEffect(() => {
               <th colSpan={1} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}></th>
               <th colSpan={1} style={{ borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}></th>
               {/* Cumulative columns (span 2 rows) */}
-              <th rowSpan={2} style={{ width: '4.6%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '5.8%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>Current</div>
                 <div style={{ color: '#ffffff' }}>HC</div>
               </th>
-              <th rowSpan={2} style={{ width: '4.6%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '5.8%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>Current PO</div>
                 <div style={{ color: '#ffffff' }}>Value</div>
               </th>
-              <th rowSpan={2} style={{ width: '4.6%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '5.8%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>Current Vendor</div>
                 <div style={{ color: '#ffffff' }}>Cost</div>
               </th>
-              <th rowSpan={2} style={{ width: '4.6%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '5.8%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>Current</div>
                 <div style={{ color: '#ffffff' }}>Margin</div>
               </th>
-              <th rowSpan={2} style={{ width: '4.6%', borderBottom: '2px solid #ff6b35', borderRight: 'none', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+              <th rowSpan={2} style={{ width: '5.8%', borderBottom: '2px solid #ff6b35', borderRight: 'none', padding: '8px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
                 <div style={{ color: '#ffffff' }}>%-</div>
                 <div style={{ color: '#ffffff' }}>Margin</div>
               </th>
@@ -663,13 +663,13 @@ useEffect(() => {
             {/* Row 3: Individual column headers */}
             <tr>
               {/* Column 1: HC sub-columns */}
-              <th style={{ width: '6.55%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '4.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>OB-HC</div>
               </th>
-              <th style={{ width: '6.55%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '4.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Attrition-HC</div>
               </th>
-              <th style={{ width: '6.55%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
+              <th style={{ width: '4.5%', borderBottom: '2px solid #ff6b35', borderRight: '1px solid #e0e0e0', padding: '6px', backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '11px', textAlign: 'right' }}>
                 <div style={{ color: '#ffffff' }}>Net-HC</div>
               </th>
               {/* Column 2: Alchemy Status sub-columns */}
@@ -717,13 +717,13 @@ useEffect(() => {
                     {formatMonthYear(item["Month & Year"] || '')}
                   </td>
                   {/* Column 1: HC */}
-                  <td style={{ width: '6.55%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '4.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
                     {formatNumber(item["OB - HC"])}
                   </td>
-                  <td style={{ width: '6.55%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '4.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
                     {formatNumber(item["Attrition - HC"])}
                   </td>
-                  <td style={{ width: '6.55%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '11px' }}>
+                  <td style={{ width: '4.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '11px' }}>
                     {formatNumber(item["Net - HC"])}
                   </td>
                   {/* Column 2: Alchemy Status */}
@@ -754,19 +754,19 @@ useEffect(() => {
                     {formatNumber(item["Month Net Margin (Month)"])}
                   </td>
                   {/* Cumulative columns */}
-                  <td style={{ width: '4.6%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '5.8%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
                     {formatNumber(item["Current HC"])}
                   </td>
-                  <td style={{ width: '4.6%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '5.8%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
                     {formatNumber(item["Current PO Value"])}
                   </td>
-                  <td style={{ width: '4.6%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '5.8%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
                     {formatNumber(item["Current Vendor Cost"])}
                   </td>
-                  <td style={{ width: '4.6%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '5.8%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
                     {formatNumber(item["Current Margin"])}
   </td>
-                  <td style={{ width: '4.6%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
+                  <td style={{ width: '5.8%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '11px' }}>
                     {item["%- Margin"] !== null && item["%- Margin"] !== undefined && typeof item["%- Margin"] === 'number' && !isNaN(item["%- Margin"]) ? `${item["%- Margin"].toFixed(2)}%` : '0%'}
                   </td>
                 </tr>
