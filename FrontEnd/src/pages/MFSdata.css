@@ -23,6 +23,7 @@ body, html {
   display: flex;
   width: 100%;
   margin: 1rem 0;
+  align-items: flex-start; /* Ensure tables align at the top */
 }
 
 .fixed-column-table {
@@ -137,12 +138,25 @@ body, html {
   border-collapse: separate;
   border-spacing: 0;
   table-layout: auto;
+  vertical-align: top; /* Ensure tables align at the top */
 }
 
 /* Force consistent row alignment */
 .fixed-table tbody,
 .scrollable-table tbody {
   display: table-row-group;
+  vertical-align: top; /* Ensure tbody aligns at the top */
+}
+
+/* Ensure both tables have the same top margin/padding */
+.fixed-table thead,
+.scrollable-table thead {
+  vertical-align: top;
+}
+
+.fixed-table tbody tr:first-child,
+.scrollable-table tbody tr:first-child {
+  vertical-align: top;
 }
 
 
@@ -165,12 +179,14 @@ body, html {
 .scrollable-table thead {
   display: table-header-group;
   height: auto;
+  position: relative;
 }
 
 .fixed-table thead tr,
 .scrollable-table thead tr {
   height: auto;
   display: table-row;
+  position: relative;
 }
 
 .fixed-table thead tr th,
@@ -181,6 +197,8 @@ body, html {
   box-sizing: border-box;
   height: auto;
   display: table-cell;
+  position: relative;
+  overflow: visible;
 }
 
 /* Set column width for scrollable table cells (value table) - override previous rules */
@@ -203,6 +221,8 @@ body, html {
   line-height: 1.4;
   height: auto;
   min-height: 45px;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 /* Second header row (for parameters) - ensure same height */
@@ -212,6 +232,8 @@ body, html {
   line-height: 1.4;
   height: auto;
   min-height: 45px;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 /* Ensure rowSpan cells align properly and match the combined height of two rows */
@@ -220,12 +242,12 @@ body, html {
 }
 
 /* Critical: Make Client header match the combined height of two header rows in scrollable table */
-/* Each header row: padding 10px top + 10px bottom = 20px, plus content height ~25px = ~45px per row */
-/* For rowSpan="2": 45px * 2 = 90px total */
+/* Each header row: padding 8px top + 8px bottom = 16px, plus content height ~25px = ~41px per row */
+/* For rowSpan="2": 41px * 2 = 82px total */
 .fixed-table thead tr:first-child th[rowspan="2"] {
   vertical-align: middle;
-  min-height: 90px !important; /* Match combined height of two header rows */
-  height: 90px !important; /* Force exact height to match */
+  min-height: 82px !important; /* Match combined height of two header rows */
+  height: auto !important; /* Let sync logic set exact height */
   box-sizing: border-box;
 }
 
@@ -233,7 +255,7 @@ body, html {
 .fixed-table thead tr:first-child th[rowspan="1"] {
   vertical-align: middle;
   min-height: 45px !important; /* Match single header row height */
-  height: 45px !important; /* Force exact height to match */
+  height: auto !important; /* Let sync logic set exact height */
   box-sizing: border-box;
 }
 

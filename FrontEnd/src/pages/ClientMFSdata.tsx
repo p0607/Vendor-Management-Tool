@@ -624,7 +624,14 @@ const ClientMFSdata: React.FC = () => {
 
   // Sync row heights and column widths between fixed and scrollable tables
   useEffect(() => {
+    // Flag to prevent infinite loops
+    let isSyncing = false;
+    let syncTimeout: NodeJS.Timeout | null = null;
+    
     const syncTables = () => {
+      // Prevent concurrent syncs
+      if (isSyncing) return;
+      
       const fixedTable = document.querySelector('.fixed-table tbody');
       const scrollableTable = document.querySelector('.scrollable-table tbody');
       const fixedHeader = document.querySelector('.fixed-table thead');
@@ -632,15 +639,14 @@ const ClientMFSdata: React.FC = () => {
       
       if (!fixedTable || !scrollableTable) return;
       
+      isSyncing = true;
+      
       // Sync row heights - ensure exact alignment
       const fixedRows = Array.from(fixedTable.querySelectorAll('tr'));
       const scrollableRows = Array.from(scrollableTable.querySelectorAll('tr'));
       
-      // Validate row count matches
-      if (fixedRows.length !== scrollableRows.length) {
-        console.warn(`Row count mismatch: fixed=${fixedRows.length}, scrollable=${scrollableRows.length}`);
-        // Still try to sync what we can
-      }
+      // Validate row count matches (silently, no console warnings for performance)
+      // Still try to sync what we can
       
       // Match the number of rows (should be same, but use min to be safe)
       const minRows = Math.min(fixedRows.length, scrollableRows.length);
@@ -664,48 +670,63 @@ const ClientMFSdata: React.FC = () => {
       void (scrollableTable as HTMLElement).offsetHeight;
       
       // Now sync heights row by row - ensure perfect alignment
-      // Match rows by index (they should be in same order due to same tableData source)
-      for (let i = 0; i < minRows; i++) {
-        const fixedRow = fixedRows[i] as HTMLElement;
-        const scrollableRow = scrollableRows[i] as HTMLElement;
+      // Since both tables render from the same tableData array, rows at same index should match
+      // But we'll verify using data attributes to ensure correctness
+      const dataRows = fixedRows.filter(row => !(row as HTMLElement).classList.contains('total-row'));
+      const scrollableDataRows = scrollableRows.filter(row => !(row as HTMLElement).classList.contains('total-row'));
+      
+      const minDataRows = Math.min(dataRows.length, scrollableDataRows.length);
+      
+      for (let i = 0; i < minDataRows; i++) {
+        const fixedRow = dataRows[i] as HTMLElement;
+        const scrollableRow = scrollableDataRows[i] as HTMLElement;
         
-        // Skip total rows - they're handled separately
-        if (fixedRow.classList.contains('total-row') || scrollableRow.classList.contains('total-row')) {
-          continue;
-        }
+        // Verify rows match by data attributes (for debugging and safety)
+        const fixedClient = fixedRow.getAttribute('data-client');
+        const fixedProject = fixedRow.getAttribute('data-project') || '';
+        const scrollableClient = scrollableRow.getAttribute('data-client');
+        const scrollableProject = scrollableRow.getAttribute('data-project') || '';
         
-        // Verify rows match by checking their content (client name)
-        const fixedFirstCell = fixedRow.querySelector('td')?.textContent?.trim();
-        const scrollableFirstCell = scrollableRow.querySelector('td')?.textContent?.trim();
-        
-        // If first cells don't match, try to find matching row in scrollable table
-        let matchingScrollableRow = scrollableRow;
-        if (fixedFirstCell && scrollableFirstCell && fixedFirstCell !== scrollableFirstCell) {
-          // Try to find matching row by content
-          const foundRow = Array.from(scrollableRows).find((row, idx) => {
-            if (idx === i) return false; // Skip current row
-            const firstCell = row.querySelector('td')?.textContent?.trim();
-            return firstCell === fixedFirstCell;
+        // If rows don't match, try to find the correct matching row (silently, no console warnings)
+        if (fixedClient && scrollableClient && (fixedClient !== scrollableClient || fixedProject !== scrollableProject)) {
+          // Try to find the correct matching row
+          const correctRow = scrollableDataRows.find((row) => {
+            const rowEl = row as HTMLElement;
+            return rowEl.getAttribute('data-client') === fixedClient && 
+                   rowEl.getAttribute('data-project') === fixedProject;
           });
-          if (foundRow) {
-            matchingScrollableRow = foundRow as HTMLElement;
+          
+          if (correctRow) {
+            // Sync with the correct matching row instead
+            const correctScrollableRow = correctRow as HTMLElement;
+            const fixedHeight = fixedRow.offsetHeight || fixedRow.getBoundingClientRect().height;
+            const scrollableHeight = correctScrollableRow.offsetHeight || correctScrollableRow.getBoundingClientRect().height;
+            const maxHeight = Math.max(fixedHeight, scrollableHeight, 20);
+            
+            if (maxHeight > 0) {
+              fixedRow.style.height = `${maxHeight}px`;
+              fixedRow.style.minHeight = `${maxHeight}px`;
+              fixedRow.style.maxHeight = `${maxHeight}px`;
+              correctScrollableRow.style.height = `${maxHeight}px`;
+              correctScrollableRow.style.minHeight = `${maxHeight}px`;
+              correctScrollableRow.style.maxHeight = `${maxHeight}px`;
+            }
+            continue; // Skip the normal sync for this row
           }
         }
         
-        // Get the actual height of both rows
+        // Normal sync - rows match by index
         const fixedHeight = fixedRow.offsetHeight || fixedRow.getBoundingClientRect().height;
-        const scrollableHeight = matchingScrollableRow.offsetHeight || matchingScrollableRow.getBoundingClientRect().height;
-        
-        // Use the maximum height to ensure both rows align perfectly
+        const scrollableHeight = scrollableRow.offsetHeight || scrollableRow.getBoundingClientRect().height;
         const maxHeight = Math.max(fixedHeight, scrollableHeight, 20); // Minimum 20px
         
         if (maxHeight > 0) {
           fixedRow.style.height = `${maxHeight}px`;
           fixedRow.style.minHeight = `${maxHeight}px`;
           fixedRow.style.maxHeight = `${maxHeight}px`;
-          matchingScrollableRow.style.height = `${maxHeight}px`;
-          matchingScrollableRow.style.minHeight = `${maxHeight}px`;
-          matchingScrollableRow.style.maxHeight = `${maxHeight}px`;
+          scrollableRow.style.height = `${maxHeight}px`;
+          scrollableRow.style.minHeight = `${maxHeight}px`;
+          scrollableRow.style.maxHeight = `${maxHeight}px`;
         }
       }
       
@@ -724,8 +745,44 @@ const ClientMFSdata: React.FC = () => {
         }
       }
       
-      // Sync header heights
+      // Sync header heights - sync each header row individually
       if (fixedHeader && scrollableHeader) {
+        const fixedHeaderRows = Array.from(fixedHeader.querySelectorAll('tr'));
+        const scrollableHeaderRows = Array.from(scrollableHeader.querySelectorAll('tr'));
+        
+        // Reset header heights first
+        fixedHeaderRows.forEach(row => {
+          (row as HTMLElement).style.height = '';
+          (row as HTMLElement).style.minHeight = '';
+        });
+        scrollableHeaderRows.forEach(row => {
+          (row as HTMLElement).style.height = '';
+          (row as HTMLElement).style.minHeight = '';
+        });
+        
+        // Force reflow
+        void (fixedHeader as HTMLElement).offsetHeight;
+        void (scrollableHeader as HTMLElement).offsetHeight;
+        
+        // Sync each header row pair
+        const minHeaderRows = Math.min(fixedHeaderRows.length, scrollableHeaderRows.length);
+        for (let i = 0; i < minHeaderRows; i++) {
+          const fixedRow = fixedHeaderRows[i] as HTMLElement;
+          const scrollableRow = scrollableHeaderRows[i] as HTMLElement;
+          
+          const fixedRowHeight = fixedRow.offsetHeight || fixedRow.getBoundingClientRect().height;
+          const scrollableRowHeight = scrollableRow.offsetHeight || scrollableRow.getBoundingClientRect().height;
+          const maxRowHeight = Math.max(fixedRowHeight, scrollableRowHeight, 30);
+          
+          if (maxRowHeight > 0) {
+            fixedRow.style.height = `${maxRowHeight}px`;
+            fixedRow.style.minHeight = `${maxRowHeight}px`;
+            scrollableRow.style.height = `${maxRowHeight}px`;
+            scrollableRow.style.minHeight = `${maxRowHeight}px`;
+          }
+        }
+        
+        // Also sync overall header height
         const fixedHeaderHeight = (fixedHeader as HTMLElement).offsetHeight;
         const scrollableHeaderHeight = (scrollableHeader as HTMLElement).offsetHeight;
         const maxHeaderHeight = Math.max(fixedHeaderHeight, scrollableHeaderHeight);
@@ -737,6 +794,18 @@ const ClientMFSdata: React.FC = () => {
           (scrollableHeader as HTMLElement).style.minHeight = `${maxHeaderHeight}px`;
         }
       }
+      
+      isSyncing = false;
+    };
+    
+    // Debounced sync function
+    const debouncedSync = () => {
+      if (syncTimeout) {
+        clearTimeout(syncTimeout);
+      }
+      syncTimeout = setTimeout(() => {
+        syncTables();
+      }, 50); // Debounce to 50ms
     };
     
     // Sync with proper timing to ensure DOM is fully rendered
@@ -745,20 +814,30 @@ const ClientMFSdata: React.FC = () => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           syncTables();
-          // Sync again after a short delay to catch any late-rendering elements
+          // One additional sync after a short delay
           setTimeout(() => {
             syncTables();
-          }, 100);
+          }, 200);
         });
       });
     };
     
-    // Sync initially with delay
-    setTimeout(syncWithDelay, 150);
+    // Sync initially with delay - reduced attempts to prevent performance issues
+    setTimeout(syncWithDelay, 100);
+    setTimeout(syncWithDelay, 400);
     
     // Use MutationObserver to watch for DOM changes (like when edit container appears)
-    const observer = new MutationObserver(() => {
-      syncTables();
+    // Only watch for childList changes, not style changes (to prevent infinite loops)
+    const observer = new MutationObserver((mutations) => {
+      // Only sync if there are actual structural changes (not style changes we made)
+      const hasStructuralChanges = mutations.some(mutation => 
+        mutation.type === 'childList' || 
+        (mutation.type === 'attributes' && mutation.attributeName === 'class')
+      );
+      
+      if (hasStructuralChanges && !isSyncing) {
+        debouncedSync();
+      }
     });
     
     const scrollableTable = document.querySelector('.scrollable-table tbody');
@@ -767,56 +846,87 @@ const ClientMFSdata: React.FC = () => {
     if (scrollableTable) {
       observer.observe(scrollableTable, {
         childList: true,
-        subtree: true,
+        subtree: false, // Only watch direct children, not all descendants
         attributes: true,
-        attributeFilter: ['style', 'class']
+        attributeFilter: ['class'] // Only watch class changes, not style
       });
     }
     
     if (fixedTable) {
       observer.observe(fixedTable, {
         childList: true,
-        subtree: true,
+        subtree: false, // Only watch direct children, not all descendants
         attributes: true,
-        attributeFilter: ['style', 'class']
+        attributeFilter: ['class'] // Only watch class changes, not style
       });
     }
     
-    // Also sync on window resize
-    window.addEventListener('resize', syncTables);
+    // Throttled resize handler
+    let resizeTimeout: NodeJS.Timeout | null = null;
+    const handleResize = () => {
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      resizeTimeout = setTimeout(() => {
+        debouncedSync();
+      }, 150);
+    };
     
-    // Sync scroll position between tables
+    window.addEventListener('resize', handleResize);
+    
+    // Throttled scroll handler
+    let scrollTimeout: NodeJS.Timeout | null = null;
     const scrollableContainer = document.querySelector('.scrollable-columns-table');
-    const syncScroll = () => {
-      syncTables();
+    const handleScroll = () => {
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+      scrollTimeout = setTimeout(() => {
+        // Only sync row heights on scroll, don't trigger full sync
+        if (!isSyncing) {
+          debouncedSync();
+        }
+      }, 100);
     };
     
     if (scrollableContainer) {
-      scrollableContainer.addEventListener('scroll', syncScroll);
+      scrollableContainer.addEventListener('scroll', handleScroll, { passive: true });
     }
     
     // Sync when editing state changes
     if (editingCell || editMode) {
-      setTimeout(syncTables, 150);
+      setTimeout(() => {
+        if (!isSyncing) {
+          syncTables();
+        }
+      }, 150);
     }
     
-    // Additional sync after data changes - use multiple attempts to catch late renders
-    const syncAfterDataChange = () => {
+    // Initial sync after data changes
+    requestAnimationFrame(() => {
       setTimeout(() => {
-        syncTables();
-        setTimeout(syncTables, 100);
-        setTimeout(syncTables, 300);
-      }, 200);
-    };
-    
-    syncAfterDataChange();
+        if (!isSyncing) {
+          syncTables();
+        }
+      }, 300);
+    });
     
     return () => {
       observer.disconnect();
-      window.removeEventListener('resize', syncTables);
+      window.removeEventListener('resize', handleResize);
       if (scrollableContainer) {
-        scrollableContainer.removeEventListener('scroll', syncScroll);
+        scrollableContainer.removeEventListener('scroll', handleScroll);
       }
+      if (syncTimeout) {
+        clearTimeout(syncTimeout);
+      }
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+      isSyncing = false;
     };
   }, [editingCell, editMode, tableData, isMSSelected]); // Added isMSSelected to dependencies
 
@@ -1148,7 +1258,12 @@ const ClientMFSdata: React.FC = () => {
                   </thead>
                   <tbody>
                     {tableData.map((row, rowIndex) => (
-                      <tr key={`fixed_${row.client}_${row.project || ''}_${rowIndex}`}>
+                      <tr 
+                        key={`fixed_${row.client}_${row.project || ''}_${rowIndex}`}
+                        data-row-index={rowIndex}
+                        data-client={row.client}
+                        data-project={row.project || ''}
+                      >
                         <td className="parameter-cell">{row.client}</td>
                         {isMSSelected && (
                           <td className="parameter-cell">{row.project || 'N/A'}</td>
@@ -1197,7 +1312,12 @@ const ClientMFSdata: React.FC = () => {
                   </thead>
                   <tbody>
                     {tableData.map((row, rowIndex) => (
-                      <tr key={`scrollable_${row.client}_${row.project || ''}_${rowIndex}`}>
+                      <tr 
+                        key={`scrollable_${row.client}_${row.project || ''}_${rowIndex}`}
+                        data-row-index={rowIndex}
+                        data-client={row.client}
+                        data-project={row.project || ''}
+                      >
                         {months.map(monthKey => 
                           parameters.map(param => {
                             const cellKey = `${param.key}_${monthKey}`;
