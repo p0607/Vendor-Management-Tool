@@ -24,37 +24,41 @@ body, html {
   width: 100%;
   margin: 1rem 0;
   align-items: flex-start; /* Ensure tables align at the top */
+  position: relative;
+  gap: 0; /* No gap between tables to prevent overlap */
 }
 
 .fixed-column-table {
   flex-shrink: 0;
   width: 150px;
   overflow: visible;
+  position: relative;
+  z-index: 5; /* Ensure fixed columns stay above scrollable table */
 }
 
 /* When MS is selected, need more width for Client + Project columns */
 .fixed-column-table.ms-selected {
-  width: 320px; /* Increased slightly to accommodate project names */
+  width: 350px; /* Increased to accommodate both columns properly */
 }
 
 .fixed-column-table.ms-selected .fixed-table {
-  width: 320px;
+  width: 350px;
 }
 
 /* Client column - smaller width */
 .fixed-column-table.ms-selected .fixed-table th:nth-child(1),
 .fixed-column-table.ms-selected .fixed-table td:nth-child(1) {
-  width: 35%;
-  min-width: 100px;
-  max-width: 35%;
+  width: 28%; /* Reduced from 35% to make Client column narrower */
+  min-width: 90px;
+  max-width: 28%;
 }
 
 /* Project column - larger width to prevent wrapping */
 .fixed-column-table.ms-selected .fixed-table th:nth-child(2),
 .fixed-column-table.ms-selected .fixed-table td:nth-child(2) {
-  width: 65%;
-  min-width: 200px;
-  max-width: 65%;
+  width: 72%; /* Increased from 65% to give more space to Project column */
+  min-width: 250px;
+  max-width: 72%;
 }
 
 .scrollable-columns-table {
@@ -62,6 +66,9 @@ body, html {
   overflow-x: auto;
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 1; /* Lower z-index than fixed columns */
+  margin-left: 0; /* Ensure no overlap */
 }
 
 .scrollable-columns-table::-webkit-scrollbar {
@@ -401,13 +408,13 @@ body, html {
 
 /* When MS is selected, headers have different widths */
 .fixed-column-table.ms-selected .fixed-table .parameter-header:nth-child(1) {
-  width: 35%;
-  min-width: 100px;
+  width: 28%; /* Reduced to match Client column */
+  min-width: 90px;
 }
 
 .fixed-column-table.ms-selected .fixed-table .parameter-header:nth-child(2) {
-  width: 65%;
-  min-width: 200px;
+  width: 72%; /* Increased to match Project column */
+  min-width: 250px;
 }
 
 /* When not MS, single header should fill full width */
@@ -461,14 +468,14 @@ body, html {
 
 /* When MS is selected, parameter cells have different widths */
 .fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(1) {
-  width: 35%;
-  min-width: 100px;
+  width: 28%; /* Reduced to match Client column */
+  min-width: 90px;
   text-align: left !important; /* Ensure Client names are left-aligned */
 }
 
 .fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(2) {
-  width: 65%;
-  min-width: 200px;
+  width: 72%; /* Increased to match Project column */
+  min-width: 250px;
   white-space: nowrap; /* Prevent project names from wrapping */
   overflow: hidden;
   text-overflow: ellipsis; /* Show ellipsis if text is too long */
@@ -530,13 +537,13 @@ body, html {
 
 /* When MS is selected, total label has different widths */
 .fixed-column-table.ms-selected .fixed-table .total-label:nth-child(1) {
-  width: 35%;
-  min-width: 100px;
+  width: 28%; /* Reduced to match Client column */
+  min-width: 90px;
 }
 
 .fixed-column-table.ms-selected .fixed-table .total-label:nth-child(2) {
-  width: 65%;
-  min-width: 200px;
+  width: 72%; /* Increased to match Project column */
+  min-width: 250px;
 }
 
 /* When not MS, single total label should fill full width */
