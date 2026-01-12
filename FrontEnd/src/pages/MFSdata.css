@@ -38,27 +38,27 @@ body, html {
 
 /* When MS is selected, need more width for Client + Project columns */
 .fixed-column-table.ms-selected {
-  width: 350px; /* Increased to accommodate both columns properly */
+  width: 320px; /* Reduced from 350px to better fit content */
 }
 
 .fixed-column-table.ms-selected .fixed-table {
-  width: 350px;
+  width: 320px;
 }
 
 /* Client column - smaller width */
 .fixed-column-table.ms-selected .fixed-table th:nth-child(1),
 .fixed-column-table.ms-selected .fixed-table td:nth-child(1) {
-  width: 28%; /* Reduced from 35% to make Client column narrower */
+  width: 30%; /* Slightly increased to balance with reduced Project column */
   min-width: 90px;
-  max-width: 28%;
+  max-width: 30%;
 }
 
-/* Project column - larger width to prevent wrapping */
+/* Project column - reduced width to eliminate blank space */
 .fixed-column-table.ms-selected .fixed-table th:nth-child(2),
 .fixed-column-table.ms-selected .fixed-table td:nth-child(2) {
-  width: 72%; /* Increased from 65% to give more space to Project column */
-  min-width: 250px;
-  max-width: 72%;
+  width: 70%; /* Reduced from 72% to eliminate excess blank space */
+  min-width: 200px; /* Reduced from 250px */
+  max-width: 70%;
 }
 
 .scrollable-columns-table {
@@ -295,12 +295,17 @@ body, html {
   box-sizing: border-box;
 }
 
-/* Ensure empty cells in second row of fixed table don't affect height */
+/* Ensure empty cells in second row of fixed table don't affect height or create extra columns */
 .fixed-table thead tr:nth-child(2) th:empty {
-  padding: 0;
-  height: 0;
-  line-height: 0;
-  border: none;
+  padding: 0 !important;
+  height: 0 !important;
+  line-height: 0 !important;
+  border: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden;
+  visibility: hidden; /* Hide but maintain table structure for rowSpan */
 }
 
 .auth-buttons-container {
@@ -408,13 +413,13 @@ body, html {
 
 /* When MS is selected, headers have different widths */
 .fixed-column-table.ms-selected .fixed-table .parameter-header:nth-child(1) {
-  width: 28%; /* Reduced to match Client column */
+  width: 30%; /* Match Client column */
   min-width: 90px;
 }
 
 .fixed-column-table.ms-selected .fixed-table .parameter-header:nth-child(2) {
-  width: 72%; /* Increased to match Project column */
-  min-width: 250px;
+  width: 70%; /* Match Project column */
+  min-width: 200px;
 }
 
 /* When not MS, single header should fill full width */
@@ -468,14 +473,14 @@ body, html {
 
 /* When MS is selected, parameter cells have different widths */
 .fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(1) {
-  width: 28%; /* Reduced to match Client column */
+  width: 30%; /* Match Client column */
   min-width: 90px;
   text-align: left !important; /* Ensure Client names are left-aligned */
 }
 
 .fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(2) {
-  width: 72%; /* Increased to match Project column */
-  min-width: 250px;
+  width: 70%; /* Reduced to match Project column and eliminate blank space */
+  min-width: 200px; /* Reduced from 250px */
   white-space: nowrap; /* Prevent project names from wrapping */
   overflow: hidden;
   text-overflow: ellipsis; /* Show ellipsis if text is too long */
@@ -537,13 +542,13 @@ body, html {
 
 /* When MS is selected, total label has different widths */
 .fixed-column-table.ms-selected .fixed-table .total-label:nth-child(1) {
-  width: 28%; /* Reduced to match Client column */
+  width: 30%; /* Match Client column */
   min-width: 90px;
 }
 
 .fixed-column-table.ms-selected .fixed-table .total-label:nth-child(2) {
-  width: 72%; /* Increased to match Project column */
-  min-width: 250px;
+  width: 70%; /* Match Project column */
+  min-width: 200px;
 }
 
 /* When not MS, single total label should fill full width */
