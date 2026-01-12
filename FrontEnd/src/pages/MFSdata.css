@@ -451,7 +451,7 @@ body, html {
   font-weight: 600;
   padding: 8px 6px; /* Decreased from 10px 12px to reduce cell width */
   border: 1px solid #000000;
-  text-align: left;
+  text-align: left !important; /* Ensure Client and Project names are left-aligned */
   width: 100%;
 }
 
@@ -463,6 +463,7 @@ body, html {
 .fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(1) {
   width: 35%;
   min-width: 100px;
+  text-align: left !important; /* Ensure Client names are left-aligned */
 }
 
 .fixed-column-table.ms-selected .fixed-table .parameter-cell:nth-child(2) {
@@ -471,6 +472,7 @@ body, html {
   white-space: nowrap; /* Prevent project names from wrapping */
   overflow: hidden;
   text-overflow: ellipsis; /* Show ellipsis if text is too long */
+  text-align: left !important; /* Ensure Project names are left-aligned */
 }
 
 /* When not MS, single column should fill full width */
@@ -478,6 +480,7 @@ body, html {
   width: 100%;
   min-width: 100%;
   max-width: 100%;
+  text-align: left !important; /* Ensure Client names are left-aligned */
 }
 
 .pivot-table tbody tr:nth-child(even) .parameter-cell {
