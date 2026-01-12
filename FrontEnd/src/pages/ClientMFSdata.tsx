@@ -171,9 +171,8 @@ const ClientMFSdata: React.FC = () => {
     return Array.from(clients).sort();
   }, [teamReportData, selectedBusinessUnit]);
 
-  // Check if MS is selected
   // Check if MS is selected (case-insensitive)
-  const isMSSelected = selectedBusinessUnit ? normalizeBusinessUnitName(selectedBusinessUnit) === 'Ms' : false;
+  const isMSSelected = selectedBusinessUnit ? compareBusinessUnits(selectedBusinessUnit, 'MS') : false;
 
   // Get unique years
   const years = useMemo(() => {
