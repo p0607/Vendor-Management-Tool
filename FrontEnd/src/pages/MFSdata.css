@@ -118,6 +118,7 @@ body, html {
 .scrollable-table tbody tr {
   height: auto;
   min-height: 40px; /* Minimum row height */
+  display: table-row; /* Ensure proper table row display */
 }
 
 .fixed-table tbody tr td,
@@ -127,6 +128,21 @@ body, html {
   vertical-align: middle;
   padding: 6px 3px; /* Decreased from 8px 4px to reduce cell width */
   box-sizing: border-box;
+  display: table-cell; /* Ensure proper table cell display */
+}
+
+/* Ensure both tables have identical row structure */
+.fixed-table,
+.scrollable-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+}
+
+/* Force consistent row alignment */
+.fixed-table tbody,
+.scrollable-table tbody {
+  display: table-row-group;
 }
 
 

@@ -632,24 +632,95 @@ const ClientMFSdata: React.FC = () => {
       
       if (!fixedTable || !scrollableTable) return;
       
-      // Sync row heights
-      const fixedRows = fixedTable.querySelectorAll('tr');
-      const scrollableRows = scrollableTable.querySelectorAll('tr');
+      // Sync row heights - ensure exact alignment
+      const fixedRows = Array.from(fixedTable.querySelectorAll('tr'));
+      const scrollableRows = Array.from(scrollableTable.querySelectorAll('tr'));
       
-      // Match the number of rows
+      // Validate row count matches
+      if (fixedRows.length !== scrollableRows.length) {
+        console.warn(`Row count mismatch: fixed=${fixedRows.length}, scrollable=${scrollableRows.length}`);
+        // Still try to sync what we can
+      }
+      
+      // Match the number of rows (should be same, but use min to be safe)
       const minRows = Math.min(fixedRows.length, scrollableRows.length);
       
+      // Reset all heights first to get natural heights
+      fixedRows.forEach(row => {
+        const rowEl = row as HTMLElement;
+        rowEl.style.height = '';
+        rowEl.style.minHeight = '';
+        rowEl.style.maxHeight = '';
+      });
+      scrollableRows.forEach(row => {
+        const rowEl = row as HTMLElement;
+        rowEl.style.height = '';
+        rowEl.style.minHeight = '';
+        rowEl.style.maxHeight = '';
+      });
+      
+      // Force a reflow to get accurate measurements
+      void (fixedTable as HTMLElement).offsetHeight;
+      void (scrollableTable as HTMLElement).offsetHeight;
+      
+      // Now sync heights row by row - ensure perfect alignment
+      // Match rows by index (they should be in same order due to same tableData source)
       for (let i = 0; i < minRows; i++) {
         const fixedRow = fixedRows[i] as HTMLElement;
         const scrollableRow = scrollableRows[i] as HTMLElement;
         
-        // Get the actual height of the scrollable row (which may have edit container)
-        const scrollableHeight = scrollableRow.offsetHeight;
+        // Skip total rows - they're handled separately
+        if (fixedRow.classList.contains('total-row') || scrollableRow.classList.contains('total-row')) {
+          continue;
+        }
         
-        // Set fixed row to match scrollable row height
-        if (scrollableHeight > 0) {
-          fixedRow.style.height = `${scrollableHeight}px`;
-          fixedRow.style.minHeight = `${scrollableHeight}px`;
+        // Verify rows match by checking their content (client name)
+        const fixedFirstCell = fixedRow.querySelector('td')?.textContent?.trim();
+        const scrollableFirstCell = scrollableRow.querySelector('td')?.textContent?.trim();
+        
+        // If first cells don't match, try to find matching row in scrollable table
+        let matchingScrollableRow = scrollableRow;
+        if (fixedFirstCell && scrollableFirstCell && fixedFirstCell !== scrollableFirstCell) {
+          // Try to find matching row by content
+          const foundRow = Array.from(scrollableRows).find((row, idx) => {
+            if (idx === i) return false; // Skip current row
+            const firstCell = row.querySelector('td')?.textContent?.trim();
+            return firstCell === fixedFirstCell;
+          });
+          if (foundRow) {
+            matchingScrollableRow = foundRow as HTMLElement;
+          }
+        }
+        
+        // Get the actual height of both rows
+        const fixedHeight = fixedRow.offsetHeight || fixedRow.getBoundingClientRect().height;
+        const scrollableHeight = matchingScrollableRow.offsetHeight || matchingScrollableRow.getBoundingClientRect().height;
+        
+        // Use the maximum height to ensure both rows align perfectly
+        const maxHeight = Math.max(fixedHeight, scrollableHeight, 20); // Minimum 20px
+        
+        if (maxHeight > 0) {
+          fixedRow.style.height = `${maxHeight}px`;
+          fixedRow.style.minHeight = `${maxHeight}px`;
+          fixedRow.style.maxHeight = `${maxHeight}px`;
+          matchingScrollableRow.style.height = `${maxHeight}px`;
+          matchingScrollableRow.style.minHeight = `${maxHeight}px`;
+          matchingScrollableRow.style.maxHeight = `${maxHeight}px`;
+        }
+      }
+      
+      // Sync total row heights separately
+      const fixedTotalRow = fixedTable.querySelector('tr.total-row') as HTMLElement;
+      const scrollableTotalRow = scrollableTable.querySelector('tr.total-row') as HTMLElement;
+      if (fixedTotalRow && scrollableTotalRow) {
+        const fixedTotalHeight = fixedTotalRow.offsetHeight || fixedTotalRow.getBoundingClientRect().height;
+        const scrollableTotalHeight = scrollableTotalRow.offsetHeight || scrollableTotalRow.getBoundingClientRect().height;
+        const maxTotalHeight = Math.max(fixedTotalHeight, scrollableTotalHeight, 20);
+        if (maxTotalHeight > 0) {
+          fixedTotalRow.style.height = `${maxTotalHeight}px`;
+          fixedTotalRow.style.minHeight = `${maxTotalHeight}px`;
+          scrollableTotalRow.style.height = `${maxTotalHeight}px`;
+          scrollableTotalRow.style.minHeight = `${maxTotalHeight}px`;
         }
       }
       
@@ -666,31 +737,24 @@ const ClientMFSdata: React.FC = () => {
           (scrollableHeader as HTMLElement).style.minHeight = `${maxHeaderHeight}px`;
         }
       }
-      
-      // Sync column widths - ensure both tables have same cell widths
-      if (scrollableRows.length > 0 && fixedRows.length > 0) {
-        const firstScrollableRow = scrollableRows[0] as HTMLElement;
-        const firstFixedRow = fixedRows[0] as HTMLElement;
-        
-        // Sync cell widths from scrollable to fixed (for consistency)
-        const scrollableCells = firstScrollableRow.querySelectorAll('td');
-        scrollableCells.forEach((cell, index) => {
-          const cellWidth = (cell as HTMLElement).offsetWidth;
-          if (cellWidth > 0 && index < fixedRows.length) {
-            // Ensure corresponding cells have same width
-            const fixedCell = firstFixedRow.querySelectorAll('td')[index] as HTMLElement;
-            if (fixedCell) {
-              fixedCell.style.width = `${cellWidth}px`;
-              fixedCell.style.minWidth = `${cellWidth}px`;
-              fixedCell.style.maxWidth = `${cellWidth}px`;
-            }
-          }
-        });
-      }
     };
     
-    // Sync initially and whenever editing state changes
-    syncTables();
+    // Sync with proper timing to ensure DOM is fully rendered
+    const syncWithDelay = () => {
+      // Use requestAnimationFrame to sync after browser paint
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          syncTables();
+          // Sync again after a short delay to catch any late-rendering elements
+          setTimeout(() => {
+            syncTables();
+          }, 100);
+        });
+      });
+    };
+    
+    // Sync initially with delay
+    setTimeout(syncWithDelay, 150);
     
     // Use MutationObserver to watch for DOM changes (like when edit container appears)
     const observer = new MutationObserver(() => {
@@ -721,16 +785,40 @@ const ClientMFSdata: React.FC = () => {
     // Also sync on window resize
     window.addEventListener('resize', syncTables);
     
+    // Sync scroll position between tables
+    const scrollableContainer = document.querySelector('.scrollable-columns-table');
+    const syncScroll = () => {
+      syncTables();
+    };
+    
+    if (scrollableContainer) {
+      scrollableContainer.addEventListener('scroll', syncScroll);
+    }
+    
     // Sync when editing state changes
     if (editingCell || editMode) {
-      setTimeout(syncTables, 100); // Small delay to allow DOM to update
+      setTimeout(syncTables, 150);
     }
+    
+    // Additional sync after data changes - use multiple attempts to catch late renders
+    const syncAfterDataChange = () => {
+      setTimeout(() => {
+        syncTables();
+        setTimeout(syncTables, 100);
+        setTimeout(syncTables, 300);
+      }, 200);
+    };
+    
+    syncAfterDataChange();
     
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', syncTables);
+      if (scrollableContainer) {
+        scrollableContainer.removeEventListener('scroll', syncScroll);
+      }
     };
-  }, [editingCell, editMode, tableData]); // Sync when editing state or data changes
+  }, [editingCell, editMode, tableData, isMSSelected]); // Added isMSSelected to dependencies
 
   // Handle edit click
   const handleEditClick = (parameter: string, monthKey: string, currentValue: number, clientName?: string, projectName?: string) => {
