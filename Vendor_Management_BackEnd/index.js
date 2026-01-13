@@ -391,6 +391,50 @@ app.post('/api/login', async (req, res, next) => {
 
     logger.info('User logged in successfully', { userId: user.id, name: user.name });
     
+    // Normalize business unit to ensure consistency
+    let normalizedBusinessUnit = user.business_unit;
+    if (user.business_unit) {
+      const buTrimmed = String(user.business_unit).trim();
+      const buLower = buTrimmed.toLowerCase();
+      
+      // Handle BPO|HTD variations (case-insensitive)
+      if (buLower === 'bpo|htd' || buLower === 'bpo/htd' || buLower === 'bpo-htd') {
+        normalizedBusinessUnit = 'BPO|HTD';
+      }
+      // Handle other common variations
+      else if (buLower === 'captive') {
+        normalizedBusinessUnit = 'Captive';
+      }
+      else if (buLower === 'canada') {
+        normalizedBusinessUnit = 'Canada';
+      }
+      else if (buLower === 'japan') {
+        normalizedBusinessUnit = 'Japan';
+      }
+      else if (buLower === 'singapore') {
+        normalizedBusinessUnit = 'Singapore';
+      }
+      else if (buLower === 'si' || buLower === 'si tech' || buLower === 'si bpo') {
+        normalizedBusinessUnit = 'SI';
+      }
+      else if (buLower === 'usa') {
+        normalizedBusinessUnit = 'USA';
+      }
+      else if (buLower === 'ms' || buLower === 'managed services' || buLower === 'managed  services') {
+        normalizedBusinessUnit = 'MS';
+      }
+      else if (buLower === 'egg' || buLower === 'engg' || buLower === 'engineering') {
+        normalizedBusinessUnit = 'Egg';
+      }
+      else if (buLower === 'all' || buLower === 'finance') {
+        normalizedBusinessUnit = 'Finance';
+      }
+      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation)
+      else if (buTrimmed.toUpperCase() === 'BPO|HTD' || buTrimmed === 'BPO|HTD') {
+        normalizedBusinessUnit = 'BPO|HTD';
+      }
+    }
+    
     res.json({ 
       success: true, 
       message: 'Login successful',
@@ -398,7 +442,7 @@ app.post('/api/login', async (req, res, next) => {
         id: user.id,
         name: user.name,
         designation: user.designation,
-        business_unit: user.business_unit,
+        business_unit: normalizedBusinessUnit,
         email: user.email
       }
     });
@@ -1726,8 +1770,51 @@ app.get('/api/team-report', async (req, res, next) => {
     let params = [];
 
     if (designation === 'BU HEAD' && business_unit) {
-      query += ' WHERE business_unit = $1';
-      params.push(business_unit);
+      // Normalize business unit for case-insensitive matching
+      let normalizedBU = business_unit;
+      const buTrimmed = String(business_unit).trim();
+      const buLower = buTrimmed.toLowerCase();
+      
+      // Handle BPO|HTD variations (case-insensitive)
+      if (buLower === 'bpo|htd' || buLower === 'bpo/htd' || buLower === 'bpo-htd') {
+        normalizedBU = 'BPO|HTD';
+      }
+      // Handle other common variations
+      else if (buLower === 'captive') {
+        normalizedBU = 'Captive';
+      }
+      else if (buLower === 'canada') {
+        normalizedBU = 'Canada';
+      }
+      else if (buLower === 'japan') {
+        normalizedBU = 'Japan';
+      }
+      else if (buLower === 'singapore') {
+        normalizedBU = 'Singapore';
+      }
+      else if (buLower === 'si' || buLower === 'si tech' || buLower === 'si bpo') {
+        normalizedBU = 'SI';
+      }
+      else if (buLower === 'usa') {
+        normalizedBU = 'USA';
+      }
+      else if (buLower === 'ms' || buLower === 'managed services' || buLower === 'managed  services') {
+        normalizedBU = 'MS';
+      }
+      else if (buLower === 'egg' || buLower === 'engg' || buLower === 'engineering') {
+        normalizedBU = 'Egg';
+      }
+      else if (buLower === 'all' || buLower === 'finance') {
+        normalizedBU = 'Finance';
+      }
+      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation)
+      else if (buTrimmed.toUpperCase() === 'BPO|HTD' || buTrimmed === 'BPO|HTD') {
+        normalizedBU = 'BPO|HTD';
+      }
+      
+      // Use case-insensitive comparison in SQL
+      query += ' WHERE LOWER(TRIM(business_unit)) = LOWER(TRIM($1))';
+      params.push(normalizedBU);
     }
 
     const result = await executeQuery(query, params);
@@ -2222,8 +2309,51 @@ app.get('/api/team-summary-report', async (req, res, next) => {
     let params = [];
 
     if (business_unit) {
-      query += ' WHERE business_unit = $1';
-      params.push(business_unit);
+      // Normalize business unit for case-insensitive matching
+      let normalizedBU = business_unit;
+      const buTrimmed = String(business_unit).trim();
+      const buLower = buTrimmed.toLowerCase();
+      
+      // Handle BPO|HTD variations (case-insensitive)
+      if (buLower === 'bpo|htd' || buLower === 'bpo/htd' || buLower === 'bpo-htd') {
+        normalizedBU = 'BPO|HTD';
+      }
+      // Handle other common variations
+      else if (buLower === 'captive') {
+        normalizedBU = 'Captive';
+      }
+      else if (buLower === 'canada') {
+        normalizedBU = 'Canada';
+      }
+      else if (buLower === 'japan') {
+        normalizedBU = 'Japan';
+      }
+      else if (buLower === 'singapore') {
+        normalizedBU = 'Singapore';
+      }
+      else if (buLower === 'si' || buLower === 'si tech' || buLower === 'si bpo') {
+        normalizedBU = 'SI';
+      }
+      else if (buLower === 'usa') {
+        normalizedBU = 'USA';
+      }
+      else if (buLower === 'ms' || buLower === 'managed services' || buLower === 'managed  services') {
+        normalizedBU = 'MS';
+      }
+      else if (buLower === 'egg' || buLower === 'engg' || buLower === 'engineering') {
+        normalizedBU = 'Egg';
+      }
+      else if (buLower === 'all' || buLower === 'finance') {
+        normalizedBU = 'Finance';
+      }
+      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation)
+      else if (buTrimmed.toUpperCase() === 'BPO|HTD' || buTrimmed === 'BPO|HTD') {
+        normalizedBU = 'BPO|HTD';
+      }
+      
+      // Use case-insensitive comparison in SQL
+      query += ' WHERE LOWER(TRIM(business_unit)) = LOWER(TRIM($1))';
+      params.push(normalizedBU);
     }
 
     query += ' ORDER BY year DESC, month, business_unit';

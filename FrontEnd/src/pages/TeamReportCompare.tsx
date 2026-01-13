@@ -2215,13 +2215,13 @@ const TeamReportCompare: React.FC = () => {
         const buFromURL = queryParams.get('business_unit');
 
         if (buFromURL) {
-
-          setSelectedBusinessUnit(buFromURL);
-
+          // Normalize URL business unit using centralized utility
+          const normalizedBU = normalizeBusinessUnitName(buFromURL);
+          setSelectedBusinessUnit(normalizedBU || buFromURL);
         } else if (userIsBUHead && parsedUser.business_unit) {
-
-          setSelectedBusinessUnit(parsedUser.business_unit);
-
+          // Normalize user's business unit for BU head login (case-insensitive)
+          const normalizedBU = normalizeBusinessUnitName(parsedUser.business_unit);
+          setSelectedBusinessUnit(normalizedBU || parsedUser.business_unit);
         }
 
       }
