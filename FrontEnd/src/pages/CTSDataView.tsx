@@ -425,7 +425,7 @@ const CTSDataView: React.FC = () => {
           >
             ← Back
           </button>
-          <div className="actions-dropdown" ref={actionsDropdownRef}>
+          <div className="actions-dropdown" ref={actionsDropdownRef} style={{ position: 'relative' }}>
             <button 
               className="auth-button"
               onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)}
@@ -433,15 +433,53 @@ const CTSDataView: React.FC = () => {
               Actions ▼
             </button>
             {isActionsDropdownOpen && (
-              <div className="dropdown-menu">
-                <button onClick={exportToExcel}>Export to Excel</button>
-                <button onClick={exportToPDF}>Export to PDF</button>
-                <button onClick={() => navigate('/AddActiveData')}>Add Active Data</button>
-                <button onClick={() => navigate('/AddAttritionData')}>Add Attrition Data</button>
+              <div className="dropdown-menu" style={{ 
+                position: 'absolute', 
+                top: '100%', 
+                right: 0, 
+                backgroundColor: 'white', 
+                border: '1px solid #ccc', 
+                borderRadius: '4px', 
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
+                zIndex: 1000, 
+                minWidth: '200px',
+                marginTop: '5px'
+              }}>
+                <button 
+                  onClick={() => { exportToExcel(); setIsActionsDropdownOpen(false); }} 
+                  style={{ display: 'block', width: '100%', padding: '10px 15px', textAlign: 'left', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  Export to Excel
+                </button>
+                <button 
+                  onClick={() => { exportToPDF(); setIsActionsDropdownOpen(false); }} 
+                  style={{ display: 'block', width: '100%', padding: '10px 15px', textAlign: 'left', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  Export to PDF
+                </button>
+                <button 
+                  onClick={() => { navigate('/AddActiveData'); setIsActionsDropdownOpen(false); }} 
+                  style={{ display: 'block', width: '100%', padding: '10px 15px', textAlign: 'left', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  Add Active Data
+                </button>
+                <button 
+                  onClick={() => { navigate('/AddAttritionData'); setIsActionsDropdownOpen(false); }} 
+                  style={{ display: 'block', width: '100%', padding: '10px 15px', textAlign: 'left', border: 'none', backgroundColor: 'transparent', cursor: 'pointer' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  Add Attrition Data
+                </button>
               </div>
             )}
           </div>
-          <button className="auth-button" onClick={() => navigate('/HomePage')}>Home</button>
         </div>
       </div>
 

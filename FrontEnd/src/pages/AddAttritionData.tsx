@@ -355,7 +355,23 @@ const AddAttritionData: React.FC = () => {
 
         {activeTab === 'manual' && (
           <form onSubmit={handleSubmit} className="routing-form">
-            <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <style>{`
+              .routing-form .form-grid .form-group {
+                margin-bottom: 0.8rem;
+              }
+              .routing-form .form-grid .form-group label {
+                font-size: 12px;
+                margin-bottom: 4px;
+                display: block;
+              }
+              .routing-form .form-grid .form-group input {
+                padding: 6px 8px;
+                font-size: 13px;
+                width: 100%;
+                box-sizing: border-box;
+              }
+            `}</style>
+            <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
                 <label>Employee Name</label>
                 <input
