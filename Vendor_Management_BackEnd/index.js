@@ -297,8 +297,10 @@ app.post('/api/signup',
         const buTrimmed = String(business_unit).trim();
         const buLower = buTrimmed.toLowerCase();
         
-        // Handle BPO|HTD variations (case-insensitive)
-        if (buLower === 'bpo|htd' || buLower === 'bpo/htd' || buLower === 'bpo-htd') {
+        // Handle BPO|HTD variations (case-insensitive, with or without spaces)
+        // Remove spaces around pipe/slash/dash for comparison
+        const normalizedForComparison = buLower.replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
+        if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
           normalizedBusinessUnit = 'BPO|HTD';
         }
         // Handle other common variations
@@ -329,8 +331,10 @@ app.post('/api/signup',
         else if (buLower === 'all' || buLower === 'finance') {
           normalizedBusinessUnit = 'Finance';
         }
-        // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation)
-        else if (buTrimmed.toUpperCase() === 'BPO|HTD' || buTrimmed === 'BPO|HTD') {
+        // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation, including spaces)
+        // Normalize spaces around pipe before checking
+        const buNormalizedForCheck = buTrimmed.replace(/\s*\|\s*/g, '|');
+        if (buNormalizedForCheck.toUpperCase() === 'BPO|HTD' || buNormalizedForCheck === 'BPO|HTD') {
           normalizedBusinessUnit = 'BPO|HTD';
         }
         // If already normalized by frontend, keep as is
@@ -397,8 +401,10 @@ app.post('/api/login', async (req, res, next) => {
       const buTrimmed = String(user.business_unit).trim();
       const buLower = buTrimmed.toLowerCase();
       
-      // Handle BPO|HTD variations (case-insensitive)
-      if (buLower === 'bpo|htd' || buLower === 'bpo/htd' || buLower === 'bpo-htd') {
+      // Handle BPO|HTD variations (case-insensitive, with or without spaces)
+      // Remove spaces around pipe/slash/dash for comparison
+      const normalizedForComparison = buLower.replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
+      if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
         normalizedBusinessUnit = 'BPO|HTD';
       }
       // Handle other common variations
@@ -429,8 +435,10 @@ app.post('/api/login', async (req, res, next) => {
       else if (buLower === 'all' || buLower === 'finance') {
         normalizedBusinessUnit = 'Finance';
       }
-      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation)
-      else if (buTrimmed.toUpperCase() === 'BPO|HTD' || buTrimmed === 'BPO|HTD') {
+      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation, including spaces)
+      // Normalize spaces around pipe before checking
+      const buNormalizedForCheck = buTrimmed.replace(/\s*\|\s*/g, '|');
+      if (buNormalizedForCheck.toUpperCase() === 'BPO|HTD' || buNormalizedForCheck === 'BPO|HTD') {
         normalizedBusinessUnit = 'BPO|HTD';
       }
     }
@@ -1775,8 +1783,10 @@ app.get('/api/team-report', async (req, res, next) => {
       const buTrimmed = String(business_unit).trim();
       const buLower = buTrimmed.toLowerCase();
       
-      // Handle BPO|HTD variations (case-insensitive)
-      if (buLower === 'bpo|htd' || buLower === 'bpo/htd' || buLower === 'bpo-htd') {
+      // Handle BPO|HTD variations (case-insensitive, with or without spaces)
+      // Remove spaces around pipe/slash/dash for comparison
+      const normalizedForComparison = buLower.replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
+      if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
         normalizedBU = 'BPO|HTD';
       }
       // Handle other common variations
@@ -1807,13 +1817,16 @@ app.get('/api/team-report', async (req, res, next) => {
       else if (buLower === 'all' || buLower === 'finance') {
         normalizedBU = 'Finance';
       }
-      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation)
-      else if (buTrimmed.toUpperCase() === 'BPO|HTD' || buTrimmed === 'BPO|HTD') {
+      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation, including spaces)
+      // Normalize spaces around pipe before checking
+      const buNormalizedForCheck = buTrimmed.replace(/\s*\|\s*/g, '|');
+      if (buNormalizedForCheck.toUpperCase() === 'BPO|HTD' || buNormalizedForCheck === 'BPO|HTD') {
         normalizedBU = 'BPO|HTD';
       }
       
-      // Use case-insensitive comparison in SQL
-      query += ' WHERE LOWER(TRIM(business_unit)) = LOWER(TRIM($1))';
+      // Use case-insensitive comparison in SQL, also normalize spaces around pipe
+      // Replace spaces around pipe for comparison (handles "BPO | HTD", "BPO|HTD", etc.)
+      query += " WHERE LOWER(REGEXP_REPLACE(TRIM(business_unit), '\\s*\\|\\s*', '|', 'g')) = LOWER(REGEXP_REPLACE(TRIM($1), '\\s*\\|\\s*', '|', 'g'))";
       params.push(normalizedBU);
     }
 
@@ -2314,8 +2327,10 @@ app.get('/api/team-summary-report', async (req, res, next) => {
       const buTrimmed = String(business_unit).trim();
       const buLower = buTrimmed.toLowerCase();
       
-      // Handle BPO|HTD variations (case-insensitive)
-      if (buLower === 'bpo|htd' || buLower === 'bpo/htd' || buLower === 'bpo-htd') {
+      // Handle BPO|HTD variations (case-insensitive, with or without spaces)
+      // Remove spaces around pipe/slash/dash for comparison
+      const normalizedForComparison = buLower.replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
+      if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
         normalizedBU = 'BPO|HTD';
       }
       // Handle other common variations
@@ -2346,13 +2361,16 @@ app.get('/api/team-summary-report', async (req, res, next) => {
       else if (buLower === 'all' || buLower === 'finance') {
         normalizedBU = 'Finance';
       }
-      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation)
-      else if (buTrimmed.toUpperCase() === 'BPO|HTD' || buTrimmed === 'BPO|HTD') {
+      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation, including spaces)
+      // Normalize spaces around pipe before checking
+      const buNormalizedForCheck = buTrimmed.replace(/\s*\|\s*/g, '|');
+      if (buNormalizedForCheck.toUpperCase() === 'BPO|HTD' || buNormalizedForCheck === 'BPO|HTD') {
         normalizedBU = 'BPO|HTD';
       }
       
-      // Use case-insensitive comparison in SQL
-      query += ' WHERE LOWER(TRIM(business_unit)) = LOWER(TRIM($1))';
+      // Use case-insensitive comparison in SQL, also normalize spaces around pipe
+      // Replace spaces around pipe for comparison (handles "BPO | HTD", "BPO|HTD", etc.)
+      query += " WHERE LOWER(REGEXP_REPLACE(TRIM(business_unit), '\\s*\\|\\s*', '|', 'g')) = LOWER(REGEXP_REPLACE(TRIM($1), '\\s*\\|\\s*', '|', 'g'))";
       params.push(normalizedBU);
     }
 

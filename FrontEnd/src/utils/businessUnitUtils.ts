@@ -33,8 +33,13 @@ const SIGNUP_TO_CANONICAL_MAP: { [key: string]: string } = {
   'captive': 'Captive',
   'Captive': 'Captive',
   'BPO|HTD': 'BPO|HTD',
+  'BPO | HTD': 'BPO|HTD',
+  'BPO| HTD': 'BPO|HTD',
+  'BPO |HTD': 'BPO|HTD',
   'bpo|htd': 'BPO|HTD',
+  'bpo | htd': 'BPO|HTD',
   'Bpo|Htd': 'BPO|HTD',
+  'Bpo | Htd': 'BPO|HTD',
   'Canada': 'Canada',
   'canada': 'Canada',
   'CANADA': 'Canada',
@@ -106,9 +111,11 @@ export const normalizeBusinessUnitName = (name: string | null | undefined): stri
   const trimmed = String(name).trim();
   if (trimmed === '') return null;
   
-  // Handle BPO|HTD variations first (case-insensitive)
+  // Handle BPO|HTD variations first (case-insensitive, with or without spaces)
   const lowerTrimmed = trimmed.toLowerCase();
-  if (lowerTrimmed === 'bpo|htd' || lowerTrimmed === 'bpo/htd' || lowerTrimmed === 'bpo-htd') {
+  // Remove spaces around pipe for comparison
+  const normalizedForComparison = lowerTrimmed.replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
+  if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
     return 'BPO|HTD';
   }
   
