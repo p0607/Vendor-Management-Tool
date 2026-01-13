@@ -791,19 +791,19 @@ useEffect(() => {
                     {formatNumber(item["Month Net Margin (Month)"])}
                   </td>
                   {/* Cumulative columns */}
-                  <td style={{ width: '3%', minWidth: '3%', maxWidth: '3%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
+                  <td style={{ width: '3%', minWidth: '3%', maxWidth: '3%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px', fontWeight: 'bold' }}>
                     {formatNumber(item["Current HC"])}
                   </td>
-                  <td style={{ width: '7.5%', minWidth: '7.5%', maxWidth: '7.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
+                  <td style={{ width: '7.5%', minWidth: '7.5%', maxWidth: '7.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px', fontWeight: 'bold' }}>
                     {formatNumber(item["Current PO Value"])}
                   </td>
-                  <td style={{ width: '7.5%', minWidth: '7.5%', maxWidth: '7.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
+                  <td style={{ width: '7.5%', minWidth: '7.5%', maxWidth: '7.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px', fontWeight: 'bold' }}>
                     {formatNumber(item["Current Vendor Cost"])}
                   </td>
-                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
+                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px', fontWeight: 'bold' }}>
                     {formatNumber(item["Current Margin"])}
   </td>
-                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px' }}>
+                  <td style={{ width: '6.5%', border: '1px solid #000', padding: '6px', textAlign: 'right', fontSize: '10px', fontWeight: 'bold' }}>
                     {item["%- Margin"] !== null && item["%- Margin"] !== undefined && typeof item["%- Margin"] === 'number' && !isNaN(item["%- Margin"]) ? `${item["%- Margin"].toFixed(2)}%` : '0%'}
                   </td>
                 </tr>
