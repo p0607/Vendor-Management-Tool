@@ -1081,7 +1081,8 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
       cumulative_base AS (
         SELECT 
           mwh.*,
-          -- Calculate partition keys first (count of historical rows before current row)
+          -- Create partition keys: count of historical rows before current row
+          -- This partitions data so rows after the same historical row are grouped together
           SUM(CASE WHEN mwh.hist_current_hc IS NOT NULL THEN 1 ELSE 0 END) OVER (
             ORDER BY mwh.year ASC, mwh.month ASC 
             ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
@@ -1097,66 +1098,78 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
           SUM(CASE WHEN mwh.hist_current_margin IS NOT NULL THEN 1 ELSE 0 END) OVER (
             ORDER BY mwh.year ASC, mwh.month ASC 
             ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ) as hist_partition_key_margin,
-          -- Get last historical cumulative values before current row
-          MAX(mwh.hist_current_hc) OVER (
-            ORDER BY mwh.year ASC, mwh.month ASC 
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ) as last_hist_hc,
-          MAX(mwh.hist_current_po_value) OVER (
-            ORDER BY mwh.year ASC, mwh.month ASC 
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ) as last_hist_po_value,
-          MAX(mwh.hist_current_vendor_cost) OVER (
-            ORDER BY mwh.year ASC, mwh.month ASC 
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ) as last_hist_vendor_cost,
-          MAX(mwh.hist_current_margin) OVER (
-            ORDER BY mwh.year ASC, mwh.month ASC 
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ) as last_hist_margin
+          ) as hist_partition_key_margin
         FROM monthly_with_historical mwh
       ),
       cumulative_calculated AS (
         SELECT 
           cb.*,
-          -- Calculate cumulative values:
+          -- Calculate cumulative values using partition-based accumulation
           -- For historical rows: use stored value directly
-          -- For non-historical rows: use last historical cumulative + sum of net values since last historical row
-          -- Current HC = Last month's Current HC + Net HC
+          -- For non-historical rows: use last historical + running sum of net values in partition
+          -- The partition ensures: Nov = Oct (historical) + Nov Net, Dec = Oct (historical) + Nov Net + Dec Net
+          -- Which equals: Dec = (Oct + Nov Net) + Dec Net = Nov's cumulative + Dec Net ✓
+          -- Current HC = Previous month's Current HC + Current month's Net HC
           COALESCE(
             cb.hist_current_hc,
-            COALESCE(cb.last_hist_hc, 0) + 
+            -- Get last historical cumulative value before current row
+            COALESCE(
+              MAX(cb.hist_current_hc) OVER (
+                ORDER BY cb.year ASC, cb.month ASC 
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+              ),
+              0
+            ) + 
+            -- Sum Net HC from non-historical rows in current partition
+            -- Partition groups rows after the same historical row, so we sum incrementally
             SUM(cb."Net - HC") FILTER (WHERE cb.hist_current_hc IS NULL) OVER (
               PARTITION BY cb.hist_partition_key_hc
               ORDER BY cb.year ASC, cb.month ASC 
               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
             )
           ) as "Current HC",
-          -- Current PO Value = Last month's Current PO Value + Net OB PO Value
+          -- Current PO Value = Previous month's Current PO Value + Current month's Net OB PO Value
           COALESCE(
             cb.hist_current_po_value,
-            COALESCE(cb.last_hist_po_value, 0) + 
+            COALESCE(
+              MAX(cb.hist_current_po_value) OVER (
+                ORDER BY cb.year ASC, cb.month ASC 
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+              ),
+              0
+            ) + 
             SUM(cb."Net - OB PO Value") FILTER (WHERE cb.hist_current_po_value IS NULL) OVER (
               PARTITION BY cb.hist_partition_key_po
               ORDER BY cb.year ASC, cb.month ASC 
               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
             )
           ) as "Current PO Value",
-          -- Current Vendor Cost = Last month's Current Vendor Cost + Net Vendor PO Value
+          -- Current Vendor Cost = Previous month's Current Vendor Cost + Current month's Net Vendor PO Value
           COALESCE(
             cb.hist_current_vendor_cost,
-            COALESCE(cb.last_hist_vendor_cost, 0) + 
+            COALESCE(
+              MAX(cb.hist_current_vendor_cost) OVER (
+                ORDER BY cb.year ASC, cb.month ASC 
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+              ),
+              0
+            ) + 
             SUM(cb."Net Vendor Po Value") FILTER (WHERE cb.hist_current_vendor_cost IS NULL) OVER (
               PARTITION BY cb.hist_partition_key_vendor
               ORDER BY cb.year ASC, cb.month ASC 
               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
             )
           ) as "Current Vendor Cost",
-          -- Current Margin = Last month's Current Margin + Month Net Margin (Month)
+          -- Current Margin = Previous month's Current Margin + Current month's Month Net Margin
           COALESCE(
             cb.hist_current_margin,
-            COALESCE(cb.last_hist_margin, 0) + 
+            COALESCE(
+              MAX(cb.hist_current_margin) OVER (
+                ORDER BY cb.year ASC, cb.month ASC 
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+              ),
+              0
+            ) + 
             SUM(cb."Month Net Margin (Month)") FILTER (WHERE cb.hist_current_margin IS NULL) OVER (
               PARTITION BY cb.hist_partition_key_margin
               ORDER BY cb.year ASC, cb.month ASC 
