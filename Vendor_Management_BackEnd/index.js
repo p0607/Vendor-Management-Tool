@@ -1078,105 +1078,110 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
         LEFT JOIN historical_summary h ON md."Month & Year" = h.month_year
         ORDER BY md.year ASC, md.month ASC
       ),
-      cumulative_base AS (
+      cumulative_step1 AS (
         SELECT 
           mwh.*,
-          -- Create partition keys: count of historical rows before current row
-          -- This partitions data so rows after the same historical row are grouped together
-          SUM(CASE WHEN mwh.hist_current_hc IS NOT NULL THEN 1 ELSE 0 END) OVER (
-            ORDER BY mwh.year ASC, mwh.month ASC 
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ) as hist_partition_key_hc,
-          SUM(CASE WHEN mwh.hist_current_po_value IS NOT NULL THEN 1 ELSE 0 END) OVER (
-            ORDER BY mwh.year ASC, mwh.month ASC 
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ) as hist_partition_key_po,
-          SUM(CASE WHEN mwh.hist_current_vendor_cost IS NOT NULL THEN 1 ELSE 0 END) OVER (
-            ORDER BY mwh.year ASC, mwh.month ASC 
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ) as hist_partition_key_vendor,
-          SUM(CASE WHEN mwh.hist_current_margin IS NOT NULL THEN 1 ELSE 0 END) OVER (
-            ORDER BY mwh.year ASC, mwh.month ASC 
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-          ) as hist_partition_key_margin
+          -- Step 1: Calculate cumulative values row by row
+          -- For historical rows: use historical value
+          -- For first non-historical row: use last historical + current net
+          -- For subsequent rows: we'll build on this in step 2
+          CASE 
+            WHEN mwh.hist_current_hc IS NOT NULL THEN mwh.hist_current_hc
+            ELSE COALESCE(
+              MAX(mwh.hist_current_hc) OVER (
+                ORDER BY mwh.year ASC, mwh.month ASC 
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+              ),
+              0
+            ) + mwh."Net - HC"
+          END as step1_current_hc,
+          CASE 
+            WHEN mwh.hist_current_po_value IS NOT NULL THEN mwh.hist_current_po_value
+            ELSE COALESCE(
+              MAX(mwh.hist_current_po_value) OVER (
+                ORDER BY mwh.year ASC, mwh.month ASC 
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+              ),
+              0
+            ) + mwh."Net - OB PO Value"
+          END as step1_current_po_value,
+          CASE 
+            WHEN mwh.hist_current_vendor_cost IS NOT NULL THEN mwh.hist_current_vendor_cost
+            ELSE COALESCE(
+              MAX(mwh.hist_current_vendor_cost) OVER (
+                ORDER BY mwh.year ASC, mwh.month ASC 
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+              ),
+              0
+            ) + mwh."Net Vendor Po Value"
+          END as step1_current_vendor_cost,
+          CASE 
+            WHEN mwh.hist_current_margin IS NOT NULL THEN mwh.hist_current_margin
+            ELSE COALESCE(
+              MAX(mwh.hist_current_margin) OVER (
+                ORDER BY mwh.year ASC, mwh.month ASC 
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+              ),
+              0
+            ) + mwh."Month Net Margin (Month)"
+          END as step1_current_margin
         FROM monthly_with_historical mwh
       ),
       cumulative_calculated AS (
         SELECT 
-          cb.*,
-          -- Calculate cumulative values using partition-based accumulation
-          -- For historical rows: use stored value directly
-          -- For non-historical rows: use last historical + running sum of net values in partition
-          -- The partition ensures: Nov = Oct (historical) + Nov Net, Dec = Oct (historical) + Nov Net + Dec Net
-          -- Which equals: Dec = (Oct + Nov Net) + Dec Net = Nov's cumulative + Dec Net ✓
+          cs1.*,
+          -- Step 2: Use previous row's calculated cumulative + current net
           -- Current HC = Previous month's Current HC + Current month's Net HC
-          COALESCE(
-            cb.hist_current_hc,
-            -- Get last historical cumulative value before current row
-            COALESCE(
-              MAX(cb.hist_current_hc) OVER (
-                ORDER BY cb.year ASC, cb.month ASC 
+          CASE 
+            WHEN cs1.hist_current_hc IS NOT NULL THEN cs1.hist_current_hc
+            ELSE COALESCE(
+              -- Get previous row's cumulative value (from step1, which has historical or calculated)
+              LAG(cs1.step1_current_hc) OVER (ORDER BY cs1.year ASC, cs1.month ASC),
+              -- If no previous row, use last historical value
+              MAX(cs1.hist_current_hc) OVER (
+                ORDER BY cs1.year ASC, cs1.month ASC 
                 ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
               ),
               0
-            ) + 
-            -- Sum Net HC from non-historical rows in current partition
-            -- Partition groups rows after the same historical row, so we sum incrementally
-            SUM(cb."Net - HC") FILTER (WHERE cb.hist_current_hc IS NULL) OVER (
-              PARTITION BY cb.hist_partition_key_hc
-              ORDER BY cb.year ASC, cb.month ASC 
-              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-            )
-          ) as "Current HC",
+            ) + cs1."Net - HC"
+          END as "Current HC",
           -- Current PO Value = Previous month's Current PO Value + Current month's Net OB PO Value
-          COALESCE(
-            cb.hist_current_po_value,
-            COALESCE(
-              MAX(cb.hist_current_po_value) OVER (
-                ORDER BY cb.year ASC, cb.month ASC 
+          CASE 
+            WHEN cs1.hist_current_po_value IS NOT NULL THEN cs1.hist_current_po_value
+            ELSE COALESCE(
+              LAG(cs1.step1_current_po_value) OVER (ORDER BY cs1.year ASC, cs1.month ASC),
+              MAX(cs1.hist_current_po_value) OVER (
+                ORDER BY cs1.year ASC, cs1.month ASC 
                 ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
               ),
               0
-            ) + 
-            SUM(cb."Net - OB PO Value") FILTER (WHERE cb.hist_current_po_value IS NULL) OVER (
-              PARTITION BY cb.hist_partition_key_po
-              ORDER BY cb.year ASC, cb.month ASC 
-              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-            )
-          ) as "Current PO Value",
+            ) + cs1."Net - OB PO Value"
+          END as "Current PO Value",
           -- Current Vendor Cost = Previous month's Current Vendor Cost + Current month's Net Vendor PO Value
-          COALESCE(
-            cb.hist_current_vendor_cost,
-            COALESCE(
-              MAX(cb.hist_current_vendor_cost) OVER (
-                ORDER BY cb.year ASC, cb.month ASC 
+          CASE 
+            WHEN cs1.hist_current_vendor_cost IS NOT NULL THEN cs1.hist_current_vendor_cost
+            ELSE COALESCE(
+              LAG(cs1.step1_current_vendor_cost) OVER (ORDER BY cs1.year ASC, cs1.month ASC),
+              MAX(cs1.hist_current_vendor_cost) OVER (
+                ORDER BY cs1.year ASC, cs1.month ASC 
                 ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
               ),
               0
-            ) + 
-            SUM(cb."Net Vendor Po Value") FILTER (WHERE cb.hist_current_vendor_cost IS NULL) OVER (
-              PARTITION BY cb.hist_partition_key_vendor
-              ORDER BY cb.year ASC, cb.month ASC 
-              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-            )
-          ) as "Current Vendor Cost",
+            ) + cs1."Net Vendor Po Value"
+          END as "Current Vendor Cost",
           -- Current Margin = Previous month's Current Margin + Current month's Month Net Margin
-          COALESCE(
-            cb.hist_current_margin,
-            COALESCE(
-              MAX(cb.hist_current_margin) OVER (
-                ORDER BY cb.year ASC, cb.month ASC 
+          CASE 
+            WHEN cs1.hist_current_margin IS NOT NULL THEN cs1.hist_current_margin
+            ELSE COALESCE(
+              LAG(cs1.step1_current_margin) OVER (ORDER BY cs1.year ASC, cs1.month ASC),
+              MAX(cs1.hist_current_margin) OVER (
+                ORDER BY cs1.year ASC, cs1.month ASC 
                 ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
               ),
               0
-            ) + 
-            SUM(cb."Month Net Margin (Month)") FILTER (WHERE cb.hist_current_margin IS NULL) OVER (
-              PARTITION BY cb.hist_partition_key_margin
-              ORDER BY cb.year ASC, cb.month ASC 
-              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-            )
-          ) as "Current Margin"
-        FROM cumulative_base cb
+            ) + cs1."Month Net Margin (Month)"
+          END as "Current Margin"
+        FROM cumulative_step1 cs1
       )
       SELECT 
         cc.*,
