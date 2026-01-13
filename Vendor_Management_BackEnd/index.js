@@ -290,9 +290,58 @@ app.post('/api/signup',
         });
       }
 
+      // Normalize business unit to ensure case-insensitive consistency
+      // This ensures "BPO|HTD", "bpo|htd", "Bpo|Htd" all become "BPO|HTD"
+      let normalizedBusinessUnit = business_unit;
+      if (business_unit) {
+        const buTrimmed = String(business_unit).trim();
+        const buLower = buTrimmed.toLowerCase();
+        
+        // Handle BPO|HTD variations (case-insensitive)
+        if (buLower === 'bpo|htd' || buLower === 'bpo/htd' || buLower === 'bpo-htd') {
+          normalizedBusinessUnit = 'BPO|HTD';
+        }
+        // Handle other common variations
+        else if (buLower === 'captive') {
+          normalizedBusinessUnit = 'Captive';
+        }
+        else if (buLower === 'canada') {
+          normalizedBusinessUnit = 'Canada';
+        }
+        else if (buLower === 'japan') {
+          normalizedBusinessUnit = 'Japan';
+        }
+        else if (buLower === 'singapore') {
+          normalizedBusinessUnit = 'Singapore';
+        }
+        else if (buLower === 'si' || buLower === 'si tech' || buLower === 'si bpo') {
+          normalizedBusinessUnit = 'SI';
+        }
+        else if (buLower === 'usa') {
+          normalizedBusinessUnit = 'USA';
+        }
+        else if (buLower === 'ms' || buLower === 'managed services' || buLower === 'managed  services') {
+          normalizedBusinessUnit = 'MS';
+        }
+        else if (buLower === 'egg' || buLower === 'engg' || buLower === 'engineering') {
+          normalizedBusinessUnit = 'Egg';
+        }
+        else if (buLower === 'all' || buLower === 'finance') {
+          normalizedBusinessUnit = 'Finance';
+        }
+        // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation)
+        else if (buTrimmed.toUpperCase() === 'BPO|HTD' || buTrimmed === 'BPO|HTD') {
+          normalizedBusinessUnit = 'BPO|HTD';
+        }
+        // If already normalized by frontend, keep as is
+        else {
+          normalizedBusinessUnit = buTrimmed;
+        }
+      }
+
       const result = await executeQuery(
         'INSERT INTO users (name, designation, email, phone_number, password, business_unit) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email',
-        [name, designation, email, phone_number, password, business_unit]
+        [name, designation, email, phone_number, password, normalizedBusinessUnit]
       );
       
       logger.info('User created successfully', { userId: result.rows[0].id, email });

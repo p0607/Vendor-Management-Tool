@@ -106,6 +106,12 @@ export const normalizeBusinessUnitName = (name: string | null | undefined): stri
   const trimmed = String(name).trim();
   if (trimmed === '') return null;
   
+  // Handle BPO|HTD variations first (case-insensitive)
+  const lowerTrimmed = trimmed.toLowerCase();
+  if (lowerTrimmed === 'bpo|htd' || lowerTrimmed === 'bpo/htd' || lowerTrimmed === 'bpo-htd') {
+    return 'BPO|HTD';
+  }
+  
   // First check if there's a direct mapping
   const directMapping = SIGNUP_TO_CANONICAL_MAP[trimmed];
   if (directMapping) {
