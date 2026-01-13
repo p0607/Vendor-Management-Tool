@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './RoutingTable.css';
-import logo from '../assets/logo_1.png';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -55,6 +54,8 @@ const CTSDataView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState<boolean>(false);
   const actionsDropdownRef = useRef<HTMLDivElement>(null);
+  const [filterType, setFilterType] = useState<'month' | 'quarter' | 'year'>('month');
+  const [filterValue, setFilterValue] = useState<string>('');
 
   // Format date for display
   const formatDate = (dateStr: string | null | undefined): string => {
@@ -75,6 +76,78 @@ const CTSDataView: React.FC = () => {
     if (isNaN(num)) return '0';
     return num.toLocaleString('en-IN', { maximumFractionDigits: 2 });
   };
+
+  // Get quarter from month (Financial Year: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar)
+  const getQuarter = (month: number): number => {
+    if (month >= 4 && month <= 6) return 1; // Q1: Apr-Jun
+    if (month >= 7 && month <= 9) return 2; // Q2: Jul-Sep
+    if (month >= 10 && month <= 12) return 3; // Q3: Oct-Dec
+    return 4; // Q4: Jan-Mar
+  };
+
+  // Parse date string to extract year and month
+  const parseDate = (dateStr: string | null | undefined): { year: number | null; month: number | null } => {
+    if (!dateStr || dateStr === '' || dateStr === 'null' || dateStr === 'undefined') return { year: null, month: null };
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return { year: null, month: null };
+      return { year: date.getFullYear(), month: date.getMonth() + 1 };
+    } catch {
+      return { year: null, month: null };
+    }
+  };
+
+  // Get unique filter options based on filter type
+  const getFilterOptions = useMemo(() => {
+    const allData = activeTab === 'active' ? activeData : attritionData;
+    const dateField = activeTab === 'active' ? 'active_ob_month' : 'attrition_month';
+    
+    if (filterType === 'month') {
+      const months = new Set<string>();
+      allData.forEach(item => {
+        const dateValue = activeTab === 'active' ? (item as ActiveDataItem).active_ob_month : (item as AttritionDataItem).attrition_month;
+        if (dateValue) {
+          const { year, month } = parseDate(dateValue);
+          if (year && month) {
+            const date = new Date(year, month - 1, 1);
+            const monthName = date.toLocaleString('default', { month: 'short' });
+            const shortYear = String(year).slice(-2);
+            months.add(`${monthName}-${shortYear}`);
+          }
+        }
+      });
+      return Array.from(months).sort().reverse();
+    } else if (filterType === 'quarter') {
+      const quarters = new Set<string>();
+      allData.forEach(item => {
+        const dateValue = activeTab === 'active' ? (item as ActiveDataItem).active_ob_month : (item as AttritionDataItem).attrition_month;
+        if (dateValue) {
+          const { year, month } = parseDate(dateValue);
+          if (year && month) {
+            const quarter = getQuarter(month);
+            const displayYear = quarter === 4 ? year - 1 : year;
+            quarters.add(`Q${quarter} ${displayYear}`);
+          }
+        }
+      });
+      return Array.from(quarters).sort().reverse();
+    } else if (filterType === 'year') {
+      const years = new Set<number>();
+      allData.forEach(item => {
+        const dateValue = activeTab === 'active' ? (item as ActiveDataItem).active_ob_month : (item as AttritionDataItem).attrition_month;
+        if (dateValue) {
+          const { year, month } = parseDate(dateValue);
+          if (year && month) {
+            // Financial year: April to March
+            const fyYear = month >= 4 ? year : year - 1;
+            years.add(fyYear);
+          }
+        }
+      });
+      return Array.from(years).sort((a, b) => b - a).map(y => y.toString());
+    }
+    return [];
+  }, [activeData, attritionData, filterType, activeTab]);
 
   // Fetch Active data
   useEffect(() => {
@@ -112,30 +185,96 @@ const CTSDataView: React.FC = () => {
     fetchAttritionData();
   }, []);
 
-  // Filter data based on search term
+  // Filter data based on search term and date filters
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredActiveData(activeData);
-      setFilteredAttritionData(attritionData);
-      return;
+    let filteredActive = [...activeData];
+    let filteredAttrition = [...attritionData];
+
+    // Apply date filter
+    if (filterValue) {
+      if (filterType === 'month') {
+        const filterLower = filterValue.toLowerCase();
+        filteredActive = filteredActive.filter(item => {
+          const { year, month } = parseDate(item.active_ob_month);
+          if (!year || !month) return false;
+          const date = new Date(year, month - 1, 1);
+          const monthName = date.toLocaleString('default', { month: 'short' });
+          const shortYear = String(year).slice(-2);
+          return `${monthName}-${shortYear}`.toLowerCase() === filterLower;
+        });
+        filteredAttrition = filteredAttrition.filter(item => {
+          const { year, month } = parseDate(item.attrition_month);
+          if (!year || !month) return false;
+          const date = new Date(year, month - 1, 1);
+          const monthName = date.toLocaleString('default', { month: 'short' });
+          const shortYear = String(year).slice(-2);
+          return `${monthName}-${shortYear}`.toLowerCase() === filterLower;
+        });
+      } else if (filterType === 'quarter') {
+        const quarterMatch = filterValue.match(/Q(\d)\s+(\d{4})/);
+        if (quarterMatch) {
+          const targetQuarter = parseInt(quarterMatch[1]);
+          const targetYear = parseInt(quarterMatch[2]);
+          filteredActive = filteredActive.filter(item => {
+            const { year, month } = parseDate(item.active_ob_month);
+            if (!year || !month) return false;
+            const itemQuarter = getQuarter(month);
+            if (itemQuarter === 4) {
+              return itemQuarter === targetQuarter && year === targetYear + 1;
+            }
+            return itemQuarter === targetQuarter && year === targetYear;
+          });
+          filteredAttrition = filteredAttrition.filter(item => {
+            const { year, month } = parseDate(item.attrition_month);
+            if (!year || !month) return false;
+            const itemQuarter = getQuarter(month);
+            if (itemQuarter === 4) {
+              return itemQuarter === targetQuarter && year === targetYear + 1;
+            }
+            return itemQuarter === targetQuarter && year === targetYear;
+          });
+        }
+      } else if (filterType === 'year') {
+        const targetYear = parseInt(filterValue);
+        filteredActive = filteredActive.filter(item => {
+          const { year, month } = parseDate(item.active_ob_month);
+          if (!year || !month) return false;
+          if (month >= 4) {
+            return year === targetYear;
+          } else {
+            return year === targetYear + 1;
+          }
+        });
+        filteredAttrition = filteredAttrition.filter(item => {
+          const { year, month } = parseDate(item.attrition_month);
+          if (!year || !month) return false;
+          if (month >= 4) {
+            return year === targetYear;
+          } else {
+            return year === targetYear + 1;
+          }
+        });
+      }
     }
 
-    const searchLower = searchTerm.toLowerCase();
-    
-    const filteredActive = activeData.filter(item => 
-      Object.values(item).some(val => 
-        val && String(val).toLowerCase().includes(searchLower)
-      )
-    );
-    setFilteredActiveData(filteredActive);
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filteredActive = filteredActive.filter(item => 
+        Object.values(item).some(val => 
+          val && String(val).toLowerCase().includes(searchLower)
+        )
+      );
+      filteredAttrition = filteredAttrition.filter(item => 
+        Object.values(item).some(val => 
+          val && String(val).toLowerCase().includes(searchLower)
+        )
+      );
+    }
 
-    const filteredAttrition = attritionData.filter(item => 
-      Object.values(item).some(val => 
-        val && String(val).toLowerCase().includes(searchLower)
-      )
-    );
+    setFilteredActiveData(filteredActive);
     setFilteredAttritionData(filteredAttrition);
-  }, [searchTerm, activeData, attritionData]);
+  }, [searchTerm, activeData, attritionData, filterType, filterValue]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -227,10 +366,7 @@ const CTSDataView: React.FC = () => {
   return (
     <div className="routing-table-container">
       <div className="routing-table-header" style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="homepage-logo-top-left" style={{ width: '120px', height: 'auto', marginBottom: '5px' }}>
-            <img src={logo} alt="Alchemy Logo" style={{ width: '100%', height: 'auto', maxWidth: '120px' }} />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div className="search-section" style={{ width: '300px' }}>
             <input
               type="text"
@@ -241,8 +377,54 @@ const CTSDataView: React.FC = () => {
               style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
             />
           </div>
+          {/* Filter Section */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px' }}>Filter by:</label>
+            <select
+              value={filterType}
+              onChange={(e) => {
+                setFilterType(e.target.value as 'month' | 'quarter' | 'year');
+                setFilterValue(''); // Reset filter value when type changes
+              }}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="month">Month</option>
+              <option value="quarter">Quarter</option>
+              <option value="year">Year</option>
+            </select>
+            <select
+              value={filterValue}
+              onChange={(e) => setFilterValue(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                fontSize: '14px',
+                cursor: 'pointer',
+                minWidth: '150px'
+              }}
+            >
+              <option value="">Select {filterType}</option>
+              {getFilterOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginLeft: '20px' }}>
+          <button 
+            className="auth-button"
+            onClick={() => navigate('/CTSDataTable')}
+            style={{ backgroundColor: '#f57c00', color: 'white' }}
+          >
+            ← Back
+          </button>
           <div className="actions-dropdown" ref={actionsDropdownRef}>
             <button 
               className="auth-button"
