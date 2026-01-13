@@ -366,7 +366,7 @@ const CTSDataView: React.FC = () => {
   return (
     <div className="routing-table-container">
       <div className="routing-table-header" style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', padding: '1rem 2rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
           <div className="search-section" style={{ width: '300px' }}>
             <input
               type="text"
@@ -417,7 +417,7 @@ const CTSDataView: React.FC = () => {
             </select>
           </div>
         </div>
-        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginLeft: '20px' }}>
+        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginRight: '20px' }}>
           <button 
             className="auth-button"
             onClick={() => navigate('/CTSDataTable')}
