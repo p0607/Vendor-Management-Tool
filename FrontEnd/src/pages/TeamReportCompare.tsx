@@ -1216,7 +1216,12 @@ const TeamReportCompare: React.FC = () => {
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string | null>(null);
   
   // State for multiple business unit selection in Parameter Data Chart
-  const [selectedBusinessUnitsForChart, setSelectedBusinessUnitsForChart] = useState<string | null>(null);
+  // For BU heads: single string, for admin: array of strings (all by default)
+  const [selectedBusinessUnitsForChart, setSelectedBusinessUnitsForChart] = useState<string | string[] | null>(null);
+  
+  // State for Client MFS data (for client-level visualization)
+  const [clientMFSData, setClientMFSData] = useState<any[]>([]);
+  const [isLoadingClientMFS, setIsLoadingClientMFS] = useState<boolean>(false);
 
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null);
 
@@ -2247,6 +2252,58 @@ const TeamReportCompare: React.FC = () => {
     }
   }, [isBUHead, user?.business_unit, businessUnits]);
 
+  // Fetch Client MFS data when admin selects a single business unit OR for BU heads
+  useEffect(() => {
+    const fetchClientMFSData = async () => {
+      if (!selectedBusinessUnitsForChart) {
+        setClientMFSData([]);
+        return;
+      }
+
+      // For BU heads, use their business unit
+      // For admin, check if it's a single business unit (string) or multiple (array)
+      let selectedBU: string | null = null;
+      
+      if (isBUHead && user?.business_unit) {
+        // BU head: use their business unit
+        const normalizedBU = normalizeBusinessUnitName(user.business_unit);
+        selectedBU = normalizedBU || user.business_unit;
+      } else {
+        // Admin: check if single BU is selected
+        selectedBU = Array.isArray(selectedBusinessUnitsForChart) 
+          ? (selectedBusinessUnitsForChart.length === 1 ? selectedBusinessUnitsForChart[0] : null)
+          : selectedBusinessUnitsForChart;
+      }
+
+      if (!selectedBU) {
+        setClientMFSData([]);
+        return;
+      }
+
+      setIsLoadingClientMFS(true);
+      try {
+        const res = await apiClient.get("/team-report", {
+          params: {
+            business_unit: selectedBU
+          }
+        });
+
+        if (res.data && Array.isArray(res.data)) {
+          setClientMFSData(res.data);
+        } else {
+          setClientMFSData([]);
+        }
+      } catch (error: any) {
+        console.error("❌ Error fetching Client MFS data:", error);
+        setClientMFSData([]);
+      } finally {
+        setIsLoadingClientMFS(false);
+      }
+    };
+
+    fetchClientMFSData();
+  }, [selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
+
 
 
   // Handle URL parameters for MFS button redirect
@@ -2480,7 +2537,7 @@ const TeamReportCompare: React.FC = () => {
         setBusinessUnits(uniqueBusinessUnits);
         
         // Initialize selectedBusinessUnitsForChart
-        // For BU heads, only show their business unit; otherwise select first available
+        // For BU heads, only show their business unit; for admin, show all business units by default
         if (!selectedBusinessUnitsForChart && uniqueBusinessUnits.length > 0) {
           if (isBUHead && user?.business_unit) {
             const normalizedBU = normalizeBusinessUnitName(user.business_unit);
@@ -2492,8 +2549,8 @@ const TeamReportCompare: React.FC = () => {
               setSelectedBusinessUnitsForChart(normalizedBU || user.business_unit);
             }
           } else {
-            // Select first business unit by default
-            setSelectedBusinessUnitsForChart(uniqueBusinessUnits[0]);
+            // For admin users, select all business units by default
+            setSelectedBusinessUnitsForChart(uniqueBusinessUnits);
           }
         }
 
@@ -4656,7 +4713,9 @@ const TeamReportCompare: React.FC = () => {
       activeChartTab: activeChartTab
     });
     
-    if (data.length === 0 || selectedParametersForChart.length === 0 || !selectedBusinessUnitsForChart || activeChartTab !== 'growth') {
+    if (data.length === 0 || selectedParametersForChart.length === 0 || !selectedBusinessUnitsForChart || 
+        (Array.isArray(selectedBusinessUnitsForChart) && selectedBusinessUnitsForChart.length === 0) ||
+        activeChartTab !== 'growth') {
       console.log("🔍 Chart useEffect: Not enough data or tab not active, skipping chart render");
       return;
     }
@@ -4946,41 +5005,143 @@ const TeamReportCompare: React.FC = () => {
         periods = comparisonValues.filter(Boolean) as string[];
       }
       
-      // Prepare data: group by business unit, show periods as series
-      // Only show selected business unit (single selection)
+      // Prepare data: group by business unit OR client (if conditions met)
+      // Check if we should show clients instead of business units
+      // Show clients for: BU heads (always) OR admin with single BU selected
+      const shouldShowClients = selectedBusinessUnitsForChart && 
+                                 clientMFSData.length > 0 &&
+                                 (isBUHead || !Array.isArray(selectedBusinessUnitsForChart));
+
       if (!selectedBusinessUnitsForChart) {
         return;
       }
-      
-      // For BU heads, ensure only their business unit is shown
-      const businessUnitToShow = isBUHead && user?.business_unit
-        ? (() => {
-            const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-            return compareBusinessUnits(selectedBusinessUnitsForChart, normalizedBU || user.business_unit) 
-              ? selectedBusinessUnitsForChart 
-              : (normalizedBU || user.business_unit);
-          })()
-        : selectedBusinessUnitsForChart;
-      
+
       const chartData: any[] = [];
-      const bu = businessUnitToShow;
-      const dataPoint: any = { businessUnit: bu };
       
-      // Calculate total value for sorting (sum across all periods and parameters)
-      let totalValue = 0;
-      
-      // For each selected parameter, create a data point with values for each period
-      selectedParametersForChart.forEach(parameter => {
-        periods.forEach((period, periodIndex) => {
-          const value = getParameterValueForBU(bu, period, parameter);
-          // Create a field name like "FY 2025_Revenue" for each period-parameter combination
-          dataPoint[`${period}_${parameter}`] = value;
-          totalValue += Math.abs(value); // Use absolute value for sorting
+      if (shouldShowClients) {
+        // Show clients for the selected business unit
+        // For BU heads, use their business unit; for admin, use selected BU
+        const selectedBU = isBUHead && user?.business_unit
+          ? (normalizeBusinessUnitName(user.business_unit) || user.business_unit)
+          : (selectedBusinessUnitsForChart as string);
+        const selectedParameter = selectedParametersForChart[0]; // Use first selected parameter
+        
+        // Map parameter names to database field names
+        const parameterMap: { [key: string]: string } = {
+          'Revenue': 'revenue',
+          'HC': 'hc',
+          'Salary Cost': 'salary_cost',
+          'GPM': 'gpm',
+          'GPM %': 'gpm_percentage',
+          'NP': 'np',
+          'NP %': 'np_percentage',
+          'Leave Encashment': 'leave_encashment',
+          'Team Cost': 'team_cost',
+          'Opr Cost': 'opr_cost',
+          'Funding Cost': 'funding_cost',
+          'Rebate': 'rebate',
+          'Passthrough': 'passthrough',
+          'Net Margin': 'net_margin'
+        };
+
+        const dbFieldName = parameterMap[selectedParameter] || 'revenue';
+        const isMS = selectedBU === 'MS' || selectedBU === 'Managed Services';
+        
+        // Helper function to parse date
+        const parseDate = (month: string, year: number): Date => {
+          const monthMap: { [key: string]: number } = {
+            'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+            'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+          };
+          const monthNum = monthMap[month] || 1;
+          return new Date(year, monthNum - 1);
+        };
+
+        // Group data by client (or project for MS)
+        const clientDataMap = new Map<string, number>();
+
+        clientMFSData.forEach((item: any) => {
+          if (!compareBusinessUnits(item.business_unit, selectedBU)) return;
+
+          // Apply period filter if set
+          if (chartFilterBy && chartFilterValue.length > 0) {
+            const date = parseDate(item.month, item.year);
+            if (isNaN(date.getTime())) return;
+
+            let matchesFilter = false;
+            if (chartFilterBy === 'year') {
+              const itemFY = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+              matchesFilter = chartFilterValue.some((year: string) => {
+                const filterYear = parseInt(year);
+                return itemFY === filterYear;
+              });
+            } else if (chartFilterBy === 'quarter') {
+              const month = date.getMonth() + 1;
+              matchesFilter = chartFilterValue.some((quarter: string) => {
+                if (quarter.includes('Q1')) return month >= 4 && month <= 6;
+                else if (quarter.includes('Q2')) return month >= 7 && month <= 9;
+                else if (quarter.includes('Q3')) return month >= 10 && month <= 12;
+                else if (quarter.includes('Q4')) return month >= 1 && month <= 3;
+                return false;
+              });
+            } else if (chartFilterBy === 'month') {
+              const monthStr = date.toLocaleDateString('en-US', { month: 'short' });
+              const yearStr = date.getFullYear().toString();
+              matchesFilter = chartFilterValue.some((monthFilter: string) => {
+                return monthFilter.includes(monthStr) && monthFilter.includes(yearStr);
+              });
+            }
+            if (!matchesFilter) return;
+          }
+
+          const clientKey = isMS ? item.project_name : item.client_name;
+          if (!clientKey) return;
+
+          const value = parseFloat(item[dbFieldName]) || 0;
+          const currentValue = clientDataMap.get(clientKey) || 0;
+          clientDataMap.set(clientKey, currentValue + value);
         });
-      });
-      
-      dataPoint._totalValue = totalValue; // Store total for sorting
-      chartData.push(dataPoint);
+
+        // Convert to chart data format
+        Array.from(clientDataMap.entries()).forEach(([client, value]) => {
+          const dataPoint: any = { businessUnit: client }; // Using businessUnit field for consistency
+          dataPoint[`${periods[0] || 'Total'}_${selectedParameter}`] = value;
+          dataPoint._totalValue = Math.abs(value);
+          chartData.push(dataPoint);
+        });
+      } else {
+        // Show business units (original logic)
+        let businessUnitsToShow: string[] = [];
+        if (isBUHead && user?.business_unit) {
+          const normalizedBU = normalizeBusinessUnitName(user.business_unit);
+          const selectedBU = Array.isArray(selectedBusinessUnitsForChart) 
+            ? selectedBusinessUnitsForChart[0] 
+            : selectedBusinessUnitsForChart;
+          businessUnitsToShow = [normalizedBU || user.business_unit];
+        } else {
+          businessUnitsToShow = Array.isArray(selectedBusinessUnitsForChart) 
+            ? selectedBusinessUnitsForChart 
+            : [selectedBusinessUnitsForChart];
+        }
+        
+        // Create data point for each business unit
+        businessUnitsToShow.forEach(bu => {
+          const dataPoint: any = { businessUnit: bu };
+          
+          let totalValue = 0;
+          
+          selectedParametersForChart.forEach(parameter => {
+            periods.forEach((period, periodIndex) => {
+              const value = getParameterValueForBU(bu, period, parameter);
+              dataPoint[`${period}_${parameter}`] = value;
+              totalValue += Math.abs(value);
+            });
+          });
+          
+          dataPoint._totalValue = totalValue;
+          chartData.push(dataPoint);
+        });
+      }
       
       // Sort chart data if sort order is specified
       if (chartSortOrder) {
@@ -4998,7 +5159,95 @@ const TeamReportCompare: React.FC = () => {
       
       // Create series: one series per period-parameter combination
       // For bar chart, we'll show one series per period (grouping parameters)
-      if (chartType === 'bar' || chartType === 'combo') {
+      // When showing clients, show single series with single parameter
+      if (shouldShowClients) {
+        // Show single series for clients
+        const selectedParameter = selectedParametersForChart[0];
+        const format = getParameterFormat(selectedParameter);
+        const seriesKey = `${periods[0] || 'Total'}_${selectedParameter}`;
+        const seriesColor = colors[0];
+        
+        const series = chart.series.push(
+          am5xy.ColumnSeries.new(root, {
+            name: selectedParameter,
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: seriesKey,
+            categoryXField: "businessUnit"
+          })
+        );
+
+        series.columns.template.setAll({
+          width: am5.percent(80),
+          strokeOpacity: 0,
+          cornerRadiusTL: 5,
+          cornerRadiusTR: 5,
+          tooltipY: 0,
+          fill: seriesColor
+        });
+
+        series.columns.template.states.create("hover", {
+          fill: seriesColor,
+          stroke: am5.color(0x1890ff)
+        });
+
+        // Add data labels to bars showing only values in crore/lakh format
+        series.bullets.push(() => {
+          const label = am5.Label.new(root, {
+            text: "{valueY}",
+            fill: am5.color(0x000000),
+            centerX: am5.p50,
+            centerY: am5.p100,
+            populateText: true,
+            fontSize: 10,
+            fontWeight: "500",
+            dy: -5
+          });
+          
+          // Adapter to format value in crore/lakh
+          label.adapters.add("text", (text: string | undefined, target: any) => {
+            if (!text) return text || "";
+            const dataItem = target.dataItem;
+            if (dataItem) {
+              const dataContext = dataItem.dataContext as any;
+              if (dataContext) {
+                const value = dataContext[seriesKey];
+                if (value != null && !isNaN(Number(value))) {
+                  const numValue = Number(value);
+                  // Check if this parameter should use crore/lakh formatting
+                  const shouldFormat = selectedParameter === 'Revenue' || selectedParameter === 'GPM' || selectedParameter === 'NP' || 
+                                     selectedParameter === 'Team Cost' || selectedParameter === 'Net Margin' || 
+                                     selectedParameter === 'Salary Cost' || selectedParameter === 'Opr Cost' || 
+                                     selectedParameter === 'Funding Cost' || selectedParameter === 'Leave Encashment';
+                  
+                  if (shouldFormat && Math.abs(numValue) >= 100000) {
+                    // Format in crore/lakh based on toggle
+                    if (isCroreMode) {
+                      return `${(numValue / 10000000).toFixed(1)}Cr`;
+                    } else {
+                      return `${(numValue / 100000).toFixed(1)}L`;
+                    }
+                  } else if (shouldFormat) {
+                    // For smaller values, show as is
+                    return numValue.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+                  } else {
+                    // For other parameters (HC, percentages, etc.), use original format
+                    return `${format.prefix}${numValue.toLocaleString('en-IN', { 
+                      minimumFractionDigits: format.format.includes('.') ? 2 : 0,
+                      maximumFractionDigits: format.format.includes('.') ? 2 : 0
+                    })}${format.suffix}`;
+                  }
+                }
+              }
+            }
+            return text || "";
+          });
+          
+          return am5.Bullet.new(root, { sprite: label });
+        });
+
+        series.appear(1000, 100);
+      } else if (chartType === 'bar' || chartType === 'combo') {
         periods.forEach((period, periodIndex) => {
           selectedParametersForChart.forEach((parameter, paramIndex) => {
 
@@ -5243,8 +5492,7 @@ const TeamReportCompare: React.FC = () => {
 
     };
 
-  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue, chartSortOrder, isCroreMode]);
-
+  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue, chartSortOrder, isCroreMode, clientMFSData]);
 
   // Render Waterfall Chart
   useEffect(() => {
@@ -6776,7 +7024,38 @@ const TeamReportCompare: React.FC = () => {
 
               {/* Parameter Data Chart */}
               {activeChartTab === 'growth' && (
-            <div style={{ width: "100%" }}>
+            <div style={{ width: "100%", position: 'relative' }}>
+                  {/* Close Button */}
+                  <button
+                    onClick={() => setActiveChartTab('none')}
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      background: 'transparent',
+                      border: 'none',
+                      fontSize: '20px',
+                      cursor: 'pointer',
+                      color: '#666',
+                      fontWeight: 'bold',
+                      zIndex: 10,
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f0f0f0';
+                      e.currentTarget.style.color = '#000';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#666';
+                    }}
+                    title="Close Parameter Data Chart"
+                  >
+                    ×
+                  </button>
+                  
                   {/* Filter Dropdowns */}
                   <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
                     {/* Business Unit Filter */}
@@ -6790,10 +7069,11 @@ const TeamReportCompare: React.FC = () => {
                         Business Unit
                       </div>
                       <Select
+                        mode={isBUHead ? undefined : "multiple"}
                         value={selectedBusinessUnitsForChart}
                         onChange={(value) => setSelectedBusinessUnitsForChart(value)}
                         style={{ width: '100%' }}
-                        placeholder="Select business unit"
+                        placeholder={isBUHead ? "Select business unit" : "Select business units"}
                         loading={isLoading}
                         allowClear={!isBUHead}
                         disabled={isBUHead}
@@ -6955,6 +7235,19 @@ const TeamReportCompare: React.FC = () => {
                     {selectedParametersForChart.length > 0 ? selectedParametersForChart.join(', ') : 'Revenue'} Data Visualization
                   </h3>
               <div id="comparisonChart" style={{ width: "100%", height: "350px" }} />
+              
+              {/* Client-level visualization for admin when single BU is selected */}
+              {!isBUHead && selectedBusinessUnitsForChart && 
+               !Array.isArray(selectedBusinessUnitsForChart) && 
+               selectedParametersForChart.length > 0 && 
+               clientMFSData.length > 0 && (
+                <div style={{ marginTop: '40px', width: "100%" }}>
+                  <h3 style={{ color: '#000000', marginBottom: '10px' }}>
+                    {selectedParametersForChart[0]} by Client - {selectedBusinessUnitsForChart}
+                  </h3>
+                  <div id="clientChart" style={{ width: "100%", height: "350px" }} />
+                </div>
+              )}
             </div>
               )}
 
