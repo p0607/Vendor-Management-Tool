@@ -4768,15 +4768,18 @@ const TeamReportCompare: React.FC = () => {
 
 
 
+      // Determine if we should enable horizontal scrolling (for client view with many clients)
+      // Note: shouldShowClients is defined later, so we'll update chart settings after data is prepared
+      
       const chart = root.container.children.push(
 
         am5xy.XYChart.new(root, {
 
-          panX: false,
+          panX: false, // Will be updated if showing clients
 
           panY: false,
 
-          wheelX: "none",
+          wheelX: "none", // Will be updated if showing clients
 
           wheelY: "none",
 
@@ -5181,8 +5184,44 @@ const TeamReportCompare: React.FC = () => {
         });
       }
       
-      // Set X-axis data (business units) - use sorted order
-      xAxis.data.setAll(chartData.map(item => ({ businessUnit: item.businessUnit })));
+      // Set X-axis data (business units or clients) - use sorted order
+      const xAxisData = chartData.map(item => ({ businessUnit: item.businessUnit }));
+      xAxis.data.setAll(xAxisData);
+      
+      if (shouldShowClients) {
+        console.log(`🔍 Setting X-axis with ${xAxisData.length} client names:`, xAxisData.map((d: any) => d.businessUnit));
+      }
+      
+      // Configure X-axis renderer for better label display when showing clients
+      if (shouldShowClients) {
+        // Enable horizontal scrolling/panning for client view
+        chart.set("panX", true);
+        chart.set("wheelX", "panX");
+        
+        const xAxisRenderer = xAxis.get("renderer") as am5xy.AxisRendererX;
+        // Update labels template to show all client names
+        xAxisRenderer.labels.template.setAll({
+          fill: am5.color(0x000000),
+          fontSize: 9,
+          rotation: -45, // Rotate client names for better visibility
+          centerY: am5.p100,
+          centerX: am5.p50,
+          paddingTop: 15,
+          textAlign: "center"
+        });
+        // Remove any width restrictions to show full client names
+        xAxisRenderer.labels.template.set("maxWidth", undefined);
+        xAxisRenderer.labels.template.set("width", undefined);
+        // Ensure all labels are shown (disable label hiding)
+        xAxisRenderer.labels.template.set("forceHidden", false);
+        // Disable label hiding when there are too many
+        xAxisRenderer.labels.template.adapters.add("visible", () => {
+          return true; // Always show all labels
+        });
+        // Make sure the axis shows all categories
+        xAxis.set("startLocation", 0);
+        xAxis.set("endLocation", 1);
+      }
       
       // Create series: one series per period-parameter combination
       // For bar chart, we'll show one series per period (grouping parameters)
@@ -7046,6 +7085,23 @@ const TeamReportCompare: React.FC = () => {
                   }}
                 >
                   Waterfall Analysis
+                </button>
+                <button
+                  onClick={() => navigate('/client-mfs-data')}
+                  style={{
+                    padding: '12px 24px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#666',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 'normal',
+                    borderTopLeftRadius: '6px',
+                    borderTopRightRadius: '6px',
+                    marginRight: '2px'
+                  }}
+                >
+                  Client MFS Data
                 </button>
               </div>
 
