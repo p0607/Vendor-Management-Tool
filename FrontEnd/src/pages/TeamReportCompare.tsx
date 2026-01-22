@@ -2282,15 +2282,28 @@ const TeamReportCompare: React.FC = () => {
 
       setIsLoadingClientMFS(true);
       try {
-        const res = await apiClient.get("/team-report", {
-          params: {
-            business_unit: selectedBU
-          }
-        });
+        // Fetch all team-report data (same as ClientMFSCompare does)
+        // Using /team-report endpoint which queries team_report table (has client_name, project_name)
+        // This is the Client MFS data source, NOT team-summary-report (MFS)
+        const res = await apiClient.get("/team-report");
 
         if (res.data && Array.isArray(res.data)) {
-          setClientMFSData(res.data);
+          console.log(`🔍 Fetched ${res.data.length} total records from /team-report (Client MFS)`);
+          console.log(`🔍 Sample record structure:`, res.data[0]);
+          
+          // Filter by business unit on frontend (using normalized comparison)
+          const filteredData = res.data.filter((item: any) => {
+            return compareBusinessUnits(item.business_unit, selectedBU);
+          });
+          
+          console.log(`🔍 Filtered to ${filteredData.length} records for BU: ${selectedBU}`);
+          console.log(`🔍 Sample filtered records:`, filteredData.slice(0, 3));
+          console.log(`🔍 Records with client_name:`, filteredData.filter((item: any) => item.client_name).length);
+          console.log(`🔍 Records with project_name:`, filteredData.filter((item: any) => item.project_name).length);
+          
+          setClientMFSData(filteredData);
         } else {
+          console.warn(`⚠️ No data received from /team-report API`);
           setClientMFSData([]);
         }
       } catch (error: any) {
@@ -5008,9 +5021,13 @@ const TeamReportCompare: React.FC = () => {
       // Prepare data: group by business unit OR client (if conditions met)
       // Check if we should show clients instead of business units
       // Show clients for: BU heads (always) OR admin with single BU selected
+      const isSingleBU = Array.isArray(selectedBusinessUnitsForChart) 
+        ? selectedBusinessUnitsForChart.length === 1
+        : selectedBusinessUnitsForChart !== null;
+      
       const shouldShowClients = selectedBusinessUnitsForChart && 
                                  clientMFSData.length > 0 &&
-                                 (isBUHead || !Array.isArray(selectedBusinessUnitsForChart));
+                                 (isBUHead || isSingleBU);
 
       if (!selectedBusinessUnitsForChart) {
         return;
@@ -5060,8 +5077,13 @@ const TeamReportCompare: React.FC = () => {
         // Group data by client (or project for MS)
         const clientDataMap = new Map<string, number>();
 
+        console.log(`🔍 Processing client data for BU: ${selectedBU}, Total records: ${clientMFSData.length}`);
+
         clientMFSData.forEach((item: any) => {
-          if (!compareBusinessUnits(item.business_unit, selectedBU)) return;
+          // Filter by business unit (data is already filtered, but double-check)
+          if (!compareBusinessUnits(item.business_unit, selectedBU)) {
+            return;
+          }
 
           // Apply period filter if set
           if (chartFilterBy && chartFilterValue.length > 0) {
@@ -5095,12 +5117,17 @@ const TeamReportCompare: React.FC = () => {
           }
 
           const clientKey = isMS ? item.project_name : item.client_name;
-          if (!clientKey) return;
+          if (!clientKey || clientKey.trim() === '') {
+            console.log(`⚠️ Skipping item with empty client/project name:`, item);
+            return;
+          }
 
           const value = parseFloat(item[dbFieldName]) || 0;
           const currentValue = clientDataMap.get(clientKey) || 0;
           clientDataMap.set(clientKey, currentValue + value);
         });
+
+        console.log(`🔍 Client data map size: ${clientDataMap.size}, Clients:`, Array.from(clientDataMap.keys()));
 
         // Convert to chart data format
         Array.from(clientDataMap.entries()).forEach(([client, value]) => {
