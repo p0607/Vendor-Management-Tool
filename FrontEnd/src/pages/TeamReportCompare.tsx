@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -1306,7 +1306,14 @@ const TeamReportCompare: React.FC = () => {
 
   const [showGrowthAnalysis, setShowGrowthAnalysis] = useState<boolean>(false);
   const [showSummaryReport, setShowSummaryReport] = useState<boolean>(false);
+  const [showClientData, setShowClientData] = useState<boolean>(false);
   const [useCurrentYearAsBaseline, setUseCurrentYearAsBaseline] = useState<boolean>(false);
+  
+  // Client Data table filters
+  const [clientDataPeriodFilter, setClientDataPeriodFilter] = useState<string>('year'); // 'year', 'quarter', or 'month'
+  const [clientDataPeriodValue, setClientDataPeriodValue] = useState<string>(String(getCurrentFinancialYear()));
+  const [clientDataSelectedMonths, setClientDataSelectedMonths] = useState<string[]>([]);
+  const [clientDataSelectedParameters, setClientDataSelectedParameters] = useState<string[]>([]);
 
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
@@ -2317,7 +2324,239 @@ const TeamReportCompare: React.FC = () => {
     fetchClientMFSData();
   }, [selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
 
+  // Helper function to check if a specific business unit is selected (for showing Client Data button)
+  const isSpecificBusinessUnitSelected = useMemo(() => {
+    if (!selectedBusinessUnitsForChart) return false;
+    
+    if (isBUHead && user?.business_unit) {
+      return true; // BU head always has their specific BU
+    }
+    
+    // For admin: check if it's a single business unit (string or array with 1 element)
+    if (Array.isArray(selectedBusinessUnitsForChart)) {
+      return selectedBusinessUnitsForChart.length === 1;
+    }
+    
+    return typeof selectedBusinessUnitsForChart === 'string';
+  }, [selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
 
+  // Get the selected business unit for Client Data table
+  const getSelectedBUForClientData = useMemo(() => {
+    if (!selectedBusinessUnitsForChart) return null;
+    
+    if (isBUHead && user?.business_unit) {
+      const normalizedBU = normalizeBusinessUnitName(user.business_unit);
+      return normalizedBU || user.business_unit;
+    }
+    
+    if (Array.isArray(selectedBusinessUnitsForChart)) {
+      return selectedBusinessUnitsForChart.length === 1 ? selectedBusinessUnitsForChart[0] : null;
+    }
+    
+    return selectedBusinessUnitsForChart;
+  }, [selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
+
+  // Define all available parameters for Client Data table
+  const allClientDataParameters = [
+    { key: 'hc', label: 'HC' },
+    { key: 'revenue', label: 'Revenue' },
+    { key: 'salary_cost', label: 'Salary Cost' },
+    { key: 'gpm', label: 'GPM' },
+    { key: 'gpm_percentage', label: 'GPM %' },
+    { key: 'np', label: 'NP' },
+    { key: 'np_percentage', label: 'NP %' },
+    { key: 'leave_encashment', label: 'Leave Encashment' },
+    { key: 'team_cost', label: 'Team Cost' },
+    { key: 'opr_cost', label: 'Opr Cost' },
+    { key: 'funding_cost', label: 'Funding Cost' },
+    { key: 'rebate', label: 'Rebate' },
+    { key: 'passthrough', label: 'Passthrough' }
+  ];
+
+  // Get selected parameters or default to all
+  const clientDataParameters = useMemo(() => {
+    if (clientDataSelectedParameters.length === 0) {
+      return allClientDataParameters;
+    }
+    return allClientDataParameters.filter(p => clientDataSelectedParameters.includes(p.key));
+  }, [clientDataSelectedParameters]);
+
+  // Helper functions for Client Data table
+  const normalizeToFullMonthName = (monthName: any): string => {
+    if (!monthName) return '';
+    const str = String(monthName).trim();
+    const abbreviationMap: { [key: string]: string } = {
+      'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+      'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+      'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+    };
+    const normalized = str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    return abbreviationMap[normalized] || normalized;
+  };
+
+  const getClientDataMonthNumber = (monthName: string): number => {
+    const fullMonthName = normalizeToFullMonthName(monthName);
+    const months: { [key: string]: number } = {
+      'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
+      'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12
+    };
+    return months[fullMonthName] || 0;
+  };
+
+  const getClientDataMonthKey = (month: string, year: number): string => {
+    const fullMonthName = normalizeToFullMonthName(month);
+    const monthNum = getClientDataMonthNumber(fullMonthName);
+    return `${year}-${String(monthNum).padStart(2, '0')}`;
+  };
+
+  // Filter Client MFS Data based on filters
+  const filteredClientMFSData = useMemo(() => {
+    if (!getSelectedBUForClientData || !clientMFSData.length) return [];
+    
+    let filtered = clientMFSData.filter((item: any) => {
+      return compareBusinessUnits(item.business_unit, getSelectedBUForClientData);
+    });
+
+    // Filter by period
+    if (clientDataPeriodFilter === 'year' && clientDataPeriodValue) {
+      const fyStartYear = parseInt(clientDataPeriodValue);
+      const fyEndYear = fyStartYear + 1;
+      filtered = filtered.filter((item: any) => {
+        if (!item.month || !item.year) return false;
+        const monthName = normalizeToFullMonthName(item.month);
+        const monthNum = getClientDataMonthNumber(monthName);
+        // FY: April (4) to December (12) of start year, January (1) to March (3) of end year
+        if (monthNum >= 4) {
+          return item.year === fyStartYear;
+        } else {
+          return item.year === fyEndYear;
+        }
+      });
+    } else if (clientDataPeriodFilter === 'quarter' && clientDataPeriodValue) {
+      const quarterMatch = clientDataPeriodValue.match(/Q(\d)/);
+      const yearMatch = clientDataPeriodValue.match(/(\d{4})/);
+      if (quarterMatch && yearMatch) {
+        const quarter = parseInt(quarterMatch[1]);
+        const year = parseInt(yearMatch[1]);
+        const quarterMonths: { [key: number]: number[] } = {
+          1: [4, 5, 6],   // Q1: Apr, May, Jun
+          2: [7, 8, 9],   // Q2: Jul, Aug, Sep
+          3: [10, 11, 12], // Q3: Oct, Nov, Dec
+          4: [1, 2, 3]    // Q4: Jan, Feb, Mar
+        };
+        const monthsInQuarter = quarterMonths[quarter] || [];
+        const displayYear = quarter === 4 ? year + 1 : year;
+        filtered = filtered.filter((item: any) => {
+          if (!item.month || !item.year) return false;
+          const monthName = normalizeToFullMonthName(item.month);
+          const monthNum = getMonthNumber(monthName);
+          return item.year === displayYear && monthsInQuarter.includes(monthNum);
+        });
+      }
+    } else if (clientDataPeriodFilter === 'month' && clientDataSelectedMonths.length > 0) {
+      filtered = filtered.filter((item: any) => {
+        if (!item.month || !item.year) return false;
+        const monthName = normalizeToFullMonthName(item.month);
+        const monthKey = getClientDataMonthKey(monthName, item.year);
+        const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const [year, monthNum] = monthKey.split('-');
+        const displayMonth = `${monthNames[parseInt(monthNum)]} ${year}`;
+        return clientDataSelectedMonths.includes(displayMonth);
+      });
+    }
+
+    return filtered;
+  }, [clientMFSData, getSelectedBUForClientData, clientDataPeriodFilter, clientDataPeriodValue, clientDataSelectedMonths]);
+
+  // Get unique clients from filtered data
+  const clientDataClients = useMemo(() => {
+    const clientSet = new Set<string>();
+    filteredClientMFSData.forEach((item: any) => {
+      if (item.client_name) {
+        clientSet.add(item.client_name);
+      }
+    });
+    return Array.from(clientSet).sort();
+  }, [filteredClientMFSData]);
+
+  // Get unique months from filtered data
+  const clientDataMonths = useMemo(() => {
+    const monthSet = new Set<string>();
+    filteredClientMFSData.forEach((item: any) => {
+      if (item.month && item.year) {
+        const monthName = normalizeToFullMonthName(item.month);
+        const monthKey = getClientDataMonthKey(monthName, item.year);
+        const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const [year, monthNum] = monthKey.split('-');
+        const displayMonth = `${monthNames[parseInt(monthNum)]} ${year}`;
+        monthSet.add(displayMonth);
+      }
+    });
+    return Array.from(monthSet).sort();
+  }, [filteredClientMFSData]);
+
+  // Generate quarter options
+  const clientDataQuarterOptions = useMemo(() => {
+    const options: string[] = [];
+    const currentFY = getCurrentFinancialYear();
+    for (let i = 0; i < 3; i++) {
+      const year = currentFY - i;
+      options.push(`Q1(Apr-Jun) ${year}`);
+      options.push(`Q2(Jul-Sep) ${year}`);
+      options.push(`Q3(Oct-Dec) ${year}`);
+      options.push(`Q4(Jan-Mar) ${year + 1}`);
+    }
+    return options;
+  }, []);
+
+  // Generate year options
+  const clientDataYearOptions = useMemo(() => {
+    const options: number[] = [];
+    const currentFY = getCurrentFinancialYear();
+    for (let i = 0; i < 5; i++) {
+      options.push(currentFY - i);
+    }
+    return options;
+  }, []);
+
+  // Build table data: clients as rows, parameters x months as columns
+  const clientDataTableData = useMemo(() => {
+    if (!clientDataClients.length || !clientDataMonths.length) return [];
+    
+    const rows: Array<{ client: string; [key: string]: any }> = [];
+    
+    clientDataClients.forEach(client => {
+      const row: any = { client };
+      
+      clientDataMonths.forEach(monthDisplay => {
+        const [monthName, yearStr] = monthDisplay.split(' ');
+        const year = parseInt(yearStr);
+        const monthNames: { [key: string]: string } = {
+          'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+          'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+          'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+        };
+        const fullMonthName = monthNames[monthName] || monthName;
+        const monthKey = getClientDataMonthKey(fullMonthName, year);
+        
+        clientDataParameters.forEach(param => {
+          const cellKey = `${param.key}_${monthKey}`;
+          const matchingData = filteredClientMFSData.find((item: any) => 
+            item.client_name === client && 
+            normalizeToFullMonthName(item.month) === fullMonthName &&
+            item.year === year
+          );
+          row[cellKey] = matchingData ? (matchingData[param.key] || 0) : 0;
+        });
+      });
+      
+      rows.push(row);
+    });
+    
+    return rows;
+  }, [clientDataClients, clientDataMonths, clientDataParameters, filteredClientMFSData]);
 
   // Handle URL parameters for MFS button redirect
 
@@ -7630,6 +7869,27 @@ const TeamReportCompare: React.FC = () => {
   >
     {showSummaryReport ? 'Hide Full Summary Report' : 'Show Full Summary Report'}
   </button>
+  
+  {/* Client Data Button - Only show when specific business unit is selected */}
+  {isSpecificBusinessUnitSelected && (
+    <button
+      onClick={() => setShowClientData(!showClientData)}
+      style={{ 
+        backgroundColor: '#004a7a',
+        color: '#ffffff',
+        border: 'none',
+        padding: '8px 16px',
+        borderRadius: '4px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        marginLeft: '8px'
+      }}
+    >
+      {showClientData ? 'Hide Client Data' : 'Show Client Data'}
+    </button>
+  )}
 </div>
 
 {/* Full Summary Report */}
@@ -8785,6 +9045,253 @@ const TeamReportCompare: React.FC = () => {
         )
 
       ) : null}
+
+      {/* Client Data Table */}
+      {showClientData && isSpecificBusinessUnitSelected && getSelectedBUForClientData && (
+        <div style={{ marginTop: 20, marginBottom: 20 }}>
+          <div style={{
+            backgroundColor: '#000000', 
+            color: '#ffffff', 
+            padding: '6px 12px', 
+            borderRadius: 4, 
+            fontSize: 12, 
+            fontWeight: 700,
+            display: 'inline-block',
+            marginBottom: 8,
+            borderBottom: '3px solid #ff8c00'
+          }}>
+            Client Data - {getSelectedBUForClientData}
+          </div>
+          
+          {/* Filters */}
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: '12px', 
+            marginBottom: '16px',
+            padding: '12px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: 4
+          }}>
+            <div style={{ minWidth: '200px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
+                Parameters:
+              </label>
+              <Select
+                mode="multiple"
+                value={clientDataSelectedParameters}
+                onChange={(values) => setClientDataSelectedParameters(values)}
+                placeholder="Select Parameters"
+                style={{ width: '100%' }}
+                allowClear
+              >
+                {allClientDataParameters.map(param => (
+                  <Select.Option key={param.key} value={param.key}>{param.label}</Select.Option>
+                ))}
+              </Select>
+            </div>
+
+            <div style={{ minWidth: '150px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
+                Period Type:
+              </label>
+              <select
+                value={clientDataPeriodFilter}
+                onChange={(e) => {
+                  setClientDataPeriodFilter(e.target.value);
+                  if (e.target.value === 'year') {
+                    setClientDataPeriodValue(String(getCurrentFinancialYear()));
+                  } else {
+                    setClientDataPeriodValue('');
+                  }
+                  setClientDataSelectedMonths([]);
+                }}
+                style={{ width: '100%', padding: '4px', fontSize: '12px' }}
+              >
+                <option value="year">Year</option>
+                <option value="quarter">Quarter</option>
+                <option value="month">Month</option>
+              </select>
+            </div>
+
+            {clientDataPeriodFilter === 'year' && (
+              <div style={{ minWidth: '120px' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
+                  Year:
+                </label>
+                <select
+                  value={clientDataPeriodValue}
+                  onChange={(e) => setClientDataPeriodValue(e.target.value)}
+                  style={{ width: '100%', padding: '4px', fontSize: '12px' }}
+                >
+                  <option value="">Select Year</option>
+                  {clientDataYearOptions.map(year => (
+                    <option key={year} value={String(year)}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {clientDataPeriodFilter === 'quarter' && (
+              <div style={{ minWidth: '200px' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
+                  Quarter:
+                </label>
+                <select
+                  value={clientDataPeriodValue}
+                  onChange={(e) => setClientDataPeriodValue(e.target.value)}
+                  style={{ width: '100%', padding: '4px', fontSize: '12px' }}
+                >
+                  <option value="">Select Quarter</option>
+                  {clientDataQuarterOptions.map(quarter => (
+                    <option key={quarter} value={quarter}>{quarter}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {clientDataPeriodFilter === 'month' && (
+              <div style={{ minWidth: '200px' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
+                  Months:
+                </label>
+                <Select
+                  mode="multiple"
+                  value={clientDataSelectedMonths}
+                  onChange={(values) => setClientDataSelectedMonths(values)}
+                  placeholder="Select Months"
+                  style={{ width: '100%' }}
+                  allowClear
+                >
+                  {clientDataMonths.map(month => (
+                    <Select.Option key={month} value={month}>{month}</Select.Option>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {/* Client Data Table */}
+          {clientDataTableData.length > 0 ? (
+            <div style={{ overflowX: 'auto', backgroundColor: '#ffffff', border: '1px solid #d9d9d9', borderRadius: 4 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#d8e8f0' }}>
+                    <th style={{ padding: '6px 8px', textAlign: 'left', color: '#000000', fontWeight: 'bold', position: 'sticky', left: 0, backgroundColor: '#d8e8f0', zIndex: 10 }}>
+                      Client
+                    </th>
+                    {clientDataMonths.map(month => (
+                      <th key={month} colSpan={clientDataParameters.length} style={{ padding: '6px 8px', textAlign: 'center', color: '#000000', fontWeight: 'bold', borderLeft: '1px solid #d9d9d9' }}>
+                        {month}
+                      </th>
+                    ))}
+                  </tr>
+                  {clientDataParameters.length > 1 && (
+                    <tr style={{ backgroundColor: '#d8e8f0' }}>
+                      <th style={{ padding: '6px 8px', position: 'sticky', left: 0, backgroundColor: '#d8e8f0', zIndex: 10 }}></th>
+                      {clientDataMonths.map(month => 
+                        clientDataParameters.map(param => (
+                          <th key={`${month}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'center', color: '#000000', fontSize: '9px', borderLeft: '1px solid #d9d9d9' }}>
+                            {param.label}
+                          </th>
+                        ))
+                      )}
+                    </tr>
+                  )}
+                </thead>
+                <tbody>
+                  {clientDataTableData.map((row, rowIndex) => (
+                    <tr key={row.client} style={{ backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: 'bold', position: 'sticky', left: 0, backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9', zIndex: 5 }}>
+                        {row.client}
+                      </td>
+                      {clientDataMonths.map(monthDisplay => {
+                        const [monthName, yearStr] = monthDisplay.split(' ');
+                        const year = parseInt(yearStr);
+                        const monthNames: { [key: string]: string } = {
+                          'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+                          'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+                          'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+                        };
+                        const fullMonthName = monthNames[monthName] || monthName;
+                        const monthKey = getClientDataMonthKey(fullMonthName, year);
+                        
+                        return clientDataParameters.map(param => {
+                          const cellKey = `${param.key}_${monthKey}`;
+                          const value = row[cellKey] || 0;
+                          const formatValue = (val: number, key: string) => {
+                            if (key.includes('percentage') || key.includes('_percentage')) {
+                              return `${val.toFixed(2)}%`;
+                            }
+                            if (key === 'hc') {
+                              return val.toFixed(0);
+                            }
+                            return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                          };
+                          
+                          return (
+                            <td key={`${monthDisplay}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'right', borderLeft: '1px solid #d9d9d9' }}>
+                              {formatValue(value, param.key)}
+                            </td>
+                          );
+                        });
+                      })}
+                    </tr>
+                  ))}
+                  {/* Total Row */}
+                  <tr style={{ backgroundColor: '#e6f3ff', fontWeight: 'bold' }}>
+                    <td style={{ padding: '6px 8px', position: 'sticky', left: 0, backgroundColor: '#e6f3ff', zIndex: 5 }}>
+                      Total
+                    </td>
+                    {clientDataMonths.map(monthDisplay => {
+                      const [monthName, yearStr] = monthDisplay.split(' ');
+                      const year = parseInt(yearStr);
+                      const monthNames: { [key: string]: string } = {
+                        'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+                        'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+                        'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+                      };
+                      const fullMonthName = monthNames[monthName] || monthName;
+                      const monthKey = getClientDataMonthKey(fullMonthName, year);
+                      
+                      return clientDataParameters.map(param => {
+                        const cellKey = `${param.key}_${monthKey}`;
+                        let totalValue = 0;
+                        clientDataTableData.forEach(row => {
+                          const value = row[cellKey] || 0;
+                          if (!isNaN(value)) {
+                            totalValue += value;
+                          }
+                        });
+                        
+                        const formatValue = (val: number, key: string) => {
+                          if (key.includes('percentage') || key.includes('_percentage')) {
+                            return `${val.toFixed(2)}%`;
+                          }
+                          if (key === 'hc') {
+                            return val.toFixed(0);
+                          }
+                          return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        };
+                        
+                        return (
+                          <td key={`total_${monthDisplay}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'right', borderLeft: '1px solid #d9d9d9' }}>
+                            {formatValue(totalValue, param.key)}
+                          </td>
+                        );
+                      });
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+              {isLoadingClientMFS ? 'Loading client data...' : 'No client data available for the selected filters'}
+            </div>
+          )}
+        </div>
+      )}
 
 
 
