@@ -2325,12 +2325,20 @@ const TeamReportCompare: React.FC = () => {
   }, [selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
 
   // Helper function to check if a specific business unit is selected (for showing Client Data button)
+  // Check both selectedBusinessUnit (main view) and selectedBusinessUnitsForChart (chart view)
   const isSpecificBusinessUnitSelected = useMemo(() => {
-    if (!selectedBusinessUnitsForChart) return false;
-    
+    // BU head always has their specific BU
     if (isBUHead && user?.business_unit) {
-      return true; // BU head always has their specific BU
+      return true;
     }
+    
+    // Check main comparison view business unit selection
+    if (selectedBusinessUnit) {
+      return true;
+    }
+    
+    // Check chart view business unit selection
+    if (!selectedBusinessUnitsForChart) return false;
     
     // For admin: check if it's a single business unit (string or array with 1 element)
     if (Array.isArray(selectedBusinessUnitsForChart)) {
@@ -2338,23 +2346,31 @@ const TeamReportCompare: React.FC = () => {
     }
     
     return typeof selectedBusinessUnitsForChart === 'string';
-  }, [selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
+  }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
 
   // Get the selected business unit for Client Data table
+  // Priority: selectedBusinessUnit (main view) > selectedBusinessUnitsForChart (chart view) > user.business_unit (BU head)
   const getSelectedBUForClientData = useMemo(() => {
-    if (!selectedBusinessUnitsForChart) return null;
-    
+    // BU head: use their business unit
     if (isBUHead && user?.business_unit) {
       const normalizedBU = normalizeBusinessUnitName(user.business_unit);
       return normalizedBU || user.business_unit;
     }
+    
+    // Main comparison view: use selectedBusinessUnit if set
+    if (selectedBusinessUnit) {
+      return selectedBusinessUnit;
+    }
+    
+    // Chart view: use selectedBusinessUnitsForChart if it's a single BU
+    if (!selectedBusinessUnitsForChart) return null;
     
     if (Array.isArray(selectedBusinessUnitsForChart)) {
       return selectedBusinessUnitsForChart.length === 1 ? selectedBusinessUnitsForChart[0] : null;
     }
     
     return selectedBusinessUnitsForChart;
-  }, [selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
+  }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
 
   // Define all available parameters for Client Data table
   const allClientDataParameters = [
