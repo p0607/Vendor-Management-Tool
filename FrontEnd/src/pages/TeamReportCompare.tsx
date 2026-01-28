@@ -1267,6 +1267,7 @@ const TeamReportCompare: React.FC = () => {
 
   const [data, setData] = useState<ReportData[]>([]);
   const [routingData, setRoutingData] = useState<any[]>([]);
+  const [ctsSummaryData, setCtsSummaryData] = useState<any[]>([]);
 
   const [availableOptions, setAvailableOptions] = useState<string[]>([]);
 
@@ -2262,21 +2263,18 @@ const TeamReportCompare: React.FC = () => {
   // Fetch Client MFS data when admin selects a single business unit OR for BU heads
   useEffect(() => {
     const fetchClientMFSData = async () => {
-      if (!selectedBusinessUnitsForChart) {
-        setClientMFSData([]);
-        return;
-      }
-
-      // For BU heads, use their business unit
-      // For admin, check if it's a single business unit (string) or multiple (array)
+      // Priority: selectedBusinessUnit (main view) > selectedBusinessUnitsForChart (chart view) > user.business_unit (BU head)
       let selectedBU: string | null = null;
       
       if (isBUHead && user?.business_unit) {
         // BU head: use their business unit
         const normalizedBU = normalizeBusinessUnitName(user.business_unit);
         selectedBU = normalizedBU || user.business_unit;
-      } else {
-        // Admin: check if single BU is selected
+      } else if (selectedBusinessUnit) {
+        // Main comparison view: use selectedBusinessUnit if set
+        selectedBU = selectedBusinessUnit;
+      } else if (selectedBusinessUnitsForChart) {
+        // Chart view: check if single BU is selected
         selectedBU = Array.isArray(selectedBusinessUnitsForChart) 
           ? (selectedBusinessUnitsForChart.length === 1 ? selectedBusinessUnitsForChart[0] : null)
           : selectedBusinessUnitsForChart;
@@ -2322,7 +2320,7 @@ const TeamReportCompare: React.FC = () => {
     };
 
     fetchClientMFSData();
-  }, [selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
+  }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
 
   // Helper function to check if a specific business unit is selected (for showing Client Data button)
   // Check both selectedBusinessUnit (main view) and selectedBusinessUnitsForChart (chart view)
@@ -2427,11 +2425,23 @@ const TeamReportCompare: React.FC = () => {
 
   // Filter Client MFS Data based on filters
   const filteredClientMFSData = useMemo(() => {
-    if (!getSelectedBUForClientData || !clientMFSData.length) return [];
+    if (!getSelectedBUForClientData) {
+      console.log('🔍 Client Data: No selected BU');
+      return [];
+    }
+    
+    if (!clientMFSData.length) {
+      console.log('🔍 Client Data: No clientMFSData available');
+      return [];
+    }
+    
+    console.log(`🔍 Client Data: Filtering ${clientMFSData.length} records for BU: ${getSelectedBUForClientData}`);
     
     let filtered = clientMFSData.filter((item: any) => {
       return compareBusinessUnits(item.business_unit, getSelectedBUForClientData);
     });
+    
+    console.log(`🔍 Client Data: Filtered to ${filtered.length} records`);
 
     // Filter by period
     if (clientDataPeriodFilter === 'year' && clientDataPeriodValue) {
@@ -2465,7 +2475,7 @@ const TeamReportCompare: React.FC = () => {
         filtered = filtered.filter((item: any) => {
           if (!item.month || !item.year) return false;
           const monthName = normalizeToFullMonthName(item.month);
-          const monthNum = getMonthNumber(monthName);
+          const monthNum = getClientDataMonthNumber(monthName);
           return item.year === displayYear && monthsInQuarter.includes(monthNum);
         });
       }
@@ -2557,15 +2567,18 @@ const TeamReportCompare: React.FC = () => {
         const fullMonthName = monthNames[monthName] || monthName;
         const monthKey = getClientDataMonthKey(fullMonthName, year);
         
-        clientDataParameters.forEach(param => {
-          const cellKey = `${param.key}_${monthKey}`;
-          const matchingData = filteredClientMFSData.find((item: any) => 
-            item.client_name === client && 
-            normalizeToFullMonthName(item.month) === fullMonthName &&
-            item.year === year
-          );
-          row[cellKey] = matchingData ? (matchingData[param.key] || 0) : 0;
-        });
+                        clientDataParameters.forEach(param => {
+                          const cellKey = `${param.key}_${monthKey}`;
+                          const matchingData = filteredClientMFSData.find((item: any) => 
+                            item.client_name === client && 
+                            normalizeToFullMonthName(item.month) === fullMonthName &&
+                            item.year === year
+                          );
+                          const rawValue = matchingData ? (matchingData[param.key] || 0) : 0;
+                          // Ensure value is a number
+                          const numValue = typeof rawValue === 'number' && !isNaN(rawValue) ? rawValue : 0;
+                          row[cellKey] = numValue;
+                        });
       });
       
       rows.push(row);
@@ -3378,6 +3391,21 @@ const TeamReportCompare: React.FC = () => {
     fetchRoutingData();
   }, []);
 
+  // Fetch CTS Summary data for Revenue KPI card
+  useEffect(() => {
+    const fetchCTSSummary = async () => {
+      try {
+        const response = await apiClient.get('/CTS-Summary');
+        if (Array.isArray(response.data)) {
+          setCtsSummaryData(response.data);
+        }
+      } catch (error: any) {
+        console.error("Error fetching CTS Summary:", error);
+      }
+    };
+    fetchCTSSummary();
+  }, []);
+
   // Helper function to parse billing month from routing data (similar to RoutingDashboard)
   const parseRoutingBillingMonth = (billingMonthStr: string): Date | null => {
     if (!billingMonthStr || billingMonthStr === 'N/A' || billingMonthStr === '') {
@@ -3596,6 +3624,47 @@ const TeamReportCompare: React.FC = () => {
     });
 
     return totalNetMargin;
+  };
+
+  // Get the last month's row from CTS Summary (most recent month present in target period)
+  const getLastMonthCTSRow = (): any | null => {
+    if (!ctsSummaryData || ctsSummaryData.length === 0) return null;
+
+    const targetMonths = getTargetMonthsForRouting();
+    const matching = ctsSummaryData
+      .map((item: any) => {
+        const itemYear = typeof item.year === 'number' ? item.year : parseInt(item.year, 10);
+        const itemMonth = typeof item.month === 'number' ? item.month : parseInt(item.month, 10);
+        if (isNaN(itemYear) || isNaN(itemMonth)) return null;
+        const matches = targetMonths.some(
+          (t: { month: number; year: number }) => t.month === itemMonth && t.year === itemYear
+        );
+        return matches ? { ...item, _year: itemYear, _month: itemMonth } : null;
+      })
+      .filter(Boolean) as any[];
+
+    if (matching.length === 0) return null;
+    // Sort descending by year then month; first = last month
+    matching.sort((a, b) => (b._year !== a._year ? b._year - a._year : b._month - a._month));
+    return matching[0];
+  };
+
+  // Revenue KPI: CTS = last month's Current PO Value from CTS Summary
+  const calculateCTSValue = (): number => {
+    const row = getLastMonthCTSRow();
+    if (!row) return 0;
+    const val = row["Current PO Value"];
+    const num = typeof val === 'number' ? val : parseFloat(val);
+    return !isNaN(num) ? num : 0;
+  };
+
+  // GPM & NP KPI: CTS = last month's Current Margin from CTS Summary
+  const calculateCTSMargin = (): number => {
+    const row = getLastMonthCTSRow();
+    if (!row) return 0;
+    const val = row["Current Margin"];
+    const num = typeof val === 'number' ? val : parseFloat(val);
+    return !isNaN(num) ? num : 0;
   };
 
   // Fetch business units on component mount
@@ -6971,7 +7040,8 @@ const TeamReportCompare: React.FC = () => {
                   <div key={kpiName} style={{
                     backgroundColor: '#ffffff',
                     borderRadius: 8,
-                    padding: 8,
+                    padding: 12,
+                    minHeight: 220,
                     border: '1px solid #d9d9d9',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                     position: 'relative'
@@ -6998,186 +7068,100 @@ const TeamReportCompare: React.FC = () => {
                       }} />
                     </div>
 
-                    {/* Green Arrow Icon */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 20,
-                      right: 20,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center'
-                    }}>
-                      <div style={{
-                        width: 0,
-                        height: 0,
-                        borderLeft: '8px solid transparent',
-                        borderRight: '8px solid transparent',
-                        borderBottom: '12px solid #4ade80',
-                        marginBottom: 2
-                      }} />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                        <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                        <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                    {/* All KPIs: left = metric value(s) + total, right = growth arrow with % and value below */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
+                      {/* Left: Label = value (and total for composite KPIs) */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {kpiName === 'Revenue' && (
+                          <>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                              Revenue = {formatValue(kpi.currentFY)}
+                            </div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                              Routing = {formatValue(calculateRoutingBilling())}
+                            </div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                              CTS = {formatValue(calculateCTSValue())}
+                            </div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                              Revenue + Routing + CTS = {formatValue(kpi.currentFY + calculateRoutingBilling() + calculateCTSValue())}
+                            </div>
+                          </>
+                        )}
+                        {kpiName === 'GPM' && (() => {
+                          const routingMargin = calculateRoutingMargin();
+                          const ctsMargin = calculateCTSMargin();
+                          const total = kpi.currentFY + routingMargin + ctsMargin;
+                          return (
+                            <>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                GPM = {formatValue(kpi.currentFY)}
+                              </div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                Routing = {formatValue(routingMargin)}
+                              </div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                CTS = {formatValue(ctsMargin)}
+                              </div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                GPM + Routing + CTS = {formatValue(total)}
+                              </div>
+                            </>
+                          );
+                        })()}
+                        {kpiName === 'Team Cost' && (
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                            Team Cost = {formatValue(kpi.currentFY)}
+                          </div>
+                        )}
+                        {kpiName === 'NP' && (() => {
+                          const routingNetMargin = calculateRoutingNetMargin();
+                          const ctsMargin = calculateCTSMargin();
+                          const total = kpi.currentFY + routingNetMargin + ctsMargin;
+                          return (
+                            <>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                NP = {formatValue(kpi.currentFY)}
+                              </div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                Routing = {formatValue(routingNetMargin)}
+                              </div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                CTS = {formatValue(ctsMargin)}
+                              </div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                NP + Routing + CTS = {formatValue(total)}
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
-                    </div>
-
-                    {/* Main Growth Percentage */}
-                    <div style={{ 
-                      fontSize: 12, 
-                      fontWeight: 700, 
-                      color: kpi.growthPercentage >= 0 ? '#4ade80' : '#ff4d4f', 
-                      marginBottom: 4,
-                      textAlign: 'center'
-                    }}>
-                      {kpi.growthPercentage >= 0 ? '+' : ''}{kpi.growthPercentage.toFixed(1)}% Growth
-                    </div>
-
-                    {/* Change in Value */}
-                    <div style={{ 
-                      fontSize: 12, 
-                      fontWeight: 600, 
-                      color: kpi.currentFY - kpi.previousFY >= 0 ? '#4ade80' : '#ff4d4f', 
-                      marginBottom: 4,
-                      textAlign: 'center'
-                    }}>
-                      {kpi.currentFY - kpi.previousFY >= 0 ? '+' : ''}{formatValue(kpi.currentFY - kpi.previousFY)}
-                    </div>
-
-                    {/* Dynamic comparison period text */}
-                    <div style={{ 
-                      fontSize: 8, 
-                      color: '#666666', 
-                      marginBottom: 8,
-                      textAlign: 'center'
-                    }}>
-                      {(() => {
-                        if (compareType === 'quarter' && comparisonValues[1]) {
-                          return `vs ${comparisonValues[1]}`;
-                        } else if (compareType === 'year' && comparisonValues[1]) {
-                          return `vs ${comparisonValues[1]}`;
-                        } else {
-                          return `vs ${comparisonValues[1] || 'Previous Period'}`;
-                        }
-                      })()}
-                    </div>
-
-                    {/* KPI Label */}
-                    <div style={{ 
-                      display: 'flex',
-                      gap: 8,
-                      marginBottom: 12,
-                      alignItems: 'center',
-                      flexWrap: 'wrap'
-                    }}>
-                      <div style={{ 
-                        backgroundColor: '#f5f5f5', 
-                        color: '#666666', 
-                        padding: '4px 8px', 
-                        borderRadius: 4, 
-                        fontSize: 10, 
-                        fontWeight: 500,
-                        display: 'inline-block'
-                      }}>
-                        {kpiName}
+                      {/* Right: growth arrow with growth % and value below (same for all KPIs) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 2 }}>
+                          <div style={{
+                            width: 0,
+                            height: 0,
+                            borderLeft: '8px solid transparent',
+                            borderRight: '8px solid transparent',
+                            borderBottom: '12px solid #4ade80'
+                          }} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                            <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                            <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: kpi.growthPercentage >= 0 ? '#4ade80' : '#ff4d4f', textAlign: 'right' }}>
+                          {kpi.growthPercentage >= 0 ? '+' : ''}{kpi.growthPercentage.toFixed(1)}% Growth
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: kpi.currentFY - kpi.previousFY >= 0 ? '#4ade80' : '#ff4d4f', textAlign: 'right' }}>
+                          {kpi.currentFY - kpi.previousFY >= 0 ? '+' : ''}{formatValue(kpi.currentFY - kpi.previousFY)}
+                        </div>
+                        <div style={{ fontSize: 8, color: '#666666', textAlign: 'right' }}>
+                          {comparisonValues[1] ? `vs ${comparisonValues[1]}` : 'vs Previous Period'}
+                        </div>
                       </div>
-                      {kpiName === 'Revenue' && (
-                        <div style={{ 
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}>
-                          <div style={{ 
-                            backgroundColor: '#f5f5f5', 
-                            color: '#666666', 
-                            padding: '4px 8px', 
-                            borderRadius: 4, 
-                            fontSize: 10, 
-                            fontWeight: 500,
-                            display: 'inline-block'
-                          }}>
-                            Routing
-                          </div>
-                          <span style={{ fontSize: 8, color: '#666666' }}>(Alchemy Billing)</span>
-                        </div>
-                      )}
-                      {kpiName === 'GPM' && (
-                        <div style={{ 
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}>
-                          <div style={{ 
-                            backgroundColor: '#f5f5f5', 
-                            color: '#666666', 
-                            padding: '4px 8px', 
-                            borderRadius: 4, 
-                            fontSize: 10, 
-                            fontWeight: 500,
-                            display: 'inline-block'
-                          }}>
-                            Routing
-                          </div>
-                          <span style={{ fontSize: 8, color: '#666666' }}>(Alchemy billing - Vendor invoice amount)</span>
-                        </div>
-                      )}
-                      {kpiName === 'NP' && (
-                        <div style={{ 
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}>
-                          <div style={{ 
-                            backgroundColor: '#f5f5f5', 
-                            color: '#666666', 
-                            padding: '4px 8px', 
-                            borderRadius: 4, 
-                            fontSize: 10, 
-                            fontWeight: 500,
-                            display: 'inline-block'
-                          }}>
-                            Routing
-                          </div>
-                          <span style={{ fontSize: 8, color: '#666666' }}>(Net Margin)</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Current FY Value */}
-                    <div style={{ 
-                      fontSize: 12, 
-                      fontWeight: 700, 
-                      color: '#333333', 
-                      marginBottom: 2
-                    }}>
-                      {formatValue(kpi.currentFY)}
-                      {kpiName === 'Revenue' && (() => {
-                        const routingBilling = calculateRoutingBilling();
-                        const total = kpi.currentFY + routingBilling;
-                        return (
-                          <>
-                            {' '}+ {formatValue(routingBilling)} = {formatValue(total)}
-                          </>
-                        );
-                      })()}
-                      {kpiName === 'GPM' && (() => {
-                        const routingMargin = calculateRoutingMargin();
-                        const total = kpi.currentFY + routingMargin;
-                        return (
-                          <>
-                            {' '}+ {formatValue(routingMargin)} = {formatValue(total)}
-                          </>
-                        );
-                      })()}
-                      {kpiName === 'NP' && (() => {
-                        const routingNetMargin = calculateRoutingNetMargin();
-                        const total = kpi.currentFY + routingNetMargin;
-                        return (
-                          <>
-                            {' '}+ {formatValue(routingNetMargin)} = {formatValue(total)}
-                          </>
-                        );
-                      })()}
                     </div>
 
                     {/* FY Projected and Actual on same row */}
@@ -7242,41 +7226,16 @@ const TeamReportCompare: React.FC = () => {
                     {/* Original vs Projected Breakdown */}
                     {kpi.monthsRemaining > 0 && (
                       <div style={{ 
-                        fontSize: 8, 
-                        color: '#666666',
+                        fontSize: 12, 
+                        fontWeight: 600,
+                        color: '#333333',
                         marginBottom: 8,
-                        lineHeight: '1.2'
+                        lineHeight: 1.4
                       }}>
-                        <div>Actual: {formatValue(kpi.currentFYActual)}</div>
-                        <div>+ Projected: {formatValue(kpi.projectedAmount)}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>Actual: {formatValue(kpi.currentFYActual)}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>+ Projected: {formatValue(kpi.projectedAmount)}</div>
                       </div>
                     )}
-
-                    {/* Progress Bar */}
-                    <div style={{ marginBottom: 4 }}>
-                      <div style={{
-                        width: '100%',
-                        height: 6,
-                        backgroundColor: '#e5e5e5',
-                        borderRadius: 3,
-                        overflow: 'hidden'
-                      }}>
-                        <div style={{
-                          width: `${(kpi.monthsCompleted / 12) * 100}%`,
-                          height: '100%',
-                          backgroundColor: '#4ade80',
-                          borderRadius: 3
-                        }} />
-                      </div>
-                    </div>
-
-                    {/* Months Completed */}
-                    <div style={{ 
-                      fontSize: 8, 
-                      color: '#666666',
-                      textAlign: 'center'
-                    }}>
-                    </div>
                   </div>
                 );
               });
@@ -9235,14 +9194,17 @@ const TeamReportCompare: React.FC = () => {
                         return clientDataParameters.map(param => {
                           const cellKey = `${param.key}_${monthKey}`;
                           const value = row[cellKey] || 0;
-                          const formatValue = (val: number, key: string) => {
+                          const formatValue = (val: any, key: string) => {
+                            // Ensure value is a valid number
+                            const numValue = typeof val === 'number' && !isNaN(val) ? val : 0;
+                            
                             if (key.includes('percentage') || key.includes('_percentage')) {
-                              return `${val.toFixed(2)}%`;
+                              return `${numValue.toFixed(2)}%`;
                             }
                             if (key === 'hc') {
-                              return val.toFixed(0);
+                              return numValue.toFixed(0);
                             }
-                            return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            return numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                           };
                           
                           return (
@@ -9275,19 +9237,21 @@ const TeamReportCompare: React.FC = () => {
                         let totalValue = 0;
                         clientDataTableData.forEach(row => {
                           const value = row[cellKey] || 0;
-                          if (!isNaN(value)) {
-                            totalValue += value;
-                          }
+                          const numValue = typeof value === 'number' && !isNaN(value) ? value : 0;
+                          totalValue += numValue;
                         });
                         
-                        const formatValue = (val: number, key: string) => {
+                        const formatValue = (val: any, key: string) => {
+                          // Ensure value is a valid number
+                          const numValue = typeof val === 'number' && !isNaN(val) ? val : 0;
+                          
                           if (key.includes('percentage') || key.includes('_percentage')) {
-                            return `${val.toFixed(2)}%`;
+                            return `${numValue.toFixed(2)}%`;
                           }
                           if (key === 'hc') {
-                            return val.toFixed(0);
+                            return numValue.toFixed(0);
                           }
-                          return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                          return numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                         };
                         
                         return (
@@ -9303,7 +9267,18 @@ const TeamReportCompare: React.FC = () => {
             </div>
           ) : (
             <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-              {isLoadingClientMFS ? 'Loading client data...' : 'No client data available for the selected filters'}
+              {isLoadingClientMFS ? 'Loading client data...' : (
+                <div>
+                  <div>No client data available for the selected filters</div>
+                  {getSelectedBUForClientData && (
+                    <div style={{ fontSize: '11px', marginTop: '8px', color: '#999' }}>
+                      Selected BU: {getSelectedBUForClientData} | 
+                      Total records: {clientMFSData.length} | 
+                      Filtered records: {filteredClientMFSData.length}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
