@@ -1633,16 +1633,32 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
       if (!value || value === '' || value === 'null' || value === 'undefined' || value === '1') {
         return null;
       }
-      
-      // Handle date ranges (e.g., "10-09-2025 to 15-09-2025" -> use start date)
+      // Treat text "NA" (not a date) as null
+      if (typeof value === 'string' && value.trim().toUpperCase() === 'NA') {
+        return null;
+      }
+      // Reject numeric strings that are clearly not dates (e.g. "00", "1800" in PO Date column)
+      const numVal = typeof value === 'string' ? parseFloat(value) : value;
+      if (!isNaN(numVal) && (numVal < 1000 || numVal === 0)) {
+        return null;
+      }
+
+      // Handle date ranges (e.g., "08-11-2024 to 12-11-2024" -> use start date, return YYYY-MM-DD)
       if (typeof value === 'string' && value.includes(' to ')) {
-        const startDate = value.split(' to ')[0].trim();
-        const date = new Date(startDate);
+        const startDateStr = value.split(' to ')[0].trim();
+        if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(startDateStr)) {
+          const [d, m, y] = startDateStr.split('-').map(Number);
+          const date = new Date(y, m - 1, d);
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+          }
+        }
+        const date = new Date(startDateStr);
         if (!isNaN(date.getTime())) {
-          return startDate;
+          return date.toISOString().split('T')[0];
         }
       }
-      
+
       // Handle dd-mmm-yy format (e.g., "13-Aug-24")
       if (typeof value === 'string' && /^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(value)) {
         const [day, month, year] = value.split('-');
@@ -1668,11 +1684,14 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         }
       }
       
-      // Handle Excel serial numbers
-      if (!isNaN(value) && value > 1000) {
+      // Handle Excel serial numbers (only accept if result is reasonable date year 1990-2030)
+      if (!isNaN(value) && value > 1000 && value < 100000) {
         const excelDate = new Date((value - 25569) * 86400 * 1000);
         if (!isNaN(excelDate.getTime())) {
-          return excelDate.toISOString().split('T')[0];
+          const year = excelDate.getFullYear();
+          if (year >= 1990 && year <= 2030) {
+            return excelDate.toISOString().split('T')[0];
+          }
         }
       }
       
@@ -1702,7 +1721,50 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
       }
       return parseFloat(value);
     };
-    
+
+    // Billing Month: convert Excel serial / MMM-YY / dd-mm-yyyy to YYYY-MM-DD (required for DATE column)
+    const validateBillingMonth = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') {
+        return null;
+      }
+      // Handle MMM-YY format (e.g., "Sep-24", "Jan-25")
+      if (typeof value === 'string' && /^[A-Za-z]{3}-\d{2}$/.test(value)) {
+        const [monthStr, yearStr] = value.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
+        if (monthIndex !== -1) {
+          const fullYear = 2000 + parseInt(yearStr, 10);
+          const date = new Date(fullYear, monthIndex, 1);
+          return date.toISOString().split('T')[0];
+        }
+      }
+      // Handle Excel serial numbers (e.g. "45992" from Excel)
+      const num = typeof value === 'string' ? parseFloat(value) : value;
+      if (!isNaN(num) && num > 1000 && num < 100000) {
+        const excelEpoch = new Date(1899, 11, 30);
+        const date = new Date(excelEpoch.getTime() + num * 24 * 60 * 60 * 1000);
+        if (!isNaN(date.getTime())) {
+          const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+          return firstDayOfMonth.toISOString().split('T')[0];
+        }
+      }
+      // Handle dd-mm-yyyy
+      if (typeof value === 'string' && /^\d{1,2}-\d{1,2}-\d{4}$/.test(value)) {
+        const [day, month, year] = value.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        if (!isNaN(date.getTime())) {
+          const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+          return firstDayOfMonth.toISOString().split('T')[0];
+        }
+      }
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        return firstDayOfMonth.toISOString().split('T')[0];
+      }
+      return null;
+    };
+
     // Use transaction for bulk insert
     const client = await pool.connect();
     try {
@@ -1733,7 +1795,7 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
           routingData['IBM / KYNDRYL PO No'] || null, validateDateField(routingData['IBM / KYNDRYL PO Date']),
           validateNumericField(routingData['IBM / KYNDRYL PO Value']), validateNumericField(routingData['Integration %']),
           validateNumericField(routingData['Integrator Charges (Margin)']), validateNumericField(routingData['Alchemy Billing Value']),
-          validateNumericField(routingData['Funding cost']), validateNumericField(routingData['Net Margin']), routingData['Billing Month'] || null,
+          validateNumericField(routingData['Funding cost']), validateNumericField(routingData['Net Margin']), validateBillingMonth(routingData['Billing Month']),
           routingData["Payment Day's"] || null, routingData['Vendor Details'] || null, routingData['Vendor SPOC'] || null,
           routingData['Vendor SPOC Contact No'] || null, routingData['Vendor SPOC E-mail ID'] || null,
           validateDateField(routingData['Training Dates']), routingData['Vendor Inv. No.'] || null, validateDateField(routingData['Vendor Inv. Date']),

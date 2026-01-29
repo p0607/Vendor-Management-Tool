@@ -7068,6 +7068,20 @@ const TeamReportCompare: React.FC = () => {
                       }} />
                     </div>
 
+                    {/* Actual + Projected (shown first, before revenue breakdown) */}
+                    {kpi.monthsRemaining > 0 && (
+                      <div style={{ 
+                        fontSize: 12, 
+                        fontWeight: 600,
+                        color: '#333333',
+                        marginBottom: 8,
+                        lineHeight: 1.4
+                      }}>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>Actual: {formatValue(kpi.currentFYActual)}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>+ Projected: {formatValue(kpi.projectedAmount)}</div>
+                      </div>
+                    )}
+
                     {/* All KPIs: left = metric value(s) + total, right = growth arrow with % and value below */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
                       {/* Left: Label = value (and total for composite KPIs) */}
@@ -7222,20 +7236,6 @@ const TeamReportCompare: React.FC = () => {
                         })()}
                       </div>
                     </div>
-
-                    {/* Original vs Projected Breakdown */}
-                    {kpi.monthsRemaining > 0 && (
-                      <div style={{ 
-                        fontSize: 12, 
-                        fontWeight: 600,
-                        color: '#333333',
-                        marginBottom: 8,
-                        lineHeight: 1.4
-                      }}>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>Actual: {formatValue(kpi.currentFYActual)}</div>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>+ Projected: {formatValue(kpi.projectedAmount)}</div>
-                      </div>
-                    )}
                   </div>
                 );
               });
