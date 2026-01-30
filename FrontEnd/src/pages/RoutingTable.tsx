@@ -179,6 +179,7 @@ const RoutingTable: React.FC = () => {
   const [showPOSummary, setShowPOSummary] = useState(false);
   const [poRow, setPoRow] = useState<RoutingTableItem | null>(null);
   const [showActionDropdown, setShowActionDropdown] = useState<boolean>(false);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   const navigate = useNavigate();
 
@@ -609,6 +610,31 @@ const RoutingTable: React.FC = () => {
     );
   };
 
+  // Delete selected rows
+  const handleDeleteSelected = async () => {
+    if (selectedRows.length === 0) {
+      alert('Please select at least one row to delete.');
+      return;
+    }
+    const ids = selectedRows.map(idx => visibleRoutingTable[idx]?.id).filter((id): id is number => id != null);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} selected record(s)? This cannot be undone.`)) return;
+    try {
+      setLoading(true);
+      for (const id of ids) {
+        await apiClient.delete(`/Alchemy_Routing/${id}`);
+      }
+      setSelectedRows([]);
+      setRefreshCounter(c => c + 1);
+      alert(`${ids.length} record(s) deleted.`);
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      alert(err.response?.data?.error || err.response?.data?.message || err.message || 'Delete failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   //Select all checkbox handler
   const isAllSelected = visibleRoutingTable.length > 0 && selectedRows.length === visibleRoutingTable.length;
   const handleSelectAll = () => {
@@ -985,7 +1011,7 @@ const RoutingTable: React.FC = () => {
     };
 
     fetchData();
-  }, [itemsToShow]);
+  }, [itemsToShow, refreshCounter]);
 
 
 
@@ -1357,6 +1383,15 @@ const filteredData = useMemo(() => {
         >
           {editingMode ? 'Cancel Editing' : 'Edit Data'}
         </button>
+        {selectedRows.length > 0 && (
+          <button 
+            onClick={handleDeleteSelected}
+            className="edit-data-button"
+            style={{ marginLeft: 8, backgroundColor: '#c62828', color: '#fff' }}
+          >
+            Delete selected ({selectedRows.length})
+          </button>
+        )}
       </th>
     </tr>
   </thead>

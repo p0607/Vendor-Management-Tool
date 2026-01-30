@@ -1497,6 +1497,20 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
   }
 });
 
+app.delete('/api/Alchemy_Routing/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery('DELETE FROM "Alchemy_Routing" WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    logger.info('Alchemy Routing record deleted', { recordId: id });
+    res.status(200).json({ message: 'Record deleted', id: Number(id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.patch('/api/team-report/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
