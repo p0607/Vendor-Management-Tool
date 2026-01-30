@@ -1787,27 +1787,35 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44
       )`;
       
-      for (const routingData of data) {
-        await client.query(insertQuery, [
-          routingData['Sl.No'], validateDateField(routingData['Costing Date']), routingData['IBM / KYNDRYL'],
-          routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
-          routingData['Training / Services Details'] || null, routingData['Description'] || null,
-          routingData['IBM / KYNDRYL PO No'] || null, validateDateField(routingData['IBM / KYNDRYL PO Date']),
-          validateNumericField(routingData['IBM / KYNDRYL PO Value']), validateNumericField(routingData['Integration %']),
-          validateNumericField(routingData['Integrator Charges (Margin)']), validateNumericField(routingData['Alchemy Billing Value']),
-          validateNumericField(routingData['Funding cost']), validateNumericField(routingData['Net Margin']), validateBillingMonth(routingData['Billing Month']),
-          routingData["Payment Day's"] || null, routingData['Vendor Details'] || null, routingData['Vendor SPOC'] || null,
-          routingData['Vendor SPOC Contact No'] || null, routingData['Vendor SPOC E-mail ID'] || null,
-          validateDateField(routingData['Training Dates']), routingData['Vendor Inv. No.'] || null, validateDateField(routingData['Vendor Inv. Date']),
-          validateNumericField(routingData['Vendor Inv. Amount']), validateNumericField(routingData['GST @ 18%']), validateNumericField(routingData['Total Invoice']),
-          validateNumericField(routingData['Vendor Amount After TDS 10%']), validateNumericField(routingData['Net Payment to Vendor']),
-          validateDateField(routingData['Payment Due Date']), routingData['Alchemy Techsol Invoive No'] || null,
-          validateDateField(routingData['Alchemy Techsol Invoice Date']), validateNumericField(routingData['Alchemy Techsol Invoice Amount']),
-          validateDateField(routingData['Payment Expected Date (IBM)']), routingData['Cheque Issued Name'] || null,
-          validateDateField(routingData['Cheque Date']), routingData['Cheque No'] || null, routingData['REMARK'] || null,
-          routingData['domain'] || null, routingData['Vendor_PO_No'] || null, validateDateField(routingData['Vendor_PO_Date']),
-          routingData['Address'] || null, routingData['Alchemy PO'] || null
-        ]);
+      const toVal = (v) => (v === undefined ? null : v);
+
+      for (let i = 0; i < data.length; i++) {
+        const routingData = data[i];
+        try {
+          await client.query(insertQuery, [
+            toVal(routingData['Sl.No']), validateDateField(routingData['Costing Date']), toVal(routingData['IBM / KYNDRYL']),
+            routingData['Requestor'] || null, routingData['Department SPOC'] || null, routingData['SPOC E-mail ID'] || null,
+            routingData['Training / Services Details'] || null, routingData['Description'] || null,
+            routingData['IBM / KYNDRYL PO No'] || null, validateDateField(routingData['IBM / KYNDRYL PO Date']),
+            validateNumericField(routingData['IBM / KYNDRYL PO Value']), validateNumericField(routingData['Integration %']),
+            validateNumericField(routingData['Integrator Charges (Margin)']), validateNumericField(routingData['Alchemy Billing Value']),
+            validateNumericField(routingData['Funding cost']), validateNumericField(routingData['Net Margin']), validateBillingMonth(routingData['Billing Month']),
+            routingData["Payment Day's"] || null, routingData['Vendor Details'] || null, routingData['Vendor SPOC'] || null,
+            routingData['Vendor SPOC Contact No'] || null, routingData['Vendor SPOC E-mail ID'] || null,
+            validateDateField(routingData['Training Dates']), routingData['Vendor Inv. No.'] || null, validateDateField(routingData['Vendor Inv. Date']),
+            validateNumericField(routingData['Vendor Inv. Amount']), validateNumericField(routingData['GST @ 18%']), validateNumericField(routingData['Total Invoice']),
+            validateNumericField(routingData['Vendor Amount After TDS 10%']), validateNumericField(routingData['Net Payment to Vendor']),
+            validateDateField(routingData['Payment Due Date']), routingData['Alchemy Techsol Invoive No'] || null,
+            validateDateField(routingData['Alchemy Techsol Invoice Date']), validateNumericField(routingData['Alchemy Techsol Invoice Amount']),
+            validateDateField(routingData['Payment Expected Date (IBM)']), routingData['Cheque Issued Name'] || null,
+            validateDateField(routingData['Cheque Date']), routingData['Cheque No'] || null, routingData['REMARK'] || null,
+            routingData['domain'] || null, routingData['Vendor_PO_No'] || null, validateDateField(routingData['Vendor_PO_Date']),
+            routingData['Address'] || null, routingData['Alchemy PO'] || null
+          ]);
+        } catch (rowErr) {
+          const detail = rowErr.detail || rowErr.message;
+          throw new Error(`Row ${i + 1}: ${detail}`);
+        }
       }
       
       await client.query('COMMIT');
@@ -1828,7 +1836,18 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
       client.release();
     }
   } catch (err) {
-    next(err);
+    logger.error('Alchemy Routing bulk import failed', {
+      error: err.message,
+      stack: err.stack,
+      code: err.code,
+      detail: err.detail
+    });
+    const message = err.detail || err.message || 'Unknown error';
+    return res.status(500).json({
+      success: false,
+      error: 'Import failed',
+      message: message
+    });
   }
 });
 

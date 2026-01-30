@@ -206,7 +206,8 @@ const AddRoutingData: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error importing data:', err);
-      alert(`Error importing data: ${err.response?.data?.error || err.message || 'Unknown error'}`);
+      const apiMessage = err.response?.data?.message || err.response?.data?.error;
+      alert(`Error importing data: ${apiMessage || err.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
       if (fileInputRef.current) {
