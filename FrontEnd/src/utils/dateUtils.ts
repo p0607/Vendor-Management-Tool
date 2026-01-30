@@ -1,5 +1,7 @@
 // Date utility functions for consistent DD-MM-YYYY formatting
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 /**
  * Formats a date string to DD-MM-YYYY format for display.
  * Accepts ISO (YYYY-MM-DD), DD-MM-YYYY, or date with time.
@@ -50,106 +52,79 @@ export const formatDateOnly = (dateStr: string | null | undefined): string => {
   return formatDateToDDMMYYYY(dateStr);
 };
 
-/**
- * Converts Excel serial number or date string to DD-MM-YYYY format
- * @param value - Excel serial number, date string (e.g. DD-MM-YYYY), or Date object
- * @returns Formatted date string in DD-MM-YYYY format
- */
+/** Excel/string date → DD-MM-YYYY for other date columns (Costing Date, PO Date, etc.). */
 export const formatExcelDate = (value: number | string | Date): string => {
   if (!value) return '';
-  
   try {
-    // Handle string dates (like "13-Aug-24" or "25-11-2025")
     if (typeof value === 'string') {
-      const trimmed = value.trim();
-      // Handle dd-mm-yyyy format (e.g., "25-11-2025") - pass through so backend can parse
-      if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed)) {
-        return trimmed;
-      }
-      // Handle dd-mmm-yy format (e.g., "13-Aug-24")
-      if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(trimmed)) {
+      const s = value.trim();
+      if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) return s;
+      if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(s)) {
         const [day, month, year] = value.split('-');
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === month.toLowerCase());
-        
-        if (monthIndex !== -1) {
-          // Convert 2-digit year to 4-digit year
-          const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
-          const date = new Date(fullYear, monthIndex, parseInt(day));
-          return toLocalDDMMYYYY(date);
+        const mi = MONTH_NAMES.findIndex(m => m.toLowerCase() === month.toLowerCase());
+        if (mi !== -1) {
+          const y = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
+          const d = new Date(y, mi, parseInt(day));
+          return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
         }
       }
-      
-      // Handle other string formats (e.g. ISO or locale-dependent)
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        if (!isNaN(date.getTime())) return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+      }
       const date = new Date(value);
-      if (!isNaN(date.getTime())) {
-        return toLocalDDMMYYYY(date);
-      }
+      if (!isNaN(date.getTime())) return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
     }
-
-    // Handle Date objects (Excel sometimes returns these for date cells) - use local date to avoid UTC shift
     if (value instanceof Date && !isNaN(value.getTime())) {
-      return toLocalDDMMYYYY(value);
+      return `${String(value.getDate()).padStart(2, '0')}-${String(value.getMonth() + 1).padStart(2, '0')}-${value.getFullYear()}`;
     }
-    
-    // Handle Excel serial numbers - use local date to avoid UTC shift
     if (typeof value === 'number' && value > 1) {
-      // Excel dates are number of days since 1900-01-01
-      const excelDate = new Date((value - 25569) * 86400 * 1000);
-      if (!isNaN(excelDate.getTime())) {
-        return toLocalDDMMYYYY(excelDate);
+      const utc = new Date((value - 25569) * 86400 * 1000);
+      if (!isNaN(utc.getTime())) {
+        const y = utc.getUTCFullYear(), m = utc.getUTCMonth(), d = utc.getUTCDate();
+        return `${String(d).padStart(2, '0')}-${String(m + 1).padStart(2, '0')}-${y}`;
       }
     }
-    
     return '';
-  } catch (error) {
-    console.error('Error formatting Excel date:', error);
-    return '';
-  }
+  } catch { return ''; }
 };
 
-/** Format a Date to DD-MM-YYYY using local date components (avoids UTC shifting the day). */
-const toLocalDDMMYYYY = (date: Date): string => {
-  const d = String(date.getDate()).padStart(2, '0');
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const y = date.getFullYear();
-  return `${d}-${m}-${y}`;
-};
-
-/** Format a Date to YYYY-MM-DD using local date components (avoids UTC shifting the day). */
-const toLocalYYYYMMDD = (date: Date): string => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
-
-/**
- * Converts any date value to YYYY-MM-DD for API payloads. All parsing happens here; backend receives only ISO dates.
- * Uses local date components so timezone does not shift the day (e.g. Nov 1 stays Nov 1, not Oct 31).
- */
+/** Any date value → YYYY-MM-DD for API (other date columns). */
 export const dateToISOForAPI = (value: number | string | Date | null | undefined): string => {
   if (value == null || value === '') return '';
   const ddMmYyyy = formatExcelDate(value as number | string | Date);
   if (!ddMmYyyy) return '';
-  if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(ddMmYyyy)) {
-    const [d, m, y] = ddMmYyyy.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    if (!isNaN(date.getTime())) return toLocalYYYYMMDD(date);
-  }
-  const date = new Date(ddMmYyyy);
-  if (!isNaN(date.getTime())) return toLocalYYYYMMDD(date);
+  const [d, m, y] = ddMmYyyy.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  if (!isNaN(date.getTime())) return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   return '';
 };
 
-/**
- * Billing month (first day of month) in YYYY-MM-DD for API.
- */
+/** Billing month: Jan-26 → 1 Jan 2026 (2026-01-01), Dec-25 → 1 Dec 2025. Whatever MMM-YY is in Excel = first of that month. */
 export const billingMonthToISOForAPI = (value: number | string | Date | null | undefined): string => {
-  const iso = dateToISOForAPI(value);
-  if (!iso) return '';
-  const [y, m] = iso.split('-').map(Number);
-  return `${y}-${String(m).padStart(2, '0')}-01`;
+  if (value == null || value === '') return '';
+  const s = String(value).trim();
+  const match = s.match(/^([A-Za-z]{3})[- ](\d{2,4})$/i);
+  if (match) {
+    const mi = MONTH_NAMES.findIndex(m => m.toLowerCase() === match[1].toLowerCase());
+    if (mi !== -1) {
+      const yy = match[2].length === 2 ? (parseInt(match[2], 10) < 50 ? 2000 + parseInt(match[2], 10) : 1900 + parseInt(match[2], 10)) : parseInt(match[2], 10);
+      return `${yy}-${String(mi + 1).padStart(2, '0')}-01`;
+    }
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (typeof value === 'number' && value > 1) {
+    const d = new Date((value - 25569) * 86400 * 1000);
+    if (!isNaN(d.getTime())) {
+      const y = d.getUTCFullYear(), m = d.getUTCMonth();
+      return `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    }
+  }
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-01`;
+  }
+  return '';
 };
 
 /**
