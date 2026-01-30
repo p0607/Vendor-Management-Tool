@@ -6591,7 +6591,8 @@ const ClientMFSCompare: React.FC = () => {
                   <div key={kpiName} style={{
                     backgroundColor: '#ffffff',
                     borderRadius: 8,
-                    padding: 8,
+                    padding: 12,
+                    minHeight: '220px',
                     border: '1px solid #d9d9d9',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                     position: 'relative'
@@ -6877,32 +6878,6 @@ const ClientMFSCompare: React.FC = () => {
                         Actual ({formatValue(kpi.currentFYActual)}) + Predicted ({formatValue(kpi.projectedAmount)}) = {kpiName} ({formatValue(kpi.currentFY)})
                       </div>
                     )}
-
-                    {/* Progress Bar */}
-                    <div style={{ marginBottom: 4 }}>
-                      <div style={{
-                        width: '100%',
-                        height: 6,
-                        backgroundColor: '#e5e5e5',
-                        borderRadius: 3,
-                        overflow: 'hidden'
-                      }}>
-                        <div style={{
-                          width: `${(kpi.monthsCompleted / 12) * 100}%`,
-                          height: '100%',
-                          backgroundColor: '#4ade80',
-                          borderRadius: 3
-                        }} />
-                      </div>
-                    </div>
-
-                    {/* Months Completed */}
-                    <div style={{ 
-                      fontSize: 8, 
-                      color: '#666666',
-                      textAlign: 'center'
-                    }}>
-                    </div>
                   </div>
                 );
                   })}
@@ -7503,9 +7478,10 @@ const ClientMFSCompare: React.FC = () => {
 
 
 
-{/* Client Report - displays just after Growth Analysis, before button and Efficiency Dashboard */}
+{/* Client Report - immediately after Growth Analysis above */}
 {showSummaryReport && (
   <div style={{ marginTop: 20, marginBottom: 20 }}>
+    <p style={{ marginBottom: 4, color: '#666666', fontSize: 10 }}>Client data (below Growth Analysis)</p>
     <div style={{
       backgroundColor: '#000000', 
       color: '#ffffff', 
@@ -8037,6 +8013,76 @@ const ClientMFSCompare: React.FC = () => {
                     );
                   });
                 })}
+                {/* Total row: Total GPM % = (Total GPM/Total Revenue)*100, Total NP % = (Total NP/Total Revenue)*100 */}
+                {(() => {
+                  const periods = comparisonValues.filter(Boolean);
+                  const isDefaultYearComparison = compareType === 'year' && periods.length === 2;
+                  const totalByPeriod = periods.map((_, periodIndex) => {
+                    let revenue = 0, gpm = 0, np = 0, hc = 0;
+                    let revPred = 0, gpmPred = 0, npPred = 0, revSum = 0, gpmSum = 0, npSum = 0;
+                    clientSummaries.forEach(summary => {
+                      const current = periodIndex === 0 ? summary.currentPeriod : summary.previousPeriod;
+                      revenue += current.revenue;
+                      gpm += current.gpm;
+                      np += current.np;
+                      hc += current.hc;
+                      if (periodIndex === 0 && isDefaultYearComparison) {
+                        revPred += summary.revenuePredicted || 0;
+                        gpmPred += summary.gpmPredicted || 0;
+                        npPred += summary.npPredicted || 0;
+                        revSum += summary.revenueSum || current.revenue;
+                        gpmSum += summary.gpmSum || current.gpm;
+                        npSum += summary.npSum || current.np;
+                      }
+                    });
+                    return { revenue, gpm, np, hc, revPred, gpmPred, npPred, revSum, gpmSum, npSum };
+                  });
+                  const currentYear = getCurrentFinancialYear();
+                  type TPeriod = { revenue: number; gpm: number; np: number; hc: number; revPred: number; gpmPred: number; npPred: number; revSum: number; gpmSum: number; npSum: number };
+                  const totalParams: Array<{ name: string; getVal: (t: TPeriod) => number; getPred?: (t: TPeriod) => number; getSum?: (t: TPeriod) => number; getPct?: (t: TPeriod) => number; getPctSum?: (t: TPeriod) => number }> = [
+                    { name: 'Revenue', getVal: (t) => t.revenue, getPred: (t) => t.revPred, getSum: (t) => t.revSum },
+                    { name: 'GPM', getVal: (t) => t.gpm, getPred: (t) => t.gpmPred, getSum: (t) => t.gpmSum, getPct: (t) => t.revenue !== 0 ? (t.gpm / t.revenue) * 100 : 0, getPctSum: (t) => t.revSum !== 0 ? (t.gpmSum / t.revSum) * 100 : 0 },
+                    { name: 'NP', getVal: (t) => t.np, getPred: (t) => t.npPred, getSum: (t) => t.npSum, getPct: (t) => t.revenue !== 0 ? (t.np / t.revenue) * 100 : 0, getPctSum: (t) => t.revSum !== 0 ? (t.npSum / t.revSum) * 100 : 0 },
+                    { name: 'HC', getVal: (t) => t.hc, getPred: () => 0, getSum: (t) => t.hc }
+                  ];
+                  return totalParams.map((param, paramIndex) => (
+                    <tr key={`total-${param.name}`} style={{ backgroundColor: '#e6f3ff', fontWeight: 'bold', borderTop: paramIndex === 0 ? '2px solid #004a7a' : undefined }}>
+                      {paramIndex === 0 ? <td rowSpan={4} style={{ padding: '6px 8px', textAlign: 'left', borderRight: '2px solid #004a7a', verticalAlign: 'top' }}>Total</td> : null}
+                      <td style={{ padding: '6px 8px', textAlign: 'left' }}>{param.name}</td>
+                      {periods.map((period, i) => {
+                        const isCurrentFY = (period || '').includes(String(currentYear)) || (compareType === 'year' && i === 0 && (period || '').length > 0);
+                        const t = totalByPeriod[i];
+                        return (
+                          <React.Fragment key={i}>
+                            <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                              <div>{formatValueForTable(param.getVal(t), param.name)}</div>
+                              {param.getPct && (
+                                <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                                  {param.name === 'GPM' ? `GPM %: ${(param.getPct(t)).toFixed(2)}%` : `NP %: ${(param.getPct(t)).toFixed(2)}%`}
+                                </div>
+                              )}
+                            </td>
+                            {isDefaultYearComparison && isCurrentFY && i === 0 && param.getPred != null && param.getSum != null && (
+                              <>
+                                <td style={{ padding: '6px 8px', textAlign: 'right' }}>{formatValueForTable(param.getPred(t), param.name)}</td>
+                                <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                                  <div>{formatValueForTable(param.getSum(t), param.name)}</div>
+                                  {param.getPctSum && (
+                                    <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                                      {param.name === 'GPM' ? `GPM %: ${(param.getPctSum(t)).toFixed(2)}%` : `NP %: ${(param.getPctSum(t)).toFixed(2)}%`}
+                                    </div>
+                                  )}
+                                </td>
+                              </>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>-</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}>-</td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
@@ -8559,6 +8605,76 @@ const ClientMFSCompare: React.FC = () => {
                   );
                 });
               })}
+              {/* Total row: Total GPM % = (Total GPM/Total Revenue)*100, Total NP % = (Total NP/Total Revenue)*100 */}
+              {(() => {
+                const periods = comparisonValues.filter(Boolean);
+                const isDefaultYearComparison = compareType === 'year' && periods.length === 2;
+                const totalByPeriod = periods.map((_, periodIndex) => {
+                  let revenue = 0, gpm = 0, np = 0, hc = 0;
+                  let revPred = 0, gpmPred = 0, npPred = 0, revSum = 0, gpmSum = 0, npSum = 0;
+                  businessUnitSummaries.forEach(summary => {
+                    const current = periodIndex === 0 ? summary.currentPeriod : summary.previousPeriod;
+                    revenue += current.revenue;
+                    gpm += current.gpm;
+                    np += current.np;
+                    hc += current.hc;
+                    if (periodIndex === 0 && isDefaultYearComparison) {
+                      revPred += summary.revenuePredicted || 0;
+                      gpmPred += summary.gpmPredicted || 0;
+                      npPred += summary.npPredicted || 0;
+                      revSum += summary.revenueSum || current.revenue;
+                      gpmSum += summary.gpmSum || current.gpm;
+                      npSum += summary.npSum || current.np;
+                    }
+                  });
+                  return { revenue, gpm, np, hc, revPred, gpmPred, npPred, revSum, gpmSum, npSum };
+                });
+                const currentYear = getCurrentFinancialYear();
+                type TPeriodBU = { revenue: number; gpm: number; np: number; hc: number; revPred: number; gpmPred: number; npPred: number; revSum: number; gpmSum: number; npSum: number };
+                const totalParamsBU: Array<{ name: string; getVal: (t: TPeriodBU) => number; getPred?: (t: TPeriodBU) => number; getSum?: (t: TPeriodBU) => number; getPct?: (t: TPeriodBU) => number; getPctSum?: (t: TPeriodBU) => number }> = [
+                  { name: 'Revenue', getVal: (t) => t.revenue, getPred: (t) => t.revPred, getSum: (t) => t.revSum },
+                  { name: 'GPM', getVal: (t) => t.gpm, getPred: (t) => t.gpmPred, getSum: (t) => t.gpmSum, getPct: (t) => t.revenue !== 0 ? (t.gpm / t.revenue) * 100 : 0, getPctSum: (t) => t.revSum !== 0 ? (t.gpmSum / t.revSum) * 100 : 0 },
+                  { name: 'NP', getVal: (t) => t.np, getPred: (t) => t.npPred, getSum: (t) => t.npSum, getPct: (t) => t.revenue !== 0 ? (t.np / t.revenue) * 100 : 0, getPctSum: (t) => t.revSum !== 0 ? (t.npSum / t.revSum) * 100 : 0 },
+                  { name: 'HC', getVal: (t) => t.hc, getPred: () => 0, getSum: (t) => t.hc }
+                ];
+                return totalParamsBU.map((param, paramIndex) => (
+                  <tr key={`total-bu-${param.name}`} style={{ backgroundColor: '#e6f3ff', fontWeight: 'bold', borderTop: paramIndex === 0 ? '2px solid #004a7a' : undefined }}>
+                    {paramIndex === 0 ? <td rowSpan={4} style={{ padding: '6px 8px', textAlign: 'left', borderRight: '2px solid #004a7a', verticalAlign: 'top' }}>Total</td> : null}
+                    <td style={{ padding: '6px 8px', textAlign: 'left' }}>{param.name}</td>
+                    {periods.map((period, i) => {
+                      const isCurrentFY = (period || '').includes(String(currentYear)) || (compareType === 'year' && i === 0 && (period || '').length > 0);
+                      const t = totalByPeriod[i];
+                      return (
+                        <React.Fragment key={i}>
+                          <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                            <div>{formatValueForTable(param.getVal(t), param.name)}</div>
+                            {param.getPct && (
+                              <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                                {param.name === 'GPM' ? `GPM %: ${(param.getPct(t)).toFixed(2)}%` : `NP %: ${(param.getPct(t)).toFixed(2)}%`}
+                              </div>
+                            )}
+                          </td>
+                          {isDefaultYearComparison && isCurrentFY && i === 0 && param.getPred != null && param.getSum != null && (
+                            <>
+                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>{formatValueForTable(param.getPred(t), param.name)}</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                                <div>{formatValueForTable(param.getSum(t), param.name)}</div>
+                                {param.getPctSum && (
+                                  <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
+                                    {param.name === 'GPM' ? `GPM %: ${(param.getPctSum(t)).toFixed(2)}%` : `NP %: ${(param.getPctSum(t)).toFixed(2)}%`}
+                                  </div>
+                                )}
+                              </td>
+                            </>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>-</td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>-</td>
+                  </tr>
+                ));
+              })()}
             </tbody>
           </table>
         </div>

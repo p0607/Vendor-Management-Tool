@@ -7055,39 +7055,51 @@ const TeamReportCompare: React.FC = () => {
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                     position: 'relative'
                   }}>
-                    {/* Black Label with Orange Line */}
-                    <div style={{ marginBottom: 8 }}>
-                      <div style={{ 
-                        backgroundColor: '#000000', 
-                        color: '#ffffff', 
-                        padding: '4px 8px', 
-                        borderRadius: 4, 
-                        fontSize: 12, 
-                        fontWeight: 600,
-                        display: 'inline-block',
-                        marginBottom: 2
-                      }}>
-                        {kpiName} Analysis
+                    {/* Title row: KPI name on left, FY line at top right */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ 
+                          backgroundColor: '#000000', 
+                          color: '#ffffff', 
+                          padding: '4px 8px', 
+                          borderRadius: 4, 
+                          fontSize: 12, 
+                          fontWeight: 600,
+                          display: 'inline-block',
+                          marginBottom: 2
+                        }}>
+                          {kpiName} Analysis
+                        </div>
+                        <div style={{ width: 60, height: 2, backgroundColor: '#ff6b35', borderRadius: 1 }} />
                       </div>
-                      <div style={{ 
-                        width: 60, 
-                        height: 2, 
-                        backgroundColor: '#ff6b35',
-                        borderRadius: 1
-                      }} />
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                        {(() => {
+                          if (compareType === 'month' && comparisonValues[0]) {
+                            return `${comparisonValues[0]} (Projected)`;
+                          } else if (compareType === 'quarter' && comparisonValues[0]) {
+                            return `${comparisonValues[0]} (Projected)`;
+                          } else {
+                            return `${getMonthRangeForFY(comparisonValues[0] || 'FY 2025')} (Projected)`;
+                          }
+                        })()}
+                        {' '}
+                        {formatValue(kpi.previousFY)}{' '}
+                        {compareType === 'month' && comparisonValues[1] ? comparisonValues[1] : compareType === 'quarter' && comparisonValues[1] ? comparisonValues[1] : 'FY 2024'}
+                      </div>
                     </div>
 
-                    {/* Actual + Projected (shown first, before revenue breakdown) */}
+                    {/* Actual + Predicted = KPI (one row, immediately after title) */}
                     {kpi.monthsRemaining > 0 && (
                       <div style={{ 
                         fontSize: 12, 
                         fontWeight: 600,
                         color: '#333333',
                         marginBottom: 8,
-                        lineHeight: 1.4
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
                       }}>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>Actual: {formatValue(kpi.currentFYActual)}</div>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>+ Projected: {formatValue(kpi.projectedAmount)}</div>
+                        Actual ({formatValue(kpi.currentFYActual)}) + Predicted ({formatValue(kpi.projectedAmount)}) = {kpiName} ({formatValue(kpi.currentFY)})
                       </div>
                     )}
 
@@ -7185,36 +7197,6 @@ const TeamReportCompare: React.FC = () => {
                           {comparisonValues[1] ? `vs ${comparisonValues[1]}` : 'vs Previous Period'}
                         </div>
                       </div>
-                    </div>
-
-                    {/* FY Projected and Actual on same row */}
-                    <div style={{ 
-                      fontSize: 10, 
-                      color: '#666666', 
-                      marginBottom: 8,
-                      display: 'flex',
-                      justifyContent: 'space-between'
-                    }}>
-                      <span>{(() => {
-                        // Show actual selected periods instead of hardcoded FY
-                        if (compareType === 'month' && comparisonValues[0]) {
-                          return `${comparisonValues[0]} (Projected)`;
-                        } else if (compareType === 'quarter' && comparisonValues[0]) {
-                          return `${comparisonValues[0]} (Projected)`;
-                        } else {
-                          return `${getMonthRangeForFY(comparisonValues[0] || 'FY 2025')} (Projected)`;
-                        }
-                      })()}</span>
-                      <span>{formatValue(kpi.previousFY)} {(() => {
-                        // Show actual selected periods instead of hardcoded FY
-                        if (compareType === 'month' && comparisonValues[1]) {
-                          return comparisonValues[1];
-                        } else if (compareType === 'quarter' && comparisonValues[1]) {
-                          return comparisonValues[1];
-                        } else {
-                          return 'FY 2024';
-                        }
-                      })()}</span>
                     </div>
 
                     {/* Projection Details */}
