@@ -6,7 +6,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import apiClient from '../config/api';
 import logo from '../assets/logo_1.png';
-import { formatExcelDate } from '../utils/dateUtils';
+import { formatExcelDate, dateToISOForAPI, billingMonthToISOForAPI } from '../utils/dateUtils';
 
 interface RoutingData {
   'Sl.No': string;
@@ -122,6 +122,7 @@ const AddRoutingData: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPOSummary, setShowPOSummary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fixDatesFileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper function to read Excel file
   const readExcelFile = async (file: File): Promise<RoutingData[]> => {
@@ -144,19 +145,18 @@ const AddRoutingData: React.FC = () => {
       for (const key in item) {
         if (key in validatedItem) {
           let value = item[key];
-          
-                     // Handle Excel date serial numbers and string dates for date fields
-           if (key === 'Costing Date' || key === 'Vendor_PO_Date' || key === 'IBM / KYNDRYL PO Date' || 
-               key === 'Training Dates' || key === 'Vendor Inv. Date' || key === 'Payment Due Date' ||
-               key === 'Alchemy Techsol Invoice Date' || key === 'Payment Expected Date (IBM)' || 
-               key === 'Cheque Date') {
-             if (value) {
-               // Convert Excel date (serial number or string) to proper format
-               value = formatExcelDate(value);
-             }
-           }
-          
-          validatedItem[key] = value?.toString() || '';
+          // Send dates as YYYY-MM-DD so backend does not need to parse formats
+          if (key === 'Costing Date' || key === 'Vendor_PO_Date' || key === 'IBM / KYNDRYL PO Date' ||
+              key === 'Training Dates' || key === 'Vendor Inv. Date' || key === 'Payment Due Date' ||
+              key === 'Alchemy Techsol Invoice Date' || key === 'Payment Expected Date (IBM)' ||
+              key === 'Cheque Date') {
+            value = value ? dateToISOForAPI(value) : '';
+          } else if (key === 'Billing Month') {
+            value = value ? billingMonthToISOForAPI(value) : '';
+          } else {
+            value = value?.toString() ?? '';
+          }
+          validatedItem[key] = value;
         }
       }
       return validatedItem;
@@ -212,6 +212,38 @@ const AddRoutingData: React.FC = () => {
       setIsSubmitting(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Re-upload same Excel to update Costing Date (and other dates) on already-imported rows
+  const handleFixDatesFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await readExcelFile(file);
+      const validatedData = validateData(data);
+      if (validatedData.length === 0) {
+        alert('No valid data found in the file');
+        return;
+      }
+      if (!window.confirm(`Update Costing Date and other dates for existing records using this file?\n\n${validatedData.length} rows will be matched by Sl.No and IBM / KYNDRYL.`)) {
+        return;
+      }
+      setIsSubmitting(true);
+      const response = await apiClient.post('/Alchemy_Routing/bulk-update-dates', { data: validatedData });
+      const updatedCount = response.data?.updatedCount ?? 0;
+      alert(`Updated dates for ${updatedCount} existing record(s).`);
+      navigate('/RoutingTable');
+    } catch (err: any) {
+      console.error('Error fixing dates:', err);
+      const apiMessage = err.response?.data?.message || err.response?.data?.error;
+      alert(`Error: ${apiMessage || err.message || 'Unknown error'}`);
+    } finally {
+      setIsSubmitting(false);
+      if (fixDatesFileInputRef.current) {
+        fixDatesFileInputRef.current.value = '';
       }
     }
   };
@@ -546,6 +578,12 @@ const AddRoutingData: React.FC = () => {
         </button>
         <button 
           className="dropdown-item" 
+          onClick={() => fixDatesFileInputRef.current?.click()}
+        >
+          Fix dates in existing records
+        </button>
+        <button 
+          className="dropdown-item" 
           onClick={exportPOToExcel}
         >
           Export Excel
@@ -561,6 +599,13 @@ const AddRoutingData: React.FC = () => {
         type="file"
         ref={fileInputRef}
         onChange={handleFileImport}
+        accept=".xlsx, .xls"
+        style={{ display: 'none' }}
+      />
+      <input
+        type="file"
+        ref={fixDatesFileInputRef}
+        onChange={handleFixDatesFromFile}
         accept=".xlsx, .xls"
         style={{ display: 'none' }}
       />

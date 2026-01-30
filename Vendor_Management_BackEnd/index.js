@@ -481,6 +481,9 @@ const validateDateField = (value) => {
     }
   }
   
+  // Already YYYY-MM-DD (frontend sends this)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(strValue)) return strValue;
+  
   // Handle Excel date serial numbers
   if (!isNaN(value) && typeof value === 'number' && value > 1000) {
     const excelDate = new Date((value - 25569) * 86400 * 1000);
@@ -1633,10 +1636,11 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
       if (!value || value === '' || value === 'null' || value === 'undefined' || value === '1') {
         return null;
       }
+      const str = String(value).trim();
+      // Frontend sends YYYY-MM-DD; accept as-is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
       // Treat text "NA" (not a date) as null
-      if (typeof value === 'string' && value.trim().toUpperCase() === 'NA') {
-        return null;
-      }
+      if (str.toUpperCase() === 'NA') return null;
       // Reject numeric strings that are clearly not dates (e.g. "00", "1800" in PO Date column)
       const numVal = typeof value === 'string' ? parseFloat(value) : value;
       if (!isNaN(numVal) && (numVal < 1000 || numVal === 0)) {
@@ -1722,11 +1726,11 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
       return parseFloat(value);
     };
 
-    // Billing Month: convert Excel serial / MMM-YY / dd-mm-yyyy to YYYY-MM-DD (required for DATE column)
+    // Billing Month: frontend sends YYYY-MM-DD; fallbacks for legacy/Excel
     const validateBillingMonth = (value) => {
-      if (!value || value === '' || value === 'null' || value === 'undefined') {
-        return null;
-      }
+      if (!value || value === '' || value === 'null' || value === 'undefined') return null;
+      const str = String(value).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
       // Handle MMM-YY format (e.g., "Sep-24", "Jan-25")
       if (typeof value === 'string' && /^[A-Za-z]{3}-\d{2}$/.test(value)) {
         const [monthStr, yearStr] = value.split('-');
@@ -1848,6 +1852,72 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
       error: 'Import failed',
       message: message
     });
+  }
+});
+
+// Bulk-update dates only for existing Alchemy_Routing rows. Frontend sends YYYY-MM-DD; backend just passes through.
+app.post('/api/Alchemy_Routing/bulk-update-dates', async (req, res, next) => {
+  try {
+    const { data } = req.body;
+    if (!Array.isArray(data) || data.length === 0) {
+      return res.status(400).json({ success: false, error: 'Invalid data format. Expected non-empty array.' });
+    }
+    const toDate = (v) => (v && String(v).trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(v).trim()) ? String(v).trim() : null);
+    const client = await pool.connect();
+    let updatedCount = 0;
+    try {
+      for (const row of data) {
+        const slNo = row['Sl.No'] != null ? String(row['Sl.No']).trim() : null;
+        const ibmKyndryl = row['IBM / KYNDRYL'] != null ? String(row['IBM / KYNDRYL']).trim() : null;
+        if (!slNo || !ibmKyndryl) continue;
+        const findResult = await client.query(
+          'SELECT id FROM "Alchemy_Routing" WHERE "Sl.No" = $1 AND "IBM / KYNDRYL" = $2 ORDER BY id DESC LIMIT 1',
+          [slNo, ibmKyndryl]
+        );
+        if (findResult.rows.length === 0) continue;
+        const id = findResult.rows[0].id;
+        await client.query(
+          `UPDATE "Alchemy_Routing" SET
+            "Costing Date" = COALESCE($2, "Costing Date"),
+            "Billing Month" = COALESCE($3, "Billing Month"),
+            "IBM / KYNDRYL PO Date" = COALESCE($4, "IBM / KYNDRYL PO Date"),
+            "Training Dates" = COALESCE($5, "Training Dates"),
+            "Vendor Inv. Date" = COALESCE($6, "Vendor Inv. Date"),
+            "Payment Due Date" = COALESCE($7, "Payment Due Date"),
+            "Alchemy Techsol Invoice Date" = COALESCE($8, "Alchemy Techsol Invoice Date"),
+            "Payment Expected Date (IBM)" = COALESCE($9, "Payment Expected Date (IBM)"),
+            "Cheque Date" = COALESCE($10, "Cheque Date"),
+            "Vendor_PO_Date" = COALESCE($11, "Vendor_PO_Date")
+          WHERE id = $1`,
+          [
+            id,
+            toDate(row['Costing Date']),
+            toDate(row['Billing Month']),
+            toDate(row['IBM / KYNDRYL PO Date']),
+            toDate(row['Training Dates']),
+            toDate(row['Vendor Inv. Date']),
+            toDate(row['Payment Due Date']),
+            toDate(row['Alchemy Techsol Invoice Date']),
+            toDate(row['Payment Expected Date (IBM)']),
+            toDate(row['Cheque Date']),
+            toDate(row['Vendor_PO_Date'])
+          ]
+        );
+        updatedCount += 1;
+      }
+    } finally {
+      client.release();
+    }
+    logger.info('Alchemy Routing bulk-update-dates completed', { updatedCount, totalRows: data.length });
+    return res.status(200).json({
+      success: true,
+      message: `Updated dates for ${updatedCount} existing record(s).`,
+      updatedCount,
+      totalInFile: data.length
+    });
+  } catch (err) {
+    logger.error('Alchemy Routing bulk-update-dates failed', { error: err.message });
+    return res.status(500).json({ success: false, error: 'Update failed', message: err.message || 'Unknown error' });
   }
 });
 

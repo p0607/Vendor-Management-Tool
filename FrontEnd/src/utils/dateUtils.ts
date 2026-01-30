@@ -1,23 +1,27 @@
 // Date utility functions for consistent DD-MM-YYYY formatting
 
 /**
- * Formats a date string to DD-MM-YYYY format
- * @param dateStr - Date string in any format
- * @returns Formatted date string in DD-MM-YYYY format
+ * Formats a date string to DD-MM-YYYY format for display.
+ * Accepts ISO (YYYY-MM-DD), DD-MM-YYYY, or date with time.
  */
 export const formatDateToDDMMYYYY = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '';
-  
+  const s = String(dateStr).trim();
+  if (!s) return '';
   try {
-    // Handle ISO date strings with time by extracting only the date part
-    const dateOnly = dateStr.split('T')[0];
+    // Already DD-MM-YYYY
+    if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
+      const [d, m, y] = s.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      if (!isNaN(date.getTime())) return s;
+    }
+    // ISO or date with time
+    const dateOnly = s.split('T')[0];
     const date = new Date(dateOnly);
     if (isNaN(date.getTime())) return '';
-    
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
-    
     return `${day}-${month}-${year}`;
   } catch (error) {
     console.error('Error formatting date:', error);
@@ -48,17 +52,22 @@ export const formatDateOnly = (dateStr: string | null | undefined): string => {
 
 /**
  * Converts Excel serial number or date string to DD-MM-YYYY format
- * @param value - Excel serial number or date string
+ * @param value - Excel serial number, date string (e.g. DD-MM-YYYY), or Date object
  * @returns Formatted date string in DD-MM-YYYY format
  */
-export const formatExcelDate = (value: number | string): string => {
+export const formatExcelDate = (value: number | string | Date): string => {
   if (!value) return '';
   
   try {
-    // Handle string dates (like "13-Aug-24")
+    // Handle string dates (like "13-Aug-24" or "25-11-2025")
     if (typeof value === 'string') {
+      const trimmed = value.trim();
+      // Handle dd-mm-yyyy format (e.g., "25-11-2025") - pass through so backend can parse
+      if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed)) {
+        return trimmed;
+      }
       // Handle dd-mmm-yy format (e.g., "13-Aug-24")
-      if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(value)) {
+      if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(trimmed)) {
         const [day, month, year] = value.split('-');
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const monthIndex = monthNames.findIndex(m => m.toLowerCase() === month.toLowerCase());
@@ -71,11 +80,16 @@ export const formatExcelDate = (value: number | string): string => {
         }
       }
       
-      // Handle other string formats
+      // Handle other string formats (e.g. ISO or locale-dependent)
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
         return formatDateToDDMMYYYY(date.toISOString());
       }
+    }
+
+    // Handle Date objects (Excel sometimes returns these for date cells)
+    if (value instanceof Date && !isNaN(value.getTime())) {
+      return formatDateToDDMMYYYY(value.toISOString());
     }
     
     // Handle Excel serial numbers
@@ -92,6 +106,33 @@ export const formatExcelDate = (value: number | string): string => {
     console.error('Error formatting Excel date:', error);
     return '';
   }
+};
+
+/**
+ * Converts any date value to YYYY-MM-DD for API payloads. All parsing happens here; backend receives only ISO dates.
+ */
+export const dateToISOForAPI = (value: number | string | Date | null | undefined): string => {
+  if (value == null || value === '') return '';
+  const ddMmYyyy = formatExcelDate(value as number | string | Date);
+  if (!ddMmYyyy) return '';
+  if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(ddMmYyyy)) {
+    const [d, m, y] = ddMmYyyy.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+  }
+  const date = new Date(ddMmYyyy);
+  if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+  return '';
+};
+
+/**
+ * Billing month (first day of month) in YYYY-MM-DD for API.
+ */
+export const billingMonthToISOForAPI = (value: number | string | Date | null | undefined): string => {
+  const iso = dateToISOForAPI(value);
+  if (!iso) return '';
+  const [y, m] = iso.split('-').map(Number);
+  return `${y}-${String(m).padStart(2, '0')}-01`;
 };
 
 /**
