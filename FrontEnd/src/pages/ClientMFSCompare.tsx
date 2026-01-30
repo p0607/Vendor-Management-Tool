@@ -1277,6 +1277,7 @@ const ClientMFSCompare: React.FC = () => {
   const [selectedPeriodsForCombination, setSelectedPeriodsForCombination] = useState<string[]>([]);
 
   const [rawData, setRawData] = useState<ReportData[]>([]); // Store raw fetched data
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // Increment to refetch (e.g. after normalize-percentages)
   const [routingData, setRoutingData] = useState<any[]>([]);
 
   // Helper function to check if a record has valid month data
@@ -1418,7 +1419,8 @@ const ClientMFSCompare: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('chart');
 
   const [showGrowthAnalysis, setShowGrowthAnalysis] = useState<boolean>(false);
-  const [showSummaryReport, setShowSummaryReport] = useState<boolean>(false);
+  const [showSummaryReport, setShowSummaryReport] = useState<boolean>(true);
+  const [showFullReport, setShowFullReport] = useState<boolean>(false);
   const [selectedSummaryClient, setSelectedSummaryClient] = useState<string | null>(null);
   const [useCurrentYearAsBaseline, setUseCurrentYearAsBaseline] = useState<boolean>(false);
 
@@ -1976,6 +1978,44 @@ const ClientMFSCompare: React.FC = () => {
       }).filter((record: any) => {
         // Filter out completely empty rows (rows where month and year are both missing/null)
         return record.month !== null && record.month !== '' && record.year !== null && record.year !== 0;
+      }).map((record: any) => {
+        // Import-time auto-calculation by business unit. Does not touch existing data in DB.
+        const rev = Number(record.revenue) || 0;
+        const salary_cost = Number(record.salary_cost) || 0;
+        const rebate = Number(record.rebate) || 0;
+        const passthrough = Number(record.passthrough) || 0;
+        const leave_encashment = Number(record.leave_encashment) || 0;
+        const team_cost = Number(record.team_cost) || 0;
+        const opr_cost = Number(record.opr_cost) || 0;
+        const funding_cost = Number(record.funding_cost) || 0;
+
+        let gpm: number;
+        let np: number | null = null;
+
+        if (compareBusinessUnits(record.business_unit, 'MS') || compareBusinessUnits(record.business_unit, 'Managed Services')) {
+          // Managed Services / MS: GPM = Revenue - Salary_cost
+          gpm = rev - salary_cost;
+        } else if (compareBusinessUnits(record.business_unit, 'USA')) {
+          // USA: GPM = Revenue - Salary Cost - Rebate - Passthrough
+          gpm = rev - salary_cost - rebate - passthrough;
+        } else if (compareBusinessUnits(record.business_unit, 'Japan') || compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) {
+          // Japan, Canada, Singapore: GPM = Revenue - Salary_Cost
+          gpm = rev - salary_cost;
+        } else {
+          // Other business units: GPM = Revenue - salary_cost - leave_encashment, NP = GPM - Team Cost - opr_cost - funding_cost
+          gpm = rev - salary_cost - leave_encashment;
+          np = gpm - team_cost - opr_cost - funding_cost;
+        }
+
+        const gpmPct = rev !== 0 ? (gpm / rev) * 100 : (record.gpm_percentage ?? null);
+        const npPct = np !== null && rev !== 0 ? (np / rev) * 100 : (record.np_percentage ?? null);
+
+        return {
+          ...record,
+          gpm,
+          gpm_percentage: gpmPct,
+          ...(np !== null ? { np, np_percentage: npPct } : {}),
+        };
       });
 
 
@@ -2304,6 +2344,40 @@ const ClientMFSCompare: React.FC = () => {
         input.onchange = (e) => handleImportExcel(e as any);
 
         input.click();
+
+      }
+
+    },
+
+    {
+
+      key: 'normalize',
+
+      label: 'Recalculate GPM% & NP% for all existing data',
+
+      onClick: async () => {
+
+        try {
+
+          message.loading('Updating GPM% and NP% for all existing records...', 0);
+
+          const res = await apiClient.post(`${API_ENDPOINT}/normalize-percentages`);
+
+          message.destroy();
+
+          const updated = (res.data && res.data.updatedRows) ?? 0;
+
+          message.success(`Updated GPM% and NP% for ${updated} existing records.`, 5);
+
+          setRefreshTrigger((t) => t + 1);
+
+        } catch (err: any) {
+
+          message.destroy();
+
+          message.error(err?.response?.data?.error || err?.message || 'Failed to update existing data.', 5);
+
+        }
 
       }
 
@@ -3166,7 +3240,7 @@ const ClientMFSCompare: React.FC = () => {
 
     fetchData();
 
-  }, []); // Fetch data only once on mount - filtering will be done in memory
+  }, [refreshTrigger]); // Refetch when refreshTrigger changes (e.g. after normalize-percentages)
 
   // Fetch routing data
   useEffect(() => {
@@ -3577,6 +3651,28 @@ const ClientMFSCompare: React.FC = () => {
         })
         .reduce((sum, item) => sum + (item.hc || 0), 0);
     } else {
+      // GPM % and NP % must be (Total GPM/Total Revenue)*100 and (Total NP/Total Revenue)*100, not sum of percentages
+      if (parameter === 'GPM %' || parameter === 'NP %') {
+        const monthlyRevenue: {[key: string]: number} = {};
+        const monthlyGpm: {[key: string]: number} = {};
+        const monthlyNp: {[key: string]: number} = {};
+        filteredData.forEach(item => {
+          const monthKey = `${item.month} ${item.year}`;
+          if (!monthlyRevenue[monthKey]) {
+            monthlyRevenue[monthKey] = 0;
+            monthlyGpm[monthKey] = 0;
+            monthlyNp[monthKey] = 0;
+          }
+          monthlyRevenue[monthKey] += (item.revenue || 0);
+          monthlyGpm[monthKey] += (item.gpm || 0);
+          monthlyNp[monthKey] += (item.np || 0);
+        });
+        const totalRevenue = Object.values(monthlyRevenue).reduce((sum: number, val: number) => sum + val, 0);
+        const totalGpm = Object.values(monthlyGpm).reduce((sum: number, val: number) => sum + val, 0);
+        const totalNp = Object.values(monthlyNp).reduce((sum: number, val: number) => sum + val, 0);
+        if (parameter === 'GPM %') return totalRevenue !== 0 ? (totalGpm / totalRevenue) * 100 : 0;
+        if (parameter === 'NP %') return totalRevenue !== 0 ? (totalNp / totalRevenue) * 100 : 0;
+      }
       // For all other parameters: aggregate by month first, then sum
       const monthlyTotals: {[key: string]: number} = {};
       filteredData.forEach(item => {
@@ -3707,9 +3803,7 @@ const ClientMFSCompare: React.FC = () => {
 
       return combinedPeriod.periods.reduce((total, period) => {
 
-        return total + data
-
-          .filter(item => {
+        const periodFiltered = data.filter(item => {
 
             // Business unit filter (case-insensitive comparison)
             if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
@@ -3794,9 +3888,18 @@ const ClientMFSCompare: React.FC = () => {
             // For non-year comparisons, use the original logic
             return itemValue === period;
 
-          })
+          });
 
-          .reduce((sum, item) => {
+        // GPM % and NP %: use (Total GPM/Total Revenue)*100 and (Total NP/Total Revenue)*100, not sum of percentages
+        if (parameter === 'GPM %' || parameter === 'NP %') {
+          const totalRevenue = periodFiltered.reduce((s, i) => s + (i.revenue || 0), 0);
+          const totalGpm = periodFiltered.reduce((s, i) => s + (i.gpm || 0), 0);
+          const totalNp = periodFiltered.reduce((s, i) => s + (i.np || 0), 0);
+          const pct = parameter === 'GPM %' ? (totalRevenue !== 0 ? (totalGpm / totalRevenue) * 100 : 0) : (totalRevenue !== 0 ? (totalNp / totalRevenue) * 100 : 0);
+          return total + pct;
+        }
+
+        return total + periodFiltered.reduce((sum, item) => {
 
                   // Get the value based on the selected parameter
 
@@ -3949,6 +4052,15 @@ const ClientMFSCompare: React.FC = () => {
 
     
     
+    // GPM % and NP %: use (Total GPM/Total Revenue)*100 and (Total NP/Total Revenue)*100, not sum of percentages
+    if (parameter === 'GPM %' || parameter === 'NP %') {
+      const totalRevenue = filteredData.reduce((s, i) => s + (i.revenue || 0), 0);
+      const totalGpm = filteredData.reduce((s, i) => s + (i.gpm || 0), 0);
+      const totalNp = filteredData.reduce((s, i) => s + (i.np || 0), 0);
+      if (parameter === 'GPM %') return totalRevenue !== 0 ? (totalGpm / totalRevenue) * 100 : 0;
+      if (parameter === 'NP %') return totalRevenue !== 0 ? (totalNp / totalRevenue) * 100 : 0;
+    }
+
     return filteredData
 
       .reduce((sum, item) => {
@@ -4216,9 +4328,7 @@ const ClientMFSCompare: React.FC = () => {
             // For all other parameters: sum all months
             return combinedPeriod.periods.reduce((total, period) => {
 
-              return total + data
-
-                .filter(item => {
+              const periodFiltered = data.filter(item => {
 
                   // Business unit filter (case-insensitive comparison)
                   if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
@@ -4296,9 +4406,18 @@ const ClientMFSCompare: React.FC = () => {
                   // For non-year comparisons, use the original logic
                   return itemValue === period;
 
-                })
+                });
 
-                .reduce((sum, item) => {
+              // GPM % and NP %: use (Total GPM/Total Revenue)*100 and (Total NP/Total Revenue)*100, not sum of percentages
+              if (param === 'GPM %' || param === 'NP %') {
+                const totalRevenue = periodFiltered.reduce((s, i) => s + (i.revenue || 0), 0);
+                const totalGpm = periodFiltered.reduce((s, i) => s + (i.gpm || 0), 0);
+                const totalNp = periodFiltered.reduce((s, i) => s + (i.np || 0), 0);
+                const pct = param === 'GPM %' ? (totalRevenue !== 0 ? (totalGpm / totalRevenue) * 100 : 0) : (totalRevenue !== 0 ? (totalNp / totalRevenue) * 100 : 0);
+                return total + pct;
+              }
+
+              return total + periodFiltered.reduce((sum, item) => {
 
                   // Get the value based on the selected parameter
 
@@ -6647,6 +6766,37 @@ const ClientMFSCompare: React.FC = () => {
                       )}
                     </div>
 
+                    {/* Period line at top: FY 2025 (Apr - Nov) (Projected) | 186.8Cr FY 2024 - so layman understands comparison */}
+                    <div style={{ 
+                      fontSize: 11, 
+                      fontWeight: 600,
+                      color: '#333333', 
+                      marginBottom: 8,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'nowrap'
+                    }}>
+                      <span style={{ whiteSpace: 'nowrap' }}>{(() => {
+                        if (compareType === 'month' && comparisonValues[0]) {
+                          return `${comparisonValues[0]} (Projected)`;
+                        } else if (compareType === 'quarter' && comparisonValues[0]) {
+                          return `${comparisonValues[0]} (Projected)`;
+                        } else {
+                          return `${getMonthRangeForFY(comparisonValues[0] || 'FY 2025')} (Projected)`;
+                        }
+                      })()}</span>
+                      <span style={{ whiteSpace: 'nowrap' }}>{formatValue(kpi.previousFY)} {(() => {
+                        if (compareType === 'month' && comparisonValues[1]) {
+                          return comparisonValues[1];
+                        } else if (compareType === 'quarter' && comparisonValues[1]) {
+                          return comparisonValues[1];
+                        } else {
+                          return 'FY 2024';
+                        }
+                      })()}</span>
+                    </div>
+
                     {/* Current FY Value */}
                     <div style={{ 
                       fontSize: 12, 
@@ -6684,36 +6834,6 @@ const ClientMFSCompare: React.FC = () => {
                       })()}
                     </div>
 
-                    {/* FY Projected and Actual on same row */}
-                    <div style={{ 
-                      fontSize: 10, 
-                      color: '#666666', 
-                      marginBottom: 8,
-                      display: 'flex',
-                      justifyContent: 'space-between'
-                    }}>
-                      <span>{(() => {
-                        // Show actual selected periods instead of hardcoded FY
-                        if (compareType === 'month' && comparisonValues[0]) {
-                          return `${comparisonValues[0]} (Projected)`;
-                        } else if (compareType === 'quarter' && comparisonValues[0]) {
-                          return `${comparisonValues[0]} (Projected)`;
-                        } else {
-                          return `${getMonthRangeForFY(comparisonValues[0] || 'FY 2025')} (Projected)`;
-                        }
-                      })()}</span>
-                      <span>{formatValue(kpi.previousFY)} {(() => {
-                        // Show actual selected periods instead of hardcoded FY
-                        if (compareType === 'month' && comparisonValues[1]) {
-                          return comparisonValues[1];
-                        } else if (compareType === 'quarter' && comparisonValues[1]) {
-                          return comparisonValues[1];
-                        } else {
-                          return 'FY 2024';
-                        }
-                      })()}</span>
-                    </div>
-
                     {/* Projection Details */}
                     <div style={{
                       display: 'flex',
@@ -6743,16 +6863,18 @@ const ClientMFSCompare: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Original vs Projected Breakdown */}
+                    {/* Actual + Predicted = Metric (one row, no wrap) */}
                     {kpi.monthsRemaining > 0 && (
                       <div style={{ 
-                        fontSize: 8, 
-                        color: '#666666',
+                        fontSize: 11, 
+                        fontWeight: 600,
+                        color: '#333333',
                         marginBottom: 8,
-                        lineHeight: '1.2'
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
                       }}>
-                        <div>Actual: {formatValue(kpi.currentFYActual)}</div>
-                        <div>+ Projected: {formatValue(kpi.projectedAmount)}</div>
+                        Actual ({formatValue(kpi.currentFYActual)}) + Predicted ({formatValue(kpi.projectedAmount)}) = {kpiName} ({formatValue(kpi.currentFY)})
                       </div>
                     )}
 
@@ -7381,63 +7503,7 @@ const ClientMFSCompare: React.FC = () => {
 
 
 
-{/* Show Full Summary Report Button */}
-<div style={{ textAlign: 'center', marginTop: 16, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-  <button
-    onClick={() => setShowSummaryReport(!showSummaryReport)}
-    style={{ 
-      backgroundColor: '#004a7a',
-      color: '#ffffff',
-      border: 'none',
-      padding: '8px 16px',
-      borderRadius: '4px',
-      fontSize: '12px',
-      fontWeight: 'bold',
-      cursor: 'pointer',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}
-  >
-    {showSummaryReport ? 'Hide Full Summary Report' : 'Show Full Summary Report'}
-  </button>
-  {showSummaryReport && selectedBusinessUnit && (() => {
-    // Get client names for the selected business unit
-    const clientNamesForBU = Array.from(new Set(
-      data
-        .filter(item => compareBusinessUnits(item.business_unit, selectedBusinessUnit))
-        .map(item => {
-          // For MS business unit, use project_name, otherwise use client_name
-          if (selectedBusinessUnit === 'MS' || selectedBusinessUnit === 'Managed Services') {
-            return item.project_name;
-          }
-          return item.client_name;
-        })
-        .filter(Boolean)
-    )).sort();
-    
-    return (
-      <select
-        value={selectedSummaryClient || ''}
-        onChange={(e) => setSelectedSummaryClient(e.target.value || null)}
-        style={{
-          padding: '8px 12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          border: '1px solid #d9d9d9',
-          backgroundColor: '#ffffff',
-          cursor: 'pointer',
-          minWidth: '200px'
-        }}
-      >
-        <option value="">All Clients</option>
-        {clientNamesForBU.map(clientName => (
-          <option key={clientName} value={clientName}>{clientName}</option>
-        ))}
-      </select>
-    );
-  })()}
-</div>
-
-{/* Full Summary Report */}
+{/* Client Report - displays just after Growth Analysis, before button and Efficiency Dashboard */}
 {showSummaryReport && (
   <div style={{ marginTop: 20, marginBottom: 20 }}>
     <div style={{
@@ -7451,7 +7517,7 @@ const ClientMFSCompare: React.FC = () => {
       marginBottom: 8,
       borderBottom: '3px solid #ff8c00'
     }}>
-      {selectedBusinessUnit ? `Full Summary Report - ${selectedBusinessUnit}${selectedSummaryClient ? ` - ${selectedSummaryClient}` : ' - All Clients'}` : 'Full Summary Report - All Business Units'}
+      {selectedBusinessUnit ? `Client Report - ${selectedBusinessUnit}${selectedSummaryClient ? ` - ${selectedSummaryClient}` : ' - All Clients'}` : 'Client Report - All Business Units'}
     </div>
     
     {(() => {
@@ -7526,6 +7592,28 @@ const ClientMFSCompare: React.FC = () => {
               .reduce((sum, item) => sum + (item.hc || 0), 0);
           }
           
+          // GPM % and NP %: compute as (Total GPM/Total Revenue)*100 and (Total NP/Total Revenue)*100 per client
+          if (parameter === 'GPM %' || parameter === 'NP %') {
+            const monthlyRevenue: {[key: string]: number} = {};
+            const monthlyGpm: {[key: string]: number} = {};
+            const monthlyNp: {[key: string]: number} = {};
+            filteredData.forEach(item => {
+              const monthKey = `${item.month} ${item.year}`;
+              if (!monthlyRevenue[monthKey]) {
+                monthlyRevenue[monthKey] = 0;
+                monthlyGpm[monthKey] = 0;
+                monthlyNp[monthKey] = 0;
+              }
+              monthlyRevenue[monthKey] += (item.revenue || 0);
+              monthlyGpm[monthKey] += (item.gpm || 0);
+              monthlyNp[monthKey] += (item.np || 0);
+            });
+            const totalRevenue = Object.values(monthlyRevenue).reduce((sum: number, val: number) => sum + val, 0);
+            const totalGpm = Object.values(monthlyGpm).reduce((sum: number, val: number) => sum + val, 0);
+            const totalNp = Object.values(monthlyNp).reduce((sum: number, val: number) => sum + val, 0);
+            if (parameter === 'GPM %') return totalRevenue !== 0 ? (totalGpm / totalRevenue) * 100 : 0;
+            if (parameter === 'NP %') return totalRevenue !== 0 ? (totalNp / totalRevenue) * 100 : 0;
+          }
           // For other parameters: aggregate by month first, then sum
           const monthlyTotals: {[key: string]: number} = {};
           filteredData.forEach(item => {
@@ -8005,6 +8093,28 @@ const ClientMFSCompare: React.FC = () => {
             .reduce((sum, item) => sum + (item.hc || 0), 0);
         }
         
+        // GPM % and NP %: compute as (Total GPM/Total Revenue)*100 and (Total NP/Total Revenue)*100 per BU
+        if (parameter === 'GPM %' || parameter === 'NP %') {
+          const monthlyRevenue: {[key: string]: number} = {};
+          const monthlyGpm: {[key: string]: number} = {};
+          const monthlyNp: {[key: string]: number} = {};
+          filteredData.forEach(item => {
+            const monthKey = `${item.month} ${item.year}`;
+            if (!monthlyRevenue[monthKey]) {
+              monthlyRevenue[monthKey] = 0;
+              monthlyGpm[monthKey] = 0;
+              monthlyNp[monthKey] = 0;
+            }
+            monthlyRevenue[monthKey] += (item.revenue || 0);
+            monthlyGpm[monthKey] += (item.gpm || 0);
+            monthlyNp[monthKey] += (item.np || 0);
+          });
+          const totalRevenue = Object.values(monthlyRevenue).reduce((sum: number, val: number) => sum + val, 0);
+          const totalGpm = Object.values(monthlyGpm).reduce((sum: number, val: number) => sum + val, 0);
+          const totalNp = Object.values(monthlyNp).reduce((sum: number, val: number) => sum + val, 0);
+          if (parameter === 'GPM %') return totalRevenue !== 0 ? (totalGpm / totalRevenue) * 100 : 0;
+          if (parameter === 'NP %') return totalRevenue !== 0 ? (totalNp / totalRevenue) * 100 : 0;
+        }
         // For other parameters: aggregate by month first, then sum
         const monthlyTotals: {[key: string]: number} = {};
         filteredData.forEach(item => {
@@ -8457,8 +8567,96 @@ const ClientMFSCompare: React.FC = () => {
   </div>
 )}
 
+{/* Show Client Report button - toggles Client Report (above) */}
+<div style={{ textAlign: 'center', marginTop: 16, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+  <button
+    onClick={() => setShowSummaryReport(!showSummaryReport)}
+    style={{ 
+      backgroundColor: '#004a7a',
+      color: '#ffffff',
+      border: 'none',
+      padding: '8px 16px',
+      borderRadius: '4px',
+      fontSize: '12px',
+      fontWeight: 'bold',
+      cursor: 'pointer',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    }}
+  >
+    {showSummaryReport ? 'Hide Client Report' : 'Show Client Report'}
+  </button>
+  {showSummaryReport && selectedBusinessUnit && (() => {
+    const clientNamesForBU = Array.from(new Set(
+      data
+        .filter(item => compareBusinessUnits(item.business_unit, selectedBusinessUnit))
+        .map(item => {
+          if (selectedBusinessUnit === 'MS' || selectedBusinessUnit === 'Managed Services') {
+            return item.project_name;
+          }
+          return item.client_name;
+        })
+        .filter(Boolean)
+    )).sort();
+    return (
+      <select
+        value={selectedSummaryClient || ''}
+        onChange={(e) => setSelectedSummaryClient(e.target.value || null)}
+        style={{
+          padding: '8px 12px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          border: '1px solid #d9d9d9',
+          backgroundColor: '#ffffff',
+          cursor: 'pointer',
+          minWidth: '200px'
+        }}
+      >
+        <option value="">All Clients</option>
+        {clientNamesForBU.map(clientName => (
+          <option key={clientName} value={clientName}>{clientName}</option>
+        ))}
+      </select>
+    );
+  })()}
+  <button
+    onClick={() => setShowFullReport(!showFullReport)}
+    style={{ 
+      backgroundColor: '#ff8c00',
+      color: '#ffffff',
+      border: 'none',
+      padding: '8px 16px',
+      borderRadius: '4px',
+      fontSize: '12px',
+      fontWeight: 'bold',
+      cursor: 'pointer',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    }}
+  >
+    {showFullReport ? 'Hide Full Report' : 'Show Full Report'}
+  </button>
+</div>
 
-
+{/* Full Report - displays right after Show Full Report button when clicked */}
+{showFullReport && (
+  <div style={{ marginTop: 12, marginBottom: 20 }}>
+    <div style={{
+      backgroundColor: '#000000', 
+      color: '#ffffff', 
+      padding: '6px 12px', 
+      borderRadius: 4, 
+      fontSize: 10, 
+      fontWeight: 700,
+      display: 'inline-block',
+      marginBottom: 8,
+      borderBottom: '3px solid #ff8c00'
+    }}>
+      Full Report - All Business Units
+    </div>
+    <div style={{ padding: 16, border: '1px solid #d9d9d9', borderRadius: 4, backgroundColor: '#f9f9f9', color: '#000000', fontSize: 12 }}>
+      Same client / business unit summary as Client Report above. Use Client Report for the main view.
+    </div>
+  </div>
+)}
 
 <div style={{
 

@@ -2531,6 +2531,37 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
   }
 });
 
+// One-time: normalize GPM% and NP% for all existing Client MFS (team_report) data
+// Total GPM% = (Total GPM / Total Revenue) * 100, Total NP% = (Total NP / Total Revenue) * 100
+// This updates each row so stored gpm_percentage = (gpm/revenue)*100 and np_percentage = (np/revenue)*100
+app.post('/api/team-report/normalize-percentages', async (req, res, next) => {
+  try {
+    const client = await pool.connect();
+    try {
+      const updateQuery = `
+        UPDATE team_report
+        SET
+          gpm_percentage = CASE WHEN revenue IS NOT NULL AND revenue <> 0 THEN (COALESCE(gpm, 0)::numeric / revenue) * 100 ELSE gpm_percentage END,
+          np_percentage = CASE WHEN revenue IS NOT NULL AND revenue <> 0 THEN (COALESCE(np, 0)::numeric / revenue) * 100 ELSE np_percentage END
+        WHERE revenue IS NOT NULL AND revenue <> 0
+      `;
+      const result = await client.query(updateQuery);
+      const rowCount = result.rowCount != null ? result.rowCount : 0;
+      logger.info('Team report normalize-percentages completed', { updatedRows: rowCount });
+      res.status(200).json({
+        success: true,
+        message: `Updated GPM% and NP% for ${rowCount} existing records (from GPM/Revenue and NP/Revenue).`,
+        updatedRows: rowCount
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Normalize percentages error', { error: err.message, stack: err.stack });
+    next(err);
+  }
+});
+
 // Team Summary Report Routes (New simplified structure)
 app.get('/api/team-summary-report', async (req, res, next) => {
   try {
