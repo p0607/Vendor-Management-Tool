@@ -601,12 +601,12 @@ const RoutingTable: React.FC = () => {
   // Export selected POs as ZIP (PDFs and Excels)
   // (Removed duplicate handleExportPOClick definition to fix redeclaration error)
 
-  // Checkbox handler
+  // Checkbox handler – allow multiple selection
   const handleCheckboxChange = (index: number) => {
-    setSelectedRows(selectedRows =>
-      selectedRows.includes(index)
-        ? selectedRows.filter(i => i !== index)
-        : [index] // Only allow one selection at a time
+    setSelectedRows(prev =>
+      prev.includes(index)
+        ? prev.filter(i => i !== index)
+        : [...prev, index]
     );
   };
 
@@ -1358,6 +1358,27 @@ const filteredData = useMemo(() => {
               onChange={handleVendorDetailsChange}
             />
           </div>
+          <div className="filter-group" style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => setEditingMode(!editingMode)}
+              className="edit-data-button"
+              title="Click to show edit (✏️) on each cell"
+            >
+              {editingMode ? 'Cancel Editing' : 'Edit Data'}
+            </button>
+            {selectedRows.length > 0 && (
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                className="edit-data-button"
+                style={{ backgroundColor: '#c62828', color: '#fff' }}
+                title="Delete selected rows"
+              >
+                Delete selected ({selectedRows.length})
+              </button>
+            )}
+          </div>
         </div>
         
         <table className="routing-table">
@@ -1436,8 +1457,10 @@ const filteredData = useMemo(() => {
           : item[field] || 'N/A'}
         {editingMode && field !== 'Sl.No' && (
           <button
-            onClick={() => handleEditClick(index, field as string, item[field] || '')}
+            type="button"
+            onClick={() => handleEditClick(index, field as string, item[field] ?? '')}
             className="edit-pen-button"
+            title={`Edit ${field}`}
           >
             ✏️
           </button>

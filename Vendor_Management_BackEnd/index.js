@@ -1423,6 +1423,26 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+
+    // Normalize date fields to YYYY-MM-DD (table edit sends DD-MM-YYYY)
+    const dateFields = [
+      'Costing Date', 'IBM / KYNDRYL PO Date', 'Training Dates', 'Vendor Inv. Date',
+      'Payment Due Date', 'Alchemy Techsol Invoice Date', 'Payment Expected Date (IBM)',
+      'Cheque Date', 'Vendor_PO_Date'
+    ];
+    const toISODate = (value) => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') return null;
+      const s = String(value).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
+        const [d, m, y] = s.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+      }
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+      return null;
+    };
     
     // Specialized function to validate and convert billing month
     const validateBillingMonth = (value) => {
@@ -1467,8 +1487,32 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
       return null;
     };
     
-    // Process updates to validate billing month if present
+    // Numeric fields: strip commas (e.g. "2,99,295") and send number so DB does not 500
+    const numericFields = [
+      'IBM / KYNDRYL PO Value', 'Integration %', 'Integrator Charges (Margin)', 'Alchemy Billing Value',
+      'Funding cost', 'Net Margin', 'Vendor Inv. Amount', 'GST @ 18%', 'Total Invoice',
+      'Vendor Amount After TDS 10%', 'Net Payment to Vendor', 'Alchemy Techsol Invoice Amount'
+    ];
+    const toNumeric = (value) => {
+      if (value === null || value === undefined || value === '') return null;
+      const s = String(value).trim().replace(/,/g, '');
+      if (s === '' || s.toLowerCase() === 'null') return null;
+      const n = parseFloat(s);
+      return isNaN(n) ? null : n;
+    };
+
+    // Process updates: normalize date, numeric, and billing month
     const processedUpdates = { ...updates };
+    for (const field of dateFields) {
+      if (processedUpdates[field] !== undefined) {
+        processedUpdates[field] = toISODate(processedUpdates[field]);
+      }
+    }
+    for (const field of numericFields) {
+      if (processedUpdates[field] !== undefined) {
+        processedUpdates[field] = toNumeric(processedUpdates[field]);
+      }
+    }
     if (processedUpdates['Billing Month']) {
       processedUpdates['Billing Month'] = validateBillingMonth(processedUpdates['Billing Month']);
     }
