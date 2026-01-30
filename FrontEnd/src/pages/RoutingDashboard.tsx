@@ -190,29 +190,37 @@ const RoutingDashboard: React.FC = () => {
       }
     }
     
-    // Handle MMM-YY format (e.g., "Sep-24", "Aug-24") - for existing data
-    if (billingMonthStr.includes('-') && billingMonthStr.length === 6) {
-      const [monthStr, yearStr] = billingMonthStr.split('-');
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+    // Handle MMM-YY format (e.g., "Sep-24", "Jan-26") - use local date so timezone doesn't shift month
+    const mmmYyMatch = billingMonthStr.trim().match(/^([A-Za-z]{3})-(\d{2})$/);
+    if (mmmYyMatch) {
+      const [, monthStr, yearStr] = mmmYyMatch;
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const monthIndex = monthNames.indexOf(monthStr);
-      
+      const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
       if (monthIndex !== -1 && yearStr) {
         const year = 2000 + parseInt(yearStr, 10);
-        return new Date(year, monthIndex, 1);
+        return new Date(year, monthIndex, 1); // local date: Jan 1 of that month
       }
     }
     
-    // Handle YYYY-MM-DD format (for new data from backend)
-    if (billingMonthStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const date = new Date(billingMonthStr);
+    // Handle YYYY-MM-DD format (e.g. "2026-01-01" from backend) - parse as LOCAL date, not UTC.
+    // new Date("2026-01-01") is UTC midnight, so in US timezones it becomes Dec 31, 2025 (one month back).
+    if (/^\d{4}-\d{2}-\d{2}$/.test(billingMonthStr.trim())) {
+      const [y, m, d] = billingMonthStr.trim().split('-').map(Number);
+      const date = new Date(y, m - 1, d);
       if (!isNaN(date.getTime())) {
         return date;
       }
     }
     
-    // Handle other date formats as fallback
+    // Handle other date formats as fallback - avoid ISO string UTC interpretation
     try {
+      const s = billingMonthStr.trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        if (!isNaN(date.getTime())) return date;
+      }
       const date = new Date(billingMonthStr);
       if (!isNaN(date.getTime())) {
         return date;
@@ -717,72 +725,57 @@ const chartData = metricFields.map(({ field, label }) => {
     return result;
   };
 
-  // Calculate date-based summaries for pivot table - EXCEL-LIKE SIMPLE PIVOT
+  // Parse Costing Date (YYYY-MM-DD from DB or DD-MM-YYYY) for pivot grouping - always use local date, not UTC
+  const parseCostingDate = (value: string | null | undefined): Date | null => {
+    if (!value || value === 'N/A' || String(value).trim() === '') return null;
+    const s = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [y, m, d] = s.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
+      const [d, m, y] = s.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  // Calculate date-based summaries for pivot table - use Billing Month first when present (as imported), then Costing Date
   const calculateDatePivotSummaries = (): DatePivotSummary[] => {
     const pivotMap = new Map<string, DatePivotSummary>();
 
-    // Debug: Log all unique billing months in the data
-    const uniqueBillingMonths = new Set();
     filteredData.forEach(item => {
-      if (item['Billing Month']) {
-        uniqueBillingMonths.add(item['Billing Month']);
+      // Use Billing Month first when present (so pivot shows whatever was imported); fall back to Costing Date
+      const billingMonthStr = (item['Billing Month'] || '').toString().trim();
+      let date: Date | null = billingMonthStr ? parseBillingMonth(billingMonthStr) : null;
+      if (!date) {
+        const costingDateVal = item['Costing Date'] || '';
+        date = parseCostingDate(costingDateVal);
       }
-    });
-    console.log('🔍 All Unique Billing Months in Data:', Array.from(uniqueBillingMonths).sort());
 
-    filteredData.forEach(item => {
-      // Get billing month value directly
-      const billingMonthStr = item['Billing Month'] || '';
-      
-      // Convert to date and get the appropriate group based on pivot type
       let dateGroup = 'Unknown';
-      if (billingMonthStr) {
-        const date = parseBillingMonth(billingMonthStr);
-        if (date) {
-          const year = date.getFullYear();
-          const month = date.getMonth() + 1; // 1-12
-          
-          // Debug specific months that are causing issues
-          if (year === 2025 && (month === 8 || month === 9)) {
-            console.log(`🔍 Date Parsing Debug:`, {
-              billingMonthStr,
-              parsedDate: date,
-              year,
-              month,
-              monthName: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1]
-            });
-          }
-          
-          // Debug all 2025 data to see what's being processed
-          if (year === 2025) {
-            console.log(`🔍 2025 Data Found:`, {
-              billingMonthStr,
-              parsedDate: date,
-              year,
-              month,
-              monthName: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1],
-              itemId: item.id
-            });
-          }
-          
-          switch (pivotDateType) {
-            case 'year':
-              dateGroup = `${year}`;
-              break;
-            case 'quarter':
-              // Simple calendar quarters (not financial year)
-              const quarter = Math.ceil(month / 3);
-              dateGroup = `Q${quarter} ${year}`;
-              break;
-            case 'month':
-            default:
-              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-              // Use Excel-like format: Aug-24, Sep-24, etc.
-              const shortYear = year.toString().slice(-2); // Get last 2 digits of year
-              dateGroup = `${monthNames[month - 1]}-${shortYear}`;
-              break;
-          }
+      if (date) {
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1; // 1-12
+
+        switch (pivotDateType) {
+          case 'year':
+            dateGroup = `${year}`;
+            break;
+          case 'quarter':
+            const quarter = Math.ceil(month / 3);
+            dateGroup = `Q${quarter} ${year}`;
+            break;
+          case 'month':
+          default:
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const shortYear = year.toString().slice(-2);
+            dateGroup = `${monthNames[month - 1]}-${shortYear}`;
+            break;
         }
       }
       
