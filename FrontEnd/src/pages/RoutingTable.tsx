@@ -59,29 +59,37 @@ const parseBillingMonth = (billingMonthStr: string): Date | null => {
     }
   }
   
-  // Handle MMM-YY format (e.g., "Sep-24", "Aug-24") - for existing data
-  if (billingMonthStr.includes('-') && billingMonthStr.length === 6) {
-    const [monthStr, yearStr] = billingMonthStr.split('-');
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+  // Handle MMM-YY format (e.g., "Sep-24", "Dec-25", "Jan-26") - use local date
+  const mmmYyMatch = billingMonthStr.trim().match(/^([A-Za-z]{3})-(\d{2})$/);
+  if (mmmYyMatch) {
+    const [, monthStr, yearStr] = mmmYyMatch;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthIndex = monthNames.indexOf(monthStr);
-    
+    const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
     if (monthIndex !== -1 && yearStr) {
       const year = 2000 + parseInt(yearStr, 10);
       return new Date(year, monthIndex, 1);
     }
   }
-  
-  // Handle YYYY-MM-DD format (for new data from backend)
-  if (billingMonthStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const date = new Date(billingMonthStr);
+
+  // Handle YYYY-MM-DD format (e.g. "2025-12-01" from backend) - parse as LOCAL date, not UTC.
+  // new Date("2025-12-01") is UTC midnight, so in US timezones it becomes Nov 30 (previous month).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(billingMonthStr.trim())) {
+    const [y, m, d] = billingMonthStr.trim().split('-').map(Number);
+    const date = new Date(y, m - 1, d);
     if (!isNaN(date.getTime())) {
       return date;
     }
   }
-  
-  // Handle other date formats as fallback
+
+  // Handle other date formats as fallback - avoid ISO string UTC interpretation
   try {
+    const s = billingMonthStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      if (!isNaN(date.getTime())) return date;
+    }
     const date = new Date(billingMonthStr);
     if (!isNaN(date.getTime())) {
       return date;

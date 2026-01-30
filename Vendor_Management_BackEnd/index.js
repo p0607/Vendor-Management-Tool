@@ -266,6 +266,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Format Date to YYYY-MM-DD using local date components (avoids UTC shifting the day/month)
+function toLocalYYYYMMDD(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // API Routes
 const ALLOWED_DESIGNATIONS = [
   'ASSOCIATE_VENDOR_MANAGEMENT',
@@ -488,7 +496,7 @@ const validateDateField = (value) => {
   if (!isNaN(value) && typeof value === 'number' && value > 1000) {
     const excelDate = new Date((value - 25569) * 86400 * 1000);
     if (!isNaN(excelDate.getTime())) {
-      return excelDate.toISOString().split('T')[0];
+      return toLocalYYYYMMDD(excelDate);
     }
   }
   
@@ -784,7 +792,7 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
           const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
           const date = new Date(fullYear, monthIndex, parseInt(day));
           if (!isNaN(date.getTime())) {
-            return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+            return toLocalYYYYMMDD(date); // Return YYYY-MM-DD format
           }
         }
       }
@@ -794,7 +802,7 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         const [day, month, year] = value.split('-');
         const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
         if (!isNaN(date.getTime())) {
-          return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+          return toLocalYYYYMMDD(date); // Return YYYY-MM-DD format
         }
       }
       
@@ -802,14 +810,14 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
       if (!isNaN(value) && value > 1000) {
         const excelDate = new Date((value - 25569) * 86400 * 1000);
         if (!isNaN(excelDate.getTime())) {
-          return excelDate.toISOString().split('T')[0];
+          return toLocalYYYYMMDD(excelDate);
         }
       }
       
       // Try standard date parsing
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
-        return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+        return toLocalYYYYMMDD(date); // Return YYYY-MM-DD format
       }
       
       return null;
@@ -849,7 +857,7 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
           // Convert 2-digit year to 4-digit year
           const fullYear = 2000 + parseInt(yearStr);
           const date = new Date(fullYear, monthIndex, 1); // First day of the month
-          return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+          return toLocalYYYYMMDD(date); // Return YYYY-MM-DD format
         }
       }
       
@@ -862,7 +870,7 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
         if (!isNaN(date.getTime())) {
           // Return the first day of the month in YYYY-MM-DD format
           const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-          return firstDayOfMonth.toISOString().split('T')[0];
+          return toLocalYYYYMMDD(firstDayOfMonth);
         }
       }
       
@@ -870,7 +878,7 @@ app.post('/api/Alchemy_Routing', async (req, res, next) => {
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
         const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        return firstDayOfMonth.toISOString().split('T')[0];
+        return toLocalYYYYMMDD(firstDayOfMonth);
       }
       
       return null;
@@ -1437,10 +1445,10 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
       if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
         const [d, m, y] = s.split('-').map(Number);
         const date = new Date(y, m - 1, d);
-        if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+        if (!isNaN(date.getTime())) return toLocalYYYYMMDD(date);
       }
       const date = new Date(value);
-      if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+      if (!isNaN(date.getTime())) return toLocalYYYYMMDD(date);
       return null;
     };
     
@@ -1460,7 +1468,7 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
           // Convert 2-digit year to 4-digit year
           const fullYear = 2000 + parseInt(yearStr);
           const date = new Date(fullYear, monthIndex, 1); // First day of the month
-          return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+          return toLocalYYYYMMDD(date); // Return YYYY-MM-DD format
         }
       }
       
@@ -1473,7 +1481,7 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
         if (!isNaN(date.getTime())) {
           // Return the first day of the month in YYYY-MM-DD format
           const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-          return firstDayOfMonth.toISOString().split('T')[0];
+          return toLocalYYYYMMDD(firstDayOfMonth);
         }
       }
       
@@ -1481,7 +1489,7 @@ app.patch('/api/Alchemy_Routing/:id', async (req, res, next) => {
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
         const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        return firstDayOfMonth.toISOString().split('T')[0];
+        return toLocalYYYYMMDD(firstDayOfMonth);
       }
       
       return null;
@@ -1712,12 +1720,12 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
           const [d, m, y] = startDateStr.split('-').map(Number);
           const date = new Date(y, m - 1, d);
           if (!isNaN(date.getTime())) {
-            return date.toISOString().split('T')[0];
+            return toLocalYYYYMMDD(date);
           }
         }
         const date = new Date(startDateStr);
         if (!isNaN(date.getTime())) {
-          return date.toISOString().split('T')[0];
+          return toLocalYYYYMMDD(date);
         }
       }
 
@@ -1732,7 +1740,7 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
           const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
           const date = new Date(fullYear, monthIndex, parseInt(day));
           if (!isNaN(date.getTime())) {
-            return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+            return toLocalYYYYMMDD(date); // Return YYYY-MM-DD format
           }
         }
       }
@@ -1742,7 +1750,7 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         const [day, month, year] = value.split('-');
         const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
         if (!isNaN(date.getTime())) {
-          return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+          return toLocalYYYYMMDD(date); // Return YYYY-MM-DD format
         }
       }
       
@@ -1752,7 +1760,7 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         if (!isNaN(excelDate.getTime())) {
           const year = excelDate.getFullYear();
           if (year >= 1990 && year <= 2030) {
-            return excelDate.toISOString().split('T')[0];
+            return toLocalYYYYMMDD(excelDate);
           }
         }
       }
@@ -1760,7 +1768,7 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
       // Try standard date parsing
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
-        return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+        return toLocalYYYYMMDD(date); // Return YYYY-MM-DD format
       }
       
       return null;
@@ -1797,7 +1805,7 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         if (monthIndex !== -1) {
           const fullYear = 2000 + parseInt(yearStr, 10);
           const date = new Date(fullYear, monthIndex, 1);
-          return date.toISOString().split('T')[0];
+          return toLocalYYYYMMDD(date);
         }
       }
       // Handle Excel serial numbers (e.g. "45992" from Excel)
@@ -1807,7 +1815,7 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         const date = new Date(excelEpoch.getTime() + num * 24 * 60 * 60 * 1000);
         if (!isNaN(date.getTime())) {
           const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-          return firstDayOfMonth.toISOString().split('T')[0];
+          return toLocalYYYYMMDD(firstDayOfMonth);
         }
       }
       // Handle dd-mm-yyyy
@@ -1816,13 +1824,13 @@ app.post('/api/Alchemy_Routing/bulk', async (req, res, next) => {
         const date = new Date(year, month - 1, day);
         if (!isNaN(date.getTime())) {
           const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-          return firstDayOfMonth.toISOString().split('T')[0];
+          return toLocalYYYYMMDD(firstDayOfMonth);
         }
       }
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
         const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        return firstDayOfMonth.toISOString().split('T')[0];
+        return toLocalYYYYMMDD(firstDayOfMonth);
       }
       return null;
     };

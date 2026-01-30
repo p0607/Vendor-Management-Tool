@@ -76,28 +76,28 @@ export const formatExcelDate = (value: number | string | Date): string => {
           // Convert 2-digit year to 4-digit year
           const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
           const date = new Date(fullYear, monthIndex, parseInt(day));
-          return formatDateToDDMMYYYY(date.toISOString());
+          return toLocalDDMMYYYY(date);
         }
       }
       
       // Handle other string formats (e.g. ISO or locale-dependent)
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
-        return formatDateToDDMMYYYY(date.toISOString());
+        return toLocalDDMMYYYY(date);
       }
     }
 
-    // Handle Date objects (Excel sometimes returns these for date cells)
+    // Handle Date objects (Excel sometimes returns these for date cells) - use local date to avoid UTC shift
     if (value instanceof Date && !isNaN(value.getTime())) {
-      return formatDateToDDMMYYYY(value.toISOString());
+      return toLocalDDMMYYYY(value);
     }
     
-    // Handle Excel serial numbers
+    // Handle Excel serial numbers - use local date to avoid UTC shift
     if (typeof value === 'number' && value > 1) {
       // Excel dates are number of days since 1900-01-01
       const excelDate = new Date((value - 25569) * 86400 * 1000);
       if (!isNaN(excelDate.getTime())) {
-        return formatDateToDDMMYYYY(excelDate.toISOString());
+        return toLocalDDMMYYYY(excelDate);
       }
     }
     
@@ -108,8 +108,25 @@ export const formatExcelDate = (value: number | string | Date): string => {
   }
 };
 
+/** Format a Date to DD-MM-YYYY using local date components (avoids UTC shifting the day). */
+const toLocalDDMMYYYY = (date: Date): string => {
+  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const y = date.getFullYear();
+  return `${d}-${m}-${y}`;
+};
+
+/** Format a Date to YYYY-MM-DD using local date components (avoids UTC shifting the day). */
+const toLocalYYYYMMDD = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 /**
  * Converts any date value to YYYY-MM-DD for API payloads. All parsing happens here; backend receives only ISO dates.
+ * Uses local date components so timezone does not shift the day (e.g. Nov 1 stays Nov 1, not Oct 31).
  */
 export const dateToISOForAPI = (value: number | string | Date | null | undefined): string => {
   if (value == null || value === '') return '';
@@ -118,10 +135,10 @@ export const dateToISOForAPI = (value: number | string | Date | null | undefined
   if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(ddMmYyyy)) {
     const [d, m, y] = ddMmYyyy.split('-').map(Number);
     const date = new Date(y, m - 1, d);
-    if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+    if (!isNaN(date.getTime())) return toLocalYYYYMMDD(date);
   }
   const date = new Date(ddMmYyyy);
-  if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+  if (!isNaN(date.getTime())) return toLocalYYYYMMDD(date);
   return '';
 };
 
