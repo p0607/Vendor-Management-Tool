@@ -2423,6 +2423,15 @@ const TeamReportCompare: React.FC = () => {
     return `${year}-${String(monthNum).padStart(2, '0')}`;
   };
 
+  // When the business unit selected in the filter changes, default Client Data to current FY for that BU
+  useEffect(() => {
+    if (getSelectedBUForClientData) {
+      setClientDataPeriodFilter('year');
+      setClientDataPeriodValue(String(getCurrentFinancialYear()));
+      setClientDataSelectedMonths([]);
+    }
+  }, [getSelectedBUForClientData]);
+
   // Filter Client MFS Data based on filters
   const filteredClientMFSData = useMemo(() => {
     if (!getSelectedBUForClientData) {
@@ -7255,7 +7264,7 @@ const TeamReportCompare: React.FC = () => {
 
       ) : selectedParameters.length > 0 && comparisonValues.some(v => v) ? (
 
-        comparisonData.length > 0 ? (
+        (comparisonData.length > 0 || (comparisonValues.filter(Boolean).length >= 2 && growthAnalysis.length > 0)) ? (
 
           <>
 
@@ -7848,7 +7857,14 @@ const TeamReportCompare: React.FC = () => {
   {/* Client Data Button - Only show when specific business unit is selected */}
   {isSpecificBusinessUnitSelected && (
     <button
-      onClick={() => setShowClientData(!showClientData)}
+      onClick={() => {
+        if (!showClientData) {
+          setClientDataPeriodFilter('year');
+          setClientDataPeriodValue(String(getCurrentFinancialYear()));
+          setClientDataSelectedMonths([]);
+        }
+        setShowClientData(!showClientData);
+      }}
       style={{ 
         backgroundColor: '#004a7a',
         color: '#ffffff',
