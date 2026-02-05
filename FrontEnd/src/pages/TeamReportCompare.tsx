@@ -7215,9 +7215,10 @@ const TeamReportCompare: React.FC = () => {
 
       ) : selectedParameters.length > 0 && comparisonValues.some(v => v) ? (
 
-        (comparisonData.length > 0 || (comparisonValues.filter(Boolean).length >= 2 && growthAnalysis.length > 0)) ? (
-
-          <>
+        (() => {
+          const hasData = comparisonData.length > 0 || (comparisonValues.filter(Boolean).length >= 2 && growthAnalysis.length > 0);
+          return hasData ? (
+          <React.Fragment>
 
             {/* Chart Tabs */}
             <div style={{ marginBottom: 20 }}>
@@ -7977,60 +7978,59 @@ const TeamReportCompare: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>)
-            }
+            )}
 
-{/* Show Full Summary Report Button */}
-<div style={{ textAlign: 'center', marginTop: 16, marginBottom: 16 }}>
-  <button
-    onClick={() => setShowSummaryReport(!showSummaryReport)}
-    style={{ 
-      backgroundColor: '#004a7a',
-      color: '#ffffff',
-      border: 'none',
-      padding: '8px 16px',
-      borderRadius: '4px',
-      fontSize: '12px',
-      fontWeight: 'bold',
-      cursor: 'pointer',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}
-  >
-    {showSummaryReport ? 'Hide Full Summary Report' : 'Show Full Summary Report'}
-  </button>
-  
-  {/* Client Data Button - Only show when specific business unit is selected */}
-  {isSpecificBusinessUnitSelected && (
-    <button
-      onClick={() => {
-        if (!showClientData) {
-          setClientDataPeriodFilter('year');
-          setClientDataPeriodValue(String(getCurrentFinancialYear()));
-          setClientDataSelectedMonths([]);
-        }
-        setShowClientData(!showClientData);
-      }}
-      style={{ 
-        backgroundColor: '#004a7a',
-        color: '#ffffff',
-        border: 'none',
-        padding: '8px 16px',
-        borderRadius: '4px',
-        fontSize: '12px',
-        fontWeight: 'bold',
-        cursor: 'pointer',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        marginLeft: '8px'
-      }}
-    >
-      {showClientData ? 'Hide Client Data' : 'Show Client Data'}
-    </button>
-  )}
-</div>
+      {/* Show Full Summary Report Button */}
+      <div style={{ textAlign: 'center', marginTop: 16, marginBottom: 16 }}>
+        <button
+          onClick={() => setShowSummaryReport(!showSummaryReport)}
+          style={{ 
+            backgroundColor: '#004a7a',
+            color: '#ffffff',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}
+        >
+          {showSummaryReport ? 'Hide Full Summary Report' : 'Show Full Summary Report'}
+        </button>
+        
+        {/* Client Data Button - Only show when specific business unit is selected */}
+        {isSpecificBusinessUnitSelected && (
+          <button
+            onClick={() => {
+              if (!showClientData) {
+                setClientDataPeriodFilter('year');
+                setClientDataPeriodValue(String(getCurrentFinancialYear()));
+                setClientDataSelectedMonths([]);
+              }
+              setShowClientData(!showClientData);
+            }}
+            style={{ 
+              backgroundColor: '#004a7a',
+              color: '#ffffff',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              marginLeft: '8px'
+            }}
+          >
+            {showClientData ? 'Hide Client Data' : 'Show Client Data'}
+          </button>
+        )}
+      </div>
 
-{/* Full Summary Report */}
-{showSummaryReport && (
-  <div style={{ marginTop: 20, marginBottom: 20 }}>
+      {/* Full Summary Report */}
+      {showSummaryReport && (
+        <div style={{ marginTop: 20, marginBottom: 20 }}>
     <div style={{
       backgroundColor: '#000000', 
       color: '#ffffff', 
@@ -9190,27 +9190,18 @@ const TeamReportCompare: React.FC = () => {
 
   })()}
 
-</div>
+        </div>
 
-</div>
+        </div>
 
-            )}
+      )}
 
-          </>
-
-        ) : (
-
-          <div style={{ textAlign: 'center', padding: 40, color: '#000000' }}>
-
-            No data available for the selected filters
-
-                    </div>
-
-        )
-
+      </React.Fragment>
+      ) : (
+        <div style={{ textAlign: 'center', padding: 40, color: '#000000' }}>No data available for the selected filters</div>
+      );
+        })()
       ) : null}
-
-
 
       {/* Target Tracking Chart - Always visible */}
 
@@ -9397,9 +9388,9 @@ const TeamReportCompare: React.FC = () => {
                   border: '1px solid #d9d9d9'
 
                 }}>
-
-                  {selectedPeriodsForCombination.join(' + ')}
-
+                  {Array.isArray(selectedPeriodsForCombination) && selectedPeriodsForCombination.length > 0
+                    ? selectedPeriodsForCombination.join(' + ')
+                    : null}
                 </div>
 
               </div>
@@ -9455,3 +9446,5 @@ const TeamReportCompare: React.FC = () => {
 };
 
 export default TeamReportCompare;
+
+
