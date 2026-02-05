@@ -7055,8 +7055,8 @@ const TeamReportCompare: React.FC = () => {
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                     position: 'relative'
                   }}>
-                    {/* Title row: KPI name on left, FY line at top right */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                    {/* Title row: KPI name on left, growth arrow at top right */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                       <div>
                         <div style={{ 
                           backgroundColor: '#000000', 
@@ -7072,29 +7072,54 @@ const TeamReportCompare: React.FC = () => {
                         </div>
                         <div style={{ width: 60, height: 2, backgroundColor: '#ff6b35', borderRadius: 1 }} />
                       </div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                        {(() => {
-                          if (compareType === 'month' && comparisonValues[0]) {
-                            return `${comparisonValues[0]} (Projected)`;
-                          } else if (compareType === 'quarter' && comparisonValues[0]) {
-                            return `${comparisonValues[0]} (Projected)`;
-                          } else {
-                            return `${getMonthRangeForFY(comparisonValues[0] || 'FY 2025')} (Projected)`;
-                          }
-                        })()}
-                        {' '}
-                        {formatValue(kpi.previousFY)}{' '}
-                        {compareType === 'month' && comparisonValues[1] ? comparisonValues[1] : compareType === 'quarter' && comparisonValues[1] ? comparisonValues[1] : 'FY 2024'}
+                      {/* Growth arrow at top right */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 2 }}>
+                          <div style={{
+                            width: 0,
+                            height: 0,
+                            borderLeft: '8px solid transparent',
+                            borderRight: '8px solid transparent',
+                            borderBottom: '12px solid #4ade80'
+                          }} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                            <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                            <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: kpi.growthPercentage >= 0 ? '#4ade80' : '#ff4d4f', textAlign: 'right' }}>
+                          {kpi.growthPercentage >= 0 ? '+' : ''}{kpi.growthPercentage.toFixed(1)}% Growth
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: kpi.currentFY - kpi.previousFY >= 0 ? '#4ade80' : '#ff4d4f', textAlign: 'right' }}>
+                          {kpi.currentFY - kpi.previousFY >= 0 ? '+' : ''}{formatValue(kpi.currentFY - kpi.previousFY)}
+                        </div>
+                        <div style={{ fontSize: 8, color: '#666666', textAlign: 'right' }}>
+                          {comparisonValues[1] ? `vs ${comparisonValues[1]}` : 'vs Previous Period'}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Actual + Predicted = KPI (one row, immediately after title) */}
+                    {/* FY period + current value (no Projected, no FY 2024 label) */}
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 8, textAlign: 'left' }}>
+                      {(() => {
+                        if (compareType === 'month' && comparisonValues[0]) {
+                          return `${comparisonValues[0]} ${formatValue(kpi.currentFY)}`;
+                        }
+                        if (compareType === 'quarter' && comparisonValues[0]) {
+                          return `${comparisonValues[0]} ${formatValue(kpi.currentFY)}`;
+                        }
+                        return `${getMonthRangeForFY(comparisonValues[0] || 'FY 2025')} ${formatValue(kpi.currentFY)}`;
+                      })()}
+                    </div>
+
+                    {/* Actual + Predicted = KPI (one row) */}
                     {kpi.monthsRemaining > 0 && (
                       <div style={{ 
                         fontSize: 12, 
                         fontWeight: 600,
                         color: '#333333',
-                        marginBottom: 8,
+                        marginBottom: 10,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis'
@@ -7103,9 +7128,8 @@ const TeamReportCompare: React.FC = () => {
                       </div>
                     )}
 
-                    {/* All KPIs: left = metric value(s) + total, right = growth arrow with % and value below */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
-                      {/* Left: Label = value (and total for composite KPIs) */}
+                    {/* Metric rows: Revenue =, Routing =, CTS =, total (no growth block here) */}
+                    <div style={{ marginBottom: 8 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         {kpiName === 'Revenue' && (
                           <>
@@ -7171,61 +7195,6 @@ const TeamReportCompare: React.FC = () => {
                           );
                         })()}
                       </div>
-                      {/* Right: growth arrow with growth % and value below (same for all KPIs) */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 2 }}>
-                          <div style={{
-                            width: 0,
-                            height: 0,
-                            borderLeft: '8px solid transparent',
-                            borderRight: '8px solid transparent',
-                            borderBottom: '12px solid #4ade80'
-                          }} />
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            <div style={{ width: 8, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                            <div style={{ width: 6, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                            <div style={{ width: 4, height: 1, backgroundColor: '#4ade80', borderRadius: 1 }} />
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: kpi.growthPercentage >= 0 ? '#4ade80' : '#ff4d4f', textAlign: 'right' }}>
-                          {kpi.growthPercentage >= 0 ? '+' : ''}{kpi.growthPercentage.toFixed(1)}% Growth
-                        </div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: kpi.currentFY - kpi.previousFY >= 0 ? '#4ade80' : '#ff4d4f', textAlign: 'right' }}>
-                          {kpi.currentFY - kpi.previousFY >= 0 ? '+' : ''}{formatValue(kpi.currentFY - kpi.previousFY)}
-                        </div>
-                        <div style={{ fontSize: 8, color: '#666666', textAlign: 'right' }}>
-                          {comparisonValues[1] ? `vs ${comparisonValues[1]}` : 'vs Previous Period'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Projection Details */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      marginBottom: 8
-                    }}>
-                      <div style={{ 
-                        width: 8, 
-                        height: 8, 
-                        borderRadius: '50%', 
-                        backgroundColor: '#4ade80'
-                      }} />
-                      <div style={{ 
-                        fontSize: 8, 
-                        color: '#666666'
-                      }}>
-                        {(() => {
-                          if (compareType === 'quarter') {
-                            return comparisonValues[0] || 'Quarter data';
-                          } else if (compareType === 'year') {
-                            return comparisonValues[0] || 'Year data';
-                          } else {
-                            return kpi.monthsRemaining > 0 ? `Projected for 7 months` : 'Full year data';
-                          }
-                        })()}
-                      </div>
                     </div>
                   </div>
                 );
@@ -7258,7 +7227,14 @@ const TeamReportCompare: React.FC = () => {
                 marginBottom: 20
               }}>
                 <button
-                  onClick={() => setActiveChartTab('growth')}
+                  onClick={() => {
+                    if (activeChartTab === 'growth') {
+                      setActiveChartTab('none');
+                    } else {
+                      setShowClientData(false);
+                      setActiveChartTab('growth');
+                    }
+                  }}
                   style={{
                     padding: '12px 24px',
                     border: 'none',
@@ -7275,7 +7251,14 @@ const TeamReportCompare: React.FC = () => {
                   Parameter Data Chart
                 </button>
                 <button
-                  onClick={() => setActiveChartTab('waterfall')}
+                  onClick={() => {
+                    if (activeChartTab === 'waterfall') {
+                      setActiveChartTab('none');
+                    } else {
+                      setShowClientData(false);
+                      setActiveChartTab('waterfall');
+                    }
+                  }}
                   style={{
                     padding: '12px 24px',
                     border: 'none',
@@ -7291,23 +7274,33 @@ const TeamReportCompare: React.FC = () => {
                 >
                   Waterfall Analysis
                 </button>
-                <button
-                  onClick={() => navigate('/client-mfs-data')}
-                  style={{
-                    padding: '12px 24px',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: '#666',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: 'normal',
-                    borderTopLeftRadius: '6px',
-                    borderTopRightRadius: '6px',
-                    marginRight: '2px'
-                  }}
-                >
-                  Client MFS Data
-                </button>
+                {selectedBusinessUnit && (
+                  <button
+                    onClick={() => {
+                      if (!showClientData) {
+                        setClientDataPeriodFilter('year');
+                        setClientDataPeriodValue(String(getCurrentFinancialYear()));
+                        setClientDataSelectedMonths([]);
+                        setActiveChartTab('none');
+                      }
+                      setShowClientData(!showClientData);
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      border: 'none',
+                      backgroundColor: showClientData ? '#1890ff' : 'transparent',
+                      color: showClientData ? 'white' : '#666',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: showClientData ? 'bold' : 'normal',
+                      borderTopLeftRadius: '6px',
+                      borderTopRightRadius: '6px',
+                      marginRight: '2px'
+                    }}
+                  >
+                    {showClientData ? 'Hide Client Data' : 'Show Client Data'}
+                  </button>
+                )}
               </div>
 
               {/* Parameter Data Chart */}
@@ -7552,7 +7545,6 @@ const TeamReportCompare: React.FC = () => {
             {/* Growth Analysis Dashboard */}
 
             {comparisonValues.filter(Boolean).length >= 2 && growthAnalysis.length > 0 && (
-
               <div style={{ marginTop: 20 }}>
 
                 <div style={{ 
@@ -7628,6 +7620,10 @@ const TeamReportCompare: React.FC = () => {
             </React.Fragment>
           );
         })}
+
+        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>GPM %</th>
+
+        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>NP %</th>
 
         <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
 
@@ -7765,6 +7761,31 @@ const TeamReportCompare: React.FC = () => {
               );
             })}
 
+            {/* GPM % column: only GPM row shows GPM percentage (FY25 / FY24) */}
+            <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
+              {item.parameter === 'GPM' ? (() => {
+                const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
+                const periods = item.periodValues.filter(pv => pv.period);
+                return periods.map((pv, i) => {
+                  const revenue = revenueItem?.periodValues[i]?.amount ?? 0;
+                  const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
+                  return <div key={i} style={i === 0 ? {} : { fontSize: '9px', color: '#666666', marginTop: '2px' }}>{percentage}%</div>;
+                });
+              })() : '—'}
+            </td>
+            {/* NP % column: only Net Margin row shows Net Margin percentage (FY25 / FY24) */}
+            <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
+              {item.parameter === 'Net Margin' ? (() => {
+                const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
+                const periods = item.periodValues.filter(pv => pv.period);
+                return periods.map((pv, i) => {
+                  const revenue = revenueItem?.periodValues[i]?.amount ?? 0;
+                  const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
+                  return <div key={i} style={i === 0 ? {} : { fontSize: '9px', color: '#666666', marginTop: '2px' }}>{percentage}%</div>;
+                });
+              })() : '—'}
+            </td>
+
             <td style={{ 
 
               padding: '6px 8px', 
@@ -7815,7 +7836,149 @@ const TeamReportCompare: React.FC = () => {
 
 </div>
 
-
+            {/* Client Data - just below Growth Analysis Report */}
+            {showClientData && selectedBusinessUnit && isSpecificBusinessUnitSelected && getSelectedBUForClientData && (
+              <div style={{ marginTop: 20, marginBottom: 20 }}>
+                <div style={{
+                  backgroundColor: '#000000',
+                  color: '#ffffff',
+                  padding: '6px 12px',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  display: 'inline-block',
+                  marginBottom: 8,
+                  borderBottom: '3px solid #ff8c00'
+                }}>
+                  Client Data - {getSelectedBUForClientData}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: 4 }}>
+                  <div style={{ minWidth: '200px' }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Parameters:</label>
+                    <Select mode="multiple" value={clientDataSelectedParameters} onChange={(values) => setClientDataSelectedParameters(values)} placeholder="Select Parameters" style={{ width: '100%' }} allowClear>
+                      {allClientDataParameters.map(param => (<Select.Option key={param.key} value={param.key}>{param.label}</Select.Option>))}
+                    </Select>
+                  </div>
+                  <div style={{ minWidth: '150px' }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Period Type:</label>
+                    <select value={clientDataPeriodFilter} onChange={(e) => { setClientDataPeriodFilter(e.target.value); if (e.target.value === 'year') { setClientDataPeriodValue(String(getCurrentFinancialYear())); } else { setClientDataPeriodValue(''); } setClientDataSelectedMonths([]); }} style={{ width: '100%', padding: '4px', fontSize: '12px' }}>
+                      <option value="year">Year</option>
+                      <option value="quarter">Quarter</option>
+                      <option value="month">Month</option>
+                    </select>
+                  </div>
+                  {clientDataPeriodFilter === 'year' && (
+                    <div style={{ minWidth: '120px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Year:</label>
+                      <select value={clientDataPeriodValue} onChange={(e) => setClientDataPeriodValue(e.target.value)} style={{ width: '100%', padding: '4px', fontSize: '12px' }}>
+                        <option value="">Select Year</option>
+                        {clientDataYearOptions.map(year => (<option key={year} value={String(year)}>{year}</option>))}
+                      </select>
+                    </div>
+                  )}
+                  {clientDataPeriodFilter === 'quarter' && (
+                    <div style={{ minWidth: '200px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Quarter:</label>
+                      <select value={clientDataPeriodValue} onChange={(e) => setClientDataPeriodValue(e.target.value)} style={{ width: '100%', padding: '4px', fontSize: '12px' }}>
+                        <option value="">Select Quarter</option>
+                        {clientDataQuarterOptions.map(quarter => (<option key={quarter} value={quarter}>{quarter}</option>))}
+                      </select>
+                    </div>
+                  )}
+                  {clientDataPeriodFilter === 'month' && (
+                    <div style={{ minWidth: '200px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Months:</label>
+                      <Select mode="multiple" value={clientDataSelectedMonths} onChange={(values) => setClientDataSelectedMonths(values)} placeholder="Select Months" style={{ width: '100%' }} allowClear>
+                        {clientDataMonths.map(month => (<Select.Option key={month} value={month}>{month}</Select.Option>))}
+                      </Select>
+                    </div>
+                  )}
+                </div>
+                {clientDataTableData.length > 0 ? (
+                  <div style={{ overflowX: 'auto', backgroundColor: '#ffffff', border: '1px solid #d9d9d9', borderRadius: 4 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#d8e8f0' }}>
+                          <th style={{ padding: '6px 8px', textAlign: 'left', color: '#000000', fontWeight: 'bold', position: 'sticky', left: 0, backgroundColor: '#d8e8f0', zIndex: 10 }}>Client</th>
+                          {clientDataMonths.map(month => (
+                            <th key={month} colSpan={clientDataParameters.length} style={{ padding: '6px 8px', textAlign: 'center', color: '#000000', fontWeight: 'bold', borderLeft: '1px solid #d9d9d9' }}>{month}</th>
+                          ))}
+                        </tr>
+                        {clientDataParameters.length > 1 && (
+                          <tr style={{ backgroundColor: '#d8e8f0' }}>
+                            <th style={{ padding: '6px 8px', position: 'sticky', left: 0, backgroundColor: '#d8e8f0', zIndex: 10 }}></th>
+                            {clientDataMonths.map(month => clientDataParameters.map(param => (
+                              <th key={`${month}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'center', color: '#000000', fontSize: '9px', borderLeft: '1px solid #d9d9d9' }}>{param.label}</th>
+                            )))}
+                          </tr>
+                        )}
+                      </thead>
+                      <tbody>
+                        {clientDataTableData.map((row, rowIndex) => (
+                          <tr key={row.client} style={{ backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9' }}>
+                            <td style={{ padding: '6px 8px', fontWeight: 'bold', position: 'sticky', left: 0, backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9', zIndex: 5 }}>{row.client}</td>
+                            {clientDataMonths.map(monthDisplay => {
+                              const [monthName, yearStr] = monthDisplay.split(' ');
+                              const year = parseInt(yearStr);
+                              const monthNames: { [key: string]: string } = { 'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April', 'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August', 'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December' };
+                              const fullMonthName = monthNames[monthName] || monthName;
+                              const monthKey = getClientDataMonthKey(fullMonthName, year);
+                              return clientDataParameters.map(param => {
+                                const cellKey = `${param.key}_${monthKey}`;
+                                const value = row[cellKey] || 0;
+                                const formatValue = (val: any, key: string) => {
+                                  const numValue = typeof val === 'number' && !isNaN(val) ? val : 0;
+                                  if (key.includes('percentage') || key.includes('_percentage')) return `${numValue.toFixed(2)}%`;
+                                  if (key === 'hc') return numValue.toFixed(0);
+                                  return numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                };
+                                return (<td key={`${monthDisplay}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'right', borderLeft: '1px solid #d9d9d9' }}>{formatValue(value, param.key)}</td>);
+                              });
+                            })}
+                          </tr>
+                        ))}
+                        <tr style={{ backgroundColor: '#e6f3ff', fontWeight: 'bold' }}>
+                          <td style={{ padding: '6px 8px', position: 'sticky', left: 0, backgroundColor: '#e6f3ff', zIndex: 5 }}>Total</td>
+                          {clientDataMonths.map(monthDisplay => {
+                            const [monthName, yearStr] = monthDisplay.split(' ');
+                            const year = parseInt(yearStr);
+                            const monthNames: { [key: string]: string } = { 'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April', 'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August', 'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December' };
+                            const fullMonthName = monthNames[monthName] || monthName;
+                            const monthKey = getClientDataMonthKey(fullMonthName, year);
+                            return clientDataParameters.map(param => {
+                              const cellKey = `${param.key}_${monthKey}`;
+                              let totalValue = 0;
+                              clientDataTableData.forEach(r => { const v = r[cellKey] || 0; totalValue += (typeof v === 'number' && !isNaN(v) ? v : 0); });
+                              const formatValue = (val: any, key: string) => {
+                                const numValue = typeof val === 'number' && !isNaN(val) ? val : 0;
+                                if (key.includes('percentage') || key.includes('_percentage')) return `${numValue.toFixed(2)}%`;
+                                if (key === 'hc') return numValue.toFixed(0);
+                                return numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                              };
+                              return (<td key={`total_${monthDisplay}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'right', borderLeft: '1px solid #d9d9d9' }}>{formatValue(totalValue, param.key)}</td>);
+                            });
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                    {isLoadingClientMFS ? 'Loading client data...' : (
+                      <div>
+                        <div>No client data available for the selected filters</div>
+                        {getSelectedBUForClientData && (
+                          <div style={{ fontSize: '11px', marginTop: '8px', color: '#999' }}>
+                            Selected BU: {getSelectedBUForClientData} | Total records: {clientMFSData.length} | Filtered records: {filteredClientMFSData.length}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>)
+            }
 
 {/* Show Full Summary Report Button */}
 <div style={{ textAlign: 'center', marginTop: 16, marginBottom: 16 }}>
@@ -8159,6 +8322,8 @@ const TeamReportCompare: React.FC = () => {
                     </React.Fragment>
                   );
                 })}
+                <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>GPM %</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>NP %</th>
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
                 <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Growth %</th>
               </tr>
@@ -8297,6 +8462,32 @@ const TeamReportCompare: React.FC = () => {
                         </React.Fragment>
                       );
                     })}
+                    {/* GPM % column: only GPM row shows GPM percentage (FY25 / FY24) */}
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                      {param.name === 'GPM' ? (() => {
+                        const currentPct = summary.currentPeriod.revenue > 0 ? ((param.current / summary.currentPeriod.revenue) * 100).toFixed(2) : '0.00';
+                        const previousPct = summary.previousPeriod.revenue > 0 ? ((param.previous / summary.previousPeriod.revenue) * 100).toFixed(2) : '0.00';
+                        return (
+                          <>
+                            <div>{currentPct}%</div>
+                            <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>{previousPct}%</div>
+                          </>
+                        );
+                      })() : '—'}
+                    </td>
+                    {/* NP % column: only Net Margin row shows Net Margin percentage (FY25 / FY24) */}
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                      {param.name === 'Net Margin' ? (() => {
+                        const currentPct = summary.currentPeriod.revenue > 0 ? ((param.current / summary.currentPeriod.revenue) * 100).toFixed(2) : '0.00';
+                        const previousPct = summary.previousPeriod.revenue > 0 ? ((param.previous / summary.previousPeriod.revenue) * 100).toFixed(2) : '0.00';
+                        return (
+                          <>
+                            <div>{currentPct}%</div>
+                            <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>{previousPct}%</div>
+                          </>
+                        );
+                      })() : '—'}
+                    </td>
                     <td style={{ 
                       padding: '6px 8px', 
                       textAlign: 'right',
@@ -9018,271 +9209,6 @@ const TeamReportCompare: React.FC = () => {
         )
 
       ) : null}
-
-      {/* Client Data Table */}
-      {showClientData && isSpecificBusinessUnitSelected && getSelectedBUForClientData && (
-        <div style={{ marginTop: 20, marginBottom: 20 }}>
-          <div style={{
-            backgroundColor: '#000000', 
-            color: '#ffffff', 
-            padding: '6px 12px', 
-            borderRadius: 4, 
-            fontSize: 12, 
-            fontWeight: 700,
-            display: 'inline-block',
-            marginBottom: 8,
-            borderBottom: '3px solid #ff8c00'
-          }}>
-            Client Data - {getSelectedBUForClientData}
-          </div>
-          
-          {/* Filters */}
-          <div style={{ 
-            display: 'flex', 
-            flexWrap: 'wrap', 
-            gap: '12px', 
-            marginBottom: '16px',
-            padding: '12px',
-            backgroundColor: '#f5f5f5',
-            borderRadius: 4
-          }}>
-            <div style={{ minWidth: '200px' }}>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
-                Parameters:
-              </label>
-              <Select
-                mode="multiple"
-                value={clientDataSelectedParameters}
-                onChange={(values) => setClientDataSelectedParameters(values)}
-                placeholder="Select Parameters"
-                style={{ width: '100%' }}
-                allowClear
-              >
-                {allClientDataParameters.map(param => (
-                  <Select.Option key={param.key} value={param.key}>{param.label}</Select.Option>
-                ))}
-              </Select>
-            </div>
-
-            <div style={{ minWidth: '150px' }}>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
-                Period Type:
-              </label>
-              <select
-                value={clientDataPeriodFilter}
-                onChange={(e) => {
-                  setClientDataPeriodFilter(e.target.value);
-                  if (e.target.value === 'year') {
-                    setClientDataPeriodValue(String(getCurrentFinancialYear()));
-                  } else {
-                    setClientDataPeriodValue('');
-                  }
-                  setClientDataSelectedMonths([]);
-                }}
-                style={{ width: '100%', padding: '4px', fontSize: '12px' }}
-              >
-                <option value="year">Year</option>
-                <option value="quarter">Quarter</option>
-                <option value="month">Month</option>
-              </select>
-            </div>
-
-            {clientDataPeriodFilter === 'year' && (
-              <div style={{ minWidth: '120px' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
-                  Year:
-                </label>
-                <select
-                  value={clientDataPeriodValue}
-                  onChange={(e) => setClientDataPeriodValue(e.target.value)}
-                  style={{ width: '100%', padding: '4px', fontSize: '12px' }}
-                >
-                  <option value="">Select Year</option>
-                  {clientDataYearOptions.map(year => (
-                    <option key={year} value={String(year)}>{year}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {clientDataPeriodFilter === 'quarter' && (
-              <div style={{ minWidth: '200px' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
-                  Quarter:
-                </label>
-                <select
-                  value={clientDataPeriodValue}
-                  onChange={(e) => setClientDataPeriodValue(e.target.value)}
-                  style={{ width: '100%', padding: '4px', fontSize: '12px' }}
-                >
-                  <option value="">Select Quarter</option>
-                  {clientDataQuarterOptions.map(quarter => (
-                    <option key={quarter} value={quarter}>{quarter}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {clientDataPeriodFilter === 'month' && (
-              <div style={{ minWidth: '200px' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>
-                  Months:
-                </label>
-                <Select
-                  mode="multiple"
-                  value={clientDataSelectedMonths}
-                  onChange={(values) => setClientDataSelectedMonths(values)}
-                  placeholder="Select Months"
-                  style={{ width: '100%' }}
-                  allowClear
-                >
-                  {clientDataMonths.map(month => (
-                    <Select.Option key={month} value={month}>{month}</Select.Option>
-                  ))}
-                </Select>
-              </div>
-            )}
-          </div>
-
-          {/* Client Data Table */}
-          {clientDataTableData.length > 0 ? (
-            <div style={{ overflowX: 'auto', backgroundColor: '#ffffff', border: '1px solid #d9d9d9', borderRadius: 4 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#d8e8f0' }}>
-                    <th style={{ padding: '6px 8px', textAlign: 'left', color: '#000000', fontWeight: 'bold', position: 'sticky', left: 0, backgroundColor: '#d8e8f0', zIndex: 10 }}>
-                      Client
-                    </th>
-                    {clientDataMonths.map(month => (
-                      <th key={month} colSpan={clientDataParameters.length} style={{ padding: '6px 8px', textAlign: 'center', color: '#000000', fontWeight: 'bold', borderLeft: '1px solid #d9d9d9' }}>
-                        {month}
-                      </th>
-                    ))}
-                  </tr>
-                  {clientDataParameters.length > 1 && (
-                    <tr style={{ backgroundColor: '#d8e8f0' }}>
-                      <th style={{ padding: '6px 8px', position: 'sticky', left: 0, backgroundColor: '#d8e8f0', zIndex: 10 }}></th>
-                      {clientDataMonths.map(month => 
-                        clientDataParameters.map(param => (
-                          <th key={`${month}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'center', color: '#000000', fontSize: '9px', borderLeft: '1px solid #d9d9d9' }}>
-                            {param.label}
-                          </th>
-                        ))
-                      )}
-                    </tr>
-                  )}
-                </thead>
-                <tbody>
-                  {clientDataTableData.map((row, rowIndex) => (
-                    <tr key={row.client} style={{ backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9' }}>
-                      <td style={{ padding: '6px 8px', fontWeight: 'bold', position: 'sticky', left: 0, backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9', zIndex: 5 }}>
-                        {row.client}
-                      </td>
-                      {clientDataMonths.map(monthDisplay => {
-                        const [monthName, yearStr] = monthDisplay.split(' ');
-                        const year = parseInt(yearStr);
-                        const monthNames: { [key: string]: string } = {
-                          'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
-                          'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
-                          'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
-                        };
-                        const fullMonthName = monthNames[monthName] || monthName;
-                        const monthKey = getClientDataMonthKey(fullMonthName, year);
-                        
-                        return clientDataParameters.map(param => {
-                          const cellKey = `${param.key}_${monthKey}`;
-                          const value = row[cellKey] || 0;
-                          const formatValue = (val: any, key: string) => {
-                            // Ensure value is a valid number
-                            const numValue = typeof val === 'number' && !isNaN(val) ? val : 0;
-                            
-                            if (key.includes('percentage') || key.includes('_percentage')) {
-                              return `${numValue.toFixed(2)}%`;
-                            }
-                            if (key === 'hc') {
-                              return numValue.toFixed(0);
-                            }
-                            return numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                          };
-                          
-                          return (
-                            <td key={`${monthDisplay}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'right', borderLeft: '1px solid #d9d9d9' }}>
-                              {formatValue(value, param.key)}
-                            </td>
-                          );
-                        });
-                      })}
-                    </tr>
-                  ))}
-                  {/* Total Row */}
-                  <tr style={{ backgroundColor: '#e6f3ff', fontWeight: 'bold' }}>
-                    <td style={{ padding: '6px 8px', position: 'sticky', left: 0, backgroundColor: '#e6f3ff', zIndex: 5 }}>
-                      Total
-                    </td>
-                    {clientDataMonths.map(monthDisplay => {
-                      const [monthName, yearStr] = monthDisplay.split(' ');
-                      const year = parseInt(yearStr);
-                      const monthNames: { [key: string]: string } = {
-                        'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
-                        'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
-                        'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
-                      };
-                      const fullMonthName = monthNames[monthName] || monthName;
-                      const monthKey = getClientDataMonthKey(fullMonthName, year);
-                      
-                      return clientDataParameters.map(param => {
-                        const cellKey = `${param.key}_${monthKey}`;
-                        let totalValue = 0;
-                        clientDataTableData.forEach(row => {
-                          const value = row[cellKey] || 0;
-                          const numValue = typeof value === 'number' && !isNaN(value) ? value : 0;
-                          totalValue += numValue;
-                        });
-                        
-                        const formatValue = (val: any, key: string) => {
-                          // Ensure value is a valid number
-                          const numValue = typeof val === 'number' && !isNaN(val) ? val : 0;
-                          
-                          if (key.includes('percentage') || key.includes('_percentage')) {
-                            return `${numValue.toFixed(2)}%`;
-                          }
-                          if (key === 'hc') {
-                            return numValue.toFixed(0);
-                          }
-                          return numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        };
-                        
-                        return (
-                          <td key={`total_${monthDisplay}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'right', borderLeft: '1px solid #d9d9d9' }}>
-                            {formatValue(totalValue, param.key)}
-                          </td>
-                        );
-                      });
-                    })}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-              {isLoadingClientMFS ? 'Loading client data...' : (
-                <div>
-                  <div>No client data available for the selected filters</div>
-                  {getSelectedBUForClientData && (
-                    <div style={{ fontSize: '11px', marginTop: '8px', color: '#999' }}>
-                      Selected BU: {getSelectedBUForClientData} | 
-                      Total records: {clientMFSData.length} | 
-                      Filtered records: {filteredClientMFSData.length}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-
 
 
 
