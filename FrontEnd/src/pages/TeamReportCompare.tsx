@@ -1315,6 +1315,7 @@ const TeamReportCompare: React.FC = () => {
   const [clientDataPeriodValue, setClientDataPeriodValue] = useState<string>(String(getCurrentFinancialYear()));
   const [clientDataSelectedMonths, setClientDataSelectedMonths] = useState<string[]>([]);
   const [clientDataSelectedParameters, setClientDataSelectedParameters] = useState<string[]>([]);
+  const [clientDataSelectedClient, setClientDataSelectedClient] = useState<string>(''); // '' = All clients
 
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
@@ -2399,6 +2400,21 @@ const TeamReportCompare: React.FC = () => {
   const normalizeToFullMonthName = (monthName: any): string => {
     if (!monthName) return '';
     const str = String(monthName).trim();
+    const fullMonthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    // Handle date strings from API (e.g. "2025-04-01", "04-01-2025")
+    const dateMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); // YYYY-MM-DD
+    if (dateMatch) {
+      const monthNum = parseInt(dateMatch[2], 10);
+      if (monthNum >= 1 && monthNum <= 12) return fullMonthNames[monthNum - 1];
+    }
+    const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/); // DD-MM-YYYY or MM-DD-YYYY
+    if (dmyMatch) {
+      const first = parseInt(dmyMatch[1], 10);
+      const second = parseInt(dmyMatch[2], 10);
+      const monthNum = (first <= 12 && second > 12) ? first : (second <= 12 ? second : first);
+      if (monthNum >= 1 && monthNum <= 12) return fullMonthNames[monthNum - 1];
+    }
     const abbreviationMap: { [key: string]: string } = {
       'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
       'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
@@ -2429,6 +2445,7 @@ const TeamReportCompare: React.FC = () => {
       setClientDataPeriodFilter('year');
       setClientDataPeriodValue(String(getCurrentFinancialYear()));
       setClientDataSelectedMonths([]);
+      setClientDataSelectedClient('');
     }
   }, [getSelectedBUForClientData]);
 
@@ -2504,7 +2521,7 @@ const TeamReportCompare: React.FC = () => {
     return filtered;
   }, [clientMFSData, getSelectedBUForClientData, clientDataPeriodFilter, clientDataPeriodValue, clientDataSelectedMonths]);
 
-  // Get unique clients from filtered data
+  // Get unique clients from filtered data (for the selected BU)
   const clientDataClients = useMemo(() => {
     const clientSet = new Set<string>();
     filteredClientMFSData.forEach((item: any) => {
@@ -2514,6 +2531,14 @@ const TeamReportCompare: React.FC = () => {
     });
     return Array.from(clientSet).sort();
   }, [filteredClientMFSData]);
+
+  // Clients to show in table: selected one or all
+  const clientDataClientsToShow = useMemo(() => {
+    if (clientDataSelectedClient && clientDataClients.includes(clientDataSelectedClient)) {
+      return [clientDataSelectedClient];
+    }
+    return clientDataClients;
+  }, [clientDataSelectedClient, clientDataClients]);
 
   // Get unique months from filtered data
   const clientDataMonths = useMemo(() => {
@@ -2558,11 +2583,11 @@ const TeamReportCompare: React.FC = () => {
 
   // Build table data: clients as rows, parameters x months as columns
   const clientDataTableData = useMemo(() => {
-    if (!clientDataClients.length || !clientDataMonths.length) return [];
+    if (!clientDataClientsToShow.length || !clientDataMonths.length) return [];
     
     const rows: Array<{ client: string; [key: string]: any }> = [];
     
-    clientDataClients.forEach(client => {
+    clientDataClientsToShow.forEach(client => {
       const row: any = { client };
       
       clientDataMonths.forEach(monthDisplay => {
@@ -2578,14 +2603,29 @@ const TeamReportCompare: React.FC = () => {
         
                         clientDataParameters.forEach(param => {
                           const cellKey = `${param.key}_${monthKey}`;
-                          const matchingData = filteredClientMFSData.find((item: any) => 
-                            item.client_name === client && 
-                            normalizeToFullMonthName(item.month) === fullMonthName &&
-                            item.year === year
-                          );
-                          const rawValue = matchingData ? (matchingData[param.key] || 0) : 0;
-                          // Ensure value is a number
-                          const numValue = typeof rawValue === 'number' && !isNaN(rawValue) ? rawValue : 0;
+                          // Sum all matching records (multiple rows per client/month e.g. per project)
+                          const matchingRecords = filteredClientMFSData.filter((item: any) => {
+                            const itemYear = item.year != null ? Number(item.year) : null;
+                            if (itemYear !== year) return false;
+                            return item.client_name === client &&
+                              normalizeToFullMonthName(item.month) === fullMonthName;
+                          });
+                          if (matchingRecords.length === 0) {
+                            row[cellKey] = null; // not available -> show "-"
+                            return;
+                          }
+                          const hasAnyValue = matchingRecords.some((item: any) => {
+                            const v = item[param.key];
+                            return v != null && v !== '';
+                          });
+                          if (!hasAnyValue) {
+                            row[cellKey] = null; // no value in any record -> show "-"
+                            return;
+                          }
+                          const numValue = matchingRecords.reduce((sum: number, item: any) => {
+                            const raw = item[param.key];
+                            return sum + parseNumericValue(raw);
+                          }, 0);
                           row[cellKey] = numValue;
                         });
       });
@@ -2594,7 +2634,7 @@ const TeamReportCompare: React.FC = () => {
     });
     
     return rows;
-  }, [clientDataClients, clientDataMonths, clientDataParameters, filteredClientMFSData]);
+  }, [clientDataClientsToShow, clientDataMonths, clientDataParameters, filteredClientMFSData]);
 
   // Handle URL parameters for MFS button redirect
 
@@ -7100,50 +7140,63 @@ const TeamReportCompare: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* FY period + current value (no Projected, no FY 2024 label) */}
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 8, textAlign: 'left' }}>
-                      {(() => {
-                        if (compareType === 'month' && comparisonValues[0]) {
-                          return `${comparisonValues[0]} ${formatValue(kpi.currentFY)}`;
-                        }
-                        if (compareType === 'quarter' && comparisonValues[0]) {
-                          return `${comparisonValues[0]} ${formatValue(kpi.currentFY)}`;
-                        }
-                        return `${getMonthRangeForFY(comparisonValues[0] || 'FY 2025')} ${formatValue(kpi.currentFY)}`;
-                      })()}
+                    {/* Two-column layout: FY 2025 (Apr - Nov) | FY 2024 Value */}
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 140 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#666', marginBottom: 4 }}>FY 2025 (Apr - Nov)</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 6 }}>
+                          {(() => {
+                            if (compareType === 'month' && comparisonValues[0]) return comparisonValues[0];
+                            if (compareType === 'quarter' && comparisonValues[0]) return comparisonValues[0];
+                            return getMonthRangeForFY(comparisonValues[0] || 'FY 2025');
+                          })()}
+                        </div>
+                        {kpi.monthsRemaining > 0 && (
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                            Actual ({formatValue(kpi.currentFYActual)}) + Predicted ({formatValue(kpi.projectedAmount)}) =
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 100 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#666', marginBottom: 4 }}>FY 2024 Value</div>
+                        {kpi.monthsRemaining > 0 && (
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 6 }}>
+                            {formatValue(kpi.previousFY)}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Actual + Predicted = KPI (one row) */}
-                    {kpi.monthsRemaining > 0 && (
-                      <div style={{ 
-                        fontSize: 12, 
-                        fontWeight: 600,
-                        color: '#333333',
-                        marginBottom: 10,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        Actual ({formatValue(kpi.currentFYActual)}) + Predicted ({formatValue(kpi.projectedAmount)}) = {kpiName} ({formatValue(kpi.currentFY)})
-                      </div>
-                    )}
-
-                    {/* Metric rows: Revenue =, Routing =, CTS =, total (no growth block here) */}
+                    {/* Metric rows: Revenue =, Routing =, CTS =, total — two columns */}
                     <div style={{ marginBottom: 8 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         {kpiName === 'Revenue' && (
                           <>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
-                              Revenue = {formatValue(kpi.currentFY)}
-                            </div>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
-                              Routing = {formatValue(calculateRoutingBilling())}
-                            </div>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
-                              CTS = {formatValue(calculateCTSValue())}
-                            </div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
-                              Revenue + Routing + CTS = {formatValue(kpi.currentFY + calculateRoutingBilling() + calculateCTSValue())}
+                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                              <div style={{ flex: 1, minWidth: 140 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  Revenue = {formatValue(kpi.currentFY)}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  Routing = {formatValue(calculateRoutingBilling())}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  CTS = {formatValue(calculateCTSValue())}
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                  Revenue + Routing + CTS = {formatValue(kpi.currentFY + calculateRoutingBilling() + calculateCTSValue())}
+                                </div>
+                              </div>
+                              <div style={{ flex: 1, minWidth: 100 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  Revenue = {formatValue(kpi.previousFY)}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>Routing = -</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>CTS = -</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                  Revenue + Routing + CTS = -
+                                </div>
+                              </div>
                             </div>
                           </>
                         )}
@@ -7152,25 +7205,44 @@ const TeamReportCompare: React.FC = () => {
                           const ctsMargin = calculateCTSMargin();
                           const total = kpi.currentFY + routingMargin + ctsMargin;
                           return (
-                            <>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
-                                GPM = {formatValue(kpi.currentFY)}
+                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                              <div style={{ flex: 1, minWidth: 140 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  GPM = {formatValue(kpi.currentFY)}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  Routing = {formatValue(routingMargin)}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  CTS = {formatValue(ctsMargin)}
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                  GPM + Routing + CTS = {formatValue(total)}
+                                </div>
                               </div>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
-                                Routing = {formatValue(routingMargin)}
+                              <div style={{ flex: 1, minWidth: 100 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  GPM = {formatValue(kpi.previousFY)}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>Routing = -</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>CTS = -</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>GPM + Routing + CTS = -</div>
                               </div>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
-                                CTS = {formatValue(ctsMargin)}
-                              </div>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
-                                GPM + Routing + CTS = {formatValue(total)}
-                              </div>
-                            </>
+                            </div>
                           );
                         })()}
                         {kpiName === 'Team Cost' && (
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
-                            Team Cost = {formatValue(kpi.currentFY)}
+                          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                            <div style={{ flex: 1, minWidth: 140 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                Team Cost = {formatValue(kpi.currentFY)}
+                              </div>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 100 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                Team Cost = {formatValue(kpi.previousFY)}
+                              </div>
+                            </div>
                           </div>
                         )}
                         {kpiName === 'NP' && (() => {
@@ -7178,20 +7250,30 @@ const TeamReportCompare: React.FC = () => {
                           const ctsMargin = calculateCTSMargin();
                           const total = kpi.currentFY + routingNetMargin + ctsMargin;
                           return (
-                            <>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
-                                NP = {formatValue(kpi.currentFY)}
+                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                              <div style={{ flex: 1, minWidth: 140 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  NP = {formatValue(kpi.currentFY)}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  Routing = {formatValue(routingNetMargin)}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  CTS = {formatValue(ctsMargin)}
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                  NP + Routing + CTS = {formatValue(total)}
+                                </div>
                               </div>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
-                                Routing = {formatValue(routingNetMargin)}
+                              <div style={{ flex: 1, minWidth: 100 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                  NP = {formatValue(kpi.previousFY)}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>Routing = -</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>CTS = -</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>NP + Routing + CTS = -</div>
                               </div>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
-                                CTS = {formatValue(ctsMargin)}
-                              </div>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
-                                NP + Routing + CTS = {formatValue(total)}
-                              </div>
-                            </>
+                            </div>
                           );
                         })()}
                       </div>
@@ -7595,41 +7677,27 @@ const TeamReportCompare: React.FC = () => {
         <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Parameter</th>
 
         {comparisonValues.filter(Boolean).map((period, i) => {
-          // Check if this is the default year comparison (current year vs previous year)
-          const isDefaultYearComparison = compareType === 'year' && 
-            comparisonValues.filter(Boolean).length === 2 &&
-            i === 0; // Only show for first period (current year)
-          
+          const isDefaultYearComparison = compareType === 'year' && comparisonValues.filter(Boolean).length === 2 && i === 0;
           const isCurrentFY = period?.includes('2025') || (compareType === 'year' && i === 0);
-          
+          const periodLabel = isCurrentFY ? getMonthRangeForFY(period || '') : period || '';
           return (
             <React.Fragment key={i}>
-              <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-                {isCurrentFY ? getMonthRangeForFY(period || '') : period || ''}
-              </th>
-              {/* Add Predicted and Sum columns only for default year comparison (current year vs previous year) */}
+              <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>{periodLabel}</th>
+              <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>GPM %</th>
+              <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>NP %</th>
               {isDefaultYearComparison && isCurrentFY && (
                 <>
-                  <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-                    Predicted
-                  </th>
-                  <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-                    Sum (Actual + Predicted)
-                  </th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Predicted</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Sum (Actual + Predicted)</th>
                 </>
               )}
             </React.Fragment>
           );
         })}
 
-        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>GPM %</th>
-
-        <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>NP %</th>
-
         <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Absolute Change</th>
 
         <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>Growth %</th>
-
 
       </tr>
 
@@ -7709,83 +7777,36 @@ const TeamReportCompare: React.FC = () => {
             <td style={{ padding: '6px 8px', fontWeight: 500, color: '#000000', fontSize: '10px' }}>{item.parameter}</td>
 
             {item.periodValues.filter(pv => pv.period).map((pv, i) => {
-              // Check if this is the default year comparison (current year vs previous year)
-              const isDefaultYearComparison = compareType === 'year' && 
-                comparisonValues.filter(Boolean).length === 2 &&
-                i === 0; // Only show for first period (current year)
-              
+              const isDefaultYearComparison = compareType === 'year' && comparisonValues.filter(Boolean).length === 2 && i === 0;
               const isCurrentFY = pv.period?.includes('2025') || (compareType === 'year' && i === 0);
-              
+              const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
+              const revenue = revenueItem?.periodValues[i]?.amount ?? 0;
+              const gpmPct = item.parameter === 'GPM' && revenue != null && Number(revenue) > 0
+                ? ((Number(pv.amount) / Number(revenue)) * 100).toFixed(2) + '%'
+                : '-';
+              const npPct = item.parameter === 'Net Margin' && revenue != null && Number(revenue) > 0
+                ? ((Number(pv.amount) / Number(revenue)) * 100).toFixed(2) + '%'
+                : '-';
               return (
                 <React.Fragment key={i}>
                   <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
-                    <div>
-                      {formatValueForTable(pv.amount, item.parameter)}
-                    </div>
-                    {item.parameter === 'GPM' && (
-                      <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
-                        {(() => {
-                          const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
-                          const revenue = revenueItem?.periodValues[i]?.amount || 0;
-                          const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
-                          return `GPM %: ${percentage}%`;
-                        })()}
-                      </div>
-                    )}
-                    {item.parameter === 'Net Margin' && (
-                      <div style={{ fontSize: '9px', color: '#666666', marginTop: '2px' }}>
-                        {(() => {
-                          const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
-                          const revenue = revenueItem?.periodValues[i]?.amount || 0;
-                          const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
-                          return `Net Margin %: ${percentage}%`;
-                        })()}
-                      </div>
-                    )}
+                    {formatValueForTable(pv.amount, item.parameter)}
                   </td>
-                  {/* Add Predicted and Sum columns only for default year comparison (current year vs previous year) */}
+                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>{gpmPct}</td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>{npPct}</td>
                   {isDefaultYearComparison && isCurrentFY && (
                     <>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
-                        <div>
-                          {formatValueForTable(item.predictedAmount || 0, item.parameter)}
-                        </div>
+                        {formatValueForTable(item.predictedAmount || 0, item.parameter)}
                       </td>
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
-                        <div>
-                          {formatValueForTable(item.sumAmount || pv.amount, item.parameter)}
-                        </div>
+                        {formatValueForTable(item.sumAmount || pv.amount, item.parameter)}
                       </td>
                     </>
                   )}
                 </React.Fragment>
               );
             })}
-
-            {/* GPM % column: only GPM row shows GPM percentage (FY25 / FY24) */}
-            <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
-              {item.parameter === 'GPM' ? (() => {
-                const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
-                const periods = item.periodValues.filter(pv => pv.period);
-                return periods.map((pv, i) => {
-                  const revenue = revenueItem?.periodValues[i]?.amount ?? 0;
-                  const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
-                  return <div key={i} style={i === 0 ? {} : { fontSize: '9px', color: '#666666', marginTop: '2px' }}>{percentage}%</div>;
-                });
-              })() : '—'}
-            </td>
-            {/* NP % column: only Net Margin row shows Net Margin percentage (FY25 / FY24) */}
-            <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
-              {item.parameter === 'Net Margin' ? (() => {
-                const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
-                const periods = item.periodValues.filter(pv => pv.period);
-                return periods.map((pv, i) => {
-                  const revenue = revenueItem?.periodValues[i]?.amount ?? 0;
-                  const percentage = revenue > 0 ? ((pv.amount / revenue) * 100).toFixed(2) : '0.00';
-                  return <div key={i} style={i === 0 ? {} : { fontSize: '9px', color: '#666666', marginTop: '2px' }}>{percentage}%</div>;
-                });
-              })() : '—'}
-            </td>
 
             <td style={{ 
 
@@ -7860,6 +7881,13 @@ const TeamReportCompare: React.FC = () => {
                       {allClientDataParameters.map(param => (<Select.Option key={param.key} value={param.key}>{param.label}</Select.Option>))}
                     </Select>
                   </div>
+                  <div style={{ minWidth: '180px' }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Client:</label>
+                    <select value={clientDataSelectedClient} onChange={(e) => setClientDataSelectedClient(e.target.value)} style={{ width: '100%', padding: '4px', fontSize: '12px' }}>
+                      <option value="">All clients</option>
+                      {clientDataClients.map(c => (<option key={c} value={c}>{c}</option>))}
+                    </select>
+                  </div>
                   <div style={{ minWidth: '150px' }}>
                     <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Period Type:</label>
                     <select value={clientDataPeriodFilter} onChange={(e) => { setClientDataPeriodFilter(e.target.value); if (e.target.value === 'year') { setClientDataPeriodValue(String(getCurrentFinancialYear())); } else { setClientDataPeriodValue(''); } setClientDataSelectedMonths([]); }} style={{ width: '100%', padding: '4px', fontSize: '12px' }}>
@@ -7926,12 +7954,13 @@ const TeamReportCompare: React.FC = () => {
                               const monthKey = getClientDataMonthKey(fullMonthName, year);
                               return clientDataParameters.map(param => {
                                 const cellKey = `${param.key}_${monthKey}`;
-                                const value = row[cellKey] || 0;
+                                const value = row[cellKey];
                                 const formatValue = (val: any, key: string) => {
-                                  const numValue = typeof val === 'number' && !isNaN(val) ? val : 0;
-                                  if (key.includes('percentage') || key.includes('_percentage')) return `${numValue.toFixed(2)}%`;
-                                  if (key === 'hc') return numValue.toFixed(0);
-                                  return numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                  if (val == null || (typeof val === 'number' && isNaN(val))) return '-';
+                                  if (typeof val !== 'number') return '-';
+                                  if (key.includes('percentage') || key.includes('_percentage')) return `${val.toFixed(2)}%`;
+                                  if (key === 'hc') return val.toFixed(0);
+                                  return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                 };
                                 return (<td key={`${monthDisplay}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'right', borderLeft: '1px solid #d9d9d9' }}>{formatValue(value, param.key)}</td>);
                               });
@@ -7949,14 +7978,22 @@ const TeamReportCompare: React.FC = () => {
                             return clientDataParameters.map(param => {
                               const cellKey = `${param.key}_${monthKey}`;
                               let totalValue = 0;
-                              clientDataTableData.forEach(r => { const v = r[cellKey] || 0; totalValue += (typeof v === 'number' && !isNaN(v) ? v : 0); });
+                              let hasAnyValue = false;
+                              clientDataTableData.forEach(r => {
+                                const v = r[cellKey];
+                                if (v != null && typeof v === 'number' && !isNaN(v)) {
+                                  totalValue += v;
+                                  hasAnyValue = true;
+                                }
+                              });
                               const formatValue = (val: any, key: string) => {
-                                const numValue = typeof val === 'number' && !isNaN(val) ? val : 0;
-                                if (key.includes('percentage') || key.includes('_percentage')) return `${numValue.toFixed(2)}%`;
-                                if (key === 'hc') return numValue.toFixed(0);
-                                return numValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                if (val == null || !hasAnyValue || (typeof val === 'number' && isNaN(val))) return '-';
+                                if (typeof val !== 'number') return '-';
+                                if (key.includes('percentage') || key.includes('_percentage')) return `${val.toFixed(2)}%`;
+                                if (key === 'hc') return val.toFixed(0);
+                                return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                               };
-                              return (<td key={`total_${monthDisplay}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'right', borderLeft: '1px solid #d9d9d9' }}>{formatValue(totalValue, param.key)}</td>);
+                              return (<td key={`total_${monthDisplay}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'right', borderLeft: '1px solid #d9d9d9' }}>{formatValue(hasAnyValue ? totalValue : null, param.key)}</td>);
                             });
                           })}
                         </tr>
@@ -9069,118 +9106,6 @@ const TeamReportCompare: React.FC = () => {
             </tbody>
 
           </table>
-
-        </div>
-
-
-
-        {/* Period-to-Period Changes */}
-
-        <div style={{ 
-          backgroundColor: '#000000', 
-          color: '#ffffff', 
-          padding: '6px 12px', 
-          borderRadius: 4, 
-          fontSize: 12, 
-          fontWeight: 700,
-          display: 'inline-block',
-          marginBottom: 8,
-          borderBottom: '3px solid #ff8c00'
-        }}>
-          Period-to-Period Changes
-        </div>
-
-        <div style={{ 
-
-          display: 'grid',
-
-          gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-
-          gap: 16
-
-        }}>
-
-          {metrics.slice(1).map((metric, i) => {
-
-            const prevMetric = metrics[i];
-
-            return (
-
-              <div key={i} style={{
-
-                backgroundColor: '#ffffff',
-
-                borderRadius: 6,
-
-                padding: 16,
-
-                border: '1px solid #d9d9d9'
-
-              }}>
-
-                <h4 style={{ marginTop: 0, borderBottom: '1px solid #d9d9d9', paddingBottom: 8, color: '#000000', fontSize: 12 }}>
-
-                  {prevMetric.period} → {metric.period}
-
-                </h4>
-
-                <div style={{ display: 'grid', gap: 12 }}>
-
-                  {metricDefinitions.map((def, j) => {
-
-                    const current = def.calculate(metric);
-
-                    const previous = def.calculate(prevMetric);
-
-                    const change = current - previous;
-
-                    const pctChange = previous !== 0 ? (change / Math.abs(previous)) * 100 : 0;
-
-                    const isPositive = def.ideal === 'increase' ? change >= 0 : change <= 0;
-
-                    
-                    
-                    return (
-
-                      <div key={j} style={{ display: 'flex', justifyContent: 'space-between' }}>
-
-                        <span style={{ color: '#000000', fontSize: 10 }}>{def.name}:</span>
-
-                        <span style={{ 
-
-                          fontWeight: 600,
-
-                          color: isPositive ? '#4ade80' : '#f87171',
-
-                          fontSize: 10
-
-                        }}>
-
-                          {isPositive ? '+' : ''}
-
-                          {def.name === "Revenue per HC" 
-
-                            ? `${change.toFixed(2)}`
-
-                            : `${change.toFixed(2)}${def.unit}`
-
-                          } ({pctChange.toFixed(2)}%)
-
-                        </span>
-
-                      </div>
-
-                    );
-
-                  })}
-
-                </div>
-
-              </div>
-
-            );
-
-                    })}
 
         </div>
 
