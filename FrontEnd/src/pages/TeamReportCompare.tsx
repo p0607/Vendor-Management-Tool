@@ -1315,7 +1315,7 @@ const TeamReportCompare: React.FC = () => {
   const [clientDataPeriodValue, setClientDataPeriodValue] = useState<string>(String(getCurrentFinancialYear()));
   const [clientDataSelectedMonths, setClientDataSelectedMonths] = useState<string[]>([]);
   const [clientDataSelectedParameters, setClientDataSelectedParameters] = useState<string[]>([]);
-  const [clientDataSelectedClient, setClientDataSelectedClient] = useState<string>(''); // '' = All clients
+  const [clientDataSelectedClients, setClientDataSelectedClients] = useState<string[]>([]); // [] = All clients
 
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
@@ -2445,7 +2445,7 @@ const TeamReportCompare: React.FC = () => {
       setClientDataPeriodFilter('year');
       setClientDataPeriodValue(String(getCurrentFinancialYear()));
       setClientDataSelectedMonths([]);
-      setClientDataSelectedClient('');
+      setClientDataSelectedClients([]);
     }
   }, [getSelectedBUForClientData]);
 
@@ -2532,13 +2532,11 @@ const TeamReportCompare: React.FC = () => {
     return Array.from(clientSet).sort();
   }, [filteredClientMFSData]);
 
-  // Clients to show in table: selected one or all
+  // Clients to show in table: selected ones or all
   const clientDataClientsToShow = useMemo(() => {
-    if (clientDataSelectedClient && clientDataClients.includes(clientDataSelectedClient)) {
-      return [clientDataSelectedClient];
-    }
-    return clientDataClients;
-  }, [clientDataSelectedClient, clientDataClients]);
+    if (!clientDataSelectedClients.length) return clientDataClients;
+    return clientDataSelectedClients.filter(c => clientDataClients.includes(c));
+  }, [clientDataSelectedClients, clientDataClients]);
 
   // Get unique months from filtered data
   const clientDataMonths = useMemo(() => {
@@ -5395,15 +5393,13 @@ const TeamReportCompare: React.FC = () => {
       }
       
       // Prepare data: group by business unit OR client (if conditions met)
-      // Check if we should show clients instead of business units
-      // Show clients for: BU heads (always) OR admin with single BU selected
+      // When a single BU is selected, show that BU's client-wise data (from /team-report), not BU-level aggregate
       const isSingleBU = Array.isArray(selectedBusinessUnitsForChart) 
         ? selectedBusinessUnitsForChart.length === 1
-        : selectedBusinessUnitsForChart !== null;
+        : selectedBusinessUnitsForChart !== null && selectedBusinessUnitsForChart !== undefined;
       
-      const shouldShowClients = selectedBusinessUnitsForChart && 
-                                 clientMFSData.length > 0 &&
-                                 (isBUHead || isSingleBU);
+      // Prefer client view when single BU is selected (use clientMFSData from /team-report); fall back to BU view only when multiple BUs
+      const shouldShowClients = selectedBusinessUnitsForChart && (isBUHead || isSingleBU);
 
       if (!selectedBusinessUnitsForChart) {
         return;
@@ -5412,11 +5408,10 @@ const TeamReportCompare: React.FC = () => {
       const chartData: any[] = [];
       
       if (shouldShowClients) {
-        // Show clients for the selected business unit
-        // For BU heads, use their business unit; for admin, use selected BU
+        // Show clients for the selected business unit (data from /team-report has client_name/project_name)
         const selectedBU = isBUHead && user?.business_unit
           ? (normalizeBusinessUnitName(user.business_unit) || user.business_unit)
-          : (selectedBusinessUnitsForChart as string);
+          : (Array.isArray(selectedBusinessUnitsForChart) ? selectedBusinessUnitsForChart[0] : selectedBusinessUnitsForChart);
         const selectedParameter = selectedParametersForChart[0]; // Use first selected parameter
         
         // Map parameter names to database field names
@@ -5505,8 +5500,14 @@ const TeamReportCompare: React.FC = () => {
 
         console.log(`🔍 Client data map size: ${clientDataMap.size}, Clients:`, Array.from(clientDataMap.keys()));
 
+        // When specific clients are selected (Client Data filter), show only those clients; otherwise show all clients in BU
+        const clientsToChart = clientDataSelectedClients.length > 0
+          ? Array.from(clientDataMap.keys()).filter(client => clientDataSelectedClients.includes(client))
+          : Array.from(clientDataMap.keys());
+
         // Convert to chart data format
-        Array.from(clientDataMap.entries()).forEach(([client, value]) => {
+        clientsToChart.forEach((client) => {
+          const value = clientDataMap.get(client) ?? 0;
           const dataPoint: any = { businessUnit: client }; // Using businessUnit field for consistency
           dataPoint[`${periods[0] || 'Total'}_${selectedParameter}`] = value;
           dataPoint._totalValue = Math.abs(value);
@@ -5931,7 +5932,7 @@ const TeamReportCompare: React.FC = () => {
 
     };
 
-  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue, chartSortOrder, isCroreMode, clientMFSData]);
+  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue, chartSortOrder, isCroreMode, clientMFSData, clientDataSelectedClients]);
 
   // Render Waterfall Chart
   useEffect(() => {
@@ -7140,16 +7141,20 @@ const TeamReportCompare: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Two-column layout: FY 2025 (Apr - Nov) | FY 2024 Value */}
+                    {/* Two-column layout: current period | previous period (labels from comparison filter) */}
+                    {(() => {
+                      const currentPeriodLabel = (() => {
+                        if (compareType === 'month' && comparisonValues[0]) return comparisonValues[0];
+                        if (compareType === 'quarter' && comparisonValues[0]) return comparisonValues[0];
+                        return getMonthRangeForFY(comparisonValues[0] || 'FY 2025');
+                      })();
+                      const previousPeriodLabel = comparisonValues[1] || 'Previous Period';
+                      return (
                     <div style={{ display: 'flex', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
                       <div style={{ flex: 1, minWidth: 140 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#666', marginBottom: 4 }}>FY 2025 (Apr - Nov)</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#666', marginBottom: 4 }}>{currentPeriodLabel}</div>
                         <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 6 }}>
-                          {(() => {
-                            if (compareType === 'month' && comparisonValues[0]) return comparisonValues[0];
-                            if (compareType === 'quarter' && comparisonValues[0]) return comparisonValues[0];
-                            return getMonthRangeForFY(comparisonValues[0] || 'FY 2025');
-                          })()}
+                          {currentPeriodLabel}
                         </div>
                         {kpi.monthsRemaining > 0 && (
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
@@ -7158,7 +7163,7 @@ const TeamReportCompare: React.FC = () => {
                         )}
                       </div>
                       <div style={{ flex: 1, minWidth: 100 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#666', marginBottom: 4 }}>FY 2024 Value</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#666', marginBottom: 4 }}>{previousPeriodLabel}</div>
                         {kpi.monthsRemaining > 0 && (
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 6 }}>
                             {formatValue(kpi.previousFY)}
@@ -7166,6 +7171,8 @@ const TeamReportCompare: React.FC = () => {
                         )}
                       </div>
                     </div>
+                      );
+                    })()}
 
                     {/* Metric rows: Revenue =, Routing =, CTS =, total — two columns */}
                     <div style={{ marginBottom: 8 }}>
@@ -7194,7 +7201,7 @@ const TeamReportCompare: React.FC = () => {
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>Routing = -</div>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>CTS = -</div>
                                 <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
-                                  Revenue + Routing + CTS = -
+                                  Revenue + Routing + CTS = {formatValue(kpi.previousFY)}
                                 </div>
                               </div>
                             </div>
@@ -7226,7 +7233,7 @@ const TeamReportCompare: React.FC = () => {
                                 </div>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>Routing = -</div>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>CTS = -</div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>GPM + Routing + CTS = -</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>GPM + Routing + CTS = {formatValue(kpi.previousFY)}</div>
                               </div>
                             </div>
                           );
@@ -7271,7 +7278,7 @@ const TeamReportCompare: React.FC = () => {
                                 </div>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>Routing = -</div>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>CTS = -</div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>NP + Routing + CTS = -</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>NP + Routing + CTS = {formatValue(kpi.previousFY)}</div>
                               </div>
                             </div>
                           );
@@ -7779,6 +7786,7 @@ const TeamReportCompare: React.FC = () => {
             {item.periodValues.filter(pv => pv.period).map((pv, i) => {
               const isDefaultYearComparison = compareType === 'year' && comparisonValues.filter(Boolean).length === 2 && i === 0;
               const isCurrentFY = pv.period?.includes('2025') || (compareType === 'year' && i === 0);
+              const isLastPeriod = i === validPeriods.length - 1; // FY 2024 (or last comparison period) - value used for comparison
               const revenueItem = growthAnalysis.find(g => g.parameter === 'Revenue');
               const revenue = revenueItem?.periodValues[i]?.amount ?? 0;
               const gpmPct = item.parameter === 'GPM' && revenue != null && Number(revenue) > 0
@@ -7789,7 +7797,7 @@ const TeamReportCompare: React.FC = () => {
                 : '-';
               return (
                 <React.Fragment key={i}>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px', fontWeight: isLastPeriod ? 'bold' : undefined }}>
                     {formatValueForTable(pv.amount, item.parameter)}
                   </td>
                   <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>{gpmPct}</td>
@@ -7799,7 +7807,7 @@ const TeamReportCompare: React.FC = () => {
                       <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
                         {formatValueForTable(item.predictedAmount || 0, item.parameter)}
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#000000', fontSize: '10px', fontWeight: 'bold' }}>
                         {formatValueForTable(item.sumAmount || pv.amount, item.parameter)}
                       </td>
                     </>
@@ -7881,12 +7889,18 @@ const TeamReportCompare: React.FC = () => {
                       {allClientDataParameters.map(param => (<Select.Option key={param.key} value={param.key}>{param.label}</Select.Option>))}
                     </Select>
                   </div>
-                  <div style={{ minWidth: '180px' }}>
+                  <div style={{ minWidth: '200px' }}>
                     <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Client:</label>
-                    <select value={clientDataSelectedClient} onChange={(e) => setClientDataSelectedClient(e.target.value)} style={{ width: '100%', padding: '4px', fontSize: '12px' }}>
-                      <option value="">All clients</option>
-                      {clientDataClients.map(c => (<option key={c} value={c}>{c}</option>))}
-                    </select>
+                    <Select
+                      mode="multiple"
+                      value={clientDataSelectedClients}
+                      onChange={(values: string[]) => setClientDataSelectedClients(values)}
+                      placeholder="All clients"
+                      style={{ width: '100%' }}
+                      allowClear
+                    >
+                      {clientDataClients.map(c => (<Select.Option key={c} value={c}>{c}</Select.Option>))}
+                    </Select>
                   </div>
                   <div style={{ minWidth: '150px' }}>
                     <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Period Type:</label>
@@ -7958,6 +7972,7 @@ const TeamReportCompare: React.FC = () => {
                                 const formatValue = (val: any, key: string) => {
                                   if (val == null || (typeof val === 'number' && isNaN(val))) return '-';
                                   if (typeof val !== 'number') return '-';
+                                  if (val === 0) return '-';
                                   if (key.includes('percentage') || key.includes('_percentage')) return `${val.toFixed(2)}%`;
                                   if (key === 'hc') return val.toFixed(0);
                                   return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -7989,6 +8004,7 @@ const TeamReportCompare: React.FC = () => {
                               const formatValue = (val: any, key: string) => {
                                 if (val == null || !hasAnyValue || (typeof val === 'number' && isNaN(val))) return '-';
                                 if (typeof val !== 'number') return '-';
+                                if (val === 0) return '-';
                                 if (key.includes('percentage') || key.includes('_percentage')) return `${val.toFixed(2)}%`;
                                 if (key === 'hc') return val.toFixed(0);
                                 return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
