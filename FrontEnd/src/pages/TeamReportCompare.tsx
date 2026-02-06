@@ -3785,7 +3785,7 @@ const TeamReportCompare: React.FC = () => {
     
     return data.filter(item => {
       // Business unit filter
-      if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+      if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
         return false;
       }
       
@@ -4034,7 +4034,7 @@ const TeamReportCompare: React.FC = () => {
 
           .filter(item => {
 
-            if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+            if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
 
               return false;
 
@@ -4159,7 +4159,7 @@ const TeamReportCompare: React.FC = () => {
 
       // Business unit filter
 
-      if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) {
+      if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
 
         return false;
 
@@ -4505,7 +4505,7 @@ const TeamReportCompare: React.FC = () => {
             if (param === 'HC') {
               const allPeriodData = combinedPeriod.periods.flatMap(period => 
                 data.filter(item => {
-                  if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+                  if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
                   // Client name/project name filter disabled for team_summary_report (fields don't exist)
                   // if (selectedClientName) {
                   //   if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
@@ -4606,7 +4606,7 @@ const TeamReportCompare: React.FC = () => {
 
                 .filter(item => {
 
-                  if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+                  if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
 
                   // Filter by client name/project name if selected
 
@@ -4719,7 +4719,7 @@ const TeamReportCompare: React.FC = () => {
 
           const filteredData = data.filter(item => {
 
-              if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+              if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
 
               // Filter by client name/project name if selected
 
@@ -4859,7 +4859,7 @@ const TeamReportCompare: React.FC = () => {
             // Fallback: calculate projection manually if KPI data not available
             const currentFY = getCurrentFinancialYear();
             const currentFYData = data.filter(item => {
-              if (selectedBusinessUnit && item.business_unit !== selectedBusinessUnit) return false;
+              if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
               const date = parseDate(item.month, item.year);
               if (isNaN(date.getTime())) return false;
               const itemYear = date.getFullYear();
