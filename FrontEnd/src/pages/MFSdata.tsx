@@ -581,15 +581,18 @@ const MFSdata: React.FC = () => {
     return Array.from(names).sort();
   }, [filteredClientMFSData]);
 
+  // When MS is selected in Business Unit, client table shows both Client and Project columns (same as Client MFS data page)
+  const isClientMSSelected = Boolean(selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS'));
+
   const clientProjectNames = useMemo(() => {
-    if (!selectedBusinessUnit || !compareBusinessUnits(selectedBusinessUnit, 'MS')) return [];
+    if (!isClientMSSelected) return [];
     const names = new Set<string>();
     filteredClientMFSData.forEach(item => {
       if (clientSelectedClient && String(item.client_name || '').trim() !== clientSelectedClient) return;
       if (item.project_name && String(item.project_name).trim()) names.add(String(item.project_name).trim());
     });
     return Array.from(names).sort();
-  }, [filteredClientMFSData, selectedBusinessUnit, clientSelectedClient]);
+  }, [filteredClientMFSData, isClientMSSelected, clientSelectedClient]);
 
   // Month keys for client table (from filtered client data, same logic as ClientMFSdata)
   const clientTableMonths = useMemo(() => {
@@ -603,10 +606,9 @@ const MFSdata: React.FC = () => {
     return Array.from(monthSet).sort();
   }, [filteredClientMFSData]);
 
-  // Unique clients; for MS, unique (client_name, project_name) pairs
+  // Unique clients; for MS, unique (client_name, project_name) pairs (same as Client MFS data page)
   const clientTableRowKeys = useMemo(() => {
-    const isMS = selectedBusinessUnit ? compareBusinessUnits(selectedBusinessUnit, 'MS') : false;
-    if (!isMS) {
+    if (!isClientMSSelected) {
       const seen = new Set<string>();
       filteredClientMFSData.forEach(item => {
         const name = (item.client_name as string) || '';
@@ -614,6 +616,7 @@ const MFSdata: React.FC = () => {
       });
       return Array.from(seen).sort().map(c => ({ client: c, project: undefined as string | undefined }));
     }
+    // MS: one row per (client_name, project_name)
     const seen = new Set<string>();
     const pairs: { client: string; project: string }[] = [];
     filteredClientMFSData.forEach(item => {
@@ -627,19 +630,18 @@ const MFSdata: React.FC = () => {
     });
     pairs.sort((a, b) => a.client.localeCompare(b.client) || a.project.localeCompare(b.project));
     return pairs;
-  }, [filteredClientMFSData, selectedBusinessUnit]);
+  }, [filteredClientMFSData, isClientMSSelected]);
 
   // Build client table data: same structure as Client MFS Team Report Data (rows = clients, cells = param_monthKey)
   const clientTableData = useMemo(() => {
     if (clientTableRowKeys.length === 0 || clientTableMonths.length === 0) return [];
-    const isMS = selectedBusinessUnit ? compareBusinessUnits(selectedBusinessUnit, 'MS') : false;
     const rows: Array<{ client: string; project?: string; [key: string]: any }> = [];
 
     clientTableRowKeys.forEach(({ client: rowClient, project: rowProject }) => {
       const row: { client: string; project?: string; [key: string]: any } = { client: rowClient };
-      if (isMS) row.project = rowProject;
+      if (isClientMSSelected) row.project = rowProject;
 
-      const clientData = isMS
+      const clientData = isClientMSSelected
         ? filteredClientMFSData.filter(item =>
             String(item.client_name || '').trim() === rowClient &&
             String(item.project_name || '').trim() === rowProject)
@@ -670,7 +672,7 @@ const MFSdata: React.FC = () => {
     });
 
     return rows;
-  }, [filteredClientMFSData, clientTableRowKeys, clientTableMonths, selectedBusinessUnit]);
+  }, [filteredClientMFSData, clientTableRowKeys, clientTableMonths, isClientMSSelected]);
 
   // Client table: which parameters to show (default all)
   const clientTableParametersFiltered = useMemo(() => {
@@ -682,11 +684,11 @@ const MFSdata: React.FC = () => {
   const clientTableDataFiltered = useMemo(() => {
     if (!clientSelectedClient) return clientTableData;
     let rows = clientTableData.filter(r => r.client === clientSelectedClient);
-    if (selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && clientSelectedProject) {
+    if (isClientMSSelected && clientSelectedProject) {
       rows = rows.filter(r => r.project === clientSelectedProject);
     }
     return rows;
-  }, [clientTableData, clientSelectedClient, clientSelectedProject, selectedBusinessUnit]);
+  }, [clientTableData, clientSelectedClient, clientSelectedProject, isClientMSSelected]);
 
   // Format value for client table (same as Client MFS page: 0 shows as "0", N/A for null/NaN)
   const formatClientTableValue = (value: number, parameter: string): string => {
@@ -984,7 +986,7 @@ const MFSdata: React.FC = () => {
       if (syncTimeout) clearTimeout(syncTimeout);
       isSyncing = false;
     };
-  }, [editingCell, editMode, clientTableDataFiltered, clientTableParametersFiltered, selectedBusinessUnit]);
+  }, [editingCell, editMode, clientTableDataFiltered, clientTableParametersFiltered, isClientMSSelected]);
 
   // Handle edit click (summary table or client table)
   const handleEditClick = (
@@ -1035,7 +1037,7 @@ const MFSdata: React.FC = () => {
         if (editingCell.clientName) {
           records = records.filter((item: TeamReportItem) => item.client_name === editingCell.clientName);
         }
-        if (selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && editingCell.projectName) {
+        if (isClientMSSelected && editingCell.projectName) {
           records = records.filter((item: TeamReportItem) => item.project_name === editingCell.projectName);
         }
         if (records.length === 0) {
@@ -1429,7 +1431,7 @@ const MFSdata: React.FC = () => {
                   ))}
                 </select>
               </div>
-              {selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && (
+              {isClientMSSelected && (
                 <div className="filter-group">
                   <label htmlFor="client-project-filter">Project:</label>
                   <select
@@ -1536,20 +1538,20 @@ const MFSdata: React.FC = () => {
             ) : clientTableDataFiltered.length === 0 ? (
               <div className="empty">No client-wise data for the selected filters.</div>
             ) : (
-              <div className={`split-table-container client-mfs-split ${selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') ? 'ms-selected' : ''}`}>
-                <div className="fixed-column-table">
+              <div className={`split-table-container client-mfs-split ${isClientMSSelected ? 'ms-selected' : ''}`}>
+                <div className={`fixed-column-table ${isClientMSSelected ? 'ms-selected' : ''}`}>
                   <table className="pivot-table fixed-table client-mfs-fixed-table">
                     <thead>
                       <tr>
                         <th className="parameter-header" rowSpan={clientTableParametersFiltered.length > 1 ? 2 : 1}>Client</th>
-                        {selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && (
+                        {isClientMSSelected && (
                           <th className="parameter-header" rowSpan={clientTableParametersFiltered.length > 1 ? 2 : 1}>Project</th>
                         )}
                       </tr>
                       {clientTableParametersFiltered.length > 1 ? (
                         <tr>
                           <th></th>
-                          {selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && <th></th>}
+                          {isClientMSSelected && <th></th>}
                         </tr>
                       ) : null}
                     </thead>
@@ -1557,14 +1559,14 @@ const MFSdata: React.FC = () => {
                       {clientTableDataFiltered.map((row, rowIndex) => (
                         <tr key={`cf_${row.client}_${row.project || ''}_${rowIndex}`} data-client={row.client} data-project={row.project || ''}>
                           <td className="parameter-cell">{row.client}</td>
-                          {selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && (
+                          {isClientMSSelected && (
                             <td className="parameter-cell">{row.project || 'N/A'}</td>
                           )}
                         </tr>
                       ))}
                       <tr className="total-row">
                         <td className="parameter-cell total-label">Total</td>
-                        {selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && (
+                        {isClientMSSelected && (
                           <td className="parameter-cell total-label"></td>
                         )}
                       </tr>
@@ -1612,7 +1614,7 @@ const MFSdata: React.FC = () => {
                                 editingCell?.parameter === param.key &&
                                 editingCell?.monthKey === monthKey &&
                                 editingCell?.clientName === row.client &&
-                                (!(selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS')) || editingCell?.projectName === row.project);
+                                (!isClientMSSelected || editingCell?.projectName === row.project);
                               return (
                                 <td key={`${monthKey}_${param.key}`} className="data-cell">
                                   {isClientEditing ? (
