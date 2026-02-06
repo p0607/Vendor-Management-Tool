@@ -76,6 +76,8 @@ const MFSdata: React.FC = () => {
   const [clientSelectedClient, setClientSelectedClient] = useState<string>('');
   const [clientSelectedProject, setClientSelectedProject] = useState<string>('');
   const [clientSelectedParameters, setClientSelectedParameters] = useState<string[]>([]);
+  const [selectedSummaryMonthsToDelete, setSelectedSummaryMonthsToDelete] = useState<string[]>([]);
+  const [selectedClientMonthsToDelete, setSelectedClientMonthsToDelete] = useState<string[]>([]);
   const [user, setUser] = useState<any>({});
   const [isBUHead, setIsBUHead] = useState<boolean>(false);
 
@@ -690,9 +692,10 @@ const MFSdata: React.FC = () => {
     return rows;
   }, [clientTableData, clientSelectedClient, clientSelectedProject, isClientMSSelected]);
 
-  // Format value for client table (same as Client MFS page: 0 shows as "0", N/A for null/NaN)
+  // Format value for client table: show '-' for 0, N/A for null/NaN
   const formatClientTableValue = (value: number, parameter: string): string => {
     if (value === null || value === undefined || isNaN(value)) return 'N/A';
+    if (value === 0) return '-';
     if (parameter.includes('percentage') || parameter.includes('_percentage')) {
       return `${value.toFixed(2)}%`;
     }
@@ -1088,6 +1091,96 @@ const MFSdata: React.FC = () => {
     setEditedValue('');
   };
 
+  // Convert monthKey (e.g. "2025-04") to month name and year for matching records
+  const getMonthNameYearFromKey = (monthKey: string): { monthName: string; year: number } => {
+    const [yearStr, monthNumStr] = monthKey.split('-');
+    const year = parseInt(yearStr, 10);
+    const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthName = monthNames[parseInt(monthNumStr, 10)] || '';
+    return { monthName, year };
+  };
+
+  // Delete selected months from summary table (team-summary-report)
+  const handleDeleteSummaryMonths = async () => {
+    if (selectedSummaryMonthsToDelete.length === 0) {
+      setError('Select at least one month to delete.');
+      return;
+    }
+    try {
+      const toDelete: TeamReportItem[] = [];
+      selectedSummaryMonthsToDelete.forEach(monthKey => {
+        const { monthName, year } = getMonthNameYearFromKey(monthKey);
+        const records = filteredData.filter(
+          (item: TeamReportItem) => item.month === monthName && item.year === year
+        );
+        toDelete.push(...records);
+      });
+      if (toDelete.length === 0) {
+        setError('No records found for selected months.');
+        return;
+      }
+      await Promise.all(
+        toDelete.map((record: TeamReportItem) => apiClient.delete(`/team-summary-report/${record.id}`))
+      );
+      const response = await apiClient.get('/team-summary-report');
+      if (Array.isArray(response.data)) {
+        setTeamReportData(response.data as TeamReportItem[]);
+        setSelectedSummaryMonthsToDelete([]);
+        setError(null);
+      }
+    } catch (err: any) {
+      console.error('Delete summary months failed:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to delete');
+    }
+  };
+
+  // Delete selected months from client table (team-report)
+  const handleDeleteClientMonths = async () => {
+    if (selectedClientMonthsToDelete.length === 0) {
+      setError('Select at least one month to delete.');
+      return;
+    }
+    try {
+      const toDelete: TeamReportItem[] = [];
+      selectedClientMonthsToDelete.forEach(monthKey => {
+        const { monthName, year } = getMonthNameYearFromKey(monthKey);
+        filteredClientMFSData.forEach((item: TeamReportItem) => {
+          const my = getItemMonthYear(item);
+          if (my && my.monthName === monthName && my.year === year) toDelete.push(item);
+        });
+      });
+      if (toDelete.length === 0) {
+        setError('No records found for selected months.');
+        return;
+      }
+      await Promise.all(
+        toDelete.map((record: TeamReportItem) => apiClient.delete(`/team-report/${record.id}`))
+      );
+      const response = await apiClient.get('/team-report');
+      if (Array.isArray(response.data)) {
+        setClientMFSData(response.data as TeamReportItem[]);
+        setSelectedClientMonthsToDelete([]);
+        setError(null);
+      }
+    } catch (err: any) {
+      console.error('Delete client months failed:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to delete');
+    }
+  };
+
+  const toggleSummaryMonthForDelete = (monthKey: string) => {
+    setSelectedSummaryMonthsToDelete(prev =>
+      prev.includes(monthKey) ? prev.filter(m => m !== monthKey) : [...prev, monthKey]
+    );
+  };
+
+  const toggleClientMonthForDelete = (monthKey: string) => {
+    setSelectedClientMonthsToDelete(prev =>
+      prev.includes(monthKey) ? prev.filter(m => m !== monthKey) : [...prev, monthKey]
+    );
+  };
+
   // Generate quarter options
   const quarterOptions = useMemo(() => {
     const options: string[] = [];
@@ -1167,13 +1260,41 @@ const MFSdata: React.FC = () => {
       
       <div className="routing-table-container">
         <div className="table-wrapper">
-          <div className="table-controls">
+          <div className="table-controls" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <button 
-              onClick={() => setEditMode(!editMode)}
+              onClick={() => {
+                setEditMode(!editMode);
+                if (editMode) {
+                  setSelectedSummaryMonthsToDelete([]);
+                  setSelectedClientMonthsToDelete([]);
+                }
+              }}
               className="edit-mode-button"
             >
               {editMode ? 'Exit Edit Mode' : 'Edit Mode'}
             </button>
+            {editMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleDeleteSummaryMonths}
+                  disabled={selectedSummaryMonthsToDelete.length === 0}
+                  className="auth-button"
+                  style={{ background: '#c0392b', color: '#fff' }}
+                >
+                  Delete selected (Summary table)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteClientMonths}
+                  disabled={selectedClientMonthsToDelete.length === 0}
+                  className="auth-button"
+                  style={{ background: '#c0392b', color: '#fff' }}
+                >
+                  Delete selected (Client table)
+                </button>
+              </>
+            )}
           </div>
           
           <div className="search-controls">
@@ -1315,7 +1436,18 @@ const MFSdata: React.FC = () => {
                       const monthName = monthNames[parseInt(monthNum)];
                       return (
                         <th key={monthKey} className="month-header">
-                          {monthName} {year}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                            {monthName} {year}
+                            {editMode && (
+                              <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedSummaryMonthsToDelete.includes(monthKey)}
+                                  onChange={() => toggleSummaryMonthForDelete(monthKey)}
+                                />
+                              </label>
+                            )}
+                          </div>
                         </th>
                       );
                     })}
@@ -1387,14 +1519,25 @@ const MFSdata: React.FC = () => {
           </div>
           )}
 
-          {/* Second table: Client wise MFS data (API: /team-report) - different table/API from above */}
-          <div className="client-wise-mfs-section" style={{ marginTop: '2rem' }}>
+          {/* Second table: Client wise data (API: /team-report) - different table/API from above */}
+          <div className="client-wise-mfs-section" style={{ marginTop: '2rem', width: '100%' }}>
             <h3 className="client-wise-title" style={{ marginBottom: '0.75rem', fontSize: '1.1rem' }}>
-              Client MFS Team Report Data
+              Client Wise Data
             </h3>
 
-            {/* Client MFS filters - same as Client MFS data page */}
-            <div className="table-controls" style={{ flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+            {/* Client filters in a single row, left-aligned */}
+            <div
+              className="table-controls client-wise-filters-row"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                marginBottom: '1rem',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                width: '100%',
+              }}
+            >
               <div className="filter-group">
                 <label htmlFor="client-bu-filter">Business Unit:</label>
                 <select
@@ -1584,7 +1727,18 @@ const MFSdata: React.FC = () => {
                           const monthName = monthNames[parseInt(monthNum)];
                           return (
                             <th key={monthKey} className="month-header" colSpan={clientTableParametersFiltered.length}>
-                              {monthName} {year}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                {monthName} {year}
+                                {editMode && (
+                                  <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedClientMonthsToDelete.includes(monthKey)}
+                                      onChange={() => toggleClientMonthForDelete(monthKey)}
+                                    />
+                                  </label>
+                                )}
+                              </div>
                             </th>
                           );
                         })}

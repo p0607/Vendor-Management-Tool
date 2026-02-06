@@ -675,6 +675,12 @@ body, html {
   padding: 0 1rem;
 }
 
+/* Client Wise Data: filters in a single row, left-aligned */
+.client-wise-mfs-section .client-wise-filters-row {
+  justify-content: flex-start !important;
+  padding-left: 0;
+}
+
 .edit-mode-button {
   background-color: #ff8c00;
   color: white;
