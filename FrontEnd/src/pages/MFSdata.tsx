@@ -55,7 +55,9 @@ const MFSdata: React.FC = () => {
   };
 
   const [teamReportData, setTeamReportData] = useState<TeamReportItem[]>([]);
+  const [clientMFSData, setClientMFSData] = useState<TeamReportItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingClientMFS, setLoadingClientMFS] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('');
   // Set default to current FY (year filter showing FY data)
@@ -76,6 +78,23 @@ const MFSdata: React.FC = () => {
     { key: 'gpm', label: 'GPM' },
     { key: 'team_cost', label: 'Team Cost' },
     { key: 'net_margin', label: 'Net Margin' }
+  ];
+
+  // Client-wise table: same parameters as Client MFS Team Report Data page (/team-report)
+  const clientTableParameters = [
+    { key: 'hc', label: 'HC' },
+    { key: 'revenue', label: 'Revenue' },
+    { key: 'salary_cost', label: 'Salary Cost' },
+    { key: 'gpm', label: 'GPM' },
+    { key: 'gpm_percentage', label: 'GPM %' },
+    { key: 'np', label: 'NP' },
+    { key: 'np_percentage', label: 'NP %' },
+    { key: 'leave_encashment', label: 'Leave Encashment' },
+    { key: 'team_cost', label: 'Team Cost' },
+    { key: 'opr_cost', label: 'Opr Cost' },
+    { key: 'funding_cost', label: 'Funding Cost' },
+    { key: 'rebate', label: 'Rebate' },
+    { key: 'passthrough', label: 'Passthrough' }
   ];
 
   // Fetch data from API - using same endpoint as TeamReportCompare
@@ -105,6 +124,27 @@ const MFSdata: React.FC = () => {
     };
 
     fetchData();
+  }, []);
+
+  // Fetch client-wise MFS data from /team-report (has client_name, project_name)
+  useEffect(() => {
+    const fetchClientData = async () => {
+      setLoadingClientMFS(true);
+      try {
+        const response = await apiClient.get('/team-report');
+        if (Array.isArray(response.data)) {
+          setClientMFSData(response.data as TeamReportItem[]);
+        } else {
+          setClientMFSData([]);
+        }
+      } catch (err: any) {
+        console.error('Fetch client MFS failed:', err);
+        setClientMFSData([]);
+      } finally {
+        setLoadingClientMFS(false);
+      }
+    };
+    fetchClientData();
   }, []);
 
   // Check user authentication and set BU head status
@@ -429,6 +469,164 @@ const MFSdata: React.FC = () => {
     return Math.round(value).toLocaleString('en-IN');
   };
 
+  // Helper to get month name and year from team_report item (month can be date string or name)
+  const getItemMonthYear = (item: TeamReportItem): { monthName: string; year: number } | null => {
+    if (!item.month || item.year == null) return null;
+    const m = item.month;
+    const y = Number(item.year);
+    if (typeof m === 'string' && /^\d{4}-\d{1,2}-\d{1,2}/.test(m)) {
+      const parts = m.split('-');
+      const monthNum = parseInt(parts[1], 10);
+      const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      return { monthName: monthNames[monthNum] || '', year: y || parseInt(parts[0], 10) };
+    }
+    return { monthName: normalizeToFullMonthName(String(m)), year: y };
+  };
+
+  // Filter client MFS data by selected BU and period (same logic as main table)
+  const filteredClientMFSData = useMemo(() => {
+    let filtered = clientMFSData.filter(item => {
+      if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
+      if (isBUHead && user?.business_unit && !compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+      return true;
+    });
+    if (!periodFilter || !periodValue) return filtered;
+    if (periodFilter === 'year') {
+      const fyStartYear = parseInt(periodValue);
+      const fyEndYear = fyStartYear + 1;
+      const fyStartMonths = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const fyEndMonths = ['January', 'February', 'March'];
+      filtered = filtered.filter(item => {
+        const my = getItemMonthYear(item);
+        if (!my) return false;
+        if (fyStartMonths.includes(my.monthName) && my.year === fyStartYear) return true;
+        if (fyEndMonths.includes(my.monthName) && my.year === fyEndYear) return true;
+        return false;
+      });
+    } else if (periodFilter === 'quarter' && periodValue) {
+      const quarterMatch = periodValue.match(/Q(\d)/);
+      const yearMatch = periodValue.match(/(\d{4})/);
+      if (quarterMatch && yearMatch) {
+        const quarter = parseInt(quarterMatch[1]);
+        const year = parseInt(yearMatch[1]);
+        const quarterMonthNames: { [key: number]: string[] } = {
+          1: ['April', 'May', 'June'], 2: ['July', 'August', 'September'],
+          3: ['October', 'November', 'December'], 4: ['January', 'February', 'March']
+        };
+        const monthsInQuarter = quarterMonthNames[quarter] || [];
+        filtered = filtered.filter(item => {
+          const my = getItemMonthYear(item);
+          if (!my) return false;
+          if (quarter === 4) return monthsInQuarter.includes(my.monthName) && my.year === year + 1;
+          return monthsInQuarter.includes(my.monthName) && my.year === year;
+        });
+      }
+    } else if (periodFilter === 'month' && periodValue) {
+      const parts = periodValue.split('-');
+      if (parts.length === 2) {
+        const monthName = normalizeToFullMonthName(parts[0]);
+        const year = parseInt(parts[1], 10);
+        filtered = filtered.filter(item => {
+          const my = getItemMonthYear(item);
+          if (!my) return false;
+          return my.monthName === monthName && my.year === year;
+        });
+      }
+    }
+    return filtered;
+  }, [clientMFSData, selectedBusinessUnit, periodFilter, periodValue, isBUHead, user?.business_unit]);
+
+  // Month keys for client table (from filtered client data, same logic as ClientMFSdata)
+  const clientTableMonths = useMemo(() => {
+    const monthSet = new Set<string>();
+    filteredClientMFSData.forEach(item => {
+      const my = getItemMonthYear(item);
+      if (my && my.monthName) {
+        monthSet.add(getMonthKey(my.monthName, my.year));
+      }
+    });
+    return Array.from(monthSet).sort();
+  }, [filteredClientMFSData]);
+
+  // Unique clients; for MS, unique (client_name, project_name) pairs
+  const clientTableRowKeys = useMemo(() => {
+    const isMS = selectedBusinessUnit ? compareBusinessUnits(selectedBusinessUnit, 'MS') : false;
+    if (!isMS) {
+      const seen = new Set<string>();
+      filteredClientMFSData.forEach(item => {
+        const name = (item.client_name as string) || '';
+        if (name.trim()) seen.add(name.trim());
+      });
+      return Array.from(seen).sort().map(c => ({ client: c, project: undefined as string | undefined }));
+    }
+    const seen = new Set<string>();
+    const pairs: { client: string; project: string }[] = [];
+    filteredClientMFSData.forEach(item => {
+      const c = String(item.client_name || '').trim();
+      const p = String(item.project_name || '').trim();
+      if (!c || !p) return;
+      const key = `${c}\0${p}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      pairs.push({ client: c, project: p });
+    });
+    pairs.sort((a, b) => a.client.localeCompare(b.client) || a.project.localeCompare(b.project));
+    return pairs;
+  }, [filteredClientMFSData, selectedBusinessUnit]);
+
+  // Build client table data: same structure as Client MFS Team Report Data (rows = clients, cells = param_monthKey)
+  const clientTableData = useMemo(() => {
+    if (clientTableRowKeys.length === 0 || clientTableMonths.length === 0) return [];
+    const isMS = selectedBusinessUnit ? compareBusinessUnits(selectedBusinessUnit, 'MS') : false;
+    const rows: Array<{ client: string; project?: string; [key: string]: any }> = [];
+
+    clientTableRowKeys.forEach(({ client: rowClient, project: rowProject }) => {
+      const row: { client: string; project?: string; [key: string]: any } = { client: rowClient };
+      if (isMS) row.project = rowProject;
+
+      const clientData = isMS
+        ? filteredClientMFSData.filter(item =>
+            String(item.client_name || '').trim() === rowClient &&
+            String(item.project_name || '').trim() === rowProject)
+        : filteredClientMFSData.filter(item => String(item.client_name || '').trim() === rowClient);
+
+      clientTableParameters.forEach(param => {
+        clientTableMonths.forEach(monthKey => {
+          let totalValue = 0;
+          const [yearStr, monthNumStr] = monthKey.split('-');
+          const year = parseInt(yearStr, 10);
+          const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+          const monthName = monthNames[parseInt(monthNumStr, 10)] || '';
+
+          clientData.forEach(item => {
+            const my = getItemMonthYear(item);
+            if (!my || my.monthName !== monthName || my.year !== year) return;
+            const paramValue = item[param.key];
+            if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
+              const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
+              if (!isNaN(numValue)) totalValue += numValue;
+            }
+          });
+          row[`${param.key}_${monthKey}`] = totalValue;
+        });
+      });
+      rows.push(row);
+    });
+
+    return rows;
+  }, [filteredClientMFSData, clientTableRowKeys, clientTableMonths, selectedBusinessUnit]);
+
+  // Format value for client table (same as Client MFS page: 0 shows as "0", N/A for null/NaN)
+  const formatClientTableValue = (value: number, parameter: string): string => {
+    if (value === null || value === undefined || isNaN(value)) return 'N/A';
+    if (parameter.includes('percentage') || parameter.includes('_percentage')) {
+      return `${value.toFixed(2)}%`;
+    }
+    return Math.round(value).toLocaleString('en-IN');
+  };
+
   // Sync row heights and column widths between fixed and scrollable tables
   useEffect(() => {
     const syncTables = () => {
@@ -633,9 +831,9 @@ const MFSdata: React.FC = () => {
     return options;
   }, [years]);
 
+  // Show full page so both tables are visible (first: MFS from team-summary-report, second: client wise from team-report)
   if (loading) return <div className="loading">Loading data...</div>;
   if (error && !editingCell) return <div className="error">Error: {error}</div>;
-  if (teamReportData.length === 0) return <div className="empty">No records found</div>;
 
   return (
     <div className="homepage">
@@ -778,7 +976,11 @@ const MFSdata: React.FC = () => {
             </div>
           )}
           </div>
-          
+
+          {/* First table: MFS Team Summary Report Data (API: /team-summary-report) */}
+          {teamReportData.length === 0 ? (
+            <div className="empty" style={{ padding: '1rem 0' }}>No MFS team summary records found.</div>
+          ) : (
           <div className="split-table-container">
             {/* Fixed Parameter Column Table */}
             <div className="fixed-column-table">
@@ -878,6 +1080,143 @@ const MFSdata: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+          )}
+
+          {/* Second table: Client wise MFS data (API: /team-report) - different table/API from above */}
+          <div className="client-wise-mfs-section" style={{ marginTop: '2rem' }}>
+            <h3 className="client-wise-title" style={{ marginBottom: '0.75rem', fontSize: '1.1rem' }}>
+              Client MFS Team Report Data
+            </h3>
+            {loadingClientMFS ? (
+              <div className="loading">Loading client data...</div>
+            ) : !selectedBusinessUnit ? (
+              <div className="empty">Please select a Business Unit to view client-wise data.</div>
+            ) : clientTableData.length === 0 ? (
+              <div className="empty">No client-wise data for the selected filters.</div>
+            ) : (
+              <div className={`split-table-container ${selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') ? 'ms-selected' : ''}`}>
+                <div className="fixed-column-table">
+                  <table className="pivot-table fixed-table">
+                    <thead>
+                      <tr>
+                        <th className="parameter-header" rowSpan={clientTableParameters.length > 1 ? 2 : 1}>Client</th>
+                        {selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && (
+                          <th className="parameter-header" rowSpan={clientTableParameters.length > 1 ? 2 : 1}>Project</th>
+                        )}
+                      </tr>
+                      {clientTableParameters.length > 1 ? (
+                        <tr>
+                          <th></th>
+                          {selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && <th></th>}
+                        </tr>
+                      ) : null}
+                    </thead>
+                    <tbody>
+                      {clientTableData.map((row, rowIndex) => (
+                        <tr key={`cf_${row.client}_${row.project || ''}_${rowIndex}`}>
+                          <td className="parameter-cell">{row.client}</td>
+                          {selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && (
+                            <td className="parameter-cell">{row.project || 'N/A'}</td>
+                          )}
+                        </tr>
+                      ))}
+                      <tr className="total-row">
+                        <td className="parameter-cell total-label">Total</td>
+                        {selectedBusinessUnit && compareBusinessUnits(selectedBusinessUnit, 'MS') && (
+                          <td className="parameter-cell total-label"></td>
+                        )}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="scrollable-columns-table">
+                  <table className="pivot-table scrollable-table">
+                    <thead>
+                      <tr>
+                        {clientTableMonths.map(monthKey => {
+                          const [year, monthNum] = monthKey.split('-');
+                          const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                          const monthName = monthNames[parseInt(monthNum)];
+                          return (
+                            <th key={monthKey} className="month-header" colSpan={clientTableParameters.length}>
+                              {monthName} {year}
+                            </th>
+                          );
+                        })}
+                      </tr>
+                      {clientTableParameters.length > 1 ? (
+                        <tr>
+                          {clientTableMonths.map(monthKey =>
+                            clientTableParameters.map(param => (
+                              <th key={`${monthKey}_${param.key}`} className="month-header">
+                                {param.label}
+                              </th>
+                            ))
+                          )}
+                        </tr>
+                      ) : null}
+                    </thead>
+                    <tbody>
+                      {clientTableData.map((row, rowIndex) => (
+                        <tr key={`cs_${row.client}_${row.project || ''}_${rowIndex}`}>
+                          {clientTableMonths.map(monthKey =>
+                            clientTableParameters.map(param => {
+                              const cellKey = `${param.key}_${monthKey}`;
+                              const cellValue = row[cellKey] ?? 0;
+                              return (
+                                <td key={`${monthKey}_${param.key}`} className="data-cell">
+                                  <div className="cell-content">
+                                    <span>{formatClientTableValue(cellValue, param.key)}</span>
+                                  </div>
+                                </td>
+                              );
+                            })
+                          )}
+                        </tr>
+                      ))}
+                      <tr className="total-row">
+                        {clientTableMonths.map(monthKey => {
+                          // For GPM % and NP %, use aggregate formula: Total GPM% = Total GPM / Total Revenue, Total NP% = Total NP / Total Revenue
+                          const revKey = `revenue_${monthKey}`;
+                          const gpmKey = `gpm_${monthKey}`;
+                          const npKey = `np_${monthKey}`;
+                          let sumRevenue = 0;
+                          let sumGpm = 0;
+                          let sumNp = 0;
+                          clientTableData.forEach(r => {
+                            sumRevenue += Number(r[revKey] ?? 0) || 0;
+                            sumGpm += Number(r[gpmKey] ?? 0) || 0;
+                            sumNp += Number(r[npKey] ?? 0) || 0;
+                          });
+                          return clientTableParameters.map(param => {
+                            const cellKey = `${param.key}_${monthKey}`;
+                            let totalValue: number;
+                            if (param.key === 'gpm_percentage') {
+                              totalValue = sumRevenue !== 0 ? (sumGpm / sumRevenue) * 100 : 0;
+                            } else if (param.key === 'np_percentage') {
+                              totalValue = sumRevenue !== 0 ? (sumNp / sumRevenue) * 100 : 0;
+                            } else {
+                              totalValue = 0;
+                              clientTableData.forEach(r => {
+                                const v = r[cellKey] ?? 0;
+                                if (!isNaN(Number(v))) totalValue += Number(v);
+                              });
+                            }
+                            return (
+                              <td key={`tot_${monthKey}_${param.key}`} className="data-cell total-cell">
+                                {formatClientTableValue(totalValue, param.key)}
+                              </td>
+                            );
+                          });
+                        })}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
