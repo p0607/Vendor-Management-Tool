@@ -1447,7 +1447,7 @@ const MFSdata: React.FC = () => {
           fontFamily: 'Montserrat, sans-serif', 
           margin: 0, 
           zIndex: 1 
-        }}>MFS Team Summary Report Data</h2>
+        }}>MFS Data</h2>
         <div className="auth-buttons-container" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Dropdown
             menu={{ items: actionDropdownItems }}
@@ -1460,7 +1460,7 @@ const MFSdata: React.FC = () => {
             </button>
           </Dropdown>
           <Link to="/team-report/compare">
-            <button className="auth-button">Team Report Compare</button>
+            <button className="auth-button">Back</button>
           </Link>
           <Link to="/HomePage">
             <button className="auth-button">Home</button>

@@ -2936,23 +2936,18 @@ const TeamReportCompare: React.FC = () => {
     return filtered;
   }, [clientMFSData, getSelectedBUForClientData, clientDataPeriodFilter, clientDataPeriodValue, clientDataSelectedMonths]);
 
-  // Get unique clients from filtered data (for the selected BU)
+  // Get unique clients from filtered data (for the selected BU). When MS, client dropdown shows client names only (not "Client - Project").
   const clientDataClients = useMemo(() => {
     const clientSet = new Set<string>();
     filteredClientMFSData.forEach((item: any) => {
       const clientName = (item.client_name ?? '').toString().trim();
       if (!clientName) return;
-      if (isClientDataMS) {
-        const projectName = (item.project_name ?? '').toString().trim();
-        clientSet.add(projectName ? `${clientName} - ${projectName}` : clientName);
-      } else {
-        clientSet.add(clientName);
-      }
+      clientSet.add(clientName);
     });
     return Array.from(clientSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-  }, [filteredClientMFSData, isClientDataMS]);
+  }, [filteredClientMFSData]);
 
-  // Clients to show in table: selected ones or all
+  // Clients to show: selected client names or all (client names only in dropdown)
   const clientDataClientsToShow = useMemo(() => {
     if (!clientDataSelectedClients.length) return clientDataClients;
     return clientDataSelectedClients.filter(c => clientDataClients.includes(c));
@@ -2969,15 +2964,24 @@ const TeamReportCompare: React.FC = () => {
     return Array.from(projectSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [filteredClientMFSData, isClientDataMS]);
 
-  // When MS and project filter is set, only show rows whose project is in selected projects
-  const clientDataClientsFilteredByProject = useMemo(() => {
-    if (!isClientDataMS || !clientDataSelectedProjects.length) return clientDataClientsToShow;
-    return clientDataClientsToShow.filter((rowKey: string) => {
-      const idx = rowKey.lastIndexOf(' - ');
-      const projectName = idx >= 0 ? rowKey.substring(idx + 3).trim() : '';
-      return clientDataSelectedProjects.includes(projectName);
-    });
-  }, [isClientDataMS, clientDataSelectedProjects, clientDataClientsToShow]);
+  // Row keys for table: when MS, "Client - Project" for each (client, project) where client in clientDataClientsToShow and (no project filter or project in clientDataSelectedProjects). When non-MS, client names.
+  const clientDataRowKeys = useMemo(() => {
+    if (isClientDataMS) {
+      const rowKeySet = new Set<string>();
+      filteredClientMFSData.forEach((item: any) => {
+        const clientName = (item.client_name ?? '').toString().trim();
+        const projectName = (item.project_name ?? '').toString().trim();
+        if (!clientDataClientsToShow.includes(clientName)) return;
+        if (clientDataSelectedProjects.length > 0 && !clientDataSelectedProjects.includes(projectName)) return;
+        rowKeySet.add(projectName ? `${clientName} - ${projectName}` : clientName);
+      });
+      return Array.from(rowKeySet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }
+    return clientDataClientsToShow;
+  }, [isClientDataMS, filteredClientMFSData, clientDataClientsToShow, clientDataSelectedProjects]);
+
+  // Legacy name for table data dependency (row keys used to build table)
+  const clientDataClientsFilteredByProject = clientDataRowKeys;
 
   // Get unique months from filtered data
   const clientDataMonths = useMemo(() => {
