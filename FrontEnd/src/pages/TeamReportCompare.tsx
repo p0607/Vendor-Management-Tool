@@ -1979,6 +1979,382 @@ const TeamReportCompare: React.FC = () => {
 
 
 
+  // Client MFS template download (same as Client MFS Comparison page)
+
+  const handleDownloadClientTemplate = () => {
+
+    const templateData = [
+
+      {
+
+        'Business Unit': '',
+
+        'Client Name': '',
+
+        'Project Name': '',
+
+        'BU Head': '',
+
+        'Year': '',
+
+        'Month': '',
+
+        'HC': '',
+
+        'Revenue': '',
+
+        'Salary Cost': '',
+
+        'GPM': '',
+
+        'GPM -%': '',
+
+        'NP': '',
+
+        'NP %': '',
+
+        'Leave Encsh': '',
+
+        'Team Cost': '',
+
+        'Opr Cost': '',
+
+        'Funding Cost': '',
+
+        'Rebate': '',
+
+        'Passthrough': '',
+
+      }
+
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Client_MFS_Template");
+
+    XLSX.writeFile(workbook, "Client_MFS_Template.xlsx");
+
+  };
+
+
+
+  // Client MFS import (same as Client MFS Comparison page: Client MFS Excel -> /team-report/bulk)
+
+  const handleImportClientMFS = async (e: React.ChangeEvent<HTMLInputElement>) => {
+
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async (evt) => {
+
+      const bstr = evt.target?.result;
+
+      if (!bstr) return;
+
+      const workbook = XLSX.read(bstr, {
+
+        type: 'binary',
+
+        cellFormula: true,
+
+        cellHTML: false,
+
+        cellNF: false,
+
+        cellStyles: false,
+
+        cellText: false,
+
+        cellDates: true,
+
+        dateNF: 'mm/dd/yyyy'
+
+      });
+
+      const sheetName = workbook.SheetNames[0];
+
+      const worksheet = workbook.Sheets[sheetName];
+
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: '', blankrows: false });
+
+      const mappedData = jsonData.map((row: any) => {
+
+        const stringOrNull = (value: any): string | null => {
+
+          const str = String(value || '').trim();
+
+          return str === '' ? null : str;
+
+        };
+
+        let monthValue = row['Month'] || row.month || '';
+
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+
+          'July', 'August', 'September', 'October', 'November', 'December'];
+
+        if (monthValue) {
+
+          const monthStr = String(monthValue).trim();
+
+          if (/^\d+$/.test(monthStr)) {
+
+            const monthNum = parseInt(monthStr, 10);
+
+            monthValue = monthNum >= 1 && monthNum <= 12 ? monthNames[monthNum - 1] : monthStr;
+
+          } else if (typeof monthValue === 'number' && monthValue > 1 && monthValue < 50000) {
+
+            const excelEpoch = new Date(1900, 0, 1);
+
+            const date = new Date(excelEpoch.getTime() + (monthValue - 2) * 24 * 60 * 60 * 1000);
+
+            monthValue = monthNames[date.getMonth()];
+
+          } else if (monthStr.match(/^\d{4}-\d{2}-\d{2}/) || monthStr.match(/^\d{4}\/\d{2}\/\d{2}/)) {
+
+            const date = new Date(monthStr);
+
+            if (!isNaN(date.getTime())) monthValue = monthNames[date.getMonth()];
+
+          } else if (typeof monthStr === 'string') {
+
+            const monthAbbrMap: { [key: string]: string } = {
+
+              'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+
+              'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+
+              'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+
+            };
+
+            const trimmedMonth = monthStr.trim();
+
+            const validMonths = ['January', 'February', 'March', 'April', 'May', 'June',
+
+              'July', 'August', 'September', 'October', 'November', 'December',
+
+              'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            monthValue = validMonths.includes(trimmedMonth) ? (monthAbbrMap[trimmedMonth] || trimmedMonth) : monthStr;
+
+          }
+
+        }
+
+        let businessUnit = normalizeBusinessUnitName(stringOrNull(row['Business Unit'] || row['Business_Unit'] || row.business_unit));
+
+        let clientName = stringOrNull(row['Client Name'] || row['Client_Name'] || row.client_name);
+
+        if ((!businessUnit || !clientName) && row['Business_Client_Na']) {
+
+          const businessClientNa = String(row['Business_Client_Na'] || '').trim();
+
+          if (businessClientNa) {
+
+            if (businessClientNa.includes('|')) {
+
+              const parts = businessClientNa.split('|').map((p: string) => p.trim()).filter((p: string) => p !== '');
+
+              if (parts.length >= 1 && !businessUnit) businessUnit = normalizeBusinessUnitName(stringOrNull(parts[0]));
+
+              if (parts.length >= 2 && !clientName) {
+
+                const rightPart = parts[1].trim();
+
+                clientName = rightPart.includes('-') ? stringOrNull(rightPart.split('-').map((p: string) => p.trim()).filter((p: string) => p !== '')[0]) : stringOrNull(rightPart);
+
+              }
+
+            } else if (businessClientNa.includes('-')) {
+
+              const parts = businessClientNa.split('-').map((p: string) => p.trim()).filter((p: string) => p !== '');
+
+              if (parts.length >= 1 && !businessUnit) businessUnit = normalizeBusinessUnitName(stringOrNull(parts[0]));
+
+              if (parts.length >= 2 && !clientName) clientName = stringOrNull(parts[1]);
+
+            } else if (!businessUnit) businessUnit = normalizeBusinessUnitName(stringOrNull(businessClientNa));
+
+          }
+
+        }
+
+        let yearValue = parseNumericValue(row['Year'] || row.year) || null;
+
+        if (yearValue && yearValue < 100) yearValue = yearValue < 50 ? 2000 + yearValue : 1900 + yearValue;
+
+        return {
+
+          business_unit: businessUnit,
+
+          client_name: clientName,
+
+          project_name: stringOrNull(row['Project Name'] || row['Project_Na'] || row['Project_Name'] || row.project_name),
+
+          bu_head: stringOrNull(row['BU Head'] || row['BU_Head'] || row.bu_head),
+
+          month: monthValue ? String(monthValue).trim() : null,
+
+          year: yearValue,
+
+          hc: parseNumericValue(row['HC'] || row.hc),
+
+          revenue: parseNumericValue(row['Revenue'] || row.revenue),
+
+          salary_cost: parseNumericValue(row['Salary Cost'] || row['Salary Cos'] || row['Salary_Cost'] || row.salary_cost),
+
+          gpm: parseNumericValue(row['GPM'] || row.gpm),
+
+          gpm_percentage: parseNumericValue(row['GPM -%'] || row['GPM-%'] || row['GPM %'] || row.gpm_percentage),
+
+          np: parseNumericValue(row['NP'] || row.np),
+
+          np_percentage: parseNumericValue(row['NP %'] || row['NP%'] || row['NP-%'] || row['NP -%'] || row.np_percentage),
+
+          leave_encashment: parseNumericValue(row['Leave Encsh'] || row['Leave Enc'] || row['Leave_Encsh'] || row['Leave Encashment'] || row.leave_encashment),
+
+          team_cost: parseNumericValue(row['Team Cost'] || row['Team_Cost'] || row.team_cost),
+
+          opr_cost: parseNumericValue(row['Opr Cost'] || row['Opr_Cost'] || row.opr_cost),
+
+          funding_cost: parseNumericValue(row['Funding Cost'] || row['Funding C'] || row['Funding_Cost'] || row.funding_cost),
+
+          rebate: parseNumericValue(row['Rebate'] || row.rebate),
+
+          passthrough: parseNumericValue(row['Passthroug'] || row['Passthrough'] || row.passthrough),
+
+        };
+
+      }).filter((record: any) => record.month !== null && record.month !== '' && record.year !== null && record.year !== 0).map((record: any) => {
+
+        const rev = Number(record.revenue) || 0;
+
+        const salary_cost = Number(record.salary_cost) || 0;
+
+        const rebate = Number(record.rebate) || 0;
+
+        const passthrough = Number(record.passthrough) || 0;
+
+        const leave_encashment = Number(record.leave_encashment) || 0;
+
+        const team_cost = Number(record.team_cost) || 0;
+
+        const opr_cost = Number(record.opr_cost) || 0;
+
+        const funding_cost = Number(record.funding_cost) || 0;
+
+        let gpm: number;
+
+        let np: number | null = null;
+
+        if (compareBusinessUnits(record.business_unit, 'MS') || compareBusinessUnits(record.business_unit, 'Managed Services')) {
+
+          gpm = rev - salary_cost;
+
+        } else if (compareBusinessUnits(record.business_unit, 'USA')) {
+
+          gpm = rev - salary_cost - rebate - passthrough;
+
+        } else if (compareBusinessUnits(record.business_unit, 'Japan') || compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) {
+
+          gpm = rev - salary_cost;
+
+        } else {
+
+          gpm = rev - salary_cost - leave_encashment;
+
+          np = gpm - team_cost - opr_cost - funding_cost;
+
+        }
+
+        const gpmPct = rev !== 0 ? (gpm / rev) * 100 : (record.gpm_percentage ?? null);
+
+        const npPct = np !== null && rev !== 0 ? (np / rev) * 100 : (record.np_percentage ?? null);
+
+        return { ...record, gpm, gpm_percentage: gpmPct, ...(np !== null ? { np, np_percentage: npPct } : {}), };
+
+      });
+
+      if (!mappedData || mappedData.length === 0) {
+
+        message.error('No valid data found in the Excel file. Please check the file format.');
+
+        return;
+
+      }
+
+      try {
+
+        const batchSize = 50;
+
+        const totalBatches = Math.ceil(mappedData.length / batchSize);
+
+        let successCount = 0;
+
+        let errorCount = 0;
+
+        message.loading(`Importing ${mappedData.length} records... (0/${totalBatches} batches)`, 0);
+
+        for (let i = 0; i < mappedData.length; i += batchSize) {
+
+          const batch = mappedData.slice(i, i + batchSize);
+
+          const batchNumber = Math.floor(i / batchSize) + 1;
+
+          try {
+
+            await apiClient.post("/team-report/bulk", { data: batch }, { timeout: 60000 });
+
+            successCount += batch.length;
+
+            message.loading(`Importing ${mappedData.length} records... (${batchNumber}/${totalBatches} batches completed)`, 0);
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+          } catch (batchErr: any) {
+
+            errorCount += batch.length;
+
+            message.warning(`Batch ${batchNumber} failed: ${(batchErr?.response?.data?.error || batchErr?.message || 'Unknown error').substring(0, 50)}...`, 5);
+
+          }
+
+        }
+
+        message.destroy();
+
+        if (errorCount === 0) message.success(`Successfully imported all ${successCount} records!`, 5);
+
+        else if (successCount > 0) message.warning(`Imported ${successCount} records successfully, ${errorCount} records failed. Check console for details.`, 8);
+
+        else message.error(`All batches failed to import. ${errorCount} records failed. Check console for error details.`, 8);
+
+        if (successCount > 0) setTimeout(() => window.location.reload(), 2000);
+
+      } catch (err: any) {
+
+        message.destroy();
+
+        message.error(err?.response?.data?.error || 'Failed to import data');
+
+      }
+
+    };
+
+    reader.readAsBinaryString(file);
+
+  };
+
+
+
   // Action dropdown items
 
   const actionDropdownItems = [
@@ -2018,6 +2394,38 @@ const TeamReportCompare: React.FC = () => {
         input.accept = '.xlsx, .xls';
 
         input.onchange = (e) => handleImportExcel(e as any);
+
+        input.click();
+
+      }
+
+    },
+
+    {
+
+      key: 'client_template',
+
+      label: 'Download Client MFS Template',
+
+      onClick: handleDownloadClientTemplate
+
+    },
+
+    {
+
+      key: 'client_import',
+
+      label: 'Import Client MFS',
+
+      onClick: () => {
+
+        const input = document.createElement('input');
+
+        input.type = 'file';
+
+        input.accept = '.xlsx, .xls';
+
+        input.onchange = (e) => handleImportClientMFS(e as any);
 
         input.click();
 
@@ -2374,6 +2782,9 @@ const TeamReportCompare: React.FC = () => {
     return selectedBusinessUnitsForChart;
   }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
 
+  // MS exception: when this BU is selected, Client Data shows both client name and project name (e.g. "Client - Project")
+  const isClientDataMS = Boolean(getSelectedBUForClientData && compareBusinessUnits(getSelectedBUForClientData, 'MS'));
+
   // Define all available parameters for Client Data table
   const allClientDataParameters = [
     { key: 'hc', label: 'HC' },
@@ -2528,12 +2939,17 @@ const TeamReportCompare: React.FC = () => {
   const clientDataClients = useMemo(() => {
     const clientSet = new Set<string>();
     filteredClientMFSData.forEach((item: any) => {
-      if (item.client_name) {
-        clientSet.add(item.client_name);
+      const clientName = (item.client_name ?? '').toString().trim();
+      if (!clientName) return;
+      if (isClientDataMS) {
+        const projectName = (item.project_name ?? '').toString().trim();
+        clientSet.add(projectName ? `${clientName} - ${projectName}` : clientName);
+      } else {
+        clientSet.add(clientName);
       }
     });
-    return Array.from(clientSet).sort();
-  }, [filteredClientMFSData]);
+    return Array.from(clientSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [filteredClientMFSData, isClientDataMS]);
 
   // Clients to show in table: selected ones or all
   const clientDataClientsToShow = useMemo(() => {
@@ -2588,6 +3004,18 @@ const TeamReportCompare: React.FC = () => {
     
     const rows: Array<{ client: string; [key: string]: any }> = [];
     
+    // For MS, row key is "Client - Project"; parse to match both client_name and project_name
+    const matchClient = (item: any, rowKey: string) => {
+      if (isClientDataMS) {
+        const idx = rowKey.lastIndexOf(' - ');
+        const clientName = idx >= 0 ? rowKey.substring(0, idx).trim() : rowKey;
+        const projectName = idx >= 0 ? rowKey.substring(idx + 3).trim() : '';
+        const itemProject = (item.project_name ?? '').toString().trim();
+        return (item.client_name ?? '').toString().trim() === clientName && itemProject === projectName;
+      }
+      return (item.client_name ?? '').toString().trim() === rowKey;
+    };
+
     clientDataClientsToShow.forEach(client => {
       const row: any = { client };
       
@@ -2608,7 +3036,7 @@ const TeamReportCompare: React.FC = () => {
                           const matchingRecords = filteredClientMFSData.filter((item: any) => {
                             const itemYear = item.year != null ? Number(item.year) : null;
                             if (itemYear !== year) return false;
-                            return item.client_name === client &&
+                            return matchClient(item, client) &&
                               normalizeToFullMonthName(item.month) === fullMonthName;
                           });
                           if (matchingRecords.length === 0) {
@@ -2635,7 +3063,7 @@ const TeamReportCompare: React.FC = () => {
     });
     
     return rows;
-  }, [clientDataClientsToShow, clientDataMonths, clientDataParameters, filteredClientMFSData]);
+  }, [clientDataClientsToShow, clientDataMonths, clientDataParameters, filteredClientMFSData, isClientDataMS]);
 
   // Handle URL parameters for MFS button redirect
 

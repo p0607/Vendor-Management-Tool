@@ -456,6 +456,7 @@ body, html {
   min-width: 80px; /* Increased to 80px for better column name fit */
   max-width: 80px; /* Set max-width to match min-width */
   border: 2px solid #000000 !important; /* Black border */
+  text-align: right; /* Align with right-aligned numeric data */
 }
 
 .total-header {
@@ -464,6 +465,7 @@ body, html {
   min-width: 120px;
   font-weight: 700;
   border: 2px solid #000000 !important; /* Black border */
+  text-align: right; /* Align with right-aligned numeric data */
 }
 
 .pivot-table tbody tr {
@@ -646,7 +648,7 @@ body, html {
   padding: 6px 3px; /* Decreased from 6px 8px to reduce cell width */
   border: 1px solid #000000;
   background-color: #e8f4f8;
-  text-align: left;
+  text-align: right; /* Right-align all numeric data in both tables */
   font-size: 12px; /* Increased font size to match table */
   min-width: 80px; /* Set min-width to match header */
   max-width: 80px; /* Set max-width to match header */
@@ -852,6 +854,11 @@ body, html {
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+/* Right-align numeric cell content (both tables) */
+.data-cell .cell-content {
+  justify-content: flex-end;
 }
 
 .expand-button {

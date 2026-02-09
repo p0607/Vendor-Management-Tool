@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Select } from 'antd';
+import { Select, Dropdown, message } from 'antd';
+import { DownOutlined } from '@ant-design/icons';
+import * as XLSX from 'xlsx';
 import './MFSdata.css';
 import { compareBusinessUnits, normalizeBusinessUnitName } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
@@ -80,8 +82,18 @@ const MFSdata: React.FC = () => {
   const [selectedClientMonthsToDelete, setSelectedClientMonthsToDelete] = useState<string[]>([]);
   const [user, setUser] = useState<any>({});
   const [isBUHead, setIsBUHead] = useState<boolean>(false);
+  const [isActionDropdownOpen, setIsActionDropdownOpen] = useState<boolean>(false);
 
   const navigate = useNavigate();
+
+  const parseNumericValue = (value: any): number => {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return value;
+    const stringValue = String(value).trim();
+    if (stringValue === '' || stringValue === '-') return 0;
+    const parsed = parseFloat(stringValue.replace(/,/g, '').replace(/[()]/g, (m) => (m === '(' ? '-' : '')));
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   // Define parameters to display - matching team_summary_report table structure
   const parameters = [
@@ -1227,6 +1239,194 @@ const MFSdata: React.FC = () => {
     return options;
   }, [clientYears]);
 
+  // --- Actions dropdown handlers (same as Team Report Compare page) ---
+  const handleDownloadTemplate = () => {
+    const templateData = [{ 'Business_Unit': '', 'Month': '', 'Year': '', 'HC': '', 'Revenue': '', 'GPM': '', 'Team Cost': '', 'Net Margin': '' }];
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'MFS_Summary_Template');
+    XLSX.writeFile(workbook, 'MFS_Summary_Template.xlsx');
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target?.result;
+      if (!bstr) return;
+      const workbook = XLSX.read(bstr, { type: 'binary', cellFormula: true, cellDates: true, dateNF: 'yyyy-mm-dd' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: true, defval: '', blankrows: false });
+      const mappedData = jsonData.map((row: any) => ({
+        business_unit: normalizeBusinessUnitName(String(row['Business_Unit'] || row['Business Unit'] || row.business_unit || '').trim() || null),
+        month: String(row['Month'] || row.month || '').trim() || null,
+        year: parseNumericValue(row['Year'] || row.year) || null,
+        hc: parseNumericValue(row['HC'] || row.hc),
+        revenue: parseNumericValue(row['Revenue'] || row.revenue),
+        gpm: parseNumericValue(row['GPM'] || row.gpm),
+        team_cost: parseNumericValue(row['Team Cost'] || row['Team_Cost'] || row.team_cost),
+        net_margin: parseNumericValue(row['Net Margin'] || row['Net_Margin'] || row.net_margin),
+      }));
+      try {
+        const batchSize = 100;
+        let successCount = 0, errorCount = 0;
+        message.loading(`Importing ${mappedData.length} records...`, 0);
+        for (let i = 0; i < mappedData.length; i += batchSize) {
+          const batch = mappedData.slice(i, i + batchSize);
+          try {
+            await apiClient.post('/team-summary-report/bulk', { data: batch });
+            successCount += batch.length;
+          } catch {
+            errorCount += batch.length;
+          }
+          await new Promise(r => setTimeout(r, 100));
+        }
+        message.destroy();
+        if (errorCount === 0) message.success(`Successfully imported all ${successCount} records!`);
+        else if (successCount > 0) message.warning(`Imported ${successCount}, ${errorCount} failed.`);
+        else message.error('All batches failed to import.');
+        if (successCount > 0) window.location.reload();
+      } catch (err: any) {
+        message.destroy();
+        message.error(err?.response?.data?.error || 'Failed to import data');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleDownloadClientTemplate = () => {
+    const templateData = [{
+      'Business Unit': '', 'Client Name': '', 'Project Name': '', 'BU Head': '', 'Year': '', 'Month': '',
+      'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
+      'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '', 'Rebate': '', 'Passthrough': '',
+    }];
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Client_MFS_Template');
+    XLSX.writeFile(workbook, 'Client_MFS_Template.xlsx');
+  };
+
+  const handleImportClientMFS = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target?.result;
+      if (!bstr) return;
+      const workbook = XLSX.read(bstr, { type: 'binary', cellFormula: true, cellDates: true, dateNF: 'mm/dd/yyyy' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: '', blankrows: false });
+      const stringOrNull = (v: any): string | null => { const s = String(v || '').trim(); return s === '' ? null : s; };
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const monthAbbrMap: Record<string, string> = { 'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April', 'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August', 'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December' };
+      const mappedData = jsonData.map((row: any) => {
+        let monthValue = row['Month'] || row.month || '';
+        if (monthValue) {
+          const monthStr = String(monthValue).trim();
+          if (/^\d+$/.test(monthStr)) {
+            const n = parseInt(monthStr, 10);
+            monthValue = n >= 1 && n <= 12 ? monthNames[n - 1] : monthStr;
+          } else if (typeof monthValue === 'number' && monthValue > 1 && monthValue < 50000) {
+            const d = new Date(1900, 0, 1);
+            d.setDate(d.getDate() + (monthValue - 2));
+            monthValue = monthNames[d.getMonth()];
+          } else monthValue = monthAbbrMap[monthStr] || monthStr;
+        }
+        let businessUnit = normalizeBusinessUnitName(stringOrNull(row['Business Unit'] || row['Business_Unit'] || row.business_unit));
+        let clientName = stringOrNull(row['Client Name'] || row['Client_Name'] || row.client_name);
+        if ((!businessUnit || !clientName) && row['Business_Client_Na']) {
+          const bc = String(row['Business_Client_Na'] || '').trim();
+          if (bc.includes('|')) {
+            const parts = bc.split('|').map((p: string) => p.trim()).filter(Boolean);
+            if (parts.length >= 1 && !businessUnit) businessUnit = normalizeBusinessUnitName(stringOrNull(parts[0]));
+            if (parts.length >= 2 && !clientName) clientName = stringOrNull(parts[1].split('-')[0].trim() || parts[1]);
+          } else if (bc.includes('-')) {
+            const parts = bc.split('-').map((p: string) => p.trim()).filter(Boolean);
+            if (parts.length >= 1 && !businessUnit) businessUnit = normalizeBusinessUnitName(stringOrNull(parts[0]));
+            if (parts.length >= 2 && !clientName) clientName = stringOrNull(parts[1]);
+          } else if (!businessUnit) businessUnit = normalizeBusinessUnitName(stringOrNull(bc));
+        }
+        let yearValue = parseNumericValue(row['Year'] || row.year) || null;
+        if (yearValue && yearValue < 100) yearValue = yearValue < 50 ? 2000 + yearValue : 1900 + yearValue;
+        return {
+          business_unit: businessUnit, client_name: clientName,
+          project_name: stringOrNull(row['Project Name'] || row['Project_Na'] || row.project_name),
+          bu_head: stringOrNull(row['BU Head'] || row['BU_Head'] || row.bu_head),
+          month: monthValue ? String(monthValue).trim() : null, year: yearValue,
+          hc: parseNumericValue(row['HC'] || row.hc), revenue: parseNumericValue(row['Revenue'] || row.revenue),
+          salary_cost: parseNumericValue(row['Salary Cost'] || row['Salary_Cost'] || row.salary_cost),
+          gpm: parseNumericValue(row['GPM'] || row.gpm), gpm_percentage: parseNumericValue(row['GPM -%'] || row['GPM %'] || row.gpm_percentage),
+          np: parseNumericValue(row['NP'] || row.np), np_percentage: parseNumericValue(row['NP %'] || row['NP%'] || row.np_percentage),
+          leave_encashment: parseNumericValue(row['Leave Encsh'] || row['Leave Encashment'] || row.leave_encashment),
+          team_cost: parseNumericValue(row['Team Cost'] || row.team_cost), opr_cost: parseNumericValue(row['Opr Cost'] || row.opr_cost),
+          funding_cost: parseNumericValue(row['Funding Cost'] || row.funding_cost), rebate: parseNumericValue(row['Rebate'] || row.rebate),
+          passthrough: parseNumericValue(row['Passthrough'] || row.passthrough),
+        };
+      }).filter((r: any) => r.month && r.year != null && r.year !== 0).map((record: any) => {
+        const rev = Number(record.revenue) || 0, salary_cost = Number(record.salary_cost) || 0, rebate = Number(record.rebate) || 0, passthrough = Number(record.passthrough) || 0;
+        const leave_encashment = Number(record.leave_encashment) || 0, team_cost = Number(record.team_cost) || 0, opr_cost = Number(record.opr_cost) || 0, funding_cost = Number(record.funding_cost) || 0;
+        let gpm: number, np: number | null = null;
+        if (compareBusinessUnits(record.business_unit, 'MS') || compareBusinessUnits(record.business_unit, 'Managed Services')) gpm = rev - salary_cost;
+        else if (compareBusinessUnits(record.business_unit, 'USA')) gpm = rev - salary_cost - rebate - passthrough;
+        else if (compareBusinessUnits(record.business_unit, 'Japan') || compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) gpm = rev - salary_cost;
+        else { gpm = rev - salary_cost - leave_encashment; np = gpm - team_cost - opr_cost - funding_cost; }
+        const gpmPct = rev !== 0 ? (gpm / rev) * 100 : (record.gpm_percentage ?? null);
+        const npPct = np !== null && rev !== 0 ? (np / rev) * 100 : (record.np_percentage ?? null);
+        return { ...record, gpm, gpm_percentage: gpmPct, ...(np !== null ? { np, np_percentage: npPct } : {}) };
+      });
+      if (!mappedData.length) { message.error('No valid data found in the Excel file.'); return; }
+      try {
+        const batchSize = 50;
+        let successCount = 0, errorCount = 0;
+        message.loading(`Importing ${mappedData.length} records...`, 0);
+        for (let i = 0; i < mappedData.length; i += batchSize) {
+          const batch = mappedData.slice(i, i + batchSize);
+          try {
+            await apiClient.post('/team-report/bulk', { data: batch }, { timeout: 60000 });
+            successCount += batch.length;
+          } catch { errorCount += batch.length; }
+          await new Promise(r => setTimeout(r, 100));
+        }
+        message.destroy();
+        if (errorCount === 0) message.success(`Successfully imported all ${successCount} records!`, 5);
+        else if (successCount > 0) message.warning(`Imported ${successCount} successfully, ${errorCount} failed.`, 8);
+        else message.error(`All batches failed (${errorCount} records).`, 8);
+        if (successCount > 0) setTimeout(() => window.location.reload(), 2000);
+      } catch (err: any) {
+        message.destroy();
+        message.error(err?.response?.data?.error || 'Failed to import data');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleExportExcel = () => {
+    const exportData = clientMFSData.map((row: TeamReportItem) => ({
+      'Business Unit': row.business_unit || '', 'Client Name': row.client_name || '', 'Project Name': row.project_name || '',
+      'BU Head': row.bu_head || '', 'Year': row.year, 'Month': row.month || '',
+      'HC': row.hc || 0, 'Revenue': row.revenue || 0, 'Salary Cost': row.salary_cost || 0,
+      'GPM': row.gpm || 0, 'GPM -%': row.gpm_percentage || 0, 'NP': row.np || 0, 'NP %': row.np_percentage || 0,
+      'Leave Encsh': row.leave_encashment || 0, 'Team Cost': row.team_cost || 0, 'Opr Cost': row.opr_cost || 0,
+      'Funding Cost': row.funding_cost || 0, 'Rebate': row.rebate || 0, 'Passthrough': row.passthrough || 0,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Client_MFS_Report');
+    XLSX.writeFile(workbook, 'Client_MFS_Report.xlsx');
+  };
+
+  const actionDropdownItems = [
+    { key: 'add', label: 'Add MFS Data', onClick: () => navigate('/AddTeamReportData') },
+    { key: 'template', label: 'Download MFS Template', onClick: handleDownloadTemplate },
+    { key: 'import', label: 'Import MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportExcel(e as any); input.click(); } },
+    { key: 'client_template', label: 'Download Client MFS Template', onClick: handleDownloadClientTemplate },
+    { key: 'client_import', label: 'Import Client MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportClientMFS(e as any); input.click(); } },
+    { key: 'export', label: 'Export Excel', onClick: handleExportExcel },
+  ];
+
   // Show full page so both tables are visible (first: MFS from team-summary-report, second: client wise from team-report)
   if (loading) return <div className="loading">Loading data...</div>;
   if (error && !editingCell) return <div className="error">Error: {error}</div>;
@@ -1248,7 +1448,17 @@ const MFSdata: React.FC = () => {
           margin: 0, 
           zIndex: 1 
         }}>MFS Team Summary Report Data</h2>
-        <div className="auth-buttons-container">
+        <div className="auth-buttons-container" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Dropdown
+            menu={{ items: actionDropdownItems }}
+            trigger={['click']}
+            open={isActionDropdownOpen}
+            onOpenChange={setIsActionDropdownOpen}
+          >
+            <button className="auth-button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Actions <DownOutlined />
+            </button>
+          </Dropdown>
           <Link to="/team-report/compare">
             <button className="auth-button">Team Report Compare</button>
           </Link>
