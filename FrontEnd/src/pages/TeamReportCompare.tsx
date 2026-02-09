@@ -2983,9 +2983,11 @@ const TeamReportCompare: React.FC = () => {
   // Legacy name for table data dependency (row keys used to build table)
   const clientDataClientsFilteredByProject = clientDataRowKeys;
 
-  // Get unique months from filtered data
+  // Get unique months from filtered data, sorted in FY order (Apr -> Mar). Only months that have data are shown.
   const clientDataMonths = useMemo(() => {
     const monthSet = new Set<string>();
+    // FY order: Apr=1, May=2, ..., Dec=9, Jan=10, Feb=11, Mar=12 (Jan/Mar are next calendar year, same FY)
+    const monthAbbrToFYIndex: { [key: string]: number } = { 'Jan': 10, 'Feb': 11, 'Mar': 12, 'Apr': 1, 'May': 2, 'Jun': 3, 'Jul': 4, 'Aug': 5, 'Sep': 6, 'Oct': 7, 'Nov': 8, 'Dec': 9 };
     filteredClientMFSData.forEach((item: any) => {
       if (item.month && item.year) {
         const monthName = normalizeToFullMonthName(item.month);
@@ -2997,7 +2999,19 @@ const TeamReportCompare: React.FC = () => {
         monthSet.add(displayMonth);
       }
     });
-    return Array.from(monthSet).sort();
+    return Array.from(monthSet).sort((a, b) => {
+      const [aMonth, aYearStr] = a.split(' ');
+      const [bMonth, bYearStr] = b.split(' ');
+      const aYear = parseInt(aYearStr, 10);
+      const bYear = parseInt(bYearStr, 10);
+      // FY start year: Jan/Mar use previous calendar year
+      const aFYStart = (aMonth === 'Jan' || aMonth === 'Feb' || aMonth === 'Mar') ? aYear - 1 : aYear;
+      const bFYStart = (bMonth === 'Jan' || bMonth === 'Feb' || bMonth === 'Mar') ? bYear - 1 : bYear;
+      if (aFYStart !== bFYStart) return aFYStart - bFYStart;
+      const aFYIdx = monthAbbrToFYIndex[aMonth] ?? 0;
+      const bFYIdx = monthAbbrToFYIndex[bMonth] ?? 0;
+      return aFYIdx - bFYIdx;
+    });
   }, [filteredClientMFSData]);
 
   // Generate quarter options
