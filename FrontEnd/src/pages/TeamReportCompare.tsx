@@ -1324,6 +1324,9 @@ const TeamReportCompare: React.FC = () => {
   // Crore/Lakh toggle state
   const [isCroreMode, setIsCroreMode] = useState(true);
 
+  // KPI Dashboard: show/hide Team Cost Analysis card
+  const [showTeamCostKPI, setShowTeamCostKPI] = useState(true);
+
   // Utility function to format values based on toggle
   const formatValueWithToggle = (value: number, isLargeValue: boolean = true) => {
     if (!isLargeValue) return value.toFixed(0);
@@ -7065,15 +7068,16 @@ const TeamReportCompare: React.FC = () => {
 
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: showTeamCostKPI 
+              ? 'repeat(4, minmax(260px, 1fr))' 
+              : 'repeat(3, minmax(320px, 1fr))',
             gap: 16,
             marginBottom: 16
           }}>
             {(() => {
               const kpis = kpiData;
-              const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP'];
-              const additionalKPIs = []; // No additional KPIs available
-              const displayKPIs = mainKPIs; // Only show the 5 available KPIs
+              const mainKPIs = ['Revenue', 'GPM', ...(showTeamCostKPI ? ['Team Cost'] : []), 'NP'];
+              const displayKPIs = mainKPIs;
               
               return displayKPIs.map((kpiName) => {
                 const kpi = kpis[kpiName];
@@ -7149,9 +7153,10 @@ const TeamReportCompare: React.FC = () => {
                         return getMonthRangeForFY(comparisonValues[0] || 'FY 2025');
                       })();
                       const previousPeriodLabel = comparisonValues[1] || 'Previous Period';
+                      const colBorder = '1px solid #e0e0e0';
                       return (
-                    <div style={{ display: 'flex', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: 140 }}>
+                    <div style={{ display: 'flex', gap: 0, marginBottom: 0, flexWrap: 'wrap', borderBottom: colBorder }}>
+                      <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: '#666', marginBottom: 4 }}>{currentPeriodLabel}</div>
                         <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 6 }}>
                           {currentPeriodLabel}
@@ -7162,7 +7167,7 @@ const TeamReportCompare: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div style={{ flex: 1, minWidth: 100 }}>
+                      <div style={{ flex: 1, minWidth: 100, paddingLeft: 12 }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: '#666', marginBottom: 4 }}>{previousPeriodLabel}</div>
                         {kpi.monthsRemaining > 0 && (
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 6 }}>
@@ -7174,111 +7179,121 @@ const TeamReportCompare: React.FC = () => {
                       );
                     })()}
 
-                    {/* Metric rows: Revenue =, Routing =, CTS =, total — two columns */}
-                    <div style={{ marginBottom: 8 }}>
+                    {/* Metric rows: Revenue =, Routing =, CTS =, total — two columns with row/column borders */}
+                    <div style={{ marginTop: 8, marginBottom: 0 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        {kpiName === 'Revenue' && (
-                          <>
-                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                              <div style={{ flex: 1, minWidth: 140 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                        {kpiName === 'Revenue' && (() => {
+                          const rowBorder = '1px solid #e0e0e0';
+                          const colBorder = '1px solid #e0e0e0';
+                          return (
+                            <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
+                              <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   Revenue = {formatValue(kpi.currentFY)}
                                 </div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   Routing = {formatValue(calculateRoutingBilling())}
                                 </div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   CTS = {formatValue(calculateCTSValue())}
                                 </div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
                                   Revenue + Routing + CTS = {formatValue(kpi.currentFY + calculateRoutingBilling() + calculateCTSValue())}
                                 </div>
                               </div>
-                              <div style={{ flex: 1, minWidth: 100 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                              <div style={{ flex: 1, minWidth: 100, paddingLeft: 12 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   Revenue = {formatValue(kpi.previousFY)}
                                 </div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>Routing = -</div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>CTS = -</div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>Routing = -</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>CTS = -</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
                                   Revenue + Routing + CTS = {formatValue(kpi.previousFY)}
                                 </div>
                               </div>
                             </div>
-                          </>
-                        )}
+                          );
+                        })()}
                         {kpiName === 'GPM' && (() => {
                           const routingMargin = calculateRoutingMargin();
                           const ctsMargin = calculateCTSMargin();
                           const total = kpi.currentFY + routingMargin + ctsMargin;
+                          const rowBorder = '1px solid #e0e0e0';
+                          const colBorder = '1px solid #e0e0e0';
                           return (
-                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                              <div style={{ flex: 1, minWidth: 140 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                            <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
+                              <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   GPM = {formatValue(kpi.currentFY)}
                                 </div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   Routing = {formatValue(routingMargin)}
                                 </div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   CTS = {formatValue(ctsMargin)}
                                 </div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
                                   GPM + Routing + CTS = {formatValue(total)}
                                 </div>
                               </div>
-                              <div style={{ flex: 1, minWidth: 100 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                              <div style={{ flex: 1, minWidth: 100, paddingLeft: 12 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   GPM = {formatValue(kpi.previousFY)}
                                 </div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>Routing = -</div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>CTS = -</div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>GPM + Routing + CTS = {formatValue(kpi.previousFY)}</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>Routing = -</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>CTS = -</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>GPM + Routing + CTS = {formatValue(kpi.previousFY)}</div>
                               </div>
                             </div>
                           );
                         })()}
-                        {kpiName === 'Team Cost' && (
-                          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                            <div style={{ flex: 1, minWidth: 140 }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
-                                Team Cost = {formatValue(kpi.currentFY)}
+                        {kpiName === 'Team Cost' && (() => {
+                          const rowBorder = '1px solid #e0e0e0';
+                          const colBorder = '1px solid #e0e0e0';
+                          return (
+                            <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
+                              <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
+                                  Team Cost = {formatValue(kpi.currentFY)}
+                                </div>
+                              </div>
+                              <div style={{ flex: 1, minWidth: 100, paddingLeft: 12 }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
+                                  Team Cost = {formatValue(kpi.previousFY)}
+                                </div>
                               </div>
                             </div>
-                            <div style={{ flex: 1, minWidth: 100 }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
-                                Team Cost = {formatValue(kpi.previousFY)}
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                         {kpiName === 'NP' && (() => {
                           const routingNetMargin = calculateRoutingNetMargin();
                           const ctsMargin = calculateCTSMargin();
                           const total = kpi.currentFY + routingNetMargin + ctsMargin;
+                          const rowBorder = '1px solid #e0e0e0';
+                          const colBorder = '1px solid #e0e0e0';
                           return (
-                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                              <div style={{ flex: 1, minWidth: 140 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                            <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
+                              <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   NP = {formatValue(kpi.currentFY)}
                                 </div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   Routing = {formatValue(routingNetMargin)}
                                 </div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   CTS = {formatValue(ctsMargin)}
                                 </div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
                                   NP + Routing + CTS = {formatValue(total)}
                                 </div>
                               </div>
-                              <div style={{ flex: 1, minWidth: 100 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>
+                              <div style={{ flex: 1, minWidth: 100, paddingLeft: 12 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>
                                   NP = {formatValue(kpi.previousFY)}
                                 </div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>Routing = -</div>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', marginBottom: 4 }}>CTS = -</div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333' }}>NP + Routing + CTS = {formatValue(kpi.previousFY)}</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>Routing = -</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#333333', padding: '6px 0', borderBottom: rowBorder }}>CTS = -</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>NP + Routing + CTS = {formatValue(kpi.previousFY)}</div>
                               </div>
                             </div>
                           );
@@ -7289,6 +7304,27 @@ const TeamReportCompare: React.FC = () => {
                 );
               });
             })()}
+          </div>
+
+          {/* Toggle Team Cost Analysis visibility - small button after NP Analysis */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -8, marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => setShowTeamCostKPI(!showTeamCostKPI)}
+              style={{
+                padding: '4px 10px',
+                fontSize: '11px',
+                backgroundColor: showTeamCostKPI ? '#d9d9d9' : '#1890ff',
+                color: showTeamCostKPI ? '#333' : '#fff',
+                border: '1px solid #bbb',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+              title={showTeamCostKPI ? 'Hide Team Cost Analysis card' : 'Show Team Cost Analysis card'}
+            >
+              {showTeamCostKPI ? 'Hide Team Cost' : 'Show Team Cost'}
+            </button>
           </div>
           
           {/* Show More/Less Button */}
