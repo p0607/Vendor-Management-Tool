@@ -1316,6 +1316,7 @@ const TeamReportCompare: React.FC = () => {
   const [clientDataSelectedMonths, setClientDataSelectedMonths] = useState<string[]>([]);
   const [clientDataSelectedParameters, setClientDataSelectedParameters] = useState<string[]>([]);
   const [clientDataSelectedClients, setClientDataSelectedClients] = useState<string[]>([]); // [] = All clients
+  const [clientDataSelectedProjects, setClientDataSelectedProjects] = useState<string[]>([]); // [] = All projects (MS only)
 
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
@@ -2957,6 +2958,27 @@ const TeamReportCompare: React.FC = () => {
     return clientDataSelectedClients.filter(c => clientDataClients.includes(c));
   }, [clientDataSelectedClients, clientDataClients]);
 
+  // Unique projects from filtered data (MS only) - for Project dropdown
+  const clientDataProjects = useMemo(() => {
+    if (!isClientDataMS) return [];
+    const projectSet = new Set<string>();
+    filteredClientMFSData.forEach((item: any) => {
+      const p = (item.project_name ?? '').toString().trim();
+      if (p) projectSet.add(p);
+    });
+    return Array.from(projectSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [filteredClientMFSData, isClientDataMS]);
+
+  // When MS and project filter is set, only show rows whose project is in selected projects
+  const clientDataClientsFilteredByProject = useMemo(() => {
+    if (!isClientDataMS || !clientDataSelectedProjects.length) return clientDataClientsToShow;
+    return clientDataClientsToShow.filter((rowKey: string) => {
+      const idx = rowKey.lastIndexOf(' - ');
+      const projectName = idx >= 0 ? rowKey.substring(idx + 3).trim() : '';
+      return clientDataSelectedProjects.includes(projectName);
+    });
+  }, [isClientDataMS, clientDataSelectedProjects, clientDataClientsToShow]);
+
   // Get unique months from filtered data
   const clientDataMonths = useMemo(() => {
     const monthSet = new Set<string>();
@@ -3000,9 +3022,9 @@ const TeamReportCompare: React.FC = () => {
 
   // Build table data: clients as rows, parameters x months as columns
   const clientDataTableData = useMemo(() => {
-    if (!clientDataClientsToShow.length || !clientDataMonths.length) return [];
+    if (!clientDataClientsFilteredByProject.length || !clientDataMonths.length) return [];
     
-    const rows: Array<{ client: string; [key: string]: any }> = [];
+    const rows: Array<{ client: string; clientName?: string; project?: string; [key: string]: any }> = [];
     
     // For MS, row key is "Client - Project"; parse to match both client_name and project_name
     const matchClient = (item: any, rowKey: string) => {
@@ -3016,8 +3038,13 @@ const TeamReportCompare: React.FC = () => {
       return (item.client_name ?? '').toString().trim() === rowKey;
     };
 
-    clientDataClientsToShow.forEach(client => {
+    clientDataClientsFilteredByProject.forEach(client => {
       const row: any = { client };
+      if (isClientDataMS) {
+        const idx = client.lastIndexOf(' - ');
+        row.clientName = idx >= 0 ? client.substring(0, idx).trim() : client;
+        row.project = idx >= 0 ? client.substring(idx + 3).trim() : '';
+      }
       
       clientDataMonths.forEach(monthDisplay => {
         const [monthName, yearStr] = monthDisplay.split(' ');
@@ -3063,7 +3090,7 @@ const TeamReportCompare: React.FC = () => {
     });
     
     return rows;
-  }, [clientDataClientsToShow, clientDataMonths, clientDataParameters, filteredClientMFSData, isClientDataMS]);
+  }, [clientDataClientsFilteredByProject, clientDataMonths, clientDataParameters, filteredClientMFSData, isClientDataMS]);
 
   // Handle URL parameters for MFS button redirect
 
@@ -6924,10 +6951,6 @@ const TeamReportCompare: React.FC = () => {
 
             </Dropdown>
 
-            <button className="auth-button" onClick={() => navigate('/client-mfs/compare')}>
-              Client MFS comparison
-            </button>
-
             <button className="auth-button" onClick={() => navigate('/mfs-data')}>
               Data
             </button>
@@ -8366,6 +8389,21 @@ const TeamReportCompare: React.FC = () => {
                       {clientDataClients.map(c => (<Select.Option key={c} value={c}>{c}</Select.Option>))}
                     </Select>
                   </div>
+                  {isClientDataMS && clientDataProjects.length > 0 && (
+                    <div style={{ minWidth: '200px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Project:</label>
+                      <Select
+                        mode="multiple"
+                        value={clientDataSelectedProjects}
+                        onChange={(values: string[]) => setClientDataSelectedProjects(values)}
+                        placeholder="All projects"
+                        style={{ width: '100%' }}
+                        allowClear
+                      >
+                        {clientDataProjects.map(p => (<Select.Option key={p} value={p}>{p}</Select.Option>))}
+                      </Select>
+                    </div>
+                  )}
                   <div style={{ minWidth: '150px' }}>
                     <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>Period Type:</label>
                     <select value={clientDataPeriodFilter} onChange={(e) => { setClientDataPeriodFilter(e.target.value); if (e.target.value === 'year') { setClientDataPeriodValue(String(getCurrentFinancialYear())); } else { setClientDataPeriodValue(''); } setClientDataSelectedMonths([]); }} style={{ width: '100%', padding: '4px', fontSize: '12px' }}>
@@ -8406,14 +8444,18 @@ const TeamReportCompare: React.FC = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
                       <thead>
                         <tr style={{ backgroundColor: '#d8e8f0' }}>
-                          <th style={{ padding: '6px 8px', textAlign: 'left', color: '#000000', fontWeight: 'bold', position: 'sticky', left: 0, backgroundColor: '#d8e8f0', zIndex: 10 }}>Client</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'left', color: '#000000', fontWeight: 'bold', position: 'sticky', left: 0, minWidth: 100, backgroundColor: '#d8e8f0', zIndex: 10 }}>Client</th>
+                          {isClientDataMS && (
+                            <th style={{ padding: '6px 8px', textAlign: 'left', color: '#000000', fontWeight: 'bold', position: 'sticky', left: 100, minWidth: 100, backgroundColor: '#d8e8f0', zIndex: 10 }}>Project</th>
+                          )}
                           {clientDataMonths.map(month => (
                             <th key={month} colSpan={clientDataParameters.length} style={{ padding: '6px 8px', textAlign: 'center', color: '#000000', fontWeight: 'bold', borderLeft: '1px solid #d9d9d9' }}>{month}</th>
                           ))}
                         </tr>
                         {clientDataParameters.length > 1 && (
                           <tr style={{ backgroundColor: '#d8e8f0' }}>
-                            <th style={{ padding: '6px 8px', position: 'sticky', left: 0, backgroundColor: '#d8e8f0', zIndex: 10 }}></th>
+                            <th style={{ padding: '6px 8px', position: 'sticky', left: 0, minWidth: 100, backgroundColor: '#d8e8f0', zIndex: 10 }}></th>
+                            {isClientDataMS && <th style={{ padding: '6px 8px', position: 'sticky', left: 100, minWidth: 100, backgroundColor: '#d8e8f0', zIndex: 10 }}></th>}
                             {clientDataMonths.map(month => clientDataParameters.map(param => (
                               <th key={`${month}_${param.key}`} style={{ padding: '6px 8px', textAlign: 'center', color: '#000000', fontSize: '9px', borderLeft: '1px solid #d9d9d9' }}>{param.label}</th>
                             )))}
@@ -8423,7 +8465,10 @@ const TeamReportCompare: React.FC = () => {
                       <tbody>
                         {clientDataTableData.map((row, rowIndex) => (
                           <tr key={row.client} style={{ backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9' }}>
-                            <td style={{ padding: '6px 8px', fontWeight: 'bold', position: 'sticky', left: 0, backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9', zIndex: 5 }}>{row.client}</td>
+                            <td style={{ padding: '6px 8px', fontWeight: 'bold', position: 'sticky', left: 0, minWidth: 100, backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9', zIndex: 5 }}>{isClientDataMS ? (row.clientName ?? row.client) : row.client}</td>
+                            {isClientDataMS && (
+                              <td style={{ padding: '6px 8px', position: 'sticky', left: 100, minWidth: 100, backgroundColor: rowIndex % 2 === 0 ? '#ffffff' : '#f9f9f9', zIndex: 5 }}>{row.project ?? ''}</td>
+                            )}
                             {clientDataMonths.map(monthDisplay => {
                               const [monthName, yearStr] = monthDisplay.split(' ');
                               const year = parseInt(yearStr);
@@ -8447,7 +8492,8 @@ const TeamReportCompare: React.FC = () => {
                           </tr>
                         ))}
                         <tr style={{ backgroundColor: '#e6f3ff', fontWeight: 'bold' }}>
-                          <td style={{ padding: '6px 8px', position: 'sticky', left: 0, backgroundColor: '#e6f3ff', zIndex: 5 }}>Total</td>
+                          <td style={{ padding: '6px 8px', position: 'sticky', left: 0, minWidth: 100, backgroundColor: '#e6f3ff', zIndex: 5 }}>Total</td>
+                          {isClientDataMS && <td style={{ padding: '6px 8px', position: 'sticky', left: 100, minWidth: 100, backgroundColor: '#e6f3ff', zIndex: 5 }}></td>}
                           {clientDataMonths.map(monthDisplay => {
                             const [monthName, yearStr] = monthDisplay.split(' ');
                             const year = parseInt(yearStr);
