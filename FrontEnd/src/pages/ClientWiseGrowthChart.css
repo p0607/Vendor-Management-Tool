@@ -1,0 +1,130 @@
+.client-growth-chart-page {
+  padding: 16px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: #f0f5fa;
+  min-height: 100vh;
+}
+
+.client-growth-chart-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.client-growth-chart-back {
+  background: #004a7a;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.client-growth-chart-back:hover {
+  background: #003d66;
+}
+
+.client-growth-chart-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #000;
+  border-bottom: 3px solid #ff8c00;
+  padding-bottom: 4px;
+  display: inline-block;
+}
+
+.client-growth-chart-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  align-items: flex-end;
+}
+
+.client-growth-chart-field {
+  min-width: 160px;
+}
+
+.client-growth-chart-field-wide {
+  min-width: 220px;
+}
+
+.client-growth-chart-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #000;
+}
+
+.client-growth-chart-field select {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.client-growth-chart-field select[multiple] {
+  min-height: 80px;
+}
+
+.client-growth-chart-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.client-growth-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #333;
+}
+
+.client-growth-legend-item i {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+}
+
+.client-growth-chart-legend-note {
+  font-size: 11px;
+  color: #666;
+  margin-left: 8px;
+  font-style: italic;
+}
+
+.client-growth-chart-container {
+  width: 100%;
+  height: 420px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+}
+
+.client-growth-chart-loading,
+.client-growth-chart-message {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.client-growth-chart-message {
+  margin-top: 12px;
+}

@@ -8563,6 +8563,25 @@ const TeamReportCompare: React.FC = () => {
                     )}
                   </div>
                 )}
+                <div style={{ textAlign: 'center', marginTop: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/team-report/client-growth-chart', { state: { businessUnit: getSelectedBUForClientData } })}
+                    style={{
+                      backgroundColor: '#004a7a',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    Client Wise Growth Chart
+                  </button>
+                </div>
               </div>
             )}
 
