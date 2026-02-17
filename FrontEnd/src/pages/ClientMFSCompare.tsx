@@ -80,6 +80,8 @@ interface ReportData {
 
   passthrough?: number;
 
+  vendor_cost?: number;
+
   created_at?: string;
 
   updated_at?: string;
@@ -448,6 +450,7 @@ const ClientMFSCompare: React.FC = () => {
             if (paramLower === 'funding_cost') return 'funding_cost';
             if (paramLower === 'rebate') return 'rebate';
             if (paramLower === 'passthrough') return 'passthrough';
+            if (paramLower === 'vendor cost') return 'vendor_cost';
             return param; // Fallback to parameter name
           };
           
@@ -618,6 +621,7 @@ const ClientMFSCompare: React.FC = () => {
           if (paramLower === 'funding cost' || paramLower === 'funding_cost') return 'funding_cost';
           if (paramLower === 'rebate') return 'rebate';
           if (paramLower === 'passthrough') return 'passthrough';
+          if (paramLower === 'vendor cost') return 'vendor_cost';
           // Fallback: convert spaces to underscores for database field names
           return paramLower.replace(/\s+/g, '_');
         };
@@ -864,6 +868,7 @@ const ClientMFSCompare: React.FC = () => {
         'Funding Cost': calculateParameterKPI('funding_cost'),
         Rebate: calculateParameterKPI('rebate'),
         Passthrough: calculateParameterKPI('passthrough'),
+        'Vendor Cost': calculateParameterKPI('vendor_cost'),
         HC: calculateParameterKPI('hc')
         // Removed GPM % and NP % from KPI dashboard
       };
@@ -1041,6 +1046,7 @@ const ClientMFSCompare: React.FC = () => {
           else if (paramLower === 'funding cost' || paramLower === 'funding_cost') value = item.funding_cost || 0;
           else if (paramLower === 'rebate') value = item.rebate || 0;
           else if (paramLower === 'passthrough') value = item.passthrough || 0;
+          else if (paramLower === 'vendor_cost') value = item.vendor_cost || 0;
           else if (paramLower === 'hc') value = item.hc || 0;
           else {
             // Try direct field access as fallback (convert spaces to underscores for database field names)
@@ -1152,6 +1158,7 @@ const ClientMFSCompare: React.FC = () => {
           else if (paramLower === 'funding cost' || paramLower === 'funding_cost') value = item.funding_cost || 0;
           else if (paramLower === 'rebate') value = item.rebate || 0;
           else if (paramLower === 'passthrough') value = item.passthrough || 0;
+          else if (paramLower === 'vendor_cost') value = item.vendor_cost || 0;
           else if (paramLower === 'hc') value = item.hc || 0;
           else {
             // Try direct field access as fallback (convert spaces to underscores for database field names)
@@ -1364,7 +1371,7 @@ const ClientMFSCompare: React.FC = () => {
 
     // Convert amounts to numbers and handle formatting
     return filtered.map((item: any) => {
-      const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'np', 'np_percentage', 'salary_cost', 'gpm_percentage', 'leave_encashment', 'opr_cost', 'funding_cost', 'rebate', 'passthrough', 'year'];
+      const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'np', 'np_percentage', 'salary_cost', 'gpm_percentage', 'leave_encashment', 'opr_cost', 'funding_cost', 'rebate', 'passthrough', 'vendor_cost', 'year'];
       const processedItem = { ...item };
       
       for (const field of numericFields) {
@@ -1973,6 +1980,8 @@ const ClientMFSCompare: React.FC = () => {
 
           passthrough: parseNumericValue(row['Passthroug'] || row['Passthrough'] || row.passthrough),
 
+          vendor_cost: parseNumericValue(row['Vendor Cost'] || row.vendor_cost),
+
         };
 
       }).filter((record: any) => {
@@ -2220,6 +2229,8 @@ const ClientMFSCompare: React.FC = () => {
 
       'Passthrough': row.passthrough || 0,
 
+      'Vendor Cost': row.vendor_cost ?? 0,
+
     }));
 
 
@@ -2284,6 +2295,8 @@ const ClientMFSCompare: React.FC = () => {
         'Rebate': '',  // Can be empty
 
         'Passthrough': '',  // Can be empty
+
+        'Vendor Cost': '',  // Can be empty
 
       }
 
@@ -2713,6 +2726,7 @@ const ClientMFSCompare: React.FC = () => {
       'Funding Cost',
       'Rebate',
       'Passthrough',
+      'Vendor Cost',
       'HC',
       // Efficiency metrics from Efficiency Dashboard
       'Cost Efficiency',
@@ -3133,7 +3147,7 @@ const ClientMFSCompare: React.FC = () => {
 
           // Convert numeric fields to numbers - include all fields from team_report
 
-          const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'np', 'np_percentage', 'salary_cost', 'gpm_percentage', 'leave_encashment', 'opr_cost', 'funding_cost', 'rebate', 'passthrough', 'year'];
+          const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'np', 'np_percentage', 'salary_cost', 'gpm_percentage', 'leave_encashment', 'opr_cost', 'funding_cost', 'rebate', 'passthrough', 'vendor_cost', 'year'];
 
           
           
@@ -3695,6 +3709,7 @@ const ClientMFSCompare: React.FC = () => {
         if (parameter === 'Funding Cost') fieldName = 'funding_cost';
         if (parameter === 'Rebate') fieldName = 'rebate';
         if (parameter === 'Passthrough') fieldName = 'passthrough';
+        if (parameter === 'Vendor Cost') fieldName = 'vendor_cost';
         if (parameter === 'HC') fieldName = 'hc';
         
         // Debug Net Margin mapping
@@ -3919,6 +3934,7 @@ const ClientMFSCompare: React.FC = () => {
                     case 'Funding Cost': value = item.funding_cost || 0; break;
                     case 'Rebate': value = item.rebate || 0; break;
                     case 'Passthrough': value = item.passthrough || 0; break;
+                    case 'Vendor Cost': value = item.vendor_cost || 0; break;
                     case 'HC': value = item.hc || 0; break;
 
                     default: 
@@ -4083,6 +4099,7 @@ const ClientMFSCompare: React.FC = () => {
           case 'Funding Cost': value = item.funding_cost || 0; break;
           case 'Rebate': value = item.rebate || 0; break;
           case 'Passthrough': value = item.passthrough || 0; break;
+          case 'Vendor Cost': value = item.vendor_cost || 0; break;
           case 'HC': value = item.hc || 0; break;
 
           default: 
@@ -4437,6 +4454,7 @@ const ClientMFSCompare: React.FC = () => {
                     case 'Funding Cost': value = item.funding_cost || 0; break;
                     case 'Rebate': value = item.rebate || 0; break;
                     case 'Passthrough': value = item.passthrough || 0; break;
+                    case 'Vendor Cost': value = item.vendor_cost || 0; break;
                     case 'HC': value = item.hc || 0; break;
 
                     default: value = 0;
@@ -4654,6 +4672,7 @@ const ClientMFSCompare: React.FC = () => {
                   case 'Funding Cost': value = item.funding_cost || 0; break;
                   case 'Rebate': value = item.rebate || 0; break;
                   case 'Passthrough': value = item.passthrough || 0; break;
+                  case 'Vendor Cost': value = item.vendor_cost || 0; break;
                   default: value = 0;
                 }
                 monthlyTotals[monthKey] += value;

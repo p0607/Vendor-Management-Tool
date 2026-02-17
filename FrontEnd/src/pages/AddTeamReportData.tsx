@@ -21,6 +21,7 @@ interface TeamReportData {
   funding_cost: string;
   np: string;
   np_percentage: string;
+  vendor_cost: string;
   month: string;
   year: string;
 }
@@ -42,6 +43,7 @@ const initialFormData: TeamReportData = {
   funding_cost: '',
   np: '',
   np_percentage: '',
+  vendor_cost: '',
   month: '',
   year: '',
 };
@@ -96,6 +98,7 @@ const BUSINESS_UNIT_OPTIONS = [
       funding_cost: formData.funding_cost ? parseFloat(formData.funding_cost) : 0,
       np: formData.np ? parseFloat(formData.np) : 0,
       np_percentage: formData.np_percentage ? parseFloat(formData.np_percentage) : 0,
+      vendor_cost: formData.vendor_cost ? parseFloat(formData.vendor_cost) : 0,
       year: formData.year ? parseInt(formData.year) : new Date().getFullYear(),
       // Convert empty strings to null for text fields
       client_name: formData.client_name || null,
@@ -245,6 +248,10 @@ const BUSINESS_UNIT_OPTIONS = [
               <div className="form-group">
                 <label>NP %</label>
                 <input type="number" name="np_percentage" value={formData.np_percentage} onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label>Vendor Cost</label>
+                <input type="number" name="vendor_cost" value={formData.vendor_cost} onChange={handleChange} />
               </div>
               <div className="form-group">
                 <label>Month</label>

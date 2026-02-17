@@ -118,7 +118,8 @@ const MFSdata: React.FC = () => {
     { key: 'opr_cost', label: 'Opr Cost' },
     { key: 'funding_cost', label: 'Funding Cost' },
     { key: 'rebate', label: 'Rebate' },
-    { key: 'passthrough', label: 'Passthrough' }
+    { key: 'passthrough', label: 'Passthrough' },
+    { key: 'vendor_cost', label: 'Vendor Cost' }
   ];
 
   // Fetch data from API - using same endpoint as TeamReportCompare
@@ -1300,7 +1301,7 @@ const MFSdata: React.FC = () => {
     const templateData = [{
       'Business Unit': '', 'Client Name': '', 'Project Name': '', 'BU Head': '', 'Year': '', 'Month': '',
       'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
-      'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '', 'Rebate': '', 'Passthrough': '',
+      'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '', 'Rebate': '', 'Passthrough': '', 'Vendor Cost': '',
     }];
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
@@ -1364,6 +1365,7 @@ const MFSdata: React.FC = () => {
           team_cost: parseNumericValue(row['Team Cost'] || row.team_cost), opr_cost: parseNumericValue(row['Opr Cost'] || row.opr_cost),
           funding_cost: parseNumericValue(row['Funding Cost'] || row.funding_cost), rebate: parseNumericValue(row['Rebate'] || row.rebate),
           passthrough: parseNumericValue(row['Passthrough'] || row.passthrough),
+          vendor_cost: parseNumericValue(row['Vendor Cost'] || row.vendor_cost),
         };
       }).filter((r: any) => r.month && r.year != null && r.year !== 0).map((record: any) => {
         const rev = Number(record.revenue) || 0, salary_cost = Number(record.salary_cost) || 0, rebate = Number(record.rebate) || 0, passthrough = Number(record.passthrough) || 0;
@@ -1410,7 +1412,7 @@ const MFSdata: React.FC = () => {
       'HC': row.hc || 0, 'Revenue': row.revenue || 0, 'Salary Cost': row.salary_cost || 0,
       'GPM': row.gpm || 0, 'GPM -%': row.gpm_percentage || 0, 'NP': row.np || 0, 'NP %': row.np_percentage || 0,
       'Leave Encsh': row.leave_encashment || 0, 'Team Cost': row.team_cost || 0, 'Opr Cost': row.opr_cost || 0,
-      'Funding Cost': row.funding_cost || 0, 'Rebate': row.rebate || 0, 'Passthrough': row.passthrough || 0,
+      'Funding Cost': row.funding_cost || 0, 'Rebate': row.rebate || 0, 'Passthrough': row.passthrough || 0, 'Vendor Cost': row.vendor_cost ?? 0,
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();

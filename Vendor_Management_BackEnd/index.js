@@ -2066,7 +2066,7 @@ app.post('/api/team-report', async (req, res, next) => {
         client_name, project_name, business_unit, bu_head, hc, 
         salary_cost, revenue, gpm, gpm_percentage, leave_encashment, 
         team_cost, opr_cost, funding_cost, np, np_percentage, 
-        rebate, passthrough, month, year 
+        rebate, passthrough, vendor_cost, month, year 
       } = req.body;
       
       // Validate required fields: month and year are compulsory
@@ -2093,7 +2093,7 @@ app.post('/api/team-report', async (req, res, next) => {
       }
       
       // Convert numeric fields to numbers (handle parentheses, commas, percentages)
-      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough'];
+      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost'];
       const processedFields = {};
       for (const field of numericFields) {
         const value = req.body[field];
@@ -2205,8 +2205,8 @@ app.post('/api/team-report', async (req, res, next) => {
           client_name, project_name, business_unit, bu_head, hc,
           salary_cost, revenue, gpm, gpm_percentage, leave_encashment,
           team_cost, opr_cost, funding_cost, np, np_percentage, 
-          rebate, passthrough, month, year
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
+          rebate, passthrough, vendor_cost, month, year
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *`,
         [
           client_name === '' ? null : client_name,
           project_name === '' ? null : project_name,
@@ -2225,6 +2225,7 @@ app.post('/api/team-report', async (req, res, next) => {
           processedFields.np_percentage,
           processedFields.rebate,
           processedFields.passthrough,
+          processedFields.vendor_cost ?? 0,
           normalizedMonth,
           year
         ]
@@ -2313,7 +2314,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       }
       
       // Convert numeric fields to numbers
-      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough'];
+      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost'];
       for (const field of numericFields) {
         if (record[field] !== null && record[field] !== undefined && record[field] !== '') {
           if (typeof record[field] === 'string') {
@@ -2417,8 +2418,8 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         client_name, project_name, business_unit, bu_head, hc,
         salary_cost, revenue, gpm, gpm_percentage, leave_encashment,
         team_cost, opr_cost, funding_cost, np, np_percentage, 
-        rebate, passthrough, month, year
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`;
+        rebate, passthrough, vendor_cost, month, year
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`;
       
       let insertedCount = 0;
       let failedCount = 0;
@@ -2455,6 +2456,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             record.np_percentage || 0,
             record.rebate || 0,
             record.passthrough || 0,
+            record.vendor_cost ?? 0,
             record.month,
             record.year
           ]);

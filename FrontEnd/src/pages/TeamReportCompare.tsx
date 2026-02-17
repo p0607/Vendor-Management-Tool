@@ -2026,6 +2026,8 @@ const TeamReportCompare: React.FC = () => {
 
         'Passthrough': '',
 
+        'Vendor Cost': '',
+
       }
 
     ];
@@ -2231,6 +2233,8 @@ const TeamReportCompare: React.FC = () => {
           rebate: parseNumericValue(row['Rebate'] || row.rebate),
 
           passthrough: parseNumericValue(row['Passthroug'] || row['Passthrough'] || row.passthrough),
+
+          vendor_cost: parseNumericValue(row['Vendor Cost'] || row.vendor_cost),
 
         };
 
@@ -2800,7 +2804,8 @@ const TeamReportCompare: React.FC = () => {
     { key: 'opr_cost', label: 'Opr Cost' },
     { key: 'funding_cost', label: 'Funding Cost' },
     { key: 'rebate', label: 'Rebate' },
-    { key: 'passthrough', label: 'Passthrough' }
+    { key: 'passthrough', label: 'Passthrough' },
+    { key: 'vendor_cost', label: 'Vendor Cost' }
   ];
 
   // Get selected parameters or default to all
