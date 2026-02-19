@@ -1,114 +1,34 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import * as am5 from '@amcharts/amcharts5';
 import * as am5xy from '@amcharts/amcharts5/xy';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
-import { compareBusinessUnits } from '../utils/businessUnitUtils';
-import apiClient from '../config/api';
+import {
+  CLIENT_GROWTH_PARAMETERS,
+  getCurrentFinancialYearForGrowthChart,
+  normalizeToFullMonthNameForGrowth,
+  getMonthKeyForGrowth
+} from './ClientWiseGrowthChart';
 import './ClientWiseGrowthChart.css';
-
-export const CLIENT_GROWTH_PARAMETERS = [
-  { key: 'hc', label: 'HC' },
-  { key: 'revenue', label: 'Revenue' },
-  { key: 'salary_cost', label: 'Salary Cost' },
-  { key: 'gpm', label: 'GPM' },
-  { key: 'gpm_percentage', label: 'GPM %' },
-  { key: 'np', label: 'NP' },
-  { key: 'np_percentage', label: 'NP %' },
-  { key: 'leave_encashment', label: 'Leave Encashment' },
-  { key: 'team_cost', label: 'Team Cost' },
-  { key: 'opr_cost', label: 'Opr Cost' },
-  { key: 'funding_cost', label: 'Funding Cost' },
-  { key: 'rebate', label: 'Rebate' },
-  { key: 'passthrough', label: 'Passthrough' },
-  { key: 'vendor_cost', label: 'Vendor Cost' }
-];
-
-const PARAMETERS = CLIENT_GROWTH_PARAMETERS;
-
-export function getCurrentFinancialYearForGrowthChart(): number {
-  const d = new Date();
-  const m = d.getMonth() + 1;
-  const y = d.getFullYear();
-  return m >= 4 ? y : y - 1;
-}
-
-export function normalizeToFullMonthNameForGrowth(monthName: any): string {
-  if (monthName == null || monthName === '') return '';
-  const fullMonthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
-  if (typeof monthName === 'number' && monthName >= 1 && monthName <= 12) return fullMonthNames[monthName - 1];
-  const str = String(monthName).trim();
-  if (/^\d{1,2}$/.test(str)) {
-    const n = parseInt(str, 10);
-    if (n >= 1 && n <= 12) return fullMonthNames[n - 1];
-  }
-  const dateMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (dateMatch) {
-    const monthNum = parseInt(dateMatch[2], 10);
-    if (monthNum >= 1 && monthNum <= 12) return fullMonthNames[monthNum - 1];
-  }
-  const abbreviationMap: { [key: string]: string } = {
-    'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
-    'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
-    'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
-  };
-  const normalized = str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-  return abbreviationMap[normalized] || normalized;
-}
-
-function getMonthNumber(monthName: string): number {
-  const months: { [key: string]: number } = {
-    'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
-    'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12
-  };
-  return months[normalizeToFullMonthNameForGrowth(monthName)] || 0;
-}
-
-export function getMonthKeyForGrowth(month: string, year: number): string {
-  const fullMonthName = normalizeToFullMonthNameForGrowth(month);
-  const monthNum = getMonthNumber(fullMonthName);
-  return `${year}-${String(monthNum).padStart(2, '0')}`;
-}
 
 const MONTH_ABBR = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export default function ClientWiseGrowthChart() {
-  const location = useLocation();
-  const navigate = useNavigate();
+type Props = {
+  data: any[];
+  businessUnit: string;
+  chartId?: string;
+};
+
+export default function ClientWiseGrowthChartSection({ data, businessUnit, chartId = 'clientGrowthChartInline' }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<am5.Root | null>(null);
 
-  const businessUnit = (location.state as { businessUnit?: string })?.businessUnit;
-
-  const [rawData, setRawData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState<string>('__all__');
   const [selectedParameter, setSelectedParameter] = useState<string>('revenue');
   const [periodType, setPeriodType] = useState<'year' | 'quarter' | 'month'>('year');
   const [periodValue, setPeriodValue] = useState<string>(String(getCurrentFinancialYearForGrowthChart()));
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const res = await apiClient.get('/team-report');
-        setRawData(Array.isArray(res.data) ? res.data : []);
-      } catch (e) {
-        console.error('Failed to fetch team-report', e);
-        setRawData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  const filteredByBU = useMemo(() => {
-    if (!businessUnit || !rawData.length) return [];
-    return rawData.filter((item: any) => compareBusinessUnits(item.business_unit, businessUnit));
-  }, [rawData, businessUnit]);
+  const filteredByBU = data;
 
   const clientList = useMemo(() => {
     const set = new Set<string>();
@@ -171,6 +91,7 @@ export default function ClientWiseGrowthChart() {
           1: [4, 5, 6], 2: [7, 8, 9], 3: [10, 11, 12], 4: [1, 2, 3]
         };
         const months = quarterMonths[q] || [];
+        // Label year (y) is the calendar year for all months in this quarter, including Q4 Jan-Mar
         months.forEach((m) => {
           result.push({ key: `${y}-${String(m).padStart(2, '0')}`, label: `${MONTH_ABBR[m]} ${y}` });
         });
@@ -202,7 +123,6 @@ export default function ClientWiseGrowthChart() {
     return result;
   }, [periodType, periodValue, selectedMonths]);
 
-  // Previous period keys (same length/structure as current) for growth comparison when "All clients" is selected
   const previousPeriodKeys = useMemo(() => {
     const keys: string[] = [];
     if (periodType === 'year' && periodValue) {
@@ -218,14 +138,12 @@ export default function ClientWiseGrowthChart() {
       if (match && yearMatch) {
         const q = parseInt(match[1], 10);
         const y = parseInt(yearMatch[1], 10);
-        const prevYear = y - 1; // same quarter, previous year
+        const prevYear = y - 1;
         const quarterMonths: { [key: number]: number[] } = {
           1: [4, 5, 6], 2: [7, 8, 9], 3: [10, 11, 12], 4: [1, 2, 3]
         };
         const months = quarterMonths[q] || [];
-        months.forEach((m) => {
-          keys.push(`${prevYear}-${String(m).padStart(2, '0')}`);
-        });
+        months.forEach((m) => keys.push(`${prevYear}-${String(m).padStart(2, '0')}`));
       }
     } else if (periodType === 'month' && selectedMonths.length > 0) {
       const monthAbbrToNum: { [key: string]: number } = {
@@ -257,7 +175,6 @@ export default function ClientWiseGrowthChart() {
     };
 
     if (selectedClient === '__all__') {
-      // One bar per client: value = current period sum, color = growth vs previous period
       const clientNames = Array.from(new Set(filteredByBU.map((item: any) => (item.client_name ?? '').toString().trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
       const out: { period: string; value: number; growthPct: number | null; fill: string }[] = [];
 
@@ -285,17 +202,11 @@ export default function ClientWiseGrowthChart() {
           growthPct = 100;
           fill = '#52c41a';
         }
-        out.push({
-          period: clientName,
-          value: currentSum,
-          growthPct,
-          fill
-        });
+        out.push({ period: clientName, value: currentSum, growthPct, fill });
       });
       return out;
     }
 
-    // Single client: one bar per period, growth vs previous period
     const valuesByKey: { [key: string]: number } = {};
     periodLabelsAndKeys.forEach(({ key }) => { valuesByKey[key] = 0; });
     filteredByBU
@@ -322,12 +233,7 @@ export default function ClientWiseGrowthChart() {
         growthPct = 100;
         fill = '#52c41a';
       }
-      out.push({
-        period: p.label,
-        value: p.value,
-        growthPct,
-        fill
-      });
+      out.push({ period: p.label, value: p.value, growthPct, fill });
     });
     return out;
   }, [filteredByBU, selectedClient, selectedParameter, periodLabelsAndKeys, previousPeriodKeys]);
@@ -342,10 +248,10 @@ export default function ClientWiseGrowthChart() {
     if (!chartRef.current || !chartData.length) return;
 
     am5.array.each(am5.registry.rootElements, (root) => {
-      if (root?.dom?.id === 'clientGrowthChart') root.dispose();
+      if (root?.dom?.id === chartId) root.dispose();
     });
 
-    const root = am5.Root.new('clientGrowthChart');
+    const root = am5.Root.new(chartId);
     rootRef.current = root;
     root.setThemes([am5themes_Animated.new(root)]);
 
@@ -385,10 +291,7 @@ export default function ClientWiseGrowthChart() {
         categoryXField: 'period'
       })
     );
-    series.columns.template.setAll({
-      strokeWidth: 0,
-      width: am5.percent(70)
-    });
+    series.columns.template.setAll({ strokeWidth: 0, width: am5.percent(70) });
     series.columns.template.adapters.add('fill', (fill, target) => {
       const hex = (target.dataItem?.dataContext as any)?.fill;
       if (hex && typeof hex === 'string') {
@@ -411,53 +314,25 @@ export default function ClientWiseGrowthChart() {
       root.dispose();
       rootRef.current = null;
     };
-  }, [chartData, selectedParameter, selectedClient]);
-
-  if (!businessUnit) {
-    return (
-      <div className="client-growth-chart-page">
-        <div className="client-growth-chart-header">
-          <button type="button" className="client-growth-chart-back" onClick={() => navigate('/team-report/compare')}>
-            Back
-          </button>
-          <h1 className="client-growth-chart-title">Client Wise Growth Chart</h1>
-        </div>
-        <p className="client-growth-chart-message">No business unit selected. Open this page from the Client Data section on the MFS comparison page.</p>
-      </div>
-    );
-  }
+  }, [chartData, selectedParameter, selectedClient, chartId]);
 
   return (
-    <div className="client-growth-chart-page">
-      <div className="client-growth-chart-header">
-        <button type="button" className="client-growth-chart-back" onClick={() => navigate('/team-report/compare')}>
-          Back
-        </button>
-        <h1 className="client-growth-chart-title">Client Wise Growth Chart – {businessUnit}</h1>
+    <div className="client-growth-chart-section">
+      <div className="client-growth-chart-section-title">
+        Client Wise Growth Chart – {businessUnit}
       </div>
-
       <div className="client-growth-chart-filters">
         <div className="client-growth-chart-field">
           <label>Client</label>
-          <select
-            value={selectedClient}
-            onChange={(e) => setSelectedClient(e.target.value)}
-          >
+          <select value={selectedClient} onChange={(e) => setSelectedClient(e.target.value)}>
             <option value="__all__">All clients</option>
-            {clientList.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
+            {clientList.map((c) => (<option key={c} value={c}>{c}</option>))}
           </select>
         </div>
         <div className="client-growth-chart-field">
           <label>Parameter</label>
-          <select
-            value={selectedParameter}
-            onChange={(e) => setSelectedParameter(e.target.value)}
-          >
-            {PARAMETERS.map((p) => (
-              <option key={p.key} value={p.key}>{p.label}</option>
-            ))}
+          <select value={selectedParameter} onChange={(e) => setSelectedParameter(e.target.value)}>
+            {CLIENT_GROWTH_PARAMETERS.map((p) => (<option key={p.key} value={p.key}>{p.label}</option>))}
           </select>
         </div>
         <div className="client-growth-chart-field">
@@ -481,9 +356,7 @@ export default function ClientWiseGrowthChart() {
           <div className="client-growth-chart-field">
             <label>Year</label>
             <select value={periodValue} onChange={(e) => setPeriodValue(e.target.value)}>
-              {yearOptions.map((y) => (
-                <option key={y} value={String(y)}>{y}</option>
-              ))}
+              {yearOptions.map((y) => (<option key={y} value={String(y)}>{y}</option>))}
             </select>
           </div>
         )}
@@ -492,9 +365,7 @@ export default function ClientWiseGrowthChart() {
             <label>Quarter</label>
             <select value={periodValue} onChange={(e) => setPeriodValue(e.target.value)}>
               <option value="">Select Quarter</option>
-              {quarterOptions.map((q) => (
-                <option key={q} value={q}>{q}</option>
-              ))}
+              {quarterOptions.map((q) => (<option key={q} value={q}>{q}</option>))}
             </select>
           </div>
         )}
@@ -509,31 +380,22 @@ export default function ClientWiseGrowthChart() {
                 setSelectedMonths(opts);
               }}
             >
-              {monthOptions.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
+              {monthOptions.map((m) => (<option key={m} value={m}>{m}</option>))}
             </select>
           </div>
         )}
       </div>
-
-      {loading ? (
-        <div className="client-growth-chart-loading">Loading data...</div>
-      ) : (
-        <>
-          <div className="client-growth-chart-legend">
-            <span className="client-growth-legend-item"><i style={{ background: '#52c41a' }} /> Growth</span>
-            <span className="client-growth-legend-item"><i style={{ background: '#ff4d4f' }} /> Decline</span>
-            <span className="client-growth-legend-item"><i style={{ background: '#1890ff' }} /> No prior period</span>
-            {selectedClient === '__all__' && (
-              <span className="client-growth-chart-legend-note">Each bar is one client; growth/decline vs same period previous year/quarter.</span>
-            )}
-          </div>
-          <div ref={chartRef} id="clientGrowthChart" className="client-growth-chart-container" />
-          {chartData.length === 0 && !loading && (
-            <p className="client-growth-chart-message">No data for the selected filters.</p>
-          )}
-        </>
+      <div className="client-growth-chart-legend">
+        <span className="client-growth-legend-item"><i style={{ background: '#52c41a' }} /> Growth</span>
+        <span className="client-growth-legend-item"><i style={{ background: '#ff4d4f' }} /> Decline</span>
+        <span className="client-growth-legend-item"><i style={{ background: '#1890ff' }} /> No prior period</span>
+        {selectedClient === '__all__' && (
+          <span className="client-growth-chart-legend-note">Each bar is one client; growth/decline vs same period previous year/quarter.</span>
+        )}
+      </div>
+      <div ref={chartRef} id={chartId} className="client-growth-chart-container" />
+      {chartData.length === 0 && (
+        <p className="client-growth-chart-message">No data for the selected filters.</p>
       )}
     </div>
   );

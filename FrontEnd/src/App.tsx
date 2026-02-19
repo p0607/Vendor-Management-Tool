@@ -23,7 +23,6 @@ import VendorResourcePieAnalysis from './pages/VendorResourcePieAnalysis';
 import AddTeamReportData from './pages/AddTeamReportData';
 import AddHRMSData from './pages/AddHRMSData';
 import TeamReportCompare from "./pages/TeamReportCompare";
-import ClientWiseGrowthChart from "./pages/ClientWiseGrowthChart";
 import ClientMFSCompare from "./pages/ClientMFSCompare";
 import MFSdata from "./pages/MFSdata";
 import ClientMFSdata from "./pages/ClientMFSdata";
@@ -66,7 +65,6 @@ const App: React.FC = () => {
         <Route path="/AddTeamReportData" element={<AddTeamReportData />} />
         <Route path="/AddHRMSData" element={<AddHRMSData />} />
         <Route path="/team-report/compare" element={<TeamReportCompare />} />
-        <Route path="/team-report/client-growth-chart" element={<ClientWiseGrowthChart />} />
         <Route path="/client-mfs/compare" element={<ClientMFSCompare />} />
         <Route path="/mfs-data" element={<MFSdata />} />
         <Route path="/client-mfs-data" element={<ClientMFSdata />} />
