@@ -15,6 +15,14 @@ const MONTH_ABBR = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 
 
 const SERIES_COLORS = [0x1890ff, 0x52c41a, 0xff4d4f, 0xfaad14, 0x722ed1, 0x13c2c2, 0xeb2f96, 0x597ef7];
 
+function formatCrLakh(value: number): string {
+  if (value == null || !isFinite(value) || value === 0) return '';
+  const abs = Math.abs(value);
+  if (abs >= 1e7) return `${Math.round(value / 1e7)} Cr`;
+  if (abs >= 1e5) return `${Math.round(value / 1e5)} Lakh`;
+  return String(Math.round(value));
+}
+
 type Props = {
   data: any[];
   businessUnit: string;
@@ -333,7 +341,7 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
         const v = row[config.valueField];
         const num = typeof v === 'number' && !isNaN(v) ? v : 0;
         out[config.valueField] = num;
-        out[config.labelField] = num === 0 ? '' : `${(num / 1e7).toFixed(2)} Cr`;
+        out[config.labelField] = formatCrLakh(num);
       });
       return out;
     });
@@ -349,14 +357,22 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
     yAxis.get('renderer').labels.template.setAll({ fill: am5.color(0x000000), fontSize: 10 });
 
     chartSeriesConfig.forEach((config) => {
+      const labelFieldKey = config.labelField;
       const bulletLabel = () => {
         const label = am5.Label.new(root, {
-          text: `{${config.labelField}}`,
+          text: '',
           centerY: am5.percent(50),
           centerX: am5.percent(50),
           fill: am5.color(0x000000),
           fontSize: 9,
           fontWeight: '500'
+        });
+        label.adapters.add('text', (_text, target) => {
+          const bullet = target.parent as { dataItem?: { dataContext?: Record<string, unknown> } } | undefined;
+          const ctx = bullet?.dataItem?.dataContext;
+          if (!ctx) return '';
+          const val = ctx[labelFieldKey];
+          return val != null ? String(val) : '';
         });
         return am5.Bullet.new(root, { locationY: 0.5, sprite: label });
       };
@@ -411,7 +427,7 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
       root.dispose();
       rootRef.current = null;
     };
-  }, [chartData, chartSeriesConfig, chartId, chartType]);
+  }, [chartData, chartSeriesConfig, chartId, chartType, isChartVisible]);
 
   if (!isChartVisible) {
     return (
@@ -539,26 +555,6 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
             />
           </div>
         )}
-      </div>
-      <div className="client-growth-chart-legend">
-        <span className="client-growth-chart-legend-note">
-          {isMultiClientMonthView
-            ? 'Month-wise comparison; one series per client. Values in Cr (Crores).'
-            : effectiveClients.length === 1
-              ? 'Each category is a period (single client). Values in Cr.'
-              : 'Each category is a client (aggregated for selected period). Values in Cr.'}
-        </span>
-        {(selectedYears.length > 1 || selectedQuarters.length > 1) && (
-          <span className="client-growth-chart-legend-note" style={{ display: 'block', marginTop: 4 }}>
-            Multiple {periodType === 'year' ? 'years' : 'quarters'} selected: chart shows all months in order ({periodLabelsAndKeys.length} months). Scroll horizontally if needed.
-          </span>
-        )}
-      </div>
-      <div className="client-growth-chart-data-status">
-        Data: {filteredByBU.length} records
-        {periodLabelsAndKeys.length > 0 && ` · ${periodLabelsAndKeys.length} periods`}
-        {clientList.length > 0 && ` · ${clientList.length} clients`}
-        {chartData.length > 0 && ` · Chart: ${chartData.length} points`}
       </div>
       <div
         ref={chartRef}
