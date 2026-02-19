@@ -31,6 +31,8 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
   const [selectedYears, setSelectedYears] = useState<number[]>([getCurrentFinancialYearForGrowthChart()]);
   const [selectedQuarters, setSelectedQuarters] = useState<string[]>([]);
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [isChartVisible, setIsChartVisible] = useState(true);
 
   const filteredByBU = data;
 
@@ -198,10 +200,34 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
       return isNaN(n) ? 0 : n;
     };
 
-    const isClientView = effectiveClients.length !== 1;
-    if (isClientView) {
+    const multiClientMonthView = effectiveClients.length >= 2;
+    if (multiClientMonthView) {
       const out: { period: string; [key: string]: any }[] = [];
-      effectiveClients.forEach((clientName) => {
+      const paramKey = effectiveParameters[0];
+      periodLabelsAndKeys.forEach(({ key, label }) => {
+        const row: { period: string; [key: string]: any } = { period: label };
+        effectiveClients.forEach((clientName) => {
+          let sum = 0;
+          filteredByBU.forEach((item: any) => {
+            if ((item.client_name ?? '').toString().trim() !== clientName) return;
+            if (item.month == null || item.year == null) return;
+            const monthName = normalizeToFullMonthNameForGrowth(item.month);
+            const year = Number(item.year);
+            if (isNaN(year)) return;
+            const k = getMonthKeyForGrowth(monthName, year);
+            if (k === key) sum += getVal(item, paramKey);
+          });
+          row[clientName] = sum;
+        });
+        out.push(row);
+      });
+      return out;
+    }
+
+    const singleClientAggView = effectiveClients.length === 0;
+    if (singleClientAggView) {
+      const out: { period: string; [key: string]: any }[] = [];
+      clientList.forEach((clientName) => {
         const row: { period: string; [key: string]: any } = { period: clientName };
         effectiveParameters.forEach((paramKey) => {
           let sum = 0;
@@ -211,8 +237,8 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
             const monthName = normalizeToFullMonthNameForGrowth(item.month);
             const year = Number(item.year);
             if (isNaN(year)) return;
-            const key = getMonthKeyForGrowth(monthName, year);
-            if (currentKeysSet.has(key)) sum += getVal(item, paramKey);
+            const k = getMonthKeyForGrowth(monthName, year);
+            if (currentKeysSet.has(k)) sum += getVal(item, paramKey);
           });
           row[paramKey] = sum;
         });
@@ -241,7 +267,27 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
       out.push(row);
     });
     return out;
-  }, [filteredByBU, effectiveClients, effectiveParameters, periodLabelsAndKeys]);
+  }, [filteredByBU, effectiveClients, effectiveParameters, periodLabelsAndKeys, clientList]);
+
+  const isMultiClientMonthView = effectiveClients.length >= 2;
+  const chartSeriesConfig = useMemo(() => {
+    if (isMultiClientMonthView) {
+      return effectiveClients.map((clientName, idx) => ({
+        type: 'client' as const,
+        name: clientName,
+        valueField: clientName,
+        labelField: `_lbl_${idx}`,
+        color: SERIES_COLORS[idx % SERIES_COLORS.length]
+      }));
+    }
+    return effectiveParameters.map((paramKey, idx) => ({
+      type: 'parameter' as const,
+      name: CLIENT_GROWTH_PARAMETERS.find((p) => p.key === paramKey)?.label ?? paramKey,
+      valueField: paramKey,
+      labelField: `_lbl_${idx}`,
+      color: SERIES_COLORS[idx % SERIES_COLORS.length]
+    }));
+  }, [isMultiClientMonthView, effectiveClients, effectiveParameters]);
 
   useEffect(() => {
     if (periodType === 'year') setSelectedYears([getCurrentFinancialYearForGrowthChart()]);
@@ -251,7 +297,7 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
 
   useLayoutEffect(() => {
     const container = chartRef.current;
-    if (!container || !chartData.length || effectiveParameters.length === 0) return;
+    if (!container || !chartData.length || chartSeriesConfig.length === 0) return;
 
     am5.array.each(am5.registry.rootElements, (root) => {
       if (root?.dom?.id === chartId) root.dispose();
@@ -261,12 +307,13 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
     rootRef.current = root;
     root.setThemes([am5themes_Animated.new(root)]);
 
+    const manyPeriods = chartData.length > 12;
     const chart = root.container.children.push(
       am5xy.XYChart.new(root, {
         layout: root.verticalLayout,
-        panX: false,
+        panX: manyPeriods,
         panY: false,
-        wheelX: 'none',
+        wheelX: manyPeriods ? 'panX' : 'none',
         wheelY: 'none',
         cursor: am5xy.XYCursor.new(root, {}),
         background: am5.Rectangle.new(root, { fill: am5.color(0xffffff) })
@@ -282,9 +329,11 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
     );
     const dataForChart = chartData.map((row) => {
       const out: Record<string, string | number> = { period: row.period };
-      effectiveParameters.forEach((paramKey) => {
-        const v = row[paramKey];
-        out[paramKey] = typeof v === 'number' && !isNaN(v) ? v : 0;
+      chartSeriesConfig.forEach((config) => {
+        const v = row[config.valueField];
+        const num = typeof v === 'number' && !isNaN(v) ? v : 0;
+        out[config.valueField] = num;
+        out[config.labelField] = num === 0 ? '' : `${(num / 1e7).toFixed(2)} Cr`;
       });
       return out;
     });
@@ -299,24 +348,53 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
     );
     yAxis.get('renderer').labels.template.setAll({ fill: am5.color(0x000000), fontSize: 10 });
 
-    effectiveParameters.forEach((paramKey, idx) => {
-      const paramLabel = CLIENT_GROWTH_PARAMETERS.find((p) => p.key === paramKey)?.label ?? paramKey;
-      const series = chart.series.push(
-        am5xy.ColumnSeries.new(root, {
-          name: paramLabel,
-          xAxis,
-          yAxis,
-          valueYField: paramKey,
-          categoryXField: 'period'
-        })
-      );
-      series.columns.template.setAll({
-        strokeWidth: 0,
-        width: am5.percent(70)
-      });
-      series.set('fill', am5.color(SERIES_COLORS[idx % SERIES_COLORS.length]));
-      series.data.setAll(dataForChart);
-      series.set('tooltipText', `{period}\n${paramLabel}: {${paramKey}}`);
+    chartSeriesConfig.forEach((config) => {
+      const bulletLabel = () => {
+        const label = am5.Label.new(root, {
+          text: `{${config.labelField}}`,
+          centerY: am5.percent(50),
+          centerX: am5.percent(50),
+          fill: am5.color(0x000000),
+          fontSize: 9,
+          fontWeight: '500'
+        });
+        return am5.Bullet.new(root, { locationY: 0.5, sprite: label });
+      };
+      if (chartType === 'bar') {
+        const series = chart.series.push(
+          am5xy.ColumnSeries.new(root, {
+            name: config.name,
+            xAxis,
+            yAxis,
+            valueYField: config.valueField,
+            categoryXField: 'period'
+          })
+        );
+        series.columns.template.setAll({
+          strokeWidth: 0,
+          width: am5.percent(70)
+        });
+        series.set('fill', am5.color(config.color));
+        series.data.setAll(dataForChart);
+        series.set('tooltip', am5.Tooltip.new(root, { forceHidden: true }));
+        series.bullets.push(bulletLabel);
+      } else {
+        const series = chart.series.push(
+          am5xy.LineSeries.new(root, {
+            name: config.name,
+            xAxis,
+            yAxis,
+            valueYField: config.valueField,
+            categoryXField: 'period'
+          })
+        );
+        series.strokes.template.setAll({ strokeWidth: 2 });
+        series.set('stroke', am5.color(config.color));
+        series.set('fill', am5.color(config.color));
+        series.data.setAll(dataForChart);
+        series.set('tooltip', am5.Tooltip.new(root, { forceHidden: true }));
+        series.bullets.push(bulletLabel);
+      }
     });
 
     const legend = chart.children.push(am5.Legend.new(root, {}));
@@ -333,12 +411,42 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
       root.dispose();
       rootRef.current = null;
     };
-  }, [chartData, effectiveParameters, chartId]);
+  }, [chartData, chartSeriesConfig, chartId, chartType]);
+
+  if (!isChartVisible) {
+    return (
+      <div className="client-growth-chart-section">
+        <div className="client-growth-chart-section-header-row">
+          <span className="client-growth-chart-section-title client-growth-chart-section-title-inline">
+            Client Wise Growth Chart – {businessUnit}
+          </span>
+          <button
+            type="button"
+            className="client-growth-chart-show-btn"
+            onClick={() => setIsChartVisible(true)}
+          >
+            Show chart
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="client-growth-chart-section">
-      <div className="client-growth-chart-section-title">
-        Client Wise Growth Chart – {businessUnit}
+      <div className="client-growth-chart-section-header-row">
+        <span className="client-growth-chart-section-title client-growth-chart-section-title-inline">
+          Client Wise Growth Chart – {businessUnit}
+        </span>
+        <button
+          type="button"
+          className="client-growth-chart-close-btn"
+          onClick={() => setIsChartVisible(false)}
+          title="Hide chart"
+          aria-label="Hide chart"
+        >
+          ×
+        </button>
       </div>
       <div className="client-growth-chart-filters">
         <div className="client-growth-chart-field client-growth-chart-field-wide">
@@ -363,6 +471,17 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
             style={{ width: '100%' }}
             options={CLIENT_GROWTH_PARAMETERS.map((p) => ({ label: p.label, value: p.key }))}
           />
+        </div>
+        <div className="client-growth-chart-field">
+          <label>Chart Type</label>
+          <select
+            value={chartType}
+            onChange={(e) => setChartType(e.target.value as 'bar' | 'line')}
+            style={{ minWidth: 100 }}
+          >
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+          </select>
         </div>
         <div className="client-growth-chart-field">
           <label>Period Type</label>
@@ -423,8 +542,17 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
       </div>
       <div className="client-growth-chart-legend">
         <span className="client-growth-chart-legend-note">
-          {effectiveClients.length !== 1 ? 'Each category is a client (aggregated for selected period).' : 'Each category is a period (single client).'}
+          {isMultiClientMonthView
+            ? 'Month-wise comparison; one series per client. Values in Cr (Crores).'
+            : effectiveClients.length === 1
+              ? 'Each category is a period (single client). Values in Cr.'
+              : 'Each category is a client (aggregated for selected period). Values in Cr.'}
         </span>
+        {(selectedYears.length > 1 || selectedQuarters.length > 1) && (
+          <span className="client-growth-chart-legend-note" style={{ display: 'block', marginTop: 4 }}>
+            Multiple {periodType === 'year' ? 'years' : 'quarters'} selected: chart shows all months in order ({periodLabelsAndKeys.length} months). Scroll horizontally if needed.
+          </span>
+        )}
       </div>
       <div className="client-growth-chart-data-status">
         Data: {filteredByBU.length} records
