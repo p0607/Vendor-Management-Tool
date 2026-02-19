@@ -130,6 +130,12 @@
   font-style: italic;
 }
 
+.client-growth-chart-data-status {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
 .client-growth-chart-container {
   width: 100%;
   height: 420px;

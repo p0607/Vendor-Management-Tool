@@ -339,15 +339,21 @@ export default function ClientWiseGrowthChart() {
   }, [periodType]);
 
   useEffect(() => {
-    if (!chartRef.current || !chartData.length) return;
+    const container = chartRef.current;
+    if (!container || !chartData.length) return;
 
     am5.array.each(am5.registry.rootElements, (root) => {
       if (root?.dom?.id === 'clientGrowthChart') root.dispose();
     });
 
-    const root = am5.Root.new('clientGrowthChart');
+    const root = am5.Root.new(container);
     rootRef.current = root;
     root.setThemes([am5themes_Animated.new(root)]);
+
+    const chartDataWithGrowth = chartData.map(d => ({
+      ...d,
+      growthPct: d.growthPct != null ? d.growthPct.toFixed(1) + '%' : '-'
+    }));
 
     const chart = root.container.children.push(
       am5xy.XYChart.new(root, {
@@ -367,6 +373,7 @@ export default function ClientWiseGrowthChart() {
         tooltip: am5.Tooltip.new(root, {})
       })
     );
+    xAxis.data.setAll(chartDataWithGrowth);
     xAxis.get('renderer').labels.template.setAll({ fill: am5.color(0x000000), fontSize: 10 });
 
     const yAxis = chart.yAxes.push(
@@ -397,10 +404,6 @@ export default function ClientWiseGrowthChart() {
       }
       return fill;
     });
-    const chartDataWithGrowth = chartData.map(d => ({
-      ...d,
-      growthPct: d.growthPct != null ? d.growthPct.toFixed(1) + '%' : '-'
-    }));
     series.data.setAll(chartDataWithGrowth);
     const isAllClients = selectedClient === '__all__';
     series.set('tooltipText', isAllClients

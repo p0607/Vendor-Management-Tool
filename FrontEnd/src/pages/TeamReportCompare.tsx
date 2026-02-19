@@ -2788,6 +2788,14 @@ const TeamReportCompare: React.FC = () => {
     return selectedBusinessUnitsForChart;
   }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
 
+  // Data for Client Wise Growth Chart: same BU as Client Data, so chart and table use same source
+  const clientMFSDataForGrowthChart = useMemo(() => {
+    if (!getSelectedBUForClientData) return [];
+    return clientMFSData.filter((item: any) =>
+      compareBusinessUnits(item.business_unit, getSelectedBUForClientData)
+    );
+  }, [clientMFSData, getSelectedBUForClientData]);
+
   // MS exception: when this BU is selected, Client Data shows both client name and project name (e.g. "Client - Project")
   const isClientDataMS = Boolean(getSelectedBUForClientData && compareBusinessUnits(getSelectedBUForClientData, 'MS'));
 
@@ -8565,7 +8573,7 @@ const TeamReportCompare: React.FC = () => {
                   </div>
                 )}
                 <ClientWiseGrowthChartSection
-                  data={clientMFSData.filter((item: any) => compareBusinessUnits(item.business_unit, getSelectedBUForClientData))}
+                  data={clientMFSDataForGrowthChart}
                   businessUnit={getSelectedBUForClientData}
                 />
               </div>
