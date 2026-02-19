@@ -13,7 +13,10 @@ import './ClientWiseGrowthChart.css';
 
 const MONTH_ABBR = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const SERIES_COLORS = [0x1890ff, 0x52c41a, 0xff4d4f, 0xfaad14, 0x722ed1, 0x13c2c2, 0xeb2f96, 0x597ef7];
+const SERIES_COLORS = [
+  0x1890ff, 0x52c41a, 0xff4d4f, 0xfaad14, 0x722ed1, 0x13c2c2, 0xeb2f96, 0x597ef7,
+  0x2f54eb, 0x73d13d, 0xff7a45, 0x9254de
+];
 
 function formatCrLakh(value: number): string {
   if (value == null || !isFinite(value) || value === 0) return '';
@@ -211,21 +214,24 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
     const multiClientMonthView = effectiveClients.length >= 2;
     if (multiClientMonthView) {
       const out: { period: string; [key: string]: any }[] = [];
-      const paramKey = effectiveParameters[0];
       periodLabelsAndKeys.forEach(({ key, label }) => {
         const row: { period: string; [key: string]: any } = { period: label };
-        effectiveClients.forEach((clientName) => {
-          let sum = 0;
-          filteredByBU.forEach((item: any) => {
-            if ((item.client_name ?? '').toString().trim() !== clientName) return;
-            if (item.month == null || item.year == null) return;
-            const monthName = normalizeToFullMonthNameForGrowth(item.month);
-            const year = Number(item.year);
-            if (isNaN(year)) return;
-            const k = getMonthKeyForGrowth(monthName, year);
-            if (k === key) sum += getVal(item, paramKey);
+        effectiveClients.forEach((clientName, clientIdx) => {
+          effectiveParameters.forEach((paramKey, paramIdx) => {
+            const idx = clientIdx * effectiveParameters.length + paramIdx;
+            let sum = 0;
+            filteredByBU.forEach((item: any) => {
+              if ((item.client_name ?? '').toString().trim() !== clientName) return;
+              if (item.month == null || item.year == null) return;
+              const monthName = normalizeToFullMonthNameForGrowth(item.month);
+              const year = Number(item.year);
+              if (isNaN(year)) return;
+              const k = getMonthKeyForGrowth(monthName, year);
+              if (k === key) sum += getVal(item, paramKey);
+            });
+            row[`_s_${idx}`] = sum;
+            row[`_lbl_${idx}`] = formatCrLakh(sum);
           });
-          row[clientName] = sum;
         });
         out.push(row);
       });
@@ -280,13 +286,21 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
   const isMultiClientMonthView = effectiveClients.length >= 2;
   const chartSeriesConfig = useMemo(() => {
     if (isMultiClientMonthView) {
-      return effectiveClients.map((clientName, idx) => ({
-        type: 'client' as const,
-        name: clientName,
-        valueField: clientName,
-        labelField: `_lbl_${idx}`,
-        color: SERIES_COLORS[idx % SERIES_COLORS.length]
-      }));
+      const configs: { type: 'client'; name: string; valueField: string; labelField: string; color: number }[] = [];
+      effectiveClients.forEach((clientName, clientIdx) => {
+        effectiveParameters.forEach((paramKey, paramIdx) => {
+          const idx = clientIdx * effectiveParameters.length + paramIdx;
+          const paramLabel = CLIENT_GROWTH_PARAMETERS.find((p) => p.key === paramKey)?.label ?? paramKey;
+          configs.push({
+            type: 'client',
+            name: `${clientName} – ${paramLabel}`,
+            valueField: `_s_${idx}`,
+            labelField: `_lbl_${idx}`,
+            color: SERIES_COLORS[idx % SERIES_COLORS.length]
+          });
+        });
+      });
+      return configs;
     }
     return effectiveParameters.map((paramKey, idx) => ({
       type: 'parameter' as const,
@@ -356,25 +370,59 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
     );
     yAxis.get('renderer').labels.template.setAll({ fill: am5.color(0x000000), fontSize: 10 });
 
+    const bulletPush = (series: { bullets: { push: (fn: (a: am5.Root, b: unknown, c: unknown) => am5.Bullet) => void } }, fn: (a: am5.Root, b: unknown, c: unknown) => am5.Bullet) => {
+      (series.bullets as { push: (fn: (a: am5.Root, b: unknown, c: unknown) => am5.Bullet) => void }).push(fn);
+    };
+
     chartSeriesConfig.forEach((config) => {
       const labelFieldKey = config.labelField;
-      const bulletLabel = () => {
+      const createBarBullet = (root: am5.Root, _s: unknown, dataItem: unknown) => {
+        const ctx = (dataItem as { dataContext?: Record<string, unknown> })?.dataContext;
+        const labelText = ctx?.[labelFieldKey] != null ? String(ctx[labelFieldKey]) : '';
         const label = am5.Label.new(root, {
-          text: '',
+          text: labelText,
           centerY: am5.percent(50),
           centerX: am5.percent(50),
           fill: am5.color(0x000000),
-          fontSize: 9,
-          fontWeight: '500'
-        });
-        label.adapters.add('text', (_text, target) => {
-          const bullet = target.parent as { dataItem?: { dataContext?: Record<string, unknown> } } | undefined;
-          const ctx = bullet?.dataItem?.dataContext;
-          if (!ctx) return '';
-          const val = ctx[labelFieldKey];
-          return val != null ? String(val) : '';
+          fontSize: 7,
+          fontWeight: '500',
+          paddingTop: 0,
+          paddingBottom: 0
         });
         return am5.Bullet.new(root, { locationY: 0.5, sprite: label });
+      };
+      const createLineBullet = (root: am5.Root, _s: unknown, dataItem: unknown) => {
+        const ctx = (dataItem as { dataContext?: Record<string, unknown> })?.dataContext;
+        const labelText = ctx?.[labelFieldKey] != null ? String(ctx[labelFieldKey]) : '';
+        const container = am5.Container.new(root, {});
+        container.children.push(
+          am5.Circle.new(root, {
+            radius: 4,
+            fill: am5.color(config.color),
+            stroke: am5.color(0xffffff),
+            strokeWidth: 1
+          })
+        );
+        container.children.push(
+          am5.Line.new(root, {
+            points: [{ x: 0, y: 0 }, { x: 0, y: -14 }],
+            stroke: am5.color(0x000000),
+            strokeWidth: 1
+          })
+        );
+        container.children.push(
+          am5.Label.new(root, {
+            text: labelText,
+            y: -14,
+            centerX: 0,
+            fill: am5.color(0x000000),
+            fontSize: 7,
+            fontWeight: '500',
+            paddingTop: 0,
+            paddingBottom: 0
+          })
+        );
+        return am5.Bullet.new(root, { locationY: 0.5, sprite: container });
       };
       if (chartType === 'bar') {
         const series = chart.series.push(
@@ -393,7 +441,7 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
         series.set('fill', am5.color(config.color));
         series.data.setAll(dataForChart);
         series.set('tooltip', am5.Tooltip.new(root, { forceHidden: true }));
-        series.bullets.push(bulletLabel);
+        bulletPush(series, createBarBullet);
       } else {
         const series = chart.series.push(
           am5xy.LineSeries.new(root, {
@@ -409,7 +457,7 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
         series.set('fill', am5.color(config.color));
         series.data.setAll(dataForChart);
         series.set('tooltip', am5.Tooltip.new(root, { forceHidden: true }));
-        series.bullets.push(bulletLabel);
+        bulletPush(series, createLineBullet);
       }
     });
 
