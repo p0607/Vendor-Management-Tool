@@ -2285,7 +2285,7 @@ const TeamReportCompare: React.FC = () => {
 
           const vendor_cost = Number(record.vendor_cost) || 0;
 
-          gpm = rev - salary_cost - leave_encashment - vendor_cost;
+          gpm = rev - salary_cost - leave_encashment - vendor_cost - rebate;
 
           np = gpm - team_cost - opr_cost - funding_cost;
 

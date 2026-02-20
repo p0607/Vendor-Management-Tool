@@ -1377,7 +1377,7 @@ const MFSdata: React.FC = () => {
         else if (compareBusinessUnits(record.business_unit, 'USA')) gpm = rev - salary_cost - rebate - passthrough;
         else if (compareBusinessUnits(record.business_unit, 'Japan')) gpm = rev - salary_cost - discount;
         else if (compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) gpm = rev - salary_cost;
-        else { gpm = rev - salary_cost - leave_encashment - vendor_cost; np = gpm - team_cost - opr_cost - funding_cost; }
+        else { gpm = rev - salary_cost - leave_encashment - vendor_cost - rebate; np = gpm - team_cost - opr_cost - funding_cost; }
         const gpmPct = rev !== 0 ? (gpm / rev) * 100 : (record.gpm_percentage ?? null);
         const npPct = np !== null && rev !== 0 ? (np / rev) * 100 : (record.np_percentage ?? null);
         return { ...record, gpm, gpm_percentage: gpmPct, ...(np !== null ? { np, np_percentage: npPct } : {}) };

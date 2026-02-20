@@ -2023,9 +2023,9 @@ const ClientMFSCompare: React.FC = () => {
           // Canada, Singapore: GPM = Revenue - Salary_Cost
           gpm = rev - salary_cost;
         } else {
-          // Other business units: GPM = Revenue - salary_cost - leave_encashment - vendor_cost, NP = GPM - Team Cost - opr_cost - funding_cost
+          // Other business units: GPM = Revenue - salary_cost - leave_encashment - vendor_cost - rebate, NP = GPM - Team Cost - opr_cost - funding_cost
           const vendor_cost = Number(record.vendor_cost) || 0;
-          gpm = rev - salary_cost - leave_encashment - vendor_cost;
+          gpm = rev - salary_cost - leave_encashment - vendor_cost - rebate;
           np = gpm - team_cost - opr_cost - funding_cost;
         }
 

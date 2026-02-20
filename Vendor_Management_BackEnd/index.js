@@ -1995,9 +1995,52 @@ const COLUMN_FORMULAS_BY_BU = [
   { businessUnits: ['USA'], gpmFormula: 'GPM = Revenue − Salary Cost − Rebate − Passthrough', npFormula: null, description: 'NP is not calculated for USA.' },
   { businessUnits: ['Japan'], gpmFormula: 'GPM = Revenue − Salary Cost − Discount', npFormula: null, description: 'NP is not calculated for Japan.' },
   { businessUnits: ['Canada', 'Singapore'], gpmFormula: 'GPM = Revenue − Salary Cost', npFormula: null, description: 'NP is not calculated for Canada, Singapore.' },
-  { businessUnits: ['BPO|HTD', 'Captive', 'SI', 'Egg', 'Other'], gpmFormula: 'GPM = Revenue − Salary Cost − Leave Encashment − Vendor Cost', npFormula: 'NP = GPM − Team Cost − Opr Cost − Funding Cost', description: 'All other business units use this GPM and NP calculation.' }
-];
+  { businessUnits: ['BPO|HTD', 'Captive', 'SI', 'Egg', 'Other'], gpmFormula: 'GPM = Revenue − Salary Cost − Leave Encashment − Vendor Cost − Rebate', npFormula: 'NP = GPM − Team Cost − Opr Cost − Funding Cost', description: 'All other business units use this GPM and NP calculation.' }];
 const PERCENTAGE_FORMULAS = { gpm_percentage: 'GPM % = (GPM / Revenue) × 100', np_percentage: 'NP % = (NP / Revenue) × 100' };
+
+/**
+ * Compute GPM and NP from numeric fields by business unit (same logic as frontend).
+ * Used on create/bulk so stored values are always formula-based regardless of client input.
+ * @param record - object with business_unit and numeric fields (revenue, salary_cost, etc.)
+ * @returns { gpm, np, gpm_percentage, np_percentage } - np may be null for MS/USA/Japan/Canada/Singapore
+ */
+function computeGpmNpForTeamReport(record) {
+  const rev = Number(record.revenue) || 0;
+  const salary_cost = Number(record.salary_cost) || 0;
+  const rebate = Number(record.rebate) || 0;
+  const passthrough = Number(record.passthrough) || 0;
+  const leave_encashment = Number(record.leave_encashment) || 0;
+  const vendor_cost = Number(record.vendor_cost) ?? 0;
+  const discount = Number(record.discount) ?? 0;
+  const team_cost = Number(record.team_cost) || 0;
+  const opr_cost = Number(record.opr_cost) || 0;
+  const funding_cost = Number(record.funding_cost) || 0;
+
+  const bu = (record.business_unit && String(record.business_unit).trim()) || '';
+  const buNorm = bu.toLowerCase().replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
+
+  let gpm;
+  let np = null;
+  if (!bu) {
+    gpm = rev - salary_cost - leave_encashment - vendor_cost - rebate;
+    np = gpm - team_cost - opr_cost - funding_cost;
+  } else if (buNorm === 'ms' || buNorm === 'managed services' || buNorm === 'managedservices') {
+    gpm = rev - salary_cost;
+  } else if (buNorm === 'usa') {
+    gpm = rev - salary_cost - rebate - passthrough;
+  } else if (buNorm === 'japan') {
+    gpm = rev - salary_cost - discount;
+  } else if (buNorm === 'canada' || buNorm === 'singapore') {
+    gpm = rev - salary_cost;
+  } else {
+    gpm = rev - salary_cost - leave_encashment - vendor_cost - rebate;
+    np = gpm - team_cost - opr_cost - funding_cost;
+  }
+
+  const gpm_percentage = rev !== 0 ? (gpm / rev) * 100 : 0;
+  const np_percentage = np !== null && rev !== 0 ? (np / rev) * 100 : 0;
+  return { gpm, np, gpm_percentage, np_percentage };
+}
 
 app.get('/api/team-report/column-formulas', (req, res) => {
   try {
@@ -2157,6 +2200,25 @@ app.post('/api/team-report', async (req, res, next) => {
           processedFields[field] = 0;
         }
       }
+
+      // Always recompute GPM/NP from formula by business unit so stored values are correct
+      const gpmNp = computeGpmNpForTeamReport({
+        business_unit: business_unit || '',
+        revenue: processedFields.revenue,
+        salary_cost: processedFields.salary_cost,
+        rebate: processedFields.rebate,
+        passthrough: processedFields.passthrough,
+        leave_encashment: processedFields.leave_encashment,
+        vendor_cost: processedFields.vendor_cost,
+        discount: processedFields.discount,
+        team_cost: processedFields.team_cost,
+        opr_cost: processedFields.opr_cost,
+        funding_cost: processedFields.funding_cost
+      });
+      processedFields.gpm = gpmNp.gpm;
+      processedFields.gpm_percentage = gpmNp.gpm_percentage;
+      processedFields.np = gpmNp.np !== null ? gpmNp.np : 0;
+      processedFields.np_percentage = gpmNp.np_percentage;
       
       // Normalize month name to full name (e.g., "January", "April") - matching team_summary_report format
       const monthNames = {
@@ -2445,6 +2507,13 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
           record[field] = null;
         }
       }
+
+      // Always recompute GPM/NP from formula by business unit so stored values are correct
+      const gpmNp = computeGpmNpForTeamReport(record);
+      record.gpm = gpmNp.gpm;
+      record.gpm_percentage = gpmNp.gpm_percentage;
+      record.np = gpmNp.np !== null ? gpmNp.np : 0;
+      record.np_percentage = gpmNp.np_percentage;
     }
 
     // Use transaction for bulk insert with optimized batch processing
@@ -2568,6 +2637,32 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       stack: err.stack,
       dataLength: data ? data.length : 0
     });
+    next(err);
+  }
+});
+
+// Recompute GPM and NP for all team_report rows from formula by business unit (fixes incorrect stored values)
+app.post('/api/team-report/recompute-gpm-np', async (req, res, next) => {
+  try {
+    const selectResult = await executeQuery('SELECT id, business_unit, revenue, salary_cost, rebate, passthrough, leave_encashment, vendor_cost, discount, team_cost, opr_cost, funding_cost FROM team_report');
+    const rows = selectResult.rows || [];
+    let updated = 0;
+    for (const row of rows) {
+      const gpmNp = computeGpmNpForTeamReport(row);
+      await executeQuery(
+        'UPDATE team_report SET gpm = $1, gpm_percentage = $2, np = $3, np_percentage = $4 WHERE id = $5',
+        [gpmNp.gpm, gpmNp.gpm_percentage, gpmNp.np !== null ? gpmNp.np : 0, gpmNp.np_percentage, row.id]
+      );
+      updated++;
+    }
+    logger.info('Team report recompute-gpm-np completed', { updatedRows: updated });
+    res.status(200).json({
+      success: true,
+      message: `Recomputed GPM and NP from formula for ${updated} records.`,
+      updatedRows: updated
+    });
+  } catch (err) {
+    logger.error('Recompute GPM/NP error', { error: err.message, stack: err.stack });
     next(err);
   }
 });

@@ -31,7 +31,7 @@ function computeGpmNpFromParams(data: {
   } else if (compareBusinessUnits(bu, 'Canada') || compareBusinessUnits(bu, 'Singapore')) {
     gpm = rev - data.salary_cost;
   } else {
-    gpm = rev - data.salary_cost - data.leave_encashment - data.vendor_cost;
+    gpm = rev - data.salary_cost - data.leave_encashment - data.vendor_cost - data.rebate;
     np = gpm - data.team_cost - data.opr_cost - data.funding_cost;
   }
   const gpmPct = rev !== 0 ? (gpm / rev) * 100 : null;

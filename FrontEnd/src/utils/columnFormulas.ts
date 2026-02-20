@@ -53,7 +53,7 @@ export const BUSINESS_UNIT_COLUMN_FORMULAS: ColumnFormulaEntry[] = [
   },
   {
     businessUnits: ['BPO|HTD', 'Captive', 'SI', 'Egg', 'Other'],
-    gpmFormula: 'GPM = Revenue − Salary Cost − Leave Encashment − Vendor Cost',
+    gpmFormula: 'GPM = Revenue − Salary Cost − Leave Encashment − Vendor Cost − Rebate',
     npFormula: 'NP = GPM − Team Cost − Opr Cost − Funding Cost',
     description: 'All other business units use this GPM and NP calculation.'
   }
