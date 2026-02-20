@@ -2009,14 +2009,18 @@ const ClientMFSCompare: React.FC = () => {
         let gpm: number;
         let np: number | null = null;
 
+        const discount = Number(record.discount) || 0;
         if (compareBusinessUnits(record.business_unit, 'MS') || compareBusinessUnits(record.business_unit, 'Managed Services')) {
           // Managed Services / MS: GPM = Revenue - Salary_cost
           gpm = rev - salary_cost;
         } else if (compareBusinessUnits(record.business_unit, 'USA')) {
           // USA: GPM = Revenue - Salary Cost - Rebate - Passthrough
           gpm = rev - salary_cost - rebate - passthrough;
-        } else if (compareBusinessUnits(record.business_unit, 'Japan') || compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) {
-          // Japan, Canada, Singapore: GPM = Revenue - Salary_Cost
+        } else if (compareBusinessUnits(record.business_unit, 'Japan')) {
+          // Japan: GPM = Revenue - Salary Cost - Discount
+          gpm = rev - salary_cost - discount;
+        } else if (compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) {
+          // Canada, Singapore: GPM = Revenue - Salary_Cost
           gpm = rev - salary_cost;
         } else {
           // Other business units: GPM = Revenue - salary_cost - leave_encashment, NP = GPM - Team Cost - opr_cost - funding_cost

@@ -1371,11 +1371,12 @@ const MFSdata: React.FC = () => {
         };
       }).filter((r: any) => r.month && r.year != null && r.year !== 0).map((record: any) => {
         const rev = Number(record.revenue) || 0, salary_cost = Number(record.salary_cost) || 0, rebate = Number(record.rebate) || 0, passthrough = Number(record.passthrough) || 0;
-        const leave_encashment = Number(record.leave_encashment) || 0, team_cost = Number(record.team_cost) || 0, opr_cost = Number(record.opr_cost) || 0, funding_cost = Number(record.funding_cost) || 0;
+        const leave_encashment = Number(record.leave_encashment) || 0, team_cost = Number(record.team_cost) || 0, opr_cost = Number(record.opr_cost) || 0, funding_cost = Number(record.funding_cost) || 0, discount = Number(record.discount) || 0;
         let gpm: number, np: number | null = null;
         if (compareBusinessUnits(record.business_unit, 'MS') || compareBusinessUnits(record.business_unit, 'Managed Services')) gpm = rev - salary_cost;
         else if (compareBusinessUnits(record.business_unit, 'USA')) gpm = rev - salary_cost - rebate - passthrough;
-        else if (compareBusinessUnits(record.business_unit, 'Japan') || compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) gpm = rev - salary_cost;
+        else if (compareBusinessUnits(record.business_unit, 'Japan')) gpm = rev - salary_cost - discount;
+        else if (compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) gpm = rev - salary_cost;
         else { gpm = rev - salary_cost - leave_encashment; np = gpm - team_cost - opr_cost - funding_cost; }
         const gpmPct = rev !== 0 ? (gpm / rev) * 100 : (record.gpm_percentage ?? null);
         const npPct = np !== null && rev !== 0 ? (np / rev) * 100 : (record.np_percentage ?? null);

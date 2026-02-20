@@ -1,8 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { normalizeBusinessUnitName } from '../utils/businessUnitUtils';
+import { normalizeBusinessUnitName, compareBusinessUnits } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import './AddTeamReportData.css';
+
+/** Compute GPM and NP from other params by business unit (same logic as import). */
+function computeGpmNpFromParams(data: {
+  revenue: number;
+  salary_cost: number;
+  rebate: number;
+  passthrough: number;
+  leave_encashment: number;
+  team_cost: number;
+  opr_cost: number;
+  funding_cost: number;
+  discount: number;
+  business_unit: string | null;
+}): { gpm: number; np: number | null; gpm_percentage: number | null; np_percentage: number | null } {
+  const rev = data.revenue;
+  const bu = data.business_unit ? normalizeBusinessUnitName(data.business_unit) : null;
+  let gpm: number;
+  let np: number | null = null;
+  if (compareBusinessUnits(bu, 'MS') || compareBusinessUnits(bu, 'Managed Services')) {
+    gpm = rev - data.salary_cost;
+  } else if (compareBusinessUnits(bu, 'USA')) {
+    gpm = rev - data.salary_cost - data.rebate - data.passthrough;
+  } else if (compareBusinessUnits(bu, 'Japan')) {
+    gpm = rev - data.salary_cost - data.discount;
+  } else if (compareBusinessUnits(bu, 'Canada') || compareBusinessUnits(bu, 'Singapore')) {
+    gpm = rev - data.salary_cost;
+  } else {
+    gpm = rev - data.salary_cost - data.leave_encashment;
+    np = gpm - data.team_cost - data.opr_cost - data.funding_cost;
+  }
+  const gpmPct = rev !== 0 ? (gpm / rev) * 100 : null;
+  const npPct = np !== null && rev !== 0 ? (np / rev) * 100 : null;
+  return { gpm, np, gpm_percentage: gpmPct, np_percentage: npPct };
+}
 
 interface TeamReportData {
   tower: string;
@@ -76,37 +110,86 @@ const BUSINESS_UNIT_OPTIONS = [
     }));
   };
 
-  // Use centralized normalizeBusinessUnitName function (imported from utils)
+  // Auto-calculated GPM/NP from other params by business unit (same formulas as import)
+  const computedGpmNp = useMemo(() => {
+    const revenue = formData.sales ? parseFloat(formData.sales) : 0;
+    const salary_cost = formData.salary_cost ? parseFloat(formData.salary_cost) : 0;
+    const rebate = 0;
+    const passthrough = 0;
+    const leave_encashment = formData.leave_encashment ? parseFloat(formData.leave_encashment) : 0;
+    const team_cost = formData.team_cost ? parseFloat(formData.team_cost) : 0;
+    const opr_cost = formData.opr_cost ? parseFloat(formData.opr_cost) : 0;
+    const funding_cost = formData.funding_cost ? parseFloat(formData.funding_cost) : 0;
+    const bu = formData.business_unit ? normalizeBusinessUnitName(formData.business_unit) : null;
+    const discount = formData.discount ? parseFloat(formData.discount) : 0;
+    return computeGpmNpFromParams({
+      revenue,
+      salary_cost,
+      rebate,
+      passthrough,
+      leave_encashment,
+      team_cost,
+      opr_cost,
+      funding_cost,
+      discount,
+      business_unit: bu
+    });
+  }, [formData.sales, formData.salary_cost, formData.leave_encashment, formData.team_cost, formData.opr_cost, formData.funding_cost, formData.discount, formData.business_unit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
-    // All fields are optional - no required field validation
+    const rev = formData.sales ? parseFloat(formData.sales) : 0;
+    const salary_cost = formData.salary_cost ? parseFloat(formData.salary_cost) : 0;
+    const rebate = 0;
+    const passthrough = 0;
+    const leave_encashment = formData.leave_encashment ? parseFloat(formData.leave_encashment) : 0;
+    const team_cost = formData.team_cost ? parseFloat(formData.team_cost) : 0;
+    const opr_cost = formData.opr_cost ? parseFloat(formData.opr_cost) : 0;
+    const funding_cost = formData.funding_cost ? parseFloat(formData.funding_cost) : 0;
+    const discount = formData.discount ? parseFloat(formData.discount) : 0;
+    const bu = formData.business_unit ? normalizeBusinessUnitName(formData.business_unit) : null;
+    const computed = computeGpmNpFromParams({
+      revenue: rev || 0,
+      salary_cost,
+      rebate,
+      passthrough,
+      leave_encashment,
+      team_cost,
+      opr_cost,
+      funding_cost,
+      discount,
+      business_unit: bu
+    });
+    // Use auto-calculated GPM/NP when we have a BU (so "other params" drive GPM/NP); otherwise use form values
+    const useComputed = Boolean(bu);
+    const gpm = useComputed ? computed.gpm : (formData.gpm ? parseFloat(formData.gpm) : 0);
+    const np = useComputed && computed.np !== null ? computed.np : (formData.np ? parseFloat(formData.np) : 0);
+    const gpm_percentage = useComputed && computed.gpm_percentage !== null ? computed.gpm_percentage : (formData.gpm_percentage ? parseFloat(formData.gpm_percentage) : 0);
+    const np_percentage = useComputed && computed.np_percentage !== null ? computed.np_percentage : (formData.np_percentage ? parseFloat(formData.np_percentage) : 0);
 
-    // Convert numeric fields to numbers and handle empty strings
     const formattedData = {
       ...formData,
-      // Convert numeric fields to numbers
+      revenue: rev || 0,
       hc: formData.hc ? parseFloat(formData.hc) : 0,
-      salary_cost: formData.salary_cost ? parseFloat(formData.salary_cost) : 0,
+      salary_cost,
       sales: formData.sales ? parseFloat(formData.sales) : 0,
-      gpm: formData.gpm ? parseFloat(formData.gpm) : 0,
-      gpm_percentage: formData.gpm_percentage ? parseFloat(formData.gpm_percentage) : 0,
-      leave_encashment: formData.leave_encashment ? parseFloat(formData.leave_encashment) : 0,
-      team_cost: formData.team_cost ? parseFloat(formData.team_cost) : 0,
-      opr_cost: formData.opr_cost ? parseFloat(formData.opr_cost) : 0,
-      funding_cost: formData.funding_cost ? parseFloat(formData.funding_cost) : 0,
-      np: formData.np ? parseFloat(formData.np) : 0,
-      np_percentage: formData.np_percentage ? parseFloat(formData.np_percentage) : 0,
+      gpm,
+      gpm_percentage,
+      leave_encashment,
+      team_cost,
+      opr_cost,
+      funding_cost,
+      np,
+      np_percentage,
       vendor_cost: formData.vendor_cost ? parseFloat(formData.vendor_cost) : 0,
       discount: formData.discount ? parseFloat(formData.discount) : 0,
       year: formData.year ? parseInt(formData.year) : new Date().getFullYear(),
-      // Convert empty strings to null for text fields
       client_name: formData.client_name || null,
       project_name: formData.project_name || null,
-      business_unit: normalizeBusinessUnitName(formData.business_unit || null),
+      business_unit: bu,
       bu_head: formData.bu_head || null,
       tower: formData.tower || null,
       month: formData.month || null
@@ -220,13 +303,18 @@ const BUSINESS_UNIT_OPTIONS = [
                 <label>Revenue</label>
                 <input type="number" name="sales" value={formData.sales} onChange={handleChange} />
               </div>
+              {formData.business_unit && (
+                <p style={{ gridColumn: '1 / -1', fontSize: '12px', color: '#666', margin: '0 0 8px 0' }}>
+                  GPM, NP and their % are auto-calculated from the above fields when you submit (based on Business Unit).
+                </p>
+              )}
               <div className="form-group">
                 <label>GPM</label>
-                <input type="number" name="gpm" value={formData.gpm} onChange={handleChange} />
+                <input type="number" name="gpm" value={formData.gpm || (formData.business_unit ? String(computedGpmNp.gpm) : '')} onChange={handleChange} placeholder={formData.business_unit ? String(computedGpmNp.gpm) : undefined} />
               </div>
               <div className="form-group">
                 <label>GPM %</label>
-                <input type="number" name="gpm_percentage" value={formData.gpm_percentage} onChange={handleChange} />
+                <input type="number" name="gpm_percentage" value={formData.gpm_percentage || (formData.business_unit && computedGpmNp.gpm_percentage != null ? String(computedGpmNp.gpm_percentage.toFixed(2)) : '')} onChange={handleChange} placeholder={formData.business_unit && computedGpmNp.gpm_percentage != null ? String(computedGpmNp.gpm_percentage.toFixed(2)) : undefined} />
               </div>
               <div className="form-group">
                 <label>Leave Encashment</label>
@@ -246,11 +334,11 @@ const BUSINESS_UNIT_OPTIONS = [
               </div>
               <div className="form-group">
                 <label>NP</label>
-                <input type="number" name="np" value={formData.np} onChange={handleChange} />
+                <input type="number" name="np" value={formData.np || (formData.business_unit && computedGpmNp.np !== null ? String(computedGpmNp.np) : '')} onChange={handleChange} placeholder={formData.business_unit && computedGpmNp.np !== null ? String(computedGpmNp.np) : undefined} />
               </div>
               <div className="form-group">
                 <label>NP %</label>
-                <input type="number" name="np_percentage" value={formData.np_percentage} onChange={handleChange} />
+                <input type="number" name="np_percentage" value={formData.np_percentage || (formData.business_unit && computedGpmNp.np_percentage != null ? String(computedGpmNp.np_percentage.toFixed(2)) : '')} onChange={handleChange} placeholder={formData.business_unit && computedGpmNp.np_percentage != null ? String(computedGpmNp.np_percentage.toFixed(2)) : undefined} />
               </div>
               <div className="form-group">
                 <label>Vendor Cost</label>

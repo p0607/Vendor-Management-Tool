@@ -1988,6 +1988,43 @@ app.post('/api/Alchemy_Routing/bulk-update-dates', async (req, res, next) => {
 });
 
 // Team Report Routes
+
+// Column formulas for GPM, NP (and %) by business unit - single source of truth for Client MFS / Team Report
+const COLUMN_FORMULAS_BY_BU = [
+  { businessUnits: ['MS', 'Managed Services'], gpmFormula: 'GPM = Revenue − Salary Cost', npFormula: null, description: 'NP is not calculated for MS / Managed Services.' },
+  { businessUnits: ['USA'], gpmFormula: 'GPM = Revenue − Salary Cost − Rebate − Passthrough', npFormula: null, description: 'NP is not calculated for USA.' },
+  { businessUnits: ['Japan'], gpmFormula: 'GPM = Revenue − Salary Cost − Discount', npFormula: null, description: 'NP is not calculated for Japan.' },
+  { businessUnits: ['Canada', 'Singapore'], gpmFormula: 'GPM = Revenue − Salary Cost', npFormula: null, description: 'NP is not calculated for Canada, Singapore.' },
+  { businessUnits: ['BPO|HTD', 'Captive', 'SI', 'Egg', 'Other'], gpmFormula: 'GPM = Revenue − Salary Cost − Leave Encashment', npFormula: 'NP = GPM − Team Cost − Opr Cost − Funding Cost', description: 'All other business units use this GPM and NP calculation.' }
+];
+const PERCENTAGE_FORMULAS = { gpm_percentage: 'GPM % = (GPM / Revenue) × 100', np_percentage: 'NP % = (NP / Revenue) × 100' };
+
+app.get('/api/team-report/column-formulas', (req, res) => {
+  try {
+    const { business_unit: businessUnit } = req.query;
+    let entries = COLUMN_FORMULAS_BY_BU;
+    if (businessUnit && String(businessUnit).trim()) {
+      const bu = String(businessUnit).trim().toLowerCase();
+      if (['ms', 'managed services'].includes(bu)) entries = COLUMN_FORMULAS_BY_BU.filter(e => e.businessUnits.some(u => u.toLowerCase() === 'ms'));
+      else if (bu === 'usa') entries = COLUMN_FORMULAS_BY_BU.filter(e => e.businessUnits.some(u => u.toLowerCase() === 'usa'));
+      else if (bu === 'japan') entries = COLUMN_FORMULAS_BY_BU.filter(e => e.businessUnits.some(u => u.toLowerCase() === 'japan'));
+      else if (['canada', 'singapore'].includes(bu)) entries = COLUMN_FORMULAS_BY_BU.filter(e => e.businessUnits.some(u => ['canada', 'singapore'].includes(u.toLowerCase())));
+      else entries = COLUMN_FORMULAS_BY_BU.slice(-1).map(e => ({ ...e, businessUnits: [businessUnit.trim(), ...e.businessUnits] }));
+    }
+    const list = entries.map(e => ({
+      businessUnit: e.businessUnits.join(', '),
+      gpmFormula: e.gpmFormula,
+      npFormula: e.npFormula ?? '—',
+      gpmPctFormula: PERCENTAGE_FORMULAS.gpm_percentage,
+      npPctFormula: PERCENTAGE_FORMULAS.np_percentage,
+      description: e.description
+    }));
+    res.json({ success: true, data: list, percentageFormulas: PERCENTAGE_FORMULAS });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/team-report', async (req, res, next) => {
   try {
     const { designation, business_unit } = req.query;

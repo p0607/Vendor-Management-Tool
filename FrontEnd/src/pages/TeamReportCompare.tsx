@@ -2259,6 +2259,8 @@ const TeamReportCompare: React.FC = () => {
 
         const funding_cost = Number(record.funding_cost) || 0;
 
+        const discount = Number(record.discount) || 0;
+
         let gpm: number;
 
         let np: number | null = null;
@@ -2271,7 +2273,11 @@ const TeamReportCompare: React.FC = () => {
 
           gpm = rev - salary_cost - rebate - passthrough;
 
-        } else if (compareBusinessUnits(record.business_unit, 'Japan') || compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) {
+        } else if (compareBusinessUnits(record.business_unit, 'Japan')) {
+
+          gpm = rev - salary_cost - discount;
+
+        } else if (compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) {
 
           gpm = rev - salary_cost;
 
