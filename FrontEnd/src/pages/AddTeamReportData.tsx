@@ -15,6 +15,7 @@ function computeGpmNpFromParams(data: {
   opr_cost: number;
   funding_cost: number;
   discount: number;
+  vendor_cost: number;
   business_unit: string | null;
 }): { gpm: number; np: number | null; gpm_percentage: number | null; np_percentage: number | null } {
   const rev = data.revenue;
@@ -30,7 +31,7 @@ function computeGpmNpFromParams(data: {
   } else if (compareBusinessUnits(bu, 'Canada') || compareBusinessUnits(bu, 'Singapore')) {
     gpm = rev - data.salary_cost;
   } else {
-    gpm = rev - data.salary_cost - data.leave_encashment;
+    gpm = rev - data.salary_cost - data.leave_encashment - data.vendor_cost;
     np = gpm - data.team_cost - data.opr_cost - data.funding_cost;
   }
   const gpmPct = rev !== 0 ? (gpm / rev) * 100 : null;
@@ -122,6 +123,7 @@ const BUSINESS_UNIT_OPTIONS = [
     const funding_cost = formData.funding_cost ? parseFloat(formData.funding_cost) : 0;
     const bu = formData.business_unit ? normalizeBusinessUnitName(formData.business_unit) : null;
     const discount = formData.discount ? parseFloat(formData.discount) : 0;
+    const vendor_cost = formData.vendor_cost ? parseFloat(formData.vendor_cost) : 0;
     return computeGpmNpFromParams({
       revenue,
       salary_cost,
@@ -132,9 +134,10 @@ const BUSINESS_UNIT_OPTIONS = [
       opr_cost,
       funding_cost,
       discount,
+      vendor_cost,
       business_unit: bu
     });
-  }, [formData.sales, formData.salary_cost, formData.leave_encashment, formData.team_cost, formData.opr_cost, formData.funding_cost, formData.discount, formData.business_unit]);
+  }, [formData.sales, formData.salary_cost, formData.leave_encashment, formData.team_cost, formData.opr_cost, formData.funding_cost, formData.discount, formData.vendor_cost, formData.business_unit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,6 +153,7 @@ const BUSINESS_UNIT_OPTIONS = [
     const opr_cost = formData.opr_cost ? parseFloat(formData.opr_cost) : 0;
     const funding_cost = formData.funding_cost ? parseFloat(formData.funding_cost) : 0;
     const discount = formData.discount ? parseFloat(formData.discount) : 0;
+    const vendor_cost = formData.vendor_cost ? parseFloat(formData.vendor_cost) : 0;
     const bu = formData.business_unit ? normalizeBusinessUnitName(formData.business_unit) : null;
     const computed = computeGpmNpFromParams({
       revenue: rev || 0,
@@ -161,6 +165,7 @@ const BUSINESS_UNIT_OPTIONS = [
       opr_cost,
       funding_cost,
       discount,
+      vendor_cost,
       business_unit: bu
     });
     // Use auto-calculated GPM/NP when we have a BU (so "other params" drive GPM/NP); otherwise use form values

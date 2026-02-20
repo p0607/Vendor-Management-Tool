@@ -1995,7 +1995,7 @@ const COLUMN_FORMULAS_BY_BU = [
   { businessUnits: ['USA'], gpmFormula: 'GPM = Revenue − Salary Cost − Rebate − Passthrough', npFormula: null, description: 'NP is not calculated for USA.' },
   { businessUnits: ['Japan'], gpmFormula: 'GPM = Revenue − Salary Cost − Discount', npFormula: null, description: 'NP is not calculated for Japan.' },
   { businessUnits: ['Canada', 'Singapore'], gpmFormula: 'GPM = Revenue − Salary Cost', npFormula: null, description: 'NP is not calculated for Canada, Singapore.' },
-  { businessUnits: ['BPO|HTD', 'Captive', 'SI', 'Egg', 'Other'], gpmFormula: 'GPM = Revenue − Salary Cost − Leave Encashment', npFormula: 'NP = GPM − Team Cost − Opr Cost − Funding Cost', description: 'All other business units use this GPM and NP calculation.' }
+  { businessUnits: ['BPO|HTD', 'Captive', 'SI', 'Egg', 'Other'], gpmFormula: 'GPM = Revenue − Salary Cost − Leave Encashment − Vendor Cost', npFormula: 'NP = GPM − Team Cost − Opr Cost − Funding Cost', description: 'All other business units use this GPM and NP calculation.' }
 ];
 const PERCENTAGE_FORMULAS = { gpm_percentage: 'GPM % = (GPM / Revenue) × 100', np_percentage: 'NP % = (NP / Revenue) × 100' };
 

@@ -1371,13 +1371,13 @@ const MFSdata: React.FC = () => {
         };
       }).filter((r: any) => r.month && r.year != null && r.year !== 0).map((record: any) => {
         const rev = Number(record.revenue) || 0, salary_cost = Number(record.salary_cost) || 0, rebate = Number(record.rebate) || 0, passthrough = Number(record.passthrough) || 0;
-        const leave_encashment = Number(record.leave_encashment) || 0, team_cost = Number(record.team_cost) || 0, opr_cost = Number(record.opr_cost) || 0, funding_cost = Number(record.funding_cost) || 0, discount = Number(record.discount) || 0;
+        const leave_encashment = Number(record.leave_encashment) || 0, team_cost = Number(record.team_cost) || 0, opr_cost = Number(record.opr_cost) || 0, funding_cost = Number(record.funding_cost) || 0, discount = Number(record.discount) || 0, vendor_cost = Number(record.vendor_cost) || 0;
         let gpm: number, np: number | null = null;
         if (compareBusinessUnits(record.business_unit, 'MS') || compareBusinessUnits(record.business_unit, 'Managed Services')) gpm = rev - salary_cost;
         else if (compareBusinessUnits(record.business_unit, 'USA')) gpm = rev - salary_cost - rebate - passthrough;
         else if (compareBusinessUnits(record.business_unit, 'Japan')) gpm = rev - salary_cost - discount;
         else if (compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) gpm = rev - salary_cost;
-        else { gpm = rev - salary_cost - leave_encashment; np = gpm - team_cost - opr_cost - funding_cost; }
+        else { gpm = rev - salary_cost - leave_encashment - vendor_cost; np = gpm - team_cost - opr_cost - funding_cost; }
         const gpmPct = rev !== 0 ? (gpm / rev) * 100 : (record.gpm_percentage ?? null);
         const npPct = np !== null && rev !== 0 ? (np / rev) * 100 : (record.np_percentage ?? null);
         return { ...record, gpm, gpm_percentage: gpmPct, ...(np !== null ? { np, np_percentage: npPct } : {}) };
@@ -1408,7 +1408,24 @@ const MFSdata: React.FC = () => {
     reader.readAsBinaryString(file);
   };
 
-  const handleExportExcel = () => {
+  const handleExportMFSData = () => {
+    const exportData = teamReportData.map((row: TeamReportItem) => ({
+      'Business Unit': row.business_unit || '',
+      'Month': row.month || '',
+      'Year': row.year,
+      'HC': row.hc ?? 0,
+      'Revenue': row.revenue ?? 0,
+      'GPM': row.gpm ?? 0,
+      'Team Cost': row.team_cost ?? 0,
+      'Net Margin': row.net_margin ?? 0,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'MFS_Report');
+    XLSX.writeFile(workbook, 'MFS_Report.xlsx');
+  };
+
+  const handleExportClientMFSData = () => {
     const exportData = clientMFSData.map((row: TeamReportItem) => ({
       'Business Unit': row.business_unit || '', 'Client Name': row.client_name || '', 'Project Name': row.project_name || '',
       'BU Head': row.bu_head || '', 'Year': row.year, 'Month': row.month || '',
@@ -1429,7 +1446,8 @@ const MFSdata: React.FC = () => {
     { key: 'import', label: 'Import MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportExcel(e as any); input.click(); } },
     { key: 'client_template', label: 'Download Client MFS Template', onClick: handleDownloadClientTemplate },
     { key: 'client_import', label: 'Import Client MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportClientMFS(e as any); input.click(); } },
-    { key: 'export', label: 'Export Excel', onClick: handleExportExcel },
+    { key: 'export_mfs', label: 'Export MFS Data', onClick: handleExportMFSData },
+    { key: 'export_client_mfs', label: 'Export Client MFS Data', onClick: handleExportClientMFSData },
   ];
 
   // Show full page so both tables are visible (first: MFS from team-summary-report, second: client wise from team-report)
