@@ -21,7 +21,8 @@ export const CLIENT_GROWTH_PARAMETERS = [
   { key: 'funding_cost', label: 'Funding Cost' },
   { key: 'rebate', label: 'Rebate' },
   { key: 'passthrough', label: 'Passthrough' },
-  { key: 'vendor_cost', label: 'Vendor Cost' }
+  { key: 'vendor_cost', label: 'Vendor Cost' },
+  { key: 'discount', label: 'Discount' }
 ];
 
 const PARAMETERS = CLIENT_GROWTH_PARAMETERS;

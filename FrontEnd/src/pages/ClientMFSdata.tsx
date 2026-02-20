@@ -83,7 +83,8 @@ const ClientMFSdata: React.FC = () => {
     { key: 'funding_cost', label: 'Funding Cost' },
     { key: 'rebate', label: 'Rebate' },
     { key: 'passthrough', label: 'Passthrough' },
-    { key: 'vendor_cost', label: 'Vendor Cost' }
+    { key: 'vendor_cost', label: 'Vendor Cost' },
+    { key: 'discount', label: 'Discount' }
   ];
 
   // Get selected parameters or default to all
