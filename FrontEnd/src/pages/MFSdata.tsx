@@ -63,9 +63,19 @@ const MFSdata: React.FC = () => {
   const [loadingClientMFS, setLoadingClientMFS] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('');
-  // Set default to current FY (year filter showing FY data)
-  const [periodFilter, setPeriodFilter] = useState<string>('year'); // 'year', 'quarter', or 'month'
-  const [periodValue, setPeriodValue] = useState<string>(String(getCurrentFYStartYear())); // Default to current FY start year
+  // Default to current FY; if returning from import, use the FY we stored so imported data is visible
+  const [periodFilter, setPeriodFilter] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('mfsdata_import_fy') ? 'year' : 'year';
+    } catch (_) { return 'year'; }
+  });
+  const [periodValue, setPeriodValue] = useState<string>(() => {
+    try {
+      const fy = sessionStorage.getItem('mfsdata_import_fy');
+      if (fy && fy.trim()) return fy.trim();
+    } catch (_) {}
+    return String(getCurrentFYStartYear());
+  });
   const [editingCell, setEditingCell] = useState<{
     parameter: string;
     monthKey: string;
@@ -201,6 +211,18 @@ const MFSdata: React.FC = () => {
     }
   }, []);
 
+  // After reload following Client MFS import, switch period to the FY that contains the imported data
+  useEffect(() => {
+    try {
+      const fy = sessionStorage.getItem('mfsdata_import_fy');
+      if (fy && fy.trim()) {
+        sessionStorage.removeItem('mfsdata_import_fy');
+        setPeriodFilter('year');
+        setPeriodValue(fy.trim());
+      }
+    } catch (_) {}
+  }, []);
+
   // Use centralized normalizeBusinessUnitName function (imported from utils)
 
   // Get unique business units (normalized to handle case differences)
@@ -302,14 +324,15 @@ const MFSdata: React.FC = () => {
         const fyEndMonths = ['January', 'February', 'March'];
         
         filtered = filtered.filter(item => {
-          if (!item.month || !item.year) return false;
+          if (!item.month || item.year == null) return false;
           const normalizedMonth = normalizeToFullMonthName(item.month);
-          
+          const itemYear = Number(item.year);
+          if (isNaN(itemYear)) return false;
           // Check if month is in FY start year (Apr-Dec) or FY end year (Jan-Mar)
-          if (fyStartMonths.includes(normalizedMonth) && item.year === fyStartYear) {
+          if (fyStartMonths.includes(normalizedMonth) && itemYear === fyStartYear) {
             return true;
           }
-          if (fyEndMonths.includes(normalizedMonth) && item.year === fyEndYear) {
+          if (fyEndMonths.includes(normalizedMonth) && itemYear === fyEndYear) {
             return true;
           }
           return false;
@@ -329,14 +352,14 @@ const MFSdata: React.FC = () => {
           };
           const monthsInQuarter = quarterMonthNames[quarter] || [];
           filtered = filtered.filter(item => {
-            if (!item.month || !item.year) return false;
-            // Normalize month name to full name for comparison
+            if (!item.month || item.year == null) return false;
             const normalizedMonth = normalizeToFullMonthName(item.month);
-            // Handle Q4 which spans across years
+            const itemYear = Number(item.year);
+            if (isNaN(itemYear)) return false;
             if (quarter === 4) {
-              return monthsInQuarter.includes(normalizedMonth) && item.year === year + 1;
+              return monthsInQuarter.includes(normalizedMonth) && itemYear === year + 1;
             } else {
-              return monthsInQuarter.includes(normalizedMonth) && item.year === year;
+              return monthsInQuarter.includes(normalizedMonth) && itemYear === year;
             }
           });
         }
@@ -349,9 +372,9 @@ const MFSdata: React.FC = () => {
           // Normalize month name to full name for comparison
           const normalizedMonthName = normalizeToFullMonthName(monthName);
           filtered = filtered.filter(item => {
-            if (!item.month || !item.year) return false;
+            if (!item.month || item.year == null) return false;
             const normalizedItemMonth = normalizeToFullMonthName(item.month);
-            return normalizedItemMonth === normalizedMonthName && item.year === year;
+            return normalizedItemMonth === normalizedMonthName && Number(item.year) === year;
           });
         }
       }
@@ -1301,7 +1324,20 @@ const MFSdata: React.FC = () => {
         if (errorCount === 0) message.success(`Successfully imported all ${successCount} records!`);
         else if (successCount > 0) message.warning(`Imported ${successCount}, ${errorCount} failed.`);
         else message.error('All batches failed to import.');
-        if (successCount > 0) window.location.reload();
+        if (successCount > 0) {
+          const fyMonthsStart = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+          const importedFYStartYears = mappedData.map((r: any) => {
+            const y = Number(r.year) || 0;
+            const m = (r.month && String(r.month).trim()) || '';
+            if (fyMonthsStart.includes(m)) return y;
+            return y - 1;
+          }).filter((y: number) => y > 0);
+          const fyToShow = importedFYStartYears.length > 0 ? Math.min(...importedFYStartYears) : null;
+          if (fyToShow != null) {
+            try { sessionStorage.setItem('mfsdata_import_fy', String(fyToShow)); } catch (_) {}
+          }
+          window.location.reload();
+        }
       } catch (err: any) {
         message.destroy();
         message.error(err?.response?.data?.error || 'Failed to import data');
@@ -1422,7 +1458,23 @@ const MFSdata: React.FC = () => {
         if (errorCount === 0) message.success(`Successfully imported all ${successCount} records!`, 5);
         else if (successCount > 0) message.warning(`Imported ${successCount} successfully, ${errorCount} failed.`, 8);
         else message.error(`All batches failed (${errorCount} records).`, 8);
-        if (successCount > 0) setTimeout(() => window.location.reload(), 2000);
+        if (successCount > 0) {
+          // Switch period to the FY that contains the imported months so the new data is visible
+          const fyMonthsStart = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+          const importedFYStartYears = mappedData.map((r: any) => {
+            const y = Number(r.year) || 0;
+            const m = (r.month && String(r.month).trim()) || '';
+            if (fyMonthsStart.includes(m)) return y;
+            return y - 1; // Jan–Mar belong to previous FY
+          }).filter((y: number) => y > 0);
+          const fyToShow = importedFYStartYears.length > 0 ? Math.min(...importedFYStartYears) : null;
+          if (fyToShow != null) {
+            try {
+              sessionStorage.setItem('mfsdata_import_fy', String(fyToShow));
+            } catch (_) {}
+          }
+          setTimeout(() => window.location.reload(), 2000);
+        }
       } catch (err: any) {
         message.destroy();
         message.error(err?.response?.data?.error || 'Failed to import data');
@@ -1561,13 +1613,10 @@ const MFSdata: React.FC = () => {
               value={selectedBusinessUnit}
               onChange={(e) => {
                 setSelectedBusinessUnit(e.target.value);
-                // Keep period filter active - don't reset it
-                // Only ensure period filter is set to current FY if it's empty
                 if (!periodFilter || periodFilter === '') {
                   setPeriodFilter('year');
                   setPeriodValue(String(getCurrentFYStartYear()));
                 } else if (periodFilter === 'year' && (!periodValue || periodValue === '')) {
-                  // If year filter is selected but no value, set to current FY
                   setPeriodValue(String(getCurrentFYStartYear()));
                 }
               }}
