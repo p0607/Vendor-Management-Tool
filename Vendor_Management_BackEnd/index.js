@@ -1563,6 +1563,20 @@ app.delete('/api/Alchemy_Routing/:id', async (req, res, next) => {
   }
 });
 
+app.delete('/api/team-report/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery('DELETE FROM team_report WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    logger.info('Team report record deleted', { recordId: id });
+    res.status(200).json({ message: 'Record deleted successfully', id: Number(id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.patch('/api/team-report/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -2978,6 +2992,21 @@ app.post('/api/team-summary-report/bulk', async (req, res, next) => {
       stack: err.stack,
       dataLength: data ? data.length : 0
     });
+    next(err);
+  }
+});
+
+// DELETE endpoint for team summary report
+app.delete('/api/team-summary-report/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery('DELETE FROM team_summary_report WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+    logger.info('Team summary report record deleted', { recordId: id });
+    res.status(200).json({ message: 'Record deleted successfully', id: Number(id) });
+  } catch (err) {
     next(err);
   }
 });
