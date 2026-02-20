@@ -2922,6 +2922,46 @@ app.post('/api/team-summary-report/bulk', async (req, res, next) => {
           record.year = 2000 + record.year;
         }
       }
+
+      // Normalize month to full name (January, April, etc.) so display and filters work
+      const monthNames = {
+        'January': 'January', 'February': 'February', 'March': 'March', 'April': 'April',
+        'May': 'May', 'June': 'June', 'July': 'July', 'August': 'August',
+        'September': 'September', 'October': 'October', 'November': 'November', 'December': 'December',
+        'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+        'Jun': 'June', 'Jul': 'July', 'Aug': 'August', 'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+      };
+      const fullMonthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      let normalizedMonth = monthNames[record.month];
+      if (!normalizedMonth) {
+        const monthStr = String(record.month).trim();
+        const capitalized = monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase();
+        normalizedMonth = monthNames[capitalized];
+        if (!normalizedMonth) {
+          const monthNum = parseInt(monthStr, 10);
+          if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+            normalizedMonth = fullMonthNames[monthNum - 1];
+          }
+        }
+        if (!normalizedMonth) {
+          const lower = monthStr.toLowerCase();
+          if (lower.includes('jan')) normalizedMonth = 'January';
+          else if (lower.includes('feb')) normalizedMonth = 'February';
+          else if (lower.includes('mar')) normalizedMonth = 'March';
+          else if (lower.includes('apr')) normalizedMonth = 'April';
+          else if (lower.includes('may')) normalizedMonth = 'May';
+          else if (lower.includes('jun')) normalizedMonth = 'June';
+          else if (lower.includes('jul')) normalizedMonth = 'July';
+          else if (lower.includes('aug')) normalizedMonth = 'August';
+          else if (lower.includes('sep')) normalizedMonth = 'September';
+          else if (lower.includes('oct')) normalizedMonth = 'October';
+          else if (lower.includes('nov')) normalizedMonth = 'November';
+          else if (lower.includes('dec')) normalizedMonth = 'December';
+        }
+      }
+      if (normalizedMonth) {
+        record.month = normalizedMonth;
+      }
     }
 
     // Use transaction for bulk insert

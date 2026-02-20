@@ -1261,9 +1261,21 @@ const MFSdata: React.FC = () => {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: true, defval: '', blankrows: false });
+      const monthNamesFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const monthAbbr: Record<string, string> = { 'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April', 'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August', 'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December' };
+      const normalizeMonthForImport = (v: any): string | null => {
+        if (v == null || v === '') return null;
+        const s = String(v).trim();
+        if (!s) return null;
+        const n = parseInt(s, 10);
+        if (!isNaN(n) && n >= 1 && n <= 12) return monthNamesFull[n - 1];
+        if (monthAbbr[s]) return monthAbbr[s];
+        if (monthNamesFull.some(m => m.toLowerCase() === s.toLowerCase())) return monthNamesFull.find(m => m.toLowerCase() === s.toLowerCase()) || s;
+        return s;
+      };
       const mappedData = jsonData.map((row: any) => ({
         business_unit: normalizeBusinessUnitName(String(row['Business_Unit'] || row['Business Unit'] || row.business_unit || '').trim() || null),
-        month: String(row['Month'] || row.month || '').trim() || null,
+        month: normalizeMonthForImport(row['Month'] ?? row.month ?? '') || null,
         year: parseNumericValue(row['Year'] || row.year) || null,
         hc: parseNumericValue(row['HC'] || row.hc),
         revenue: parseNumericValue(row['Revenue'] || row.revenue),
@@ -1324,19 +1336,30 @@ const MFSdata: React.FC = () => {
       const stringOrNull = (v: any): string | null => { const s = String(v || '').trim(); return s === '' ? null : s; };
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
       const monthAbbrMap: Record<string, string> = { 'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April', 'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August', 'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December' };
-      const mappedData = jsonData.map((row: any) => {
-        let monthValue = row['Month'] || row.month || '';
-        if (monthValue) {
-          const monthStr = String(monthValue).trim();
-          if (/^\d+$/.test(monthStr)) {
-            const n = parseInt(monthStr, 10);
-            monthValue = n >= 1 && n <= 12 ? monthNames[n - 1] : monthStr;
-          } else if (typeof monthValue === 'number' && monthValue > 1 && monthValue < 50000) {
-            const d = new Date(1900, 0, 1);
-            d.setDate(d.getDate() + (monthValue - 2));
-            monthValue = monthNames[d.getMonth()];
-          } else monthValue = monthAbbrMap[monthStr] || monthStr;
+      const normalizeClientMFSMonth = (v: any): string | null => {
+        if (v == null || v === '') return null;
+        if (typeof v === 'object' && typeof (v as Date).getMonth === 'function') {
+          const d = v as Date;
+          return monthNames[d.getMonth()] ?? null;
         }
+        const monthStr = String(v).trim();
+        if (!monthStr) return null;
+        const n = parseInt(monthStr, 10);
+        if (!isNaN(n) && n >= 1 && n <= 12) return monthNames[n - 1];
+        if (!isNaN(n) && n > 12 && n < 50000) {
+          const excelEpoch = new Date(1899, 11, 30);
+          const d = new Date(excelEpoch.getTime() + n * 86400000);
+          if (!isNaN(d.getTime())) return monthNames[d.getMonth()] ?? null;
+        }
+        const normalizedKey = monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase();
+        if (monthAbbrMap[normalizedKey]) return monthAbbrMap[normalizedKey];
+        const full = monthNames.find(m => m.toLowerCase() === monthStr.toLowerCase());
+        if (full) return full;
+        return monthStr;
+      };
+      const mappedData = jsonData.map((row: any) => {
+        const rawMonth = row['Month'] ?? row.month ?? '';
+        const monthValue = normalizeClientMFSMonth(rawMonth);
         let businessUnit = normalizeBusinessUnitName(stringOrNull(row['Business Unit'] || row['Business_Unit'] || row.business_unit));
         let clientName = stringOrNull(row['Client Name'] || row['Client_Name'] || row.client_name);
         if ((!businessUnit || !clientName) && row['Business_Client_Na']) {
