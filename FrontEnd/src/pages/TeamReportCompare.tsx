@@ -2809,6 +2809,9 @@ const TeamReportCompare: React.FC = () => {
   // MS exception: when this BU is selected, Client Data shows both client name and project name (e.g. "Client - Project")
   const isClientDataMS = Boolean(getSelectedBUForClientData && compareBusinessUnits(getSelectedBUForClientData, 'MS'));
 
+  // Show Routing and CTS only when admin has "All Business Units" selected; for individual BU (or BU head) do not show
+  const showRoutingAndCTS = Boolean(!isBUHead && !selectedBusinessUnit);
+
   // Define all available parameters for Client Data table
   const allClientDataParameters = [
     { key: 'hc', label: 'HC' },
@@ -7673,12 +7676,28 @@ const TeamReportCompare: React.FC = () => {
                       );
                     })()}
 
-                    {/* Metric rows: Revenue =, Routing =, CTS =, total — two columns with row/column borders */}
+                    {/* Metric rows: Revenue =, (Routing =, CTS =, total only when admin + All BU) — two columns with row/column borders */}
                     <div style={{ marginTop: 8, marginBottom: 0 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         {kpiName === 'Revenue' && (() => {
                           const rowBorder = '1px solid #e0e0e0';
                           const colBorder = '1px solid #e0e0e0';
+                          if (!showRoutingAndCTS) {
+                            return (
+                              <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
+                                <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
+                                    Revenue = {formatValue(kpi.currentFY)}
+                                  </div>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 100, paddingLeft: 12 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
+                                    Revenue = {formatValue(kpi.previousFY)}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
                           return (
                             <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
                               <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
@@ -7709,11 +7728,27 @@ const TeamReportCompare: React.FC = () => {
                           );
                         })()}
                         {kpiName === 'GPM' && (() => {
+                          const rowBorder = '1px solid #e0e0e0';
+                          const colBorder = '1px solid #e0e0e0';
+                          if (!showRoutingAndCTS) {
+                            return (
+                              <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
+                                <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
+                                    GPM = {formatValue(kpi.currentFY)}
+                                  </div>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 100, paddingLeft: 12 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
+                                    GPM = {formatValue(kpi.previousFY)}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
                           const routingMargin = calculateRoutingMargin();
                           const ctsMargin = calculateCTSMargin();
                           const total = kpi.currentFY + routingMargin + ctsMargin;
-                          const rowBorder = '1px solid #e0e0e0';
-                          const colBorder = '1px solid #e0e0e0';
                           return (
                             <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
                               <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
@@ -7760,11 +7795,27 @@ const TeamReportCompare: React.FC = () => {
                           );
                         })()}
                         {kpiName === 'NP' && (() => {
+                          const rowBorder = '1px solid #e0e0e0';
+                          const colBorder = '1px solid #e0e0e0';
+                          if (!showRoutingAndCTS) {
+                            return (
+                              <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
+                                <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
+                                    NP = {formatValue(kpi.currentFY)}
+                                  </div>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 100, paddingLeft: 12 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#333333', padding: '6px 0' }}>
+                                    NP = {formatValue(kpi.previousFY)}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
                           const routingNetMargin = calculateRoutingNetMargin();
                           const ctsMargin = calculateCTSMargin();
                           const total = kpi.currentFY + routingNetMargin + ctsMargin;
-                          const rowBorder = '1px solid #e0e0e0';
-                          const colBorder = '1px solid #e0e0e0';
                           return (
                             <div style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
                               <div style={{ flex: 1, minWidth: 140, paddingRight: 12, borderRight: colBorder }}>

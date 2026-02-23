@@ -1396,6 +1396,9 @@ const ClientMFSCompare: React.FC = () => {
     }).filter(hasValidMonth);
   }, [rawData, selectedBusinessUnit, selectedClientName, selectedBUHead, isBUHead, user?.business_unit]);
 
+  // Show Routing only when admin has "All Business Units" selected; for individual BU (or BU head) do not show
+  const showRoutingAndCTS = Boolean(!isBUHead && !selectedBusinessUnit);
+
   const [availableOptions, setAvailableOptions] = useState<string[]>([]);
 
   const [selectedParameters, setSelectedParameters] = useState<string[]>(() => {
@@ -6751,7 +6754,7 @@ const ClientMFSCompare: React.FC = () => {
                       }}>
                         {kpiName}
                       </div>
-                      {kpiName === 'Revenue' && (
+                      {showRoutingAndCTS && kpiName === 'Revenue' && (
                         <div style={{ 
                           display: 'flex',
                           alignItems: 'center',
@@ -6771,7 +6774,7 @@ const ClientMFSCompare: React.FC = () => {
                           <span style={{ fontSize: 8, color: '#666666' }}>(Alchemy Billing)</span>
                         </div>
                       )}
-                      {kpiName === 'GPM' && (
+                      {showRoutingAndCTS && kpiName === 'GPM' && (
                         <div style={{ 
                           display: 'flex',
                           alignItems: 'center',
@@ -6791,7 +6794,7 @@ const ClientMFSCompare: React.FC = () => {
                           <span style={{ fontSize: 8, color: '#666666' }}>(Alchemy billing - Vendor invoice amount)</span>
                         </div>
                       )}
-                      {kpiName === 'NP' && (
+                      {showRoutingAndCTS && kpiName === 'NP' && (
                         <div style={{ 
                           display: 'flex',
                           alignItems: 'center',
@@ -6852,7 +6855,7 @@ const ClientMFSCompare: React.FC = () => {
                       marginBottom: 2
                     }}>
                       {formatValue(kpi.currentFY)}
-                      {kpiName === 'Revenue' && (() => {
+                      {showRoutingAndCTS && kpiName === 'Revenue' && (() => {
                         const routingBilling = calculateRoutingBilling();
                         const total = kpi.currentFY + routingBilling;
                         return (
@@ -6861,7 +6864,7 @@ const ClientMFSCompare: React.FC = () => {
                           </>
                         );
                       })()}
-                      {kpiName === 'GPM' && (() => {
+                      {showRoutingAndCTS && kpiName === 'GPM' && (() => {
                         const routingMargin = calculateRoutingMargin();
                         const total = kpi.currentFY + routingMargin;
                         return (
@@ -6870,7 +6873,7 @@ const ClientMFSCompare: React.FC = () => {
                           </>
                         );
                       })()}
-                      {kpiName === 'NP' && (() => {
+                      {showRoutingAndCTS && kpiName === 'NP' && (() => {
                         const routingNetMargin = calculateRoutingNetMargin();
                         const total = kpi.currentFY + routingNetMargin;
                         return (
