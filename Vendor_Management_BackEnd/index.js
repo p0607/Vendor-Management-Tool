@@ -2193,9 +2193,10 @@ app.post('/api/team-report', async (req, res, next) => {
         const value = req.body[field];
         if (value !== null && value !== undefined && value !== '') {
           if (typeof value === 'string') {
-            // Handle negative numbers in parentheses, commas, percentages
             let strValue = value.trim();
-            if (strValue === '-' || strValue === '########' || strValue === '') {
+            if (strValue === '-' || strValue === '########' || strValue === '' ||
+                strValue.toUpperCase().includes('DIV') || strValue === '#DIV/0!' ||
+                strValue === 'NaN' || strValue.toUpperCase() === 'INFINITY' || strValue === '#VALUE!') {
               processedFields[field] = 0;
             } else {
               if (strValue.startsWith('(') && strValue.endsWith(')')) {
@@ -2233,7 +2234,15 @@ app.post('/api/team-report', async (req, res, next) => {
       processedFields.gpm_percentage = gpmNp.gpm_percentage;
       processedFields.np = gpmNp.np !== null ? gpmNp.np : 0;
       processedFields.np_percentage = gpmNp.np_percentage;
-      
+      const PERCENTAGE_MAX = 999.99;
+      const PERCENTAGE_MIN = -999.99;
+      if (Number(processedFields.gpm_percentage) > PERCENTAGE_MAX || Number(processedFields.gpm_percentage) < PERCENTAGE_MIN) {
+        processedFields.gpm_percentage = processedFields.gpm_percentage > 0 ? PERCENTAGE_MAX : PERCENTAGE_MIN;
+      }
+      if (Number(processedFields.np_percentage) > PERCENTAGE_MAX || Number(processedFields.np_percentage) < PERCENTAGE_MIN) {
+        processedFields.np_percentage = processedFields.np_percentage > 0 ? PERCENTAGE_MAX : PERCENTAGE_MIN;
+      }
+
       // Normalize month name to full name (e.g., "January", "April") - matching team_summary_report format
       const monthNames = {
         'January': 'January', 'February': 'February', 'March': 'March', 'April': 'April',
@@ -2432,9 +2441,11 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       for (const field of numericFields) {
         if (record[field] !== null && record[field] !== undefined && record[field] !== '') {
           if (typeof record[field] === 'string') {
-            // Handle negative numbers in parentheses, commas, percentages
+            // Handle negative numbers in parentheses, commas, percentages, and Excel errors
             let strValue = record[field].trim();
-            if (strValue === '-' || strValue === '########' || strValue === '') {
+            if (strValue === '-' || strValue === '########' || strValue === '' ||
+                strValue.toUpperCase().includes('DIV') || strValue === '#DIV/0!' ||
+                strValue === 'NaN' || strValue.toUpperCase() === 'INFINITY' || strValue === '#VALUE!') {
               record[field] = 0;
             } else {
               if (strValue.startsWith('(') && strValue.endsWith(')')) {
@@ -2528,6 +2539,16 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       record.gpm_percentage = gpmNp.gpm_percentage;
       record.np = gpmNp.np !== null ? gpmNp.np : 0;
       record.np_percentage = gpmNp.np_percentage;
+
+      // Clamp percentage fields to avoid DB "numeric field overflow" (e.g. NUMERIC(5,2) max ±999.99)
+      const PERCENTAGE_MAX = 999.99;
+      const PERCENTAGE_MIN = -999.99;
+      if (Number(record.gpm_percentage) > PERCENTAGE_MAX || Number(record.gpm_percentage) < PERCENTAGE_MIN) {
+        record.gpm_percentage = record.gpm_percentage > 0 ? PERCENTAGE_MAX : PERCENTAGE_MIN;
+      }
+      if (Number(record.np_percentage) > PERCENTAGE_MAX || Number(record.np_percentage) < PERCENTAGE_MIN) {
+        record.np_percentage = record.np_percentage > 0 ? PERCENTAGE_MAX : PERCENTAGE_MIN;
+      }
     }
 
     // Use transaction for bulk insert with optimized batch processing
