@@ -2279,7 +2279,7 @@ const TeamReportCompare: React.FC = () => {
 
         } else if (compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) {
 
-          gpm = rev - salary_cost;
+          gpm = rev - salary_cost - discount;
 
         } else {
 

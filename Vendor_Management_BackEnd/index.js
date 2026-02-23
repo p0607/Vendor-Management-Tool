@@ -2008,7 +2008,7 @@ const COLUMN_FORMULAS_BY_BU = [
   { businessUnits: ['MS', 'Managed Services'], gpmFormula: 'GPM = Revenue − Salary Cost', npFormula: null, description: 'NP is not calculated for MS / Managed Services.' },
   { businessUnits: ['USA'], gpmFormula: 'GPM = Revenue − Salary Cost − Rebate − Passthrough', npFormula: null, description: 'NP is not calculated for USA.' },
   { businessUnits: ['Japan'], gpmFormula: 'GPM = Revenue − Salary Cost − Discount', npFormula: null, description: 'NP is not calculated for Japan.' },
-  { businessUnits: ['Canada', 'Singapore'], gpmFormula: 'GPM = Revenue − Salary Cost', npFormula: null, description: 'NP is not calculated for Canada, Singapore.' },
+  { businessUnits: ['Canada', 'Singapore'], gpmFormula: 'GPM = Revenue − Salary Cost − Discount', npFormula: null, description: 'NP is not calculated for Canada, Singapore.' },
   { businessUnits: ['BPO|HTD', 'Captive', 'SI', 'Egg', 'Other'], gpmFormula: 'GPM = Revenue − Salary Cost − Leave Encashment − Vendor Cost − Rebate', npFormula: 'NP = GPM − Team Cost − Opr Cost − Funding Cost', description: 'All other business units use this GPM and NP calculation.' }];
 const PERCENTAGE_FORMULAS = { gpm_percentage: 'GPM % = (GPM / Revenue) × 100', np_percentage: 'NP % = (NP / Revenue) × 100' };
 
@@ -2045,7 +2045,7 @@ function computeGpmNpForTeamReport(record) {
   } else if (buNorm === 'japan') {
     gpm = rev - salary_cost - discount;
   } else if (buNorm === 'canada' || buNorm === 'singapore') {
-    gpm = rev - salary_cost;
+    gpm = rev - salary_cost - discount;
   } else {
     gpm = rev - salary_cost - leave_encashment - vendor_cost - rebate;
     np = gpm - team_cost - opr_cost - funding_cost;

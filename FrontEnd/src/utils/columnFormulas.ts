@@ -47,7 +47,7 @@ export const BUSINESS_UNIT_COLUMN_FORMULAS: ColumnFormulaEntry[] = [
   },
   {
     businessUnits: ['Canada', 'Singapore'],
-    gpmFormula: 'GPM = Revenue − Salary Cost',
+    gpmFormula: 'GPM = Revenue − Salary Cost − Discount',
     npFormula: null,
     description: 'NP is not calculated for Canada, Singapore.'
   },

@@ -2020,8 +2020,8 @@ const ClientMFSCompare: React.FC = () => {
           // Japan: GPM = Revenue - Salary Cost - Discount
           gpm = rev - salary_cost - discount;
         } else if (compareBusinessUnits(record.business_unit, 'Canada') || compareBusinessUnits(record.business_unit, 'Singapore')) {
-          // Canada, Singapore: GPM = Revenue - Salary_Cost
-          gpm = rev - salary_cost;
+          // Canada, Singapore: GPM = Revenue - Salary Cost - Discount
+          gpm = rev - salary_cost - discount;
         } else {
           // Other business units: GPM = Revenue - salary_cost - leave_encashment - vendor_cost - rebate, NP = GPM - Team Cost - opr_cost - funding_cost
           const vendor_cost = Number(record.vendor_cost) || 0;
