@@ -1515,7 +1515,7 @@ const MFSdata: React.FC = () => {
     XLSX.writeFile(workbook, 'Client_MFS_Report.xlsx');
   };
 
-  const actionDropdownItems = [
+  const allActionDropdownItems = [
     { key: 'add', label: 'Add MFS Data', onClick: () => navigate('/AddTeamReportData') },
     { key: 'template', label: 'Download MFS Template', onClick: handleDownloadTemplate },
     { key: 'import', label: 'Import MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportExcel(e as any); input.click(); } },
@@ -1524,6 +1524,9 @@ const MFSdata: React.FC = () => {
     { key: 'export_mfs', label: 'Export MFS Data', onClick: handleExportMFSData },
     { key: 'export_client_mfs', label: 'Export Client MFS Data', onClick: handleExportClientMFSData },
   ];
+  const actionDropdownItems = isBUHead
+    ? allActionDropdownItems.filter((item) => item.key !== 'import' && item.key !== 'client_import')
+    : allActionDropdownItems;
 
   // Show full page so both tables are visible (first: MFS from team-summary-report, second: client wise from team-report)
   if (loading) return <div className="loading">Loading data...</div>;
@@ -1569,6 +1572,7 @@ const MFSdata: React.FC = () => {
       <div className="routing-table-container">
         <div className="table-wrapper">
           <div className="table-controls" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {!isBUHead && (
             <button 
               onClick={() => {
                 setEditMode(!editMode);
@@ -1581,7 +1585,8 @@ const MFSdata: React.FC = () => {
             >
               {editMode ? 'Exit Edit Mode' : 'Edit Mode'}
             </button>
-            {editMode && (
+            )}
+            {editMode && !isBUHead && (
               <>
                 <button
                   type="button"

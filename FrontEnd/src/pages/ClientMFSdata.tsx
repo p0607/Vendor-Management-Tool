@@ -1064,12 +1064,14 @@ const ClientMFSdata: React.FC = () => {
       <div className="routing-table-container">
         <div className="table-wrapper">
           <div className="table-controls">
+            {!isBUHead && (
             <button 
               onClick={() => setEditMode(!editMode)}
               className="edit-mode-button"
             >
               {editMode ? 'Exit Edit Mode' : 'Edit Mode'}
             </button>
+            )}
           </div>
           
           <div className="search-controls">
