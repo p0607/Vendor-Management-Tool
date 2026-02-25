@@ -1525,7 +1525,7 @@ const MFSdata: React.FC = () => {
     { key: 'export_client_mfs', label: 'Export Client MFS Data', onClick: handleExportClientMFSData },
   ];
   const actionDropdownItems = isBUHead
-    ? allActionDropdownItems.filter((item) => item.key !== 'import' && item.key !== 'client_import')
+    ? allActionDropdownItems.filter((item) => item.key !== 'add' && item.key !== 'import' && item.key !== 'client_import')
     : allActionDropdownItems;
 
   // Show full page so both tables are visible (first: MFS from team-summary-report, second: client wise from team-report)

@@ -2371,95 +2371,18 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-  // Action dropdown items
-
-  const actionDropdownItems = [
-
-    {
-
-      key: 'add',
-
-      label: 'Add MFS Data',
-
-      onClick: () => navigate('/AddTeamReportData')
-
-    },
-
-    {
-
-      key: 'template',
-
-      label: 'Download MFS Template',
-
-      onClick: handleDownloadTemplate
-
-    },
-
-    {
-
-      key: 'import',
-
-      label: 'Import MFS',
-
-      onClick: () => {
-
-        const input = document.createElement('input');
-
-        input.type = 'file';
-
-        input.accept = '.xlsx, .xls';
-
-        input.onchange = (e) => handleImportExcel(e as any);
-
-        input.click();
-
-      }
-
-    },
-
-    {
-
-      key: 'client_template',
-
-      label: 'Download Client MFS Template',
-
-      onClick: handleDownloadClientTemplate
-
-    },
-
-    {
-
-      key: 'client_import',
-
-      label: 'Import Client MFS',
-
-      onClick: () => {
-
-        const input = document.createElement('input');
-
-        input.type = 'file';
-
-        input.accept = '.xlsx, .xls';
-
-        input.onchange = (e) => handleImportClientMFS(e as any);
-
-        input.click();
-
-      }
-
-    },
-
-    {
-
-      key: 'export',
-
-      label: 'Export Excel',
-
-      onClick: handleExportExcel
-
-    },
-
+  // Action dropdown items (hide Add MFS Data, Import MFS, Import Client MFS for BU Head)
+  const allActionDropdownItems = [
+    { key: 'add', label: 'Add MFS Data', onClick: () => navigate('/AddTeamReportData') },
+    { key: 'template', label: 'Download MFS Template', onClick: handleDownloadTemplate },
+    { key: 'import', label: 'Import MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportExcel(e as any); input.click(); } },
+    { key: 'client_template', label: 'Download Client MFS Template', onClick: handleDownloadClientTemplate },
+    { key: 'client_import', label: 'Import Client MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportClientMFS(e as any); input.click(); } },
+    { key: 'export', label: 'Export Excel', onClick: handleExportExcel },
   ];
+  const actionDropdownItems = isBUHead
+    ? allActionDropdownItems.filter((item) => item.key !== 'add' && item.key !== 'import' && item.key !== 'client_import')
+    : allActionDropdownItems;
 
 
 

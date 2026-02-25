@@ -2335,97 +2335,29 @@ const ClientMFSCompare: React.FC = () => {
 
 
 
-  // Action dropdown items
-
-  const actionDropdownItems = [
-
-    {
-
-      key: 'add',
-
-      label: 'Add MFS Data',
-
-      onClick: () => navigate('/AddTeamReportData')
-
-    },
-
-    {
-
-      key: 'template',
-
-      label: 'Download Client MFS Template',
-
-      onClick: handleDownloadTemplate
-
-    },
-
-    {
-
-      key: 'import',
-
-      label: 'Import Client MFS',
-
-      onClick: () => {
-
-        const input = document.createElement('input');
-
-        input.type = 'file';
-
-        input.accept = '.xlsx, .xls';
-
-        input.onchange = (e) => handleImportExcel(e as any);
-
-        input.click();
-
+  // Action dropdown items (hide Add MFS Data, Import Client MFS for BU Head)
+  const allActionDropdownItems = [
+    { key: 'add', label: 'Add MFS Data', onClick: () => navigate('/AddTeamReportData') },
+    { key: 'template', label: 'Download Client MFS Template', onClick: handleDownloadTemplate },
+    { key: 'import', label: 'Import Client MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportExcel(e as any); input.click(); } },
+    { key: 'normalize', label: 'Recalculate GPM% & NP% for all existing data', onClick: async () => {
+      try {
+        message.loading('Updating GPM% and NP% for all existing records...', 0);
+        const res = await apiClient.post(`${API_ENDPOINT}/normalize-percentages`);
+        message.destroy();
+        const updated = (res.data && res.data.updatedRows) ?? 0;
+        message.success(`Updated GPM% and NP% for ${updated} existing records.`, 5);
+        setRefreshTrigger((t) => t + 1);
+      } catch (err: any) {
+        message.destroy();
+        message.error(err?.response?.data?.error || err?.message || 'Failed to update existing data.', 5);
       }
-
-    },
-
-    {
-
-      key: 'normalize',
-
-      label: 'Recalculate GPM% & NP% for all existing data',
-
-      onClick: async () => {
-
-        try {
-
-          message.loading('Updating GPM% and NP% for all existing records...', 0);
-
-          const res = await apiClient.post(`${API_ENDPOINT}/normalize-percentages`);
-
-          message.destroy();
-
-          const updated = (res.data && res.data.updatedRows) ?? 0;
-
-          message.success(`Updated GPM% and NP% for ${updated} existing records.`, 5);
-
-          setRefreshTrigger((t) => t + 1);
-
-        } catch (err: any) {
-
-          message.destroy();
-
-          message.error(err?.response?.data?.error || err?.message || 'Failed to update existing data.', 5);
-
-        }
-
-      }
-
-    },
-
-    {
-
-      key: 'export',
-
-      label: 'Export Excel',
-
-      onClick: handleExportExcel
-
-    },
-
+    } },
+    { key: 'export', label: 'Export Excel', onClick: handleExportExcel },
   ];
+  const actionDropdownItems = isBUHead
+    ? allActionDropdownItems.filter((item) => item.key !== 'add' && item.key !== 'import')
+    : allActionDropdownItems;
 
 
 
