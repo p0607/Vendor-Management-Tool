@@ -1087,7 +1087,7 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
 
     // Query to aggregate data from Active and Attrition tables grouped by Month & Year
     const query = `
-      WITH active_summary AS (
+      WITH RECURSIVE active_summary AS (
         SELECT 
           TO_CHAR(active_ob_month, 'YYYY-MM') as month_year,
           EXTRACT(YEAR FROM active_ob_month)::INTEGER as year,
@@ -1188,112 +1188,78 @@ app.get('/api/CTS-Summary', async (req, res, next) => {
           h.margin_percentage as hist_margin_percentage
         FROM monthly_data md
         LEFT JOIN historical_summary h ON md."Month & Year" = h.month_year
-        ORDER BY md.year ASC, md.month ASC
       ),
-      cumulative_step1 AS (
-        SELECT 
+      -- Chronological row numbers for correct carry-forward (previous month = rn - 1)
+      ordered_months AS (
+        SELECT
           mwh.*,
-          -- Step 1: Calculate cumulative values row by row
-          -- For historical rows: use historical value
-          -- For first non-historical row: use last historical + current net
-          -- For subsequent rows: we'll build on this in step 2
-          CASE 
-            WHEN mwh.hist_current_hc IS NOT NULL THEN mwh.hist_current_hc
-            ELSE COALESCE(
-              MAX(mwh.hist_current_hc) OVER (
-                ORDER BY mwh.year ASC, mwh.month ASC 
-                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-              ),
-              0
-            ) + mwh."Net - HC"
-          END as step1_current_hc,
-          CASE 
-            WHEN mwh.hist_current_po_value IS NOT NULL THEN mwh.hist_current_po_value
-            ELSE COALESCE(
-              MAX(mwh.hist_current_po_value) OVER (
-                ORDER BY mwh.year ASC, mwh.month ASC 
-                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-              ),
-              0
-            ) + mwh."Net - OB PO Value"
-          END as step1_current_po_value,
-          CASE 
-            WHEN mwh.hist_current_vendor_cost IS NOT NULL THEN mwh.hist_current_vendor_cost
-            ELSE COALESCE(
-              MAX(mwh.hist_current_vendor_cost) OVER (
-                ORDER BY mwh.year ASC, mwh.month ASC 
-                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-              ),
-              0
-            ) + mwh."Net Vendor Po Value"
-          END as step1_current_vendor_cost,
-          CASE 
-            WHEN mwh.hist_current_margin IS NOT NULL THEN mwh.hist_current_margin
-            ELSE COALESCE(
-              MAX(mwh.hist_current_margin) OVER (
-                ORDER BY mwh.year ASC, mwh.month ASC 
-                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-              ),
-              0
-            ) + mwh."Month Net Margin (Month)"
-          END as step1_current_margin
+          ROW_NUMBER() OVER (ORDER BY mwh.year ASC, mwh.month ASC)::INTEGER AS rn
         FROM monthly_with_historical mwh
       ),
+      -- Cumulative columns: single consistent rule for every month (see CTS_CUMULATIVE_FORMULAS.md).
+      -- Implemented as RECURSIVE carry-forward so X(t) always uses the previous row's final X, not a window hack.
+      --
+      -- DO NOT replace with LAG(step1) + Net or "MAX(historical before row) + Net" per row: that is NOT equal to
+      -- X(t-1) + Net when several consecutive months have no cts_summary_historical cumulative override (hist_* NULL).
+      -- "Historical" here means a row in cts_summary_historical with cumulative fields set, not merely "a visible month row".
+      cumulative_vals AS (
+        SELECT
+          om.rn,
+          CASE
+            WHEN om.hist_current_hc IS NOT NULL THEN om.hist_current_hc::numeric
+            ELSE COALESCE(om."Net - HC", 0)::numeric
+          END AS "Current HC",
+          CASE
+            WHEN om.hist_current_po_value IS NOT NULL THEN om.hist_current_po_value::numeric
+            ELSE COALESCE(om."Net - OB PO Value", 0)::numeric
+          END AS "Current PO Value",
+          CASE
+            WHEN om.hist_current_vendor_cost IS NOT NULL THEN om.hist_current_vendor_cost::numeric
+            ELSE COALESCE(om."Net Vendor Po Value", 0)::numeric
+          END AS "Current Vendor Cost",
+          CASE
+            WHEN om.hist_current_margin IS NOT NULL THEN om.hist_current_margin::numeric
+            ELSE COALESCE(om."Month Net Margin (Month)", 0)::numeric
+          END AS "Current Margin"
+        FROM ordered_months om
+        WHERE om.rn = 1
+
+        UNION ALL
+
+        SELECT
+          o.rn,
+          CASE
+            WHEN o.hist_current_hc IS NOT NULL THEN o.hist_current_hc::numeric
+            ELSE c."Current HC" + COALESCE(o."Net - HC", 0)::numeric
+          END,
+          CASE
+            WHEN o.hist_current_po_value IS NOT NULL THEN o.hist_current_po_value::numeric
+            ELSE c."Current PO Value" + COALESCE(o."Net - OB PO Value", 0)::numeric
+          END,
+          CASE
+            WHEN o.hist_current_vendor_cost IS NOT NULL THEN o.hist_current_vendor_cost::numeric
+            ELSE c."Current Vendor Cost" + COALESCE(o."Net Vendor Po Value", 0)::numeric
+          END,
+          CASE
+            WHEN o.hist_current_margin IS NOT NULL THEN o.hist_current_margin::numeric
+            ELSE c."Current Margin" + COALESCE(o."Month Net Margin (Month)", 0)::numeric
+          END
+        FROM ordered_months o
+        JOIN cumulative_vals c ON o.rn = c.rn + 1
+      ),
       cumulative_calculated AS (
-        SELECT 
-          cs1.*,
-          -- Step 2: Use previous row's calculated cumulative + current net
-          -- Current HC = Previous month's Current HC + Current month's Net HC
-          CASE 
-            WHEN cs1.hist_current_hc IS NOT NULL THEN cs1.hist_current_hc
-            ELSE COALESCE(
-              -- Get previous row's cumulative value (from step1, which has historical or calculated)
-              LAG(cs1.step1_current_hc) OVER (ORDER BY cs1.year ASC, cs1.month ASC),
-              -- If no previous row, use last historical value
-              MAX(cs1.hist_current_hc) OVER (
-                ORDER BY cs1.year ASC, cs1.month ASC 
-                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-              ),
-              0
-            ) + cs1."Net - HC"
-          END as "Current HC",
-          -- Current PO Value = Previous month's Current PO Value + Current month's Net OB PO Value
-          CASE 
-            WHEN cs1.hist_current_po_value IS NOT NULL THEN cs1.hist_current_po_value
-            ELSE COALESCE(
-              LAG(cs1.step1_current_po_value) OVER (ORDER BY cs1.year ASC, cs1.month ASC),
-              MAX(cs1.hist_current_po_value) OVER (
-                ORDER BY cs1.year ASC, cs1.month ASC 
-                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-              ),
-              0
-            ) + cs1."Net - OB PO Value"
-          END as "Current PO Value",
-          -- Current Vendor Cost = Previous month's Current Vendor Cost + Current month's Net Vendor PO Value
-          CASE 
-            WHEN cs1.hist_current_vendor_cost IS NOT NULL THEN cs1.hist_current_vendor_cost
-            ELSE COALESCE(
-              LAG(cs1.step1_current_vendor_cost) OVER (ORDER BY cs1.year ASC, cs1.month ASC),
-              MAX(cs1.hist_current_vendor_cost) OVER (
-                ORDER BY cs1.year ASC, cs1.month ASC 
-                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-              ),
-              0
-            ) + cs1."Net Vendor Po Value"
-          END as "Current Vendor Cost",
-          -- Current Margin = Previous month's Current Margin + Current month's Month Net Margin
-          CASE 
-            WHEN cs1.hist_current_margin IS NOT NULL THEN cs1.hist_current_margin
-            ELSE COALESCE(
-              LAG(cs1.step1_current_margin) OVER (ORDER BY cs1.year ASC, cs1.month ASC),
-              MAX(cs1.hist_current_margin) OVER (
-                ORDER BY cs1.year ASC, cs1.month ASC 
-                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-              ),
-              0
-            ) + cs1."Month Net Margin (Month)"
-          END as "Current Margin"
-        FROM cumulative_step1 cs1
+        SELECT
+          mwh.*,
+          cv."Current HC",
+          cv."Current PO Value",
+          cv."Current Vendor Cost",
+          cv."Current Margin"
+        FROM ordered_months om
+        JOIN cumulative_vals cv ON om.rn = cv.rn
+        JOIN monthly_with_historical mwh
+          ON mwh."Month & Year" = om."Month & Year"
+          AND mwh.year = om.year
+          AND mwh.month = om.month
       )
       SELECT 
         cc.*,
