@@ -510,8 +510,9 @@ const ClientMFSCompare: React.FC = () => {
     
     // If we have comparison values set, use them
     if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
-      const currentFYMatch = comparisonValues[0].match(/FY (\d{4})/);
-      const previousFYMatch = comparisonValues[1].match(/FY (\d{4})/);
+      // Accept both "FY 2025" and "2025" formats.
+      const currentFYMatch = comparisonValues[0].match(/(\d{4})/);
+      const previousFYMatch = comparisonValues[1].match(/(\d{4})/);
       
       if (currentFYMatch) currentFY = parseInt(currentFYMatch[1]);
       if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
@@ -885,8 +886,9 @@ const ClientMFSCompare: React.FC = () => {
     
     // If we have comparison values set, use them
     if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
-      const currentFYMatch = comparisonValues[0].match(/FY (\d{4})/);
-      const previousFYMatch = comparisonValues[1].match(/FY (\d{4})/);
+      // Accept both "FY 2025" and "2025" formats.
+      const currentFYMatch = comparisonValues[0].match(/(\d{4})/);
+      const previousFYMatch = comparisonValues[1].match(/(\d{4})/);
       
       if (currentFYMatch) currentFY = parseInt(currentFYMatch[1]);
       if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
@@ -3680,8 +3682,8 @@ const ClientMFSCompare: React.FC = () => {
   const getMonthRangeForFY = useCallback((fyPeriod: string) => {
     if (!fyPeriod || !data.length) return fyPeriod;
     
-    // Extract year from FY period (e.g., "FY 2025" -> 2025)
-    const yearMatch = fyPeriod.match(/FY (\d{4})/);
+    // Extract year from period (supports "FY 2025" and "2025")
+    const yearMatch = fyPeriod.match(/(\d{4})/);
     if (!yearMatch) return fyPeriod;
     
     const targetYear = parseInt(yearMatch[1]);
@@ -6774,7 +6776,7 @@ const ClientMFSCompare: React.FC = () => {
                         } else if (compareType === 'quarter' && comparisonValues[1]) {
                           return comparisonValues[1];
                         } else {
-                          return 'FY 2024';
+                          return comparisonValues[1] || 'Previous FY';
                         }
                       })()}</span>
                     </div>
