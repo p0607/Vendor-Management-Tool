@@ -519,40 +519,50 @@ const ClientMFSCompare: React.FC = () => {
     }
 
 
-    // Filter data for current and previous financial years
-    const currentFYData = data.filter(item => {
-      const itemDate = parseDate(item.month, item.year);
-      if (isNaN(itemDate.getTime())) return false;
-      
-      const itemYear = itemDate.getFullYear();
-      const itemMonth = itemDate.getMonth() + 1;
-      
-      // Financial year filtering: FY 2025 = April 2025 to March 2026
-      if (itemMonth >= 4) {
-        // April to December: same calendar year
-        return itemYear === currentFY;
-      } else {
-        // January to March: next calendar year
-        return itemYear === currentFY + 1;
-      }
-    });
+    // Filter data for current and previous financial years.
+    // IMPORTANT: Use the shared period filter helper so KPI cards and Growth Analysis
+    // always use the exact same MFS dataset for selected year values.
+    let currentFYData: any[] = [];
+    let previousFYData: any[] = [];
 
-    const previousFYData = data.filter(item => {
-      const itemDate = parseDate(item.month, item.year);
-      if (isNaN(itemDate.getTime())) return false;
-      
-      const itemYear = itemDate.getFullYear();
-      const itemMonth = itemDate.getMonth() + 1;
-      
-      // Financial year filtering: FY 2024 = April 2024 to March 2025
-      if (itemMonth >= 4) {
-        // April to December: same calendar year
-        return itemYear === previousFY;
-      } else {
-        // January to March: next calendar year
-        return itemYear === previousFY + 1;
-      }
-    });
+    if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
+      currentFYData = getFilteredDataByPeriod(comparisonValues[0], 'year');
+      previousFYData = getFilteredDataByPeriod(comparisonValues[1], 'year');
+    } else {
+      currentFYData = data.filter(item => {
+        const itemDate = parseDate(item.month, item.year);
+        if (isNaN(itemDate.getTime())) return false;
+        
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        
+        // Financial year filtering: FY 2025 = April 2025 to March 2026
+        if (itemMonth >= 4) {
+          // April to December: same calendar year
+          return itemYear === currentFY;
+        } else {
+          // January to March: next calendar year
+          return itemYear === currentFY + 1;
+        }
+      });
+
+      previousFYData = data.filter(item => {
+        const itemDate = parseDate(item.month, item.year);
+        if (isNaN(itemDate.getTime())) return false;
+        
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        
+        // Financial year filtering: FY 2024 = April 2024 to March 2025
+        if (itemMonth >= 4) {
+          // April to December: same calendar year
+          return itemYear === previousFY;
+        } else {
+          // January to March: next calendar year
+          return itemYear === previousFY + 1;
+        }
+      });
+    }
 
     // Debug logging to see what data we're getting
 
@@ -894,49 +904,48 @@ const ClientMFSCompare: React.FC = () => {
       if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
     }
     
-    const monthsCompleted = getMonthsCompletedInCurrentFY();
-    const monthsRemaining = 12 - monthsCompleted;
+    let monthsCompleted = getMonthsCompletedInCurrentFY();
+    let monthsRemaining = 12 - monthsCompleted;
 
       // Financial year calculation is working correctly
 
-    // Filter data for current and previous financial years
-    const currentFYData = data.filter(item => {
-      const itemDate = parseDate(item.month, item.year);
-      if (isNaN(itemDate.getTime())) return false;
-      
-      const itemYear = itemDate.getFullYear();
-      const itemMonth = itemDate.getMonth() + 1;
-      
-      // Financial year filtering: FY 2025 = April 2025 to March 2026
-      if (itemMonth >= 4) {
-        // April to December: same calendar year
-        return itemYear === currentFY;
-      } else {
-        // January to March: next calendar year
+    // Filter data for current and previous financial years.
+    // Keep this aligned with Growth Analysis period filtering.
+    let currentFYData: any[] = [];
+    let previousFYData: any[] = [];
+    if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
+      currentFYData = getFilteredDataByPeriod(comparisonValues[0], 'year');
+      previousFYData = getFilteredDataByPeriod(comparisonValues[1], 'year');
+    } else {
+      currentFYData = data.filter(item => {
+        const itemDate = parseDate(item.month, item.year);
+        if (isNaN(itemDate.getTime())) return false;
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        if (itemMonth >= 4) return itemYear === currentFY;
         return itemYear === currentFY + 1;
-      }
-    });
-
-    const previousFYData = data.filter(item => {
-      const itemDate = parseDate(item.month, item.year);
-      if (isNaN(itemDate.getTime())) return false;
-      
-      const itemYear = itemDate.getFullYear();
-      const itemMonth = itemDate.getMonth() + 1;
-      
-      // Financial year filtering: FY 2024 = April 2024 to March 2025
-      if (itemMonth >= 4) {
-        // April to December: same calendar year
-        return itemYear === previousFY;
-      } else {
-        // January to March: next calendar year
+      });
+      previousFYData = data.filter(item => {
+        const itemDate = parseDate(item.month, item.year);
+        if (isNaN(itemDate.getTime())) return false;
+        const itemYear = itemDate.getFullYear();
+        const itemMonth = itemDate.getMonth() + 1;
+        if (itemMonth >= 4) return itemYear === previousFY;
         return itemYear === previousFY + 1;
-      }
-    });
+      });
+    }
     
-    // Debug: Check what months are being included
-    const currentFYMonths = currentFYData.map(item => `${item.month} ${item.year}`).sort();
-    const previousFYMonths = previousFYData.map(item => `${item.month} ${item.year}`).sort();
+    const getFiscalMonthIndex = (date: Date): number => {
+      const month = date.getMonth() + 1;
+      return month >= 4 ? month - 3 : month + 9; // Apr=1 ... Mar=12
+    };
+    const validCurrentFYDates = currentFYData
+      .map(item => parseDate(item.month, item.year))
+      .filter(d => !isNaN(d.getTime()));
+    if (validCurrentFYDates.length > 0) {
+      monthsCompleted = Math.max(...validCurrentFYDates.map(getFiscalMonthIndex));
+      monthsRemaining = Math.max(0, 12 - monthsCompleted);
+    }
     
     // console.log(`🔍 FINANCIAL YEAR DEBUG:`, {
     //   currentFY,
@@ -1073,70 +1082,22 @@ const ClientMFSCompare: React.FC = () => {
         // If we have data for current FY, project it for remaining months
         currentFYProjected = currentFYActual;
         if (Object.keys(monthlyTotals).length > 0) {
-          // Find the last month with actual data (non-zero value)
-          const monthKeys = Object.keys(monthlyTotals);
-          let lastMonthWithData = null;
-          let lastMonthValue = 0;
-          
-          // Sort months chronologically and find the last one with data
-          const sortedMonths = monthKeys.sort((a, b) => {
-            const [monthA, yearA] = a.split(' ');
-            const [monthB, yearB] = b.split(' ');
-            const dateA = parseDate(monthA, parseInt(yearA));
-            const dateB = parseDate(monthB, parseInt(yearB));
-            return dateA.getTime() - dateB.getTime();
-          });
-          
-          // Find the last month with non-zero value
-          for (let i = sortedMonths.length - 1; i >= 0; i--) {
-            const monthKey = sortedMonths[i];
-            const value = monthlyTotals[monthKey] || 0;
-            if (value > 0) {
-              lastMonthWithData = monthKey;
-              lastMonthValue = value;
-              break;
-            }
-          }
-          
-          if (lastMonthWithData && lastMonthValue > 0) {
-            // Calculate actual remaining months based on data
-            // Financial year months: Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Jan, Feb, Mar
-            const financialYearMonths = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
-            const fullMonthNames = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-            
-            // Find the index of the last month with data
-            const [lastMonth, lastYear] = lastMonthWithData.split(' ');
-            let lastMonthIndex = financialYearMonths.indexOf(lastMonth);
-            
-            // If not found in abbreviated names, try full names
-            if (lastMonthIndex === -1) {
-              lastMonthIndex = fullMonthNames.indexOf(lastMonth);
-            }
-            
-            // Calculate remaining months from the last month with data
-            let actualMonthsRemaining = 12 - (lastMonthIndex + 1); // +1 because index is 0-based
-            
-            // Fallback: if month not found, use the old calculation
-            if (lastMonthIndex === -1) {
-              console.warn(`⚠️ Month "${lastMonth}" not found in financial year months, using fallback calculation`);
-              actualMonthsRemaining = monthsRemaining;
-            }
-            
-            // Multiply last month's total value by actual remaining months
+          // Use latest valid month in selected FY and its monthly aggregate value.
+          const monthEntries = Object.entries(monthlyTotals)
+            .map(([monthKey, value]) => {
+              const [monthName, yearStr] = monthKey.split(' ');
+              const parsedDate = parseDate(monthName, parseInt(yearStr));
+              return { value: value || 0, parsedDate };
+            })
+            .filter(entry => !isNaN(entry.parsedDate.getTime()))
+            .sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
+
+          if (monthEntries.length > 0) {
+            const lastEntry = monthEntries[monthEntries.length - 1];
+            const lastMonthValue = lastEntry.value;
+            const lastMonthFiscalIndex = getFiscalMonthIndex(lastEntry.parsedDate);
+            const actualMonthsRemaining = Math.max(0, 12 - lastMonthFiscalIndex);
             currentFYProjected = currentFYActual + (lastMonthValue * actualMonthsRemaining);
-            
-            // console.log(`🔍 ${parameter} PROJECTION DEBUG:`, {
-            //   availableMonths: Object.keys(monthlyTotals),
-            //   sortedMonths,
-            //   lastMonthWithData,
-            //   lastMonthValue,
-            //   lastMonthIndex,
-            //   actualMonthsRemaining,
-            //   monthsRemaining, // Old calculation
-            //   currentFYActual,
-            //   currentFYProjected,
-            //   projectionAmount: lastMonthValue * actualMonthsRemaining
-            // });
           }
         }
 
