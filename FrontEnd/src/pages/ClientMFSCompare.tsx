@@ -907,6 +907,146 @@ const ClientMFSCompare: React.FC = () => {
     let monthsCompleted = getMonthsCompletedInCurrentFY();
     let monthsRemaining = 12 - monthsCompleted;
 
+    // Year compare: compute KPI cards from the same period helper used by Growth Analysis.
+    // This avoids divergence where KPI shows 0 while Growth has data.
+    if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
+      const currentPeriod = comparisonValues[0];
+      const previousPeriod = comparisonValues[1];
+      const currentPeriodData = getFilteredDataByPeriod(currentPeriod, 'year');
+      const previousPeriodData = getFilteredDataByPeriod(previousPeriod, 'year');
+
+      const getFiscalMonthIndex = (date: Date): number => {
+        const month = date.getMonth() + 1;
+        return month >= 4 ? month - 3 : month + 9; // Apr=1 ... Mar=12
+      };
+
+      const validDates = currentPeriodData
+        .map(item => parseDate(item.month, item.year))
+        .filter(d => !isNaN(d.getTime()));
+      if (validDates.length > 0) {
+        monthsCompleted = Math.max(...validDates.map(getFiscalMonthIndex));
+        monthsRemaining = Math.max(0, 12 - monthsCompleted);
+      }
+
+      const getItemValueForParameter = (parameter: string, item: any): number => {
+        const paramLower = parameter.toLowerCase();
+        if (paramLower === 'revenue') return item.revenue || 0;
+        if (paramLower === 'salary cost' || paramLower === 'salary_cost') return item.salary_cost || 0;
+        if (paramLower === 'gpm') return item.gpm || 0;
+        if (paramLower === 'team cost' || paramLower === 'team_cost') return item.team_cost || 0;
+        if (paramLower === 'np' || paramLower === 'net margin' || paramLower === 'net_margin') return item.np || item.net_margin || 0;
+        if (paramLower === 'leave encashment' || paramLower === 'leave_encashment') return item.leave_encashment || 0;
+        if (paramLower === 'opr cost' || paramLower === 'opr_cost') return item.opr_cost || 0;
+        if (paramLower === 'funding cost' || paramLower === 'funding_cost') return item.funding_cost || 0;
+        if (paramLower === 'rebate') return item.rebate || 0;
+        if (paramLower === 'passthrough') return item.passthrough || 0;
+        if (paramLower === 'vendor cost' || paramLower === 'vendor_cost') return item.vendor_cost || 0;
+        if (paramLower === 'discount') return item.discount || 0;
+        if (paramLower === 'hc') return item.hc || 0;
+        return 0;
+      };
+
+      const aggregatePeriodValue = (parameter: string, periodData: any[]): number => {
+        if (!periodData || periodData.length === 0) return 0;
+
+        // HC uses last available month total.
+        if (parameter.toLowerCase() === 'hc') {
+          const withDates = periodData
+            .map(item => ({ item, d: parseDate(item.month, item.year) }))
+            .filter(x => !isNaN(x.d.getTime()))
+            .sort((a, b) => a.d.getTime() - b.d.getTime());
+          if (withDates.length === 0) return 0;
+          const last = withDates[withDates.length - 1].d;
+          return withDates
+            .filter(x => x.d.getMonth() === last.getMonth() && x.d.getFullYear() === last.getFullYear())
+            .reduce((sum, x) => sum + (x.item.hc || 0), 0);
+        }
+
+        // Other metrics: aggregate month-wise first, then sum.
+        const monthlyTotals: { [key: string]: number } = {};
+        periodData.forEach(item => {
+          const monthKey = `${item.month} ${item.year}`;
+          if (!monthlyTotals[monthKey]) monthlyTotals[monthKey] = 0;
+          monthlyTotals[monthKey] += getItemValueForParameter(parameter, item);
+        });
+        return Object.values(monthlyTotals).reduce((sum, v) => sum + v, 0);
+      };
+
+      const calculateParameterKPIFromPeriod = (parameter: string) => {
+        let currentFYActual = getParameterValueUsingKPILogic(currentPeriod, parameter);
+        let previousFYTotal = getParameterValueUsingKPILogic(previousPeriod, parameter);
+
+        // Safety fallback: if helper returns 0 but we do have period rows, recompute directly.
+        if (currentFYActual === 0 && currentPeriodData.length > 0) {
+          currentFYActual = aggregatePeriodValue(parameter, currentPeriodData);
+        }
+        if (previousFYTotal === 0 && previousPeriodData.length > 0) {
+          previousFYTotal = aggregatePeriodValue(parameter, previousPeriodData);
+        }
+
+        let currentFYProjected = currentFYActual;
+        let projectedAmount = 0;
+
+        // Keep HC and % style parameters non-projected.
+        if (parameter.toLowerCase() !== 'hc' && !parameter.includes('%') && monthsRemaining > 0 && currentPeriodData.length > 0) {
+          const monthlyTotals: { [key: string]: number } = {};
+          currentPeriodData.forEach(item => {
+            const monthKey = `${item.month} ${item.year}`;
+            if (!monthlyTotals[monthKey]) monthlyTotals[monthKey] = 0;
+            monthlyTotals[monthKey] += getItemValueForParameter(parameter, item);
+          });
+
+          const monthEntries = Object.entries(monthlyTotals)
+            .map(([monthKey, value]) => {
+              const [monthName, yearStr] = monthKey.split(' ');
+              const parsedDate = parseDate(monthName, parseInt(yearStr));
+              return { value: value || 0, parsedDate };
+            })
+            .filter(entry => !isNaN(entry.parsedDate.getTime()))
+            .sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
+
+          if (monthEntries.length > 0) {
+            const lastEntry = monthEntries[monthEntries.length - 1];
+            const lastMonthValue = lastEntry.value;
+            const lastMonthFiscalIndex = getFiscalMonthIndex(lastEntry.parsedDate);
+            const actualMonthsRemaining = Math.max(0, 12 - lastMonthFiscalIndex);
+            currentFYProjected = currentFYActual + (lastMonthValue * actualMonthsRemaining);
+            projectedAmount = currentFYProjected - currentFYActual;
+          }
+        }
+
+        const growthPercentage = previousFYTotal > 0
+          ? ((currentFYProjected - previousFYTotal) / previousFYTotal) * 100
+          : 0;
+
+        return {
+          currentFY: currentFYProjected,
+          previousFY: previousFYTotal,
+          growthPercentage,
+          isPositive: growthPercentage >= 0,
+          monthsCompleted,
+          monthsRemaining,
+          period: `${currentPeriod} vs ${previousPeriod}`,
+          currentFYActual,
+          projectedAmount
+        };
+      };
+
+      return {
+        Revenue: calculateParameterKPIFromPeriod('Revenue'),
+        'Salary Cost': calculateParameterKPIFromPeriod('Salary Cost'),
+        GPM: calculateParameterKPIFromPeriod('GPM'),
+        NP: calculateParameterKPIFromPeriod('NP'),
+        'Leave Encashment': calculateParameterKPIFromPeriod('Leave Encashment'),
+        'Team Cost': calculateParameterKPIFromPeriod('Team Cost'),
+        'Opr Cost': calculateParameterKPIFromPeriod('Opr Cost'),
+        'Funding Cost': calculateParameterKPIFromPeriod('Funding Cost'),
+        Rebate: calculateParameterKPIFromPeriod('Rebate'),
+        Passthrough: calculateParameterKPIFromPeriod('Passthrough'),
+        HC: calculateParameterKPIFromPeriod('HC')
+      };
+    }
+
       // Financial year calculation is working correctly
 
     // Filter data for current and previous financial years.
