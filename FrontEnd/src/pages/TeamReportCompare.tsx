@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -130,7 +130,6 @@ const TeamReportCompare: React.FC = () => {
   
   paramsToRemove.forEach(param => {
     if (currentUrl.searchParams.has(param)) {
-      console.log(`🔍 Removing URL parameter: ${param}=${currentUrl.searchParams.get(param)}`);
       currentUrl.searchParams.delete(param);
     }
   });
@@ -138,7 +137,6 @@ const TeamReportCompare: React.FC = () => {
   // Update URL without the problematic parameters
   if (paramsToRemove.some(param => window.location.search.includes(param))) {
     window.history.replaceState({}, '', currentUrl.toString());
-    console.log("🔍 URL cleaned, parameters removed");
   }
   
   // Create queryParams from the cleaned URL
@@ -228,6 +226,15 @@ const TeamReportCompare: React.FC = () => {
     if (quarter.includes('Q3')) return [10, 11, 12]; // Oct, Nov, Dec
     if (quarter.includes('Q4')) return [1, 2, 3]; // Jan, Feb, Mar
     return [];
+  };
+
+  /** FY start year from comparison dropdown: options use "FY 2025" or plain "2025" (see period options for compareType year). */
+  const parseFinancialYearStartFromLabel = (label: string | null | undefined): number | null => {
+    if (!label) return null;
+    const fy = label.match(/FY\s*(\d{4})/i);
+    if (fy) return parseInt(fy[1], 10);
+    const y = label.match(/(\d{4})/);
+    return y ? parseInt(y[1], 10) : null;
   };
 
   // Helper function to get available years for chart filter (last 5 years)
@@ -460,11 +467,10 @@ const TeamReportCompare: React.FC = () => {
     
     // If we have comparison values set, use them
     if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
-      const currentFYMatch = comparisonValues[0].match(/FY (\d{4})/);
-      const previousFYMatch = comparisonValues[1].match(/FY (\d{4})/);
-      
-      if (currentFYMatch) currentFY = parseInt(currentFYMatch[1]);
-      if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
+      const cy = parseFinancialYearStartFromLabel(comparisonValues[0]);
+      const py = parseFinancialYearStartFromLabel(comparisonValues[1]);
+      if (cy != null) currentFY = cy;
+      if (py != null) previousFY = py;
     }
 
 
@@ -550,15 +556,6 @@ const TeamReportCompare: React.FC = () => {
           previousFYTotal = 0;
         }
 
-        console.log(`🔍 HC Raw Database Values (Sum of Last Available Month):`, {
-          currentFY,
-          previousFY,
-          currentFYActual, // SUM OF LAST MONTH HC VALUE
-          previousFYTotal, // SUM OF LAST MONTH HC VALUE (March for complete FY)
-          currentFYDataLength: currentFYData.length,
-          previousFYDataLength: previousFYData.length,
-          calculation: `Sum of last available month HC data for each FY`
-        });
       } else {
         // For all other parameters: aggregate by month first, then sum (ACTUAL DATA ONLY - NO PROJECTIONS)
         // This prevents double-counting when there are multiple records per month
@@ -585,32 +582,6 @@ const TeamReportCompare: React.FC = () => {
         });
         previousFYTotal = Object.values(previousFYMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
 
-        // Debug: Show the difference between old and new calculation methods
-        const oldCurrentFYActual = currentFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
-        const oldPreviousFYTotal = previousFYData.reduce((sum, item) => sum + (item[parameter] || 0), 0);
-        
-        console.log(`🔍 Raw Database Values for ${parameter}:`, {
-          currentFY,
-          previousFY,
-          currentFYActual, // NEW: Monthly aggregated value
-          previousFYTotal, // NEW: Monthly aggregated value
-          oldCurrentFYActual, // OLD: Sum of all records
-          oldPreviousFYTotal, // OLD: Sum of all records
-          difference: currentFYActual - oldCurrentFYActual,
-          currentFYDataLength: currentFYData.length,
-          previousFYDataLength: previousFYData.length,
-          calculation: `Monthly aggregation for ${parameter}`,
-          sampleCurrentFYData: currentFYData.slice(0, 3).map(item => ({
-            month: item.month,
-            year: item.year,
-            [parameter]: item[parameter]
-          })),
-          samplePreviousFYData: previousFYData.slice(0, 3).map(item => ({
-            month: item.month,
-            year: item.year,
-            [parameter]: item[parameter]
-          }))
-        });
       }
 
       // Calculate growth percentage (current - previous) / previous * 100
@@ -664,21 +635,10 @@ const TeamReportCompare: React.FC = () => {
   }> => {
     if (!data || data.length === 0) return {};
 
-    console.log("🔍 calculateKPIs called with:", {
-      compareType,
-      comparisonValues,
-      dataLength: data.length,
-      isMonthComparison: compareType === 'month',
-      hasComparisonValues: comparisonValues.some(v => v)
-    });
-
     // If comparing by months and we have selected months
     if (compareType === 'month' && comparisonValues.some(v => v)) {
-      console.log("🔍 Month comparison logic triggered!");
       const currentMonth = comparisonValues[0];
       const previousMonth = comparisonValues[1];
-      
-      console.log("🔍 Month comparison values:", { currentMonth, previousMonth });
       
       if (!currentMonth || !previousMonth) return {};
 
@@ -693,36 +653,14 @@ const TeamReportCompare: React.FC = () => {
       const previousMonthName = previousMonthMatch[1];
       const previousYear = parseInt(previousMonthMatch[2]);
       
-      console.log("🔍 Parsed month values:", {
-        currentMonthName,
-        currentYear,
-        previousMonthName,
-        previousYear
-      });
-
       const calculateParameterKPI = (parameter: string) => {
         // Use the same logic as Growth Analysis for consistency
-        console.log(`🔍 Calling getParameterValueUsingKPILogic for ${parameter}:`, {
-          currentMonth,
-          previousMonth,
-          compareType
-        });
-        
         const currentValue = getParameterValueUsingKPILogic(currentMonth, parameter);
         const previousValue = getParameterValueUsingKPILogic(previousMonth, parameter);
 
         const growthPercentage = previousValue > 0 
           ? ((currentValue - previousValue) / previousValue) * 100 
           : 0;
-
-        console.log(`🔍 Month KPI Debug for ${parameter}:`, {
-          parameter,
-          currentMonth,
-          previousMonth,
-          currentValue,
-          previousValue,
-          growthPercentage
-        });
 
         return {
           currentFY: currentValue,
@@ -744,7 +682,6 @@ const TeamReportCompare: React.FC = () => {
         NP: calculateParameterKPI('Net Margin')
       };
       
-      console.log("🔍 Month KPI Results:", kpiResults);
       return kpiResults;
     }
 
@@ -837,11 +774,10 @@ const TeamReportCompare: React.FC = () => {
     
     // If we have comparison values set, use them
     if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
-      const currentFYMatch = comparisonValues[0].match(/FY (\d{4})/);
-      const previousFYMatch = comparisonValues[1].match(/FY (\d{4})/);
-      
-      if (currentFYMatch) currentFY = parseInt(currentFYMatch[1]);
-      if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
+      const cy = parseFinancialYearStartFromLabel(comparisonValues[0]);
+      const py = parseFinancialYearStartFromLabel(comparisonValues[1]);
+      if (cy != null) currentFY = cy;
+      if (py != null) previousFY = py;
     }
     
     const monthsCompleted = getMonthsCompletedInCurrentFY();
@@ -884,47 +820,6 @@ const TeamReportCompare: React.FC = () => {
       }
     });
     
-    // Debug: Check what months are being included
-    const currentFYMonths = currentFYData.map(item => `${item.month} ${item.year}`).sort();
-    const previousFYMonths = previousFYData.map(item => `${item.month} ${item.year}`).sort();
-    
-    console.log(`🔍 FINANCIAL YEAR DEBUG:`, {
-      currentFY,
-      previousFY,
-      currentFYDataCount: currentFYData.length,
-      previousFYDataCount: previousFYData.length,
-      currentFYMonths: Array.from(new Set(currentFYMonths)),
-      previousFYMonths: Array.from(new Set(previousFYMonths)),
-      currentFYUniqueMonths: Array.from(new Set(currentFYMonths)).length,
-      previousFYUniqueMonths: Array.from(new Set(previousFYMonths)).length
-    });
-    
-    // Debug April 2024 data specifically
-    const april2024Data = data.filter(item => item.month === 'April' && item.year === 2024);
-    console.log("🔍 April 2024 Data:", april2024Data.length, "records");
-    if (april2024Data.length > 0) {
-      console.log("🔍 April 2024 Sample:", april2024Data[0]);
-    }
-    
-    // Debug what months are actually in the data
-    const allMonthsInData = Array.from(new Set(data.map(item => `${item.month} ${item.year}`))).sort();
-    console.log("🔍 All months in database:", allMonthsInData);
-    
-    // Debug what months are in previousFYData
-    const previousFYMonthsInData = Array.from(new Set(previousFYData.map(item => `${item.month} ${item.year}`))).sort();
-    console.log("🔍 Previous FY months in filtered data:", previousFYMonthsInData);
-    
-    // Debug what months are in currentFYData
-    const currentFYMonthsInData = Array.from(new Set(currentFYData.map(item => `${item.month} ${item.year}`))).sort();
-    console.log("🔍 Current FY months in filtered data:", currentFYMonthsInData);
-    
-    // Debug what months are in previousFYData with HC values
-    const previousFYMonthsWithHC = previousFYData
-      .filter(item => item.hc && item.hc > 0)
-      .map(item => `${item.month} ${item.year} (HC: ${item.hc})`)
-      .sort();
-    console.log("🔍 Previous FY months with HC data:", previousFYMonthsWithHC);
-
     const calculateParameterKPI = (parameter: string) => {
       let currentFYActual, currentFYProjected, previousFYTotal;
 
@@ -959,11 +854,6 @@ const TeamReportCompare: React.FC = () => {
             currentFYProjected = currentFYActual; // HC doesn't need projection
           }
        
-          console.log(`🔍 KPI HC Debug for Current FY ${currentFY}:`, {
-            currentFYActual,
-            currentFYDataCount: currentFYData.length,
-            validCurrentFYDataCount: validCurrentFYData.length
-          });
         } else {
           currentFYActual = 0;
           currentFYProjected = 0;
@@ -995,12 +885,6 @@ const TeamReportCompare: React.FC = () => {
               })
               .reduce((sum, item) => sum + (item.hc || 0), 0);
               
-            console.log(`🔍 KPI HC Debug for Previous FY ${previousFY}:`, {
-              lastMonth: `${lastMonthPrevious.month} ${lastMonthPrevious.year}`,
-              previousFYTotal,
-              previousFYDataCount: previousFYData.length,
-              validPreviousFYDataCount: validPreviousFYData.length
-            });
           }
         } else {
           previousFYTotal = 0;
@@ -1030,39 +914,6 @@ const TeamReportCompare: React.FC = () => {
         
         // Sum the monthly totals instead of all individual records
         currentFYActual = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
-        
-        // Debug: Check what data is being summed
-        console.log(`🔍 ${parameter} DEBUG - Current FY Data Analysis:`, {
-          totalRecords: currentFYData.length,
-          parameterValue: parameter,
-          currentFYActual,
-          sampleRecords: currentFYData.slice(0, 5).map(item => ({
-            month: item.month,
-            year: item.year,
-            business_unit: item.business_unit,
-            [parameter]: item[parameter],
-            client_name: item.client_name
-          }))
-        });
-        
-        // Debug: Show the difference between old and new calculation methods
-        const debugMonthlyTotals: {[key: string]: number} = {};
-        currentFYData.forEach(item => {
-          const monthKey = `${item.month} ${item.year}`;
-          if (!debugMonthlyTotals[monthKey]) {
-            debugMonthlyTotals[monthKey] = 0;
-          }
-          debugMonthlyTotals[monthKey] += (item[parameter] || 0);
-        });
-        
-        const debugMonthlyAggregatedTotal = Object.values(debugMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
-        
-        console.log(`🔍 ${parameter} MONTHLY AGGREGATION DEBUG:`, {
-          monthlyTotals: debugMonthlyTotals,
-          monthlyAggregatedTotal: debugMonthlyAggregatedTotal,
-          difference: currentFYActual - debugMonthlyAggregatedTotal,
-          shouldUseMonthlyAggregation: Math.abs(currentFYActual - debugMonthlyAggregatedTotal) > 0.01
-        });
         
         // If we have data for current FY, project it for remaining months
         currentFYProjected = currentFYActual;
@@ -1119,18 +970,6 @@ const TeamReportCompare: React.FC = () => {
             // Multiply last month's total value by actual remaining months
             currentFYProjected = currentFYActual + (lastMonthValue * actualMonthsRemaining);
             
-            console.log(`🔍 ${parameter} PROJECTION DEBUG:`, {
-              availableMonths: Object.keys(monthlyTotals),
-              sortedMonths,
-              lastMonthWithData,
-              lastMonthValue,
-              lastMonthIndex,
-              actualMonthsRemaining,
-              monthsRemaining, // Old calculation
-              currentFYActual,
-              currentFYProjected,
-              projectionAmount: lastMonthValue * actualMonthsRemaining
-            });
           }
         }
 
@@ -1156,16 +995,6 @@ const TeamReportCompare: React.FC = () => {
         });
         
         previousFYTotal = Object.values(previousMonthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
-        
-        console.log(`🔍 ${parameter} KPI Dashboard Previous FY Debug:`, {
-          parameter,
-          previousFYTotal,
-          monthlyBreakdown: Object.entries(previousMonthlyTotals).map(([month, total]) => ({
-            month,
-            total: total.toFixed(2)
-          })),
-          totalRecords: previousFYData.length
-        });
         
         // Previous FY calculation working correctly
       }
@@ -1354,7 +1183,6 @@ const TeamReportCompare: React.FC = () => {
   const parseDate = (dateStr: string, year?: number): Date => {
 
     if (!dateStr || dateStr.trim() === '') {
-      console.warn("⚠️ parseDate: No dateStr provided, returning invalid date");
       return new Date(NaN);
     }
 
@@ -1383,11 +1211,6 @@ const TeamReportCompare: React.FC = () => {
       .replace(/^novem$/i, 'November') // Fix "Novem" -> "November"
       .replace(/^decem$/i, 'December'); // Fix "Decem" -> "December"
     
-    // Log when we fix a misspelling
-    if (fixedDateStr !== dateStr) {
-      console.log(`🔧 parseDate: Fixed misspelling "${dateStr}" -> "${fixedDateStr}"`);
-    }
-
     const monthNames = [
 
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -1448,16 +1271,11 @@ const TeamReportCompare: React.FC = () => {
       // Use the provided year - DO NOT use current year as fallback to prevent automatic data generation
 
       if (!year) {
-
-        console.warn("⚠️ parseDate: No year provided for month:", dateStr, "Returning invalid date");
-
         return new Date(NaN); // Return invalid date instead of current year
-
       }
 
       // Debug: Log parsing issues for any month with invalid year
       if (!year || year < 2020 || year > 2030) {
-        console.warn("⚠️ parseDate: Invalid year for month:", { dateStr, year, monthIndex });
         return new Date(NaN); // Return invalid date for invalid years
       }
 
@@ -1480,7 +1298,6 @@ const TeamReportCompare: React.FC = () => {
     
     
     // Fallback - return invalid date instead of current date to prevent automatic data generation
-    console.warn("⚠️ parseDate: Unable to parse date:", dateStr, "Available month names:", monthNames.join(", "), "Available abbreviated:", abbreviatedMonthNames.join(", "));
     return new Date(NaN);
 
   };
@@ -2644,18 +2461,12 @@ const TeamReportCompare: React.FC = () => {
         const res = await apiClient.get("/team-report");
 
         if (res.data && Array.isArray(res.data)) {
-          console.log(`🔍 Fetched ${res.data.length} total records from /team-report (Client MFS)`);
-          console.log(`🔍 Sample record structure:`, res.data[0]);
           
           // Filter by business unit on frontend (using normalized comparison)
           const filteredData = res.data.filter((item: any) => {
             return compareBusinessUnits(item.business_unit, selectedBU);
           });
           
-          console.log(`🔍 Filtered to ${filteredData.length} records for BU: ${selectedBU}`);
-          console.log(`🔍 Sample filtered records:`, filteredData.slice(0, 3));
-          console.log(`🔍 Records with client_name:`, filteredData.filter((item: any) => item.client_name).length);
-          console.log(`🔍 Records with project_name:`, filteredData.filter((item: any) => item.project_name).length);
           
           setClientMFSData(filteredData);
         } else {
@@ -2827,13 +2638,11 @@ const TeamReportCompare: React.FC = () => {
       return [];
     }
     
-    console.log(`🔍 Client Data: Filtering ${clientMFSData.length} records for BU: ${getSelectedBUForClientData}`);
     
     let filtered = clientMFSData.filter((item: any) => {
       return compareBusinessUnits(item.business_unit, getSelectedBUForClientData);
     });
     
-    console.log(`🔍 Client Data: Filtered to ${filtered.length} records`);
 
     // Filter by period
     if (clientDataPeriodFilter === 'year' && clientDataPeriodValue) {
@@ -3371,12 +3180,6 @@ const TeamReportCompare: React.FC = () => {
 
       
       
-      console.log(`🔍 Raw client data for ${businessUnit}:`, res.data);
-
-      console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
-
-      
-      
       if (res.data && Array.isArray(res.data)) {
 
         // Filter data by business unit first (using normalized comparison)
@@ -3386,10 +3189,6 @@ const TeamReportCompare: React.FC = () => {
           compareBusinessUnits(item.business_unit, businessUnit)
 
         );
-
-        
-        
-        console.log(`🔍 Filtered data for ${businessUnit}:`, filteredData);
 
         
         
@@ -3405,8 +3204,6 @@ const TeamReportCompare: React.FC = () => {
 
             .filter((name: any) => name && name.trim() !== '');
 
-          console.log(`🔍 Project names for ${businessUnit}:`, projectNames);
-
           uniqueNames = Array.from(new Set(projectNames)) as string[];
 
         } else {
@@ -3419,16 +3216,12 @@ const TeamReportCompare: React.FC = () => {
 
             .filter((name: any) => name && name.trim() !== '');
 
-          console.log(`🔍 Client names for ${businessUnit}:`, clientNames);
-
           uniqueNames = Array.from(new Set(clientNames)) as string[];
 
         }
 
         
         
-        console.log(`🔍 Unique names for ${businessUnit}:`, uniqueNames);
-
         setClientNames(uniqueNames);
 
         setFilteredClientNames(uniqueNames);
@@ -3471,18 +3264,8 @@ const TeamReportCompare: React.FC = () => {
     
     try {
 
-      console.log(`🔍 Fetching BU heads for business unit: ${businessUnit}`);
-
       const res = await apiClient.get("/team-summary-report");
 
-      
-      
-      console.log(`🔍 Raw BU head data for ${businessUnit}:`, res.data);
-
-      console.log(`🔍 Total records for ${businessUnit}:`, res.data?.length || 0);
-
-      
-      
       if (res.data && Array.isArray(res.data)) {
 
         // Filter data by business unit first (using normalized comparison)
@@ -3495,23 +3278,13 @@ const TeamReportCompare: React.FC = () => {
 
         
         
-        console.log(`🔍 Filtered BU head data for ${businessUnit}:`, filteredData);
-
-        
-        
         const buHeadsFromData = filteredData
 
           .map((item: any) => item.bu_head)
 
           .filter((head: any) => head && head.trim() !== '');
 
-        console.log(`🔍 BU heads for ${businessUnit}:`, buHeadsFromData);
-
-        
-        
         const uniqueBUHeads = Array.from(new Set(buHeadsFromData)) as string[];
-
-        console.log(`🔍 Unique BU heads for ${businessUnit}:`, uniqueBUHeads);
 
         
         
@@ -3563,81 +3336,6 @@ const TeamReportCompare: React.FC = () => {
 
         
         
-        
-        // Debug: Show ALL month data to understand the issue
-        if (res.data && Array.isArray(res.data)) {
-          console.warn(`🔍 TOTAL RECORDS: ${res.data.length}`);
-          console.log("🔍 Raw API response:", res.data);
-          console.log("🔍 Number of records:", res.data?.length || 0);
-          if (res.data.length > 0) {
-            console.log("🔍 First record sample:", res.data[0]);
-            console.log("🔍 Year values in data:", res.data.map((item: any) => item.year));
-          }
-          
-          // Show all unique month values
-          const uniqueMonths = Array.from(new Set(res.data.map(item => item.month)));
-          console.warn(`🔍 UNIQUE MONTHS:`, uniqueMonths);
-          
-          // Check a few months to see if the issue is July-specific
-          const testMonths = ['2023-06-01', '2023-07-01', '2023-08-01', '2024-06-01', '2024-07-01', '2024-08-01'];
-          
-          testMonths.forEach(testMonth => {
-            const monthRecords = res.data.filter((item: any) => item.month === testMonth);
-            if (monthRecords.length > 0) {
-              const totalRevenue = monthRecords.reduce((sum: number, item: any) => sum + (item.revenue || 0), 0);
-              console.warn(`🔍 ${testMonth}: ${monthRecords.length} records, total revenue: ${totalRevenue}`);
-            }
-          });
-          
-          // Show July records specifically (handle both DATE format and text format)
-          const julyRecords = res.data.filter((item: any) => {
-            const month = item.month || '';
-            // Handle DATE format (YYYY-MM-DD)
-            if (month.match(/^\d{4}-\d{2}-\d{2}$/)) {
-              return month.includes('-07-01'); // July 1st
-            }
-            // Handle text format
-            return month.toLowerCase().includes('july');
-          });
-          console.warn(`🔍 JULY RECORDS FOUND: ${julyRecords.length}`);
-          
-          if (julyRecords.length > 0) {
-            julyRecords.forEach((record, index) => {
-              console.warn(`🔍 July Record ${index + 1}:`, {
-                month: record.month,
-                year: record.year,
-                revenue: record.revenue,
-                business_unit: record.business_unit,
-                client_name: record.client_name
-              });
-            });
-            
-            // Calculate totals by year
-            const julyByYear = julyRecords.reduce((acc: any, item: any) => {
-              const year = item.year;
-              if (!acc[year]) acc[year] = { records: [], total: 0 };
-              acc[year].records.push(item);
-              acc[year].total += item.revenue || 0;
-              return acc;
-            }, {});
-            
-            Object.keys(julyByYear).forEach(year => {
-              console.warn(`🔍 July ${year}: ${julyByYear[year].records.length} records, total: ${julyByYear[year].total}`);
-              
-              // Check for duplicate business units or clients
-              const businessUnits = Array.from(new Set(julyByYear[year].records.map((r: any) => r.business_unit)));
-              const clients = Array.from(new Set(julyByYear[year].records.map((r: any) => r.client_name)));
-              
-              if (businessUnits.length > 1) {
-                console.warn(`🔍 July ${year} has multiple business units:`, businessUnits);
-              }
-              if (clients.length > 1) {
-                console.warn(`🔍 July ${year} has multiple clients:`, clients);
-              }
-            });
-          }
-        }
-
         
         
         // Filter data on frontend
@@ -3713,15 +3411,6 @@ const TeamReportCompare: React.FC = () => {
         
         
         
-        // Debug: Check what years are in the data
-        const yearsInData = Array.from(new Set(filteredData.map((item: any) => {
-          const date = parseDate(item.month, item.year);
-          return date ? date.getFullYear() : null;
-        }).filter((year: any) => year !== null))).sort();
-        
-
-        
-        
         // Convert amounts to numbers and handle formatting
 
         const convertedData = filteredData.map((item: any) => {
@@ -3756,19 +3445,11 @@ const TeamReportCompare: React.FC = () => {
 
           // Handle 2-digit year conversion (e.g., 23 -> 2023, 24 -> 2024)
           if (processedItem.year && processedItem.year < 100) {
-            console.log(`🔍 Converting 2-digit year: ${processedItem.year} -> ${2000 + processedItem.year}`);
             if (processedItem.year >= 0 && processedItem.year <= 99) {
               // Assume years 0-99 map to 2000-2099
               processedItem.year = 2000 + processedItem.year;
             }
           }
-
-          // Debug: Log processed item after year conversion
-          console.log(`🔍 Processed item after conversion:`, {
-            month: processedItem.month,
-            year: processedItem.year,
-            business_unit: processedItem.business_unit
-          });
 
           
 
@@ -4206,11 +3887,23 @@ const TeamReportCompare: React.FC = () => {
 
 
 
+  // Cache expensive period filtering and KPI-logic lookups to keep filter interactions smooth.
+  const filteredDataByPeriodCacheRef = useRef<Map<string, any[]>>(new Map());
+  const parameterValueByPeriodCacheRef = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    filteredDataByPeriodCacheRef.current.clear();
+    parameterValueByPeriodCacheRef.current.clear();
+  }, [data, selectedBusinessUnit, selectedClientName, selectedBUHead, compareType, combinedPeriods]);
+
   // Helper function to get filtered data using KPI dashboard logic
   const getFilteredDataByPeriod = useCallback((periodValue: string | null, compareType: string): any[] => {
     if (!periodValue) return [];
-    
-    return data.filter(item => {
+    const cacheKey = `${compareType}|${periodValue}|${selectedBusinessUnit || ''}`;
+    const cached = filteredDataByPeriodCacheRef.current.get(cacheKey);
+    if (cached) return cached;
+
+    const filtered = data.filter(item => {
       // Business unit filter
       if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) {
         return false;
@@ -4240,19 +3933,6 @@ const TeamReportCompare: React.FC = () => {
           // Financial year filtering: FY 2025 = April 2025 to March 2026
           const isInTargetFY = itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
           
-          // Debug Q4 2025 data for FY 2024
-          if (targetYear === 2024 && itemYear === 2025 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3)) {
-            console.log(`🔍 Q4 2025 Filtering Debug:`, {
-              itemMonth,
-              itemYear,
-              targetYear,
-              isInTargetFY,
-              periodValue,
-              item: { month: item.month, year: item.year },
-              shouldInclude: isInTargetFY
-            });
-          }
-          
           return isInTargetFY;
           
         case "month":
@@ -4267,41 +3947,23 @@ const TeamReportCompare: React.FC = () => {
           return false;
       }
     });
-  }, [data, selectedBusinessUnit, compareType]);
+
+    filteredDataByPeriodCacheRef.current.set(cacheKey, filtered);
+    return filtered;
+  }, [data, selectedBusinessUnit]);
 
   // Helper function to get parameter value using KPI dashboard logic
   const getParameterValueUsingKPILogic = useCallback((periodValue: string | null, parameter: string): number => {
     if (!periodValue) return 0;
+    const cacheKey = `${compareType}|${periodValue}|${parameter}|${selectedBusinessUnit || ''}|${selectedClientName || ''}|${selectedBUHead || ''}`;
+    const cached = parameterValueByPeriodCacheRef.current.get(cacheKey);
+    if (cached !== undefined) return cached;
     
     const filteredData = getFilteredDataByPeriod(periodValue, compareType);
-    
-    // Debug Q4 2025 data specifically for FY 2024
-    if (periodValue === 'FY 2024' && parameter === 'Revenue') {
-      // Check if Q4 2025 data exists in the raw dataset
-      const q4DataInRawDataset = data.filter(item => {
-        const itemDate = parseDate(item.month, item.year);
-        const itemYear = itemDate.getFullYear();
-        const itemMonth = itemDate.getMonth() + 1;
-        return itemYear === 2025 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3);
-      });
-      
-      console.log(`🔍 Q4 2025 Debug for FY 2024:`, {
-        periodValue,
-        parameter,
-        filteredDataCount: filteredData.length,
-        q4DataInRawDataset: q4DataInRawDataset.length,
-        q4DataInFiltered: filteredData.filter(item => {
-          const itemDate = parseDate(item.month, item.year);
-          const itemYear = itemDate.getFullYear();
-          const itemMonth = itemDate.getMonth() + 1;
-          return itemYear === 2025 && (itemMonth === 1 || itemMonth === 2 || itemMonth === 3);
-        }).length,
-        allMonths: filteredData.map(item => `${item.month} ${item.year}`).sort(),
-        q4SampleData: q4DataInRawDataset.slice(0, 3)
-      });
+    if (filteredData.length === 0) {
+      parameterValueByPeriodCacheRef.current.set(cacheKey, 0);
+      return 0;
     }
-    
-    if (filteredData.length === 0) return 0;
     
     // Special handling for HC - use sum of last available month's HC data
     if (parameter === 'HC') {
@@ -4321,13 +3983,15 @@ const TeamReportCompare: React.FC = () => {
       
       // Sum all HC values from that last month
       const lastMonthDate = parseDate(lastMonthData.month, lastMonthData.year);
-      return validData
+      const result = validData
         .filter(item => {
           const itemDate = parseDate(item.month, item.year);
           return itemDate.getMonth() === lastMonthDate.getMonth() && 
                  itemDate.getFullYear() === lastMonthDate.getFullYear();
         })
         .reduce((sum, item) => sum + (item.hc || 0), 0);
+      parameterValueByPeriodCacheRef.current.set(cacheKey, result);
+      return result;
     } else {
       // For all other parameters: aggregate by month first, then sum
       const monthlyTotals: {[key: string]: number} = {};
@@ -4343,31 +4007,22 @@ const TeamReportCompare: React.FC = () => {
         if (parameter === 'GPM') fieldName = 'gpm';
         if (parameter === 'Revenue') fieldName = 'revenue';
         
-        // Debug Net Margin mapping
-        if (parameter === 'Net Margin') {
-          console.log(`🔍 Net Margin Debug:`, {
-            parameter,
-            fieldName,
-            itemValue: item[fieldName],
-            monthKey
-          });
-        }
-        
         monthlyTotals[monthKey] += (item[fieldName] || 0);
       });
-      return Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+      const result = Object.values(monthlyTotals).reduce((sum: number, val: number) => sum + val, 0);
+      parameterValueByPeriodCacheRef.current.set(cacheKey, result);
+      return result;
     }
-  }, [getFilteredDataByPeriod, compareType]);
+  }, [getFilteredDataByPeriod, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
 
   // Helper function to get month range for a given FY - uses same logic as KPI calculations
   const getMonthRangeForFY = useCallback((fyPeriod: string) => {
     if (!fyPeriod || !data.length) return fyPeriod;
     
-    // Extract year from FY period (e.g., "FY 2025" -> 2025)
-    const yearMatch = fyPeriod.match(/FY (\d{4})/);
-    if (!yearMatch) return fyPeriod;
-    
-    const targetYear = parseInt(yearMatch[1]);
+    // Extract FY start year: "FY 2025" or plain "2025" (same as year dropdown / KPI parsing)
+    const targetParsed = parseFinancialYearStartFromLabel(fyPeriod);
+    if (targetParsed == null) return fyPeriod;
+    const targetYear = targetParsed;
     
     // Use the EXACT same filtering logic as calculateKPIs function
     const fyData = data.filter(item => {
@@ -4617,11 +4272,7 @@ const TeamReportCompare: React.FC = () => {
       const date = parseDate(item.month, item.year);
 
       if (isNaN(date.getTime())) {
-
-        console.log(`🔍 Invalid date for item:`, item.month, item);
-
         return false;
-
       }
 
       
@@ -4673,43 +4324,9 @@ const TeamReportCompare: React.FC = () => {
       // For non-year comparisons, use the original logic
       const matches = itemValue === periodValue;
 
-      if (matches) {
-
-        console.log(`🔍 Period match found:`, {
-
-          itemValue,
-
-          periodValue,
-
-          item: {
-
-            month: item.month,
-
-            year: item.year,
-
-            business_unit: item.business_unit,
-
-            client_name: item.client_name,
-
-            [parameter]: (item as any)[parameter.toLowerCase().replace(' ', '_').replace('%', '_percentage')] || (item as any)[parameter]
-
-          }
-
-        });
-
-      }
-
-      
-      
       return matches;
 
     });
-
-    
-    
-    console.log(`🔍 Filtered data for ${parameter} in ${periodValue}:`, filteredData.length, "items");
-
-    console.log(`🔍 Sample filtered items:`, filteredData.slice(0, 3));
 
     
     
@@ -4739,33 +4356,10 @@ const TeamReportCompare: React.FC = () => {
 
           case 'HC': value = item.hc || 0; break;
 
-          default: 
-
-            console.warn(`🔍 Unknown parameter: ${parameter}`);
-
+          default:
             value = 0;
 
         }
-
-        
-        
-        console.log(`🔍 Adding value for ${parameter}:`, {
-
-          itemId: item.id,
-
-          businessUnit: item.business_unit,
-
-          clientName: item.client_name,
-
-          month: item.month,
-
-          parameter,
-
-          value,
-
-          runningSum: sum + value
-
-        });
 
         
         
@@ -4781,22 +4375,7 @@ const TeamReportCompare: React.FC = () => {
 
   useEffect(() => {
 
-    console.log("🔍 Calculating comparison data...");
-
-    console.log("🔍 selectedParameters:", selectedParameters);
-
-    console.log("🔍 comparisonValues:", comparisonValues);
-
-    console.log("🔍 data length:", data.length);
-
-    console.log("🔍 compareType:", compareType);
-
-    
-    
     if (selectedParameters.length === 0 || comparisonValues.every(v => !v)) {
-
-      console.log("🔍 No parameters or comparison values selected, skipping calculation");
-
       return;
 
     }
@@ -4810,8 +4389,6 @@ const TeamReportCompare: React.FC = () => {
       // Use KPI dashboard logic for consistent data calculation
       const value = getParameterValueUsingKPILogic(periodValue, parameter);
 
-      console.log(`🔍 Parameter ${parameter} for period ${periodValue} (using KPI logic): ${value}`);
-
       return value;
 
     };
@@ -4822,10 +4399,6 @@ const TeamReportCompare: React.FC = () => {
 
     const periods = comparisonValues.filter(Boolean);
 
-    console.log("🔍 Valid periods:", periods);
-
-    
-    
     const newComparisonData = periods.map((periodValue, index) => {
 
       const dataPoint: any = { period: periodValue as string };
@@ -4840,8 +4413,6 @@ const TeamReportCompare: React.FC = () => {
 
         dataPoint[parameter] = value;
 
-        console.log(`🔍 Added ${parameter}: ${value} to period ${periodValue}`);
-
       });
 
       
@@ -4851,10 +4422,6 @@ const TeamReportCompare: React.FC = () => {
     });
 
 
-
-    console.log("🔍 Final comparison data:", newComparisonData);
-
-    console.log("🔍 Available parameters in comparison data:", newComparisonData.length > 0 ? Object.keys(newComparisonData[0]) : []);
 
     setComparisonData(newComparisonData);
 
@@ -4866,21 +4433,7 @@ const TeamReportCompare: React.FC = () => {
 
   useEffect(() => {
 
-    console.log("🔍 Calculating growth analysis...");
-    console.log("🔍 availableParameters:", availableParameters);
-    console.log("🔍 availableParameters length:", availableParameters.length);
-    console.log("🔍 selectedParameters:", selectedParameters);
-    console.log("🔍 selectedParameters length:", selectedParameters.length);
-    // Removed showAllParameters logging
-    console.log("🔍 comparisonValues:", comparisonValues);
-    console.log("🔍 data length:", data.length);
-
-    
-    
     if (comparisonValues.filter(Boolean).length < 2) {
-
-      console.log("🔍 Not enough periods for growth analysis, skipping");
-
       setGrowthAnalysis([]);
 
       return;
@@ -4890,8 +4443,6 @@ const TeamReportCompare: React.FC = () => {
 
 
     const calculateGrowth = (): GrowthAnalysis[] => {
-      console.log("🔍 calculateGrowth called with availableParameters:", availableParameters);
-      
       // Efficiency metrics to exclude from growth analysis (only show in parameter bar chart)
       const efficiencyMetrics = [
         'Cost Efficiency',
@@ -5003,23 +4554,6 @@ const TeamReportCompare: React.FC = () => {
                            itemDate.getFullYear() === lastMonthDate.getFullYear();
                   })
                   .reduce((sum, item) => sum + (item.hc || 0), 0);
-                
-                console.log(`🔍 Growth Analysis Combined Period HC Debug for ${periodValue}:`, {
-                  lastMonth: `${lastMonthData.month} ${lastMonthData.year}`,
-                  hcValue,
-                  allPeriodDataCount: allPeriodData.length,
-                  lastMonthDataCount: allPeriodData.filter(item => {
-                    const itemDate = parseDate(item.month, item.year);
-                    return itemDate.getMonth() === lastMonthDate.getMonth() && 
-                           itemDate.getFullYear() === lastMonthDate.getFullYear();
-                  }).length,
-                  sampleAllPeriodData: allPeriodData.slice(0, 3).map(item => ({
-                    month: item.month,
-                    year: item.year,
-                    business_unit: item.business_unit,
-                    hc: item.hc
-                  }))
-                });
                 
                 return hcValue;
               }
@@ -5270,13 +4804,13 @@ const TeamReportCompare: React.FC = () => {
         const firstPeriodAmount = periodAmounts[0] || 0;
         const firstPeriodActual = typeof firstPeriodAmount === 'number' ? firstPeriodAmount : parseFloat(String(firstPeriodAmount)) || 0;
         
+        const kpiDataForGrowth = Object.keys(kpiData).length > 0 ? kpiData : calculateKPIs();
+
         // Only calculate projection for year comparisons and if we have actual data
         if (compareType === 'year' && firstPeriodActual > 0 && comparisonValues[0]) {
-          // Get KPI data for this parameter to use the same projection logic
-          const kpiDataForParam = calculateKPIs();
           // Map parameter name to KPI key (KPI uses 'NP' for 'Net Margin')
           const paramKey = param === 'Net Margin' ? 'NP' : param;
-          const kpiForParam = kpiDataForParam[paramKey];
+          const kpiForParam = kpiDataForGrowth[paramKey];
           
           if (kpiForParam) {
             // Use the same projection logic from KPI dashboard
@@ -5399,42 +4933,22 @@ const TeamReportCompare: React.FC = () => {
 
     // Use the calculateGrowth function which properly handles multiple periods
     const chartData = calculateGrowth();
-    console.log("🔍 Growth Analysis Chart data (multi-period):", chartData);
-
-    console.log("🔍 Final growth analysis data (multi-period):", chartData);
-    console.log("🔍 Chart data length:", chartData.length);
-    console.log("🔍 Chart data parameters:", chartData.map(item => item.parameter));
-    console.log("🔍 Setting growthAnalysis state with multi-period data:", chartData.length, "items");
     setGrowthAnalysis(chartData);
-  }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
+  }, [availableParameters, comparisonValues, data, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead, kpiData]);
 
-  // Calculate KPIs when data or comparison values change
-  useEffect(() => {
-    console.log("🔍 Calculating KPIs...");
-    console.log("🔍 comparisonValues:", comparisonValues);
-    console.log("🔍 compareType:", compareType);
-    console.log("🔍 data length:", data.length);
-    
-    if (data.length === 0) {
-      setKpiData({});
-      return;
-    }
-    
-    const kpis = calculateKPIs();
-    console.log("🔍 Calculated KPIs:", kpis);
-    setKpiData(kpis);
+  const memoizedKpis = useMemo(() => {
+    if (data.length === 0) return {};
+    return calculateKPIs();
   }, [data, comparisonValues, compareType, selectedBusinessUnit, selectedClientName, selectedBUHead]);
+
+  // Keep shared KPI state in sync for growth/waterfall consumers.
+  useEffect(() => {
+    setKpiData(memoizedKpis as Record<string, any>);
+  }, [memoizedKpis]);
 
   // Calculate growth percentages for chart data
   const calculateGrowthData = () => {
     if (comparisonData.length === 0 || selectedParameters.length === 0) return [];
-    
-    console.log("🔍 calculateGrowthData called with:", {
-      comparisonData,
-      selectedParameters,
-      compareType,
-      comparisonValues
-    });
     
     return comparisonData.map(periodData => {
       const growthData: any = { period: periodData.period };
@@ -5464,13 +4978,6 @@ const TeamReportCompare: React.FC = () => {
             const currentYear = comparisonValues[0];
             const previousYear = comparisonValues[1];
             
-            console.log(`🔍 Year comparison for ${parameter}:`, {
-              currentYear,
-              previousYear,
-              currentValue,
-              periodData
-            });
-            
             if (currentYear && previousYear) {
               // Find previous year data
               const previousPeriodData = comparisonData.find(p => p.period === previousYear);
@@ -5479,12 +4986,6 @@ const TeamReportCompare: React.FC = () => {
               const growthPercentage = previousValue > 0 
                 ? ((currentValue - previousValue) / previousValue) * 100 
                 : 0;
-              
-              console.log(`🔍 Growth calculation for ${parameter}:`, {
-                currentValue,
-                previousValue,
-                growthPercentage
-              });
               
               growthData[parameter] = growthPercentage;
             }
@@ -5512,26 +5013,323 @@ const TeamReportCompare: React.FC = () => {
     });
   };
 
+  // Chart input prepared once per data/filter change (same logic as before; effect only builds am5 + binds series.data).
+  const getParameterValueForBUChart = useCallback((businessUnit: string, periodValue: string | null, parameter: string): number => {
+    if (!periodValue) return 0;
+
+    // Filter data directly by business unit and period (without using global selectedBusinessUnit filter)
+    let filteredData = data.filter(item => {
+      // Filter by specific business unit
+      const normalizedBU = normalizeBusinessUnitName(item.business_unit);
+      if (!compareBusinessUnits(normalizedBU, businessUnit)) {
+        return false;
+      }
+
+      // Apply client/BU head filters if set (for consistency with other components)
+      if (selectedClientName) {
+        if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+          if (item.project_name !== selectedClientName) return false;
+        } else {
+          if (item.client_name !== selectedClientName) return false;
+        }
+      }
+
+      if (isBUHead && user?.business_unit) {
+        if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+          return false;
+        }
+      }
+
+      // Date parsing and period matching
+      // Use chartFilterBy if set, otherwise use compareType
+      const effectiveCompareType = chartFilterBy || compareType;
+      const date = parseDate(item.month, item.year);
+      if (isNaN(date.getTime())) return false;
+
+      // Handle different period formats
+      if (periodValue.includes('FY ')) {
+        // Financial year format: FY 2025
+        const targetYearMatch = periodValue.match(/(\d{4})/);
+        if (!targetYearMatch) return false;
+
+        const targetYear = parseInt(targetYearMatch[1]);
+        const itemYear = date.getFullYear();
+        const itemMonth = date.getMonth() + 1;
+
+        // Financial year filtering: FY 2025 = April 2025 to March 2026
+        return itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
+      } else if (periodValue.includes('Q')) {
+        // Quarter format: Q1(Apr-Jun) 2025
+        const quarterValue = getFiscalQuarter(date).label;
+        return quarterValue === periodValue;
+      } else {
+        // Month format: January 2025
+        const itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+        return itemValue === periodValue;
+      }
+    });
+
+    if (filteredData.length === 0) return 0;
+
+    // Handle efficiency metrics (calculated metrics)
+    if (parameter === 'Cost Efficiency') {
+      // Cost Efficiency = Team Cost / Net Margin
+      const totalTeamCost = filteredData.reduce((sum, item) => sum + (Number(item.team_cost) || 0), 0);
+      const totalNetMargin = filteredData.reduce((sum, item) => sum + (Number(item.net_margin) || 0), 0);
+      return totalNetMargin !== 0 ? totalTeamCost / totalNetMargin : 0;
+    } else if (parameter === 'Revenue per HC') {
+      // Revenue per HC = Revenue / HC
+      const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
+      const totalHC = filteredData.reduce((sum, item) => sum + (Number(item.hc) || 0), 0);
+      return totalHC !== 0 ? totalRevenue / totalHC : 0;
+    } else if (parameter === 'Margin per Team Cost') {
+      // Margin per Team Cost = Net Margin / Team Cost
+      const totalNetMargin = filteredData.reduce((sum, item) => sum + (Number(item.net_margin) || 0), 0);
+      const totalTeamCost = filteredData.reduce((sum, item) => sum + (Number(item.team_cost) || 0), 0);
+      return totalTeamCost !== 0 ? totalNetMargin / totalTeamCost : 0;
+    } else if (parameter === 'Team Cost % of Revenue') {
+      // Team Cost % of Revenue = (Team Cost / Revenue) * 100
+      const totalTeamCost = filteredData.reduce((sum, item) => sum + (Number(item.team_cost) || 0), 0);
+      const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
+      return totalRevenue !== 0 ? (totalTeamCost / totalRevenue) * 100 : 0;
+    } else if (parameter === 'Net Margin %') {
+      // Net Margin % = (Net Margin / Revenue) * 100
+      const totalNetMargin = filteredData.reduce((sum, item) => sum + (Number(item.net_margin) || 0), 0);
+      const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
+      return totalRevenue !== 0 ? (totalNetMargin / totalRevenue) * 100 : 0;
+    } else if (parameter === 'Net Margin per HC') {
+      // Net Margin per HC = Net Margin / HC
+      const totalNetMargin = filteredData.reduce((sum, item) => sum + (Number(item.net_margin) || 0), 0);
+      const totalHC = filteredData.reduce((sum, item) => sum + (Number(item.hc) || 0), 0);
+      return totalHC !== 0 ? totalNetMargin / totalHC : 0;
+    }
+
+    // For regular parameters, get parameter key and sum values
+    const paramKey = parameter.toLowerCase().replace(/\s+/g, '_');
+
+    // Sum values for this parameter
+    return filteredData.reduce((sum, item) => {
+      return sum + (parseFloat(item[paramKey]) || 0);
+    }, 0);
+  }, [data, selectedClientName, selectedBusinessUnit, isBUHead, user?.business_unit, chartFilterBy, compareType]);
+
+  const comparisonChartPrepared = useMemo(() => {
+    if (data.length === 0 || selectedParametersForChart.length === 0 || !selectedBusinessUnitsForChart ||
+        (Array.isArray(selectedBusinessUnitsForChart) && selectedBusinessUnitsForChart.length === 0) ||
+        activeChartTab !== 'growth') {
+      return null;
+    }
+
+    // Get comparison periods - use chart filter if set, otherwise use main comparison values
+    let periods: string[] = [];
+
+    if (chartFilterBy && chartFilterValue.length > 0) {
+      // Use chart-specific filter with multiple selection support
+      if (chartFilterBy === 'year') {
+        // For year filter, use selected years directly (no auto-comparison)
+        periods = chartFilterValue.map(year => `FY ${year}`);
+      } else if (chartFilterBy === 'quarter') {
+        // For quarter filter, use selected quarters directly
+        periods = chartFilterValue;
+      } else if (chartFilterBy === 'month') {
+        // For month filter, use selected months directly
+        periods = chartFilterValue;
+      }
+    } else {
+      // Default: use main comparison values (current FY vs previous FY)
+      periods = comparisonValues.filter(Boolean) as string[];
+    }
+
+    // Prepare data: group by business unit OR client (if conditions met)
+    // When a single BU is selected, show that BU's client-wise data (from /team-report), not BU-level aggregate
+    const isSingleBU = Array.isArray(selectedBusinessUnitsForChart)
+      ? selectedBusinessUnitsForChart.length === 1
+      : selectedBusinessUnitsForChart !== null && selectedBusinessUnitsForChart !== undefined;
+
+    // Prefer client view when single BU is selected (use clientMFSData from /team-report); fall back to BU view only when multiple BUs
+    const shouldShowClients = selectedBusinessUnitsForChart && (isBUHead || isSingleBU);
+
+    if (!selectedBusinessUnitsForChart) {
+      return null;
+    }
+
+    const chartData: any[] = [];
+
+    if (shouldShowClients) {
+      // Show clients for the selected business unit (data from /team-report has client_name/project_name)
+      const selectedBU = isBUHead && user?.business_unit
+        ? (normalizeBusinessUnitName(user.business_unit) || user.business_unit)
+        : (Array.isArray(selectedBusinessUnitsForChart) ? selectedBusinessUnitsForChart[0] : selectedBusinessUnitsForChart);
+      const selectedParameter = selectedParametersForChart[0]; // Use first selected parameter
+
+      // Map parameter names to database field names
+      const parameterMap: { [key: string]: string } = {
+        'Revenue': 'revenue',
+        'HC': 'hc',
+        'Salary Cost': 'salary_cost',
+        'GPM': 'gpm',
+        'GPM %': 'gpm_percentage',
+        'NP': 'np',
+        'NP %': 'np_percentage',
+        'Leave Encashment': 'leave_encashment',
+        'Team Cost': 'team_cost',
+        'Opr Cost': 'opr_cost',
+        'Funding Cost': 'funding_cost',
+        'Rebate': 'rebate',
+        'Passthrough': 'passthrough',
+        'Net Margin': 'net_margin'
+      };
+
+      const dbFieldName = parameterMap[selectedParameter] || 'revenue';
+      const isMS = selectedBU === 'MS' || selectedBU === 'Managed Services';
+
+      // Helper function to parse date
+      const parseClientChartDate = (month: string, year: number): Date => {
+        const monthMap: { [key: string]: number } = {
+          'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+          'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+        };
+        const monthNum = monthMap[month] || 1;
+        return new Date(year, monthNum - 1);
+      };
+
+      // Group data by client (or project for MS)
+      const clientDataMap = new Map<string, number>();
+
+      clientMFSData.forEach((item: any) => {
+        // Filter by business unit (data is already filtered, but double-check)
+        if (!compareBusinessUnits(item.business_unit, selectedBU)) {
+          return;
+        }
+
+        // Apply period filter if set
+        if (chartFilterBy && chartFilterValue.length > 0) {
+          const date = parseClientChartDate(item.month, item.year);
+          if (isNaN(date.getTime())) return;
+
+          let matchesFilter = false;
+          if (chartFilterBy === 'year') {
+            const itemFY = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+            matchesFilter = chartFilterValue.some((year: string) => {
+              const filterYear = parseInt(year);
+              return itemFY === filterYear;
+            });
+          } else if (chartFilterBy === 'quarter') {
+            const month = date.getMonth() + 1;
+            matchesFilter = chartFilterValue.some((quarter: string) => {
+              if (quarter.includes('Q1')) return month >= 4 && month <= 6;
+              else if (quarter.includes('Q2')) return month >= 7 && month <= 9;
+              else if (quarter.includes('Q3')) return month >= 10 && month <= 12;
+              else if (quarter.includes('Q4')) return month >= 1 && month <= 3;
+              return false;
+            });
+          } else if (chartFilterBy === 'month') {
+            const monthStr = date.toLocaleDateString('en-US', { month: 'short' });
+            const yearStr = date.getFullYear().toString();
+            matchesFilter = chartFilterValue.some((monthFilter: string) => {
+              return monthFilter.includes(monthStr) && monthFilter.includes(yearStr);
+            });
+          }
+          if (!matchesFilter) return;
+        }
+
+        const clientKey = isMS ? item.project_name : item.client_name;
+        if (!clientKey || clientKey.trim() === '') {
+          console.log(`⚠️ Skipping item with empty client/project name:`, item);
+          return;
+        }
+
+        const value = parseFloat(item[dbFieldName]) || 0;
+        const currentValue = clientDataMap.get(clientKey) || 0;
+        clientDataMap.set(clientKey, currentValue + value);
+      });
+
+      // When specific clients are selected (Client Data filter), show only those clients; otherwise show all clients in BU
+      const clientsToChart = clientDataSelectedClients.length > 0
+        ? Array.from(clientDataMap.keys()).filter(client => clientDataSelectedClients.includes(client))
+        : Array.from(clientDataMap.keys());
+
+      // Convert to chart data format
+      clientsToChart.forEach((client) => {
+        const value = clientDataMap.get(client) ?? 0;
+        const dataPoint: any = { businessUnit: client }; // Using businessUnit field for consistency
+        dataPoint[`${periods[0] || 'Total'}_${selectedParameter}`] = value;
+        dataPoint._totalValue = Math.abs(value);
+        chartData.push(dataPoint);
+      });
+    } else {
+      // Show business units (original logic)
+      let businessUnitsToShow: string[] = [];
+      if (isBUHead && user?.business_unit) {
+        const normalizedBU = normalizeBusinessUnitName(user.business_unit);
+        const selectedBU = Array.isArray(selectedBusinessUnitsForChart)
+          ? selectedBusinessUnitsForChart[0]
+          : selectedBusinessUnitsForChart;
+        businessUnitsToShow = [normalizedBU || user.business_unit];
+      } else {
+        businessUnitsToShow = Array.isArray(selectedBusinessUnitsForChart)
+          ? selectedBusinessUnitsForChart
+          : [selectedBusinessUnitsForChart];
+      }
+
+      // Create data point for each business unit
+      businessUnitsToShow.forEach(bu => {
+        const dataPoint: any = { businessUnit: bu };
+
+        let totalValue = 0;
+
+        selectedParametersForChart.forEach(parameter => {
+          periods.forEach((period, periodIndex) => {
+            const value = getParameterValueForBUChart(bu, period, parameter);
+            dataPoint[`${period}_${parameter}`] = value;
+            totalValue += Math.abs(value);
+          });
+        });
+
+        dataPoint._totalValue = totalValue;
+        chartData.push(dataPoint);
+      });
+    }
+
+    // Sort chart data if sort order is specified
+    if (chartSortOrder) {
+      chartData.sort((a, b) => {
+        if (chartSortOrder === 'asc') {
+          return a._totalValue - b._totalValue;
+        } else {
+          return b._totalValue - a._totalValue;
+        }
+      });
+    }
+
+    return { chartData, periods, shouldShowClients };
+  }, [
+    data,
+    selectedParametersForChart,
+    selectedBusinessUnitsForChart,
+    activeChartTab,
+    compareType,
+    comparisonValues,
+    isBUHead,
+    user?.business_unit,
+    chartFilterBy,
+    chartFilterValue,
+    chartSortOrder,
+    clientMFSData,
+    clientDataSelectedClients,
+    getParameterValueForBUChart
+  ]);
+
 
   // Render comparison chart
 
   useEffect(() => {
-
-    console.log("🔍 Chart useEffect triggered with:", {
-      dataLength: data.length,
-      selectedParametersLength: selectedParameters.length,
-      compareType: compareType,
-      activeChartTab: activeChartTab
-    });
-    
-    if (data.length === 0 || selectedParametersForChart.length === 0 || !selectedBusinessUnitsForChart || 
-        (Array.isArray(selectedBusinessUnitsForChart) && selectedBusinessUnitsForChart.length === 0) ||
-        activeChartTab !== 'growth') {
-      console.log("🔍 Chart useEffect: Not enough data or tab not active, skipping chart render");
+    if (!comparisonChartPrepared) {
       return;
     }
-    
-    
+
+    const { chartData, periods, shouldShowClients } = comparisonChartPrepared;
+
     // Add a small delay to ensure DOM is ready
 
     const timer = setTimeout(() => {
@@ -5698,300 +5496,9 @@ const TeamReportCompare: React.FC = () => {
         };
       };
 
-      // Helper function to get parameter value for a specific business unit and period
-      // This bypasses the global selectedBusinessUnit filter to allow multiple business units in the chart
-      const getParameterValueForBU = (businessUnit: string, periodValue: string | null, parameter: string): number => {
-        if (!periodValue) return 0;
-        
-        // Filter data directly by business unit and period (without using global selectedBusinessUnit filter)
-        let filteredData = data.filter(item => {
-          // Filter by specific business unit
-          const normalizedBU = normalizeBusinessUnitName(item.business_unit);
-          if (!compareBusinessUnits(normalizedBU, businessUnit)) {
-            return false;
-          }
-          
-          // Apply client/BU head filters if set (for consistency with other components)
-          if (selectedClientName) {
-            if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-              if (item.project_name !== selectedClientName) return false;
-            } else {
-              if (item.client_name !== selectedClientName) return false;
-            }
-          }
-          
-          if (isBUHead && user?.business_unit) {
-            if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
-              return false;
-            }
-          }
-          
-          // Date parsing and period matching
-          // Use chartFilterBy if set, otherwise use compareType
-          const effectiveCompareType = chartFilterBy || compareType;
-          const date = parseDate(item.month, item.year);
-          if (isNaN(date.getTime())) return false;
-          
-          // Handle different period formats
-          if (periodValue.includes('FY ')) {
-            // Financial year format: FY 2025
-            const targetYearMatch = periodValue.match(/(\d{4})/);
-            if (!targetYearMatch) return false;
-            
-            const targetYear = parseInt(targetYearMatch[1]);
-            const itemYear = date.getFullYear();
-            const itemMonth = date.getMonth() + 1;
-            
-            // Financial year filtering: FY 2025 = April 2025 to March 2026
-            return itemMonth >= 4 ? itemYear === targetYear : itemYear === targetYear + 1;
-          } else if (periodValue.includes('Q')) {
-            // Quarter format: Q1(Apr-Jun) 2025
-            const quarterValue = getFiscalQuarter(date).label;
-            return quarterValue === periodValue;
-          } else {
-            // Month format: January 2025
-            const itemValue = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
-            return itemValue === periodValue;
-          }
-        });
-        
-        if (filteredData.length === 0) return 0;
-        
-        // Handle efficiency metrics (calculated metrics)
-        if (parameter === 'Cost Efficiency') {
-          // Cost Efficiency = Team Cost / Net Margin
-          const totalTeamCost = filteredData.reduce((sum, item) => sum + (Number(item.team_cost) || 0), 0);
-          const totalNetMargin = filteredData.reduce((sum, item) => sum + (Number(item.net_margin) || 0), 0);
-          return totalNetMargin !== 0 ? totalTeamCost / totalNetMargin : 0;
-        } else if (parameter === 'Revenue per HC') {
-          // Revenue per HC = Revenue / HC
-          const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
-          const totalHC = filteredData.reduce((sum, item) => sum + (Number(item.hc) || 0), 0);
-          return totalHC !== 0 ? totalRevenue / totalHC : 0;
-        } else if (parameter === 'Margin per Team Cost') {
-          // Margin per Team Cost = Net Margin / Team Cost
-          const totalNetMargin = filteredData.reduce((sum, item) => sum + (Number(item.net_margin) || 0), 0);
-          const totalTeamCost = filteredData.reduce((sum, item) => sum + (Number(item.team_cost) || 0), 0);
-          return totalTeamCost !== 0 ? totalNetMargin / totalTeamCost : 0;
-        } else if (parameter === 'Team Cost % of Revenue') {
-          // Team Cost % of Revenue = (Team Cost / Revenue) * 100
-          const totalTeamCost = filteredData.reduce((sum, item) => sum + (Number(item.team_cost) || 0), 0);
-          const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
-          return totalRevenue !== 0 ? (totalTeamCost / totalRevenue) * 100 : 0;
-        } else if (parameter === 'Net Margin %') {
-          // Net Margin % = (Net Margin / Revenue) * 100
-          const totalNetMargin = filteredData.reduce((sum, item) => sum + (Number(item.net_margin) || 0), 0);
-          const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
-          return totalRevenue !== 0 ? (totalNetMargin / totalRevenue) * 100 : 0;
-        } else if (parameter === 'Net Margin per HC') {
-          // Net Margin per HC = Net Margin / HC
-          const totalNetMargin = filteredData.reduce((sum, item) => sum + (Number(item.net_margin) || 0), 0);
-          const totalHC = filteredData.reduce((sum, item) => sum + (Number(item.hc) || 0), 0);
-          return totalHC !== 0 ? totalNetMargin / totalHC : 0;
-        }
-        
-        // For regular parameters, get parameter key and sum values
-        const paramKey = parameter.toLowerCase().replace(/\s+/g, '_');
-        
-        // Sum values for this parameter
-        return filteredData.reduce((sum, item) => {
-          return sum + (parseFloat(item[paramKey]) || 0);
-        }, 0);
-      };
-
-      // Get comparison periods - use chart filter if set, otherwise use main comparison values
-      let periods: string[] = [];
-      
-      if (chartFilterBy && chartFilterValue.length > 0) {
-        // Use chart-specific filter with multiple selection support
-        if (chartFilterBy === 'year') {
-          // For year filter, use selected years directly (no auto-comparison)
-          periods = chartFilterValue.map(year => `FY ${year}`);
-        } else if (chartFilterBy === 'quarter') {
-          // For quarter filter, use selected quarters directly
-          periods = chartFilterValue;
-        } else if (chartFilterBy === 'month') {
-          // For month filter, use selected months directly
-          periods = chartFilterValue;
-        }
-      } else {
-        // Default: use main comparison values (current FY vs previous FY)
-        periods = comparisonValues.filter(Boolean) as string[];
-      }
-      
-      // Prepare data: group by business unit OR client (if conditions met)
-      // When a single BU is selected, show that BU's client-wise data (from /team-report), not BU-level aggregate
-      const isSingleBU = Array.isArray(selectedBusinessUnitsForChart) 
-        ? selectedBusinessUnitsForChart.length === 1
-        : selectedBusinessUnitsForChart !== null && selectedBusinessUnitsForChart !== undefined;
-      
-      // Prefer client view when single BU is selected (use clientMFSData from /team-report); fall back to BU view only when multiple BUs
-      const shouldShowClients = selectedBusinessUnitsForChart && (isBUHead || isSingleBU);
-
-      if (!selectedBusinessUnitsForChart) {
-        return;
-      }
-
-      const chartData: any[] = [];
-      
-      if (shouldShowClients) {
-        // Show clients for the selected business unit (data from /team-report has client_name/project_name)
-        const selectedBU = isBUHead && user?.business_unit
-          ? (normalizeBusinessUnitName(user.business_unit) || user.business_unit)
-          : (Array.isArray(selectedBusinessUnitsForChart) ? selectedBusinessUnitsForChart[0] : selectedBusinessUnitsForChart);
-        const selectedParameter = selectedParametersForChart[0]; // Use first selected parameter
-        
-        // Map parameter names to database field names
-        const parameterMap: { [key: string]: string } = {
-          'Revenue': 'revenue',
-          'HC': 'hc',
-          'Salary Cost': 'salary_cost',
-          'GPM': 'gpm',
-          'GPM %': 'gpm_percentage',
-          'NP': 'np',
-          'NP %': 'np_percentage',
-          'Leave Encashment': 'leave_encashment',
-          'Team Cost': 'team_cost',
-          'Opr Cost': 'opr_cost',
-          'Funding Cost': 'funding_cost',
-          'Rebate': 'rebate',
-          'Passthrough': 'passthrough',
-          'Net Margin': 'net_margin'
-        };
-
-        const dbFieldName = parameterMap[selectedParameter] || 'revenue';
-        const isMS = selectedBU === 'MS' || selectedBU === 'Managed Services';
-        
-        // Helper function to parse date
-        const parseDate = (month: string, year: number): Date => {
-          const monthMap: { [key: string]: number } = {
-            'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
-            'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
-          };
-          const monthNum = monthMap[month] || 1;
-          return new Date(year, monthNum - 1);
-        };
-
-        // Group data by client (or project for MS)
-        const clientDataMap = new Map<string, number>();
-
-        console.log(`🔍 Processing client data for BU: ${selectedBU}, Total records: ${clientMFSData.length}`);
-
-        clientMFSData.forEach((item: any) => {
-          // Filter by business unit (data is already filtered, but double-check)
-          if (!compareBusinessUnits(item.business_unit, selectedBU)) {
-            return;
-          }
-
-          // Apply period filter if set
-          if (chartFilterBy && chartFilterValue.length > 0) {
-            const date = parseDate(item.month, item.year);
-            if (isNaN(date.getTime())) return;
-
-            let matchesFilter = false;
-            if (chartFilterBy === 'year') {
-              const itemFY = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
-              matchesFilter = chartFilterValue.some((year: string) => {
-                const filterYear = parseInt(year);
-                return itemFY === filterYear;
-              });
-            } else if (chartFilterBy === 'quarter') {
-              const month = date.getMonth() + 1;
-              matchesFilter = chartFilterValue.some((quarter: string) => {
-                if (quarter.includes('Q1')) return month >= 4 && month <= 6;
-                else if (quarter.includes('Q2')) return month >= 7 && month <= 9;
-                else if (quarter.includes('Q3')) return month >= 10 && month <= 12;
-                else if (quarter.includes('Q4')) return month >= 1 && month <= 3;
-                return false;
-              });
-            } else if (chartFilterBy === 'month') {
-              const monthStr = date.toLocaleDateString('en-US', { month: 'short' });
-              const yearStr = date.getFullYear().toString();
-              matchesFilter = chartFilterValue.some((monthFilter: string) => {
-                return monthFilter.includes(monthStr) && monthFilter.includes(yearStr);
-              });
-            }
-            if (!matchesFilter) return;
-          }
-
-          const clientKey = isMS ? item.project_name : item.client_name;
-          if (!clientKey || clientKey.trim() === '') {
-            console.log(`⚠️ Skipping item with empty client/project name:`, item);
-            return;
-          }
-
-          const value = parseFloat(item[dbFieldName]) || 0;
-          const currentValue = clientDataMap.get(clientKey) || 0;
-          clientDataMap.set(clientKey, currentValue + value);
-        });
-
-        console.log(`🔍 Client data map size: ${clientDataMap.size}, Clients:`, Array.from(clientDataMap.keys()));
-
-        // When specific clients are selected (Client Data filter), show only those clients; otherwise show all clients in BU
-        const clientsToChart = clientDataSelectedClients.length > 0
-          ? Array.from(clientDataMap.keys()).filter(client => clientDataSelectedClients.includes(client))
-          : Array.from(clientDataMap.keys());
-
-        // Convert to chart data format
-        clientsToChart.forEach((client) => {
-          const value = clientDataMap.get(client) ?? 0;
-          const dataPoint: any = { businessUnit: client }; // Using businessUnit field for consistency
-          dataPoint[`${periods[0] || 'Total'}_${selectedParameter}`] = value;
-          dataPoint._totalValue = Math.abs(value);
-          chartData.push(dataPoint);
-        });
-      } else {
-        // Show business units (original logic)
-        let businessUnitsToShow: string[] = [];
-        if (isBUHead && user?.business_unit) {
-          const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-          const selectedBU = Array.isArray(selectedBusinessUnitsForChart) 
-            ? selectedBusinessUnitsForChart[0] 
-            : selectedBusinessUnitsForChart;
-          businessUnitsToShow = [normalizedBU || user.business_unit];
-        } else {
-          businessUnitsToShow = Array.isArray(selectedBusinessUnitsForChart) 
-            ? selectedBusinessUnitsForChart 
-            : [selectedBusinessUnitsForChart];
-        }
-        
-        // Create data point for each business unit
-        businessUnitsToShow.forEach(bu => {
-          const dataPoint: any = { businessUnit: bu };
-          
-          let totalValue = 0;
-          
-          selectedParametersForChart.forEach(parameter => {
-            periods.forEach((period, periodIndex) => {
-              const value = getParameterValueForBU(bu, period, parameter);
-              dataPoint[`${period}_${parameter}`] = value;
-              totalValue += Math.abs(value);
-            });
-          });
-          
-          dataPoint._totalValue = totalValue;
-          chartData.push(dataPoint);
-        });
-      }
-      
-      // Sort chart data if sort order is specified
-      if (chartSortOrder) {
-        chartData.sort((a, b) => {
-          if (chartSortOrder === 'asc') {
-            return a._totalValue - b._totalValue;
-          } else {
-            return b._totalValue - a._totalValue;
-          }
-        });
-      }
-      
       // Set X-axis data (business units or clients) - use sorted order
       const xAxisData = chartData.map(item => ({ businessUnit: item.businessUnit }));
       xAxis.data.setAll(xAxisData);
-      
-      if (shouldShowClients) {
-        console.log(`🔍 Setting X-axis with ${xAxisData.length} client names:`, xAxisData.map((d: any) => d.businessUnit));
-      }
       
       // Configure X-axis renderer for better label display when showing clients
       if (shouldShowClients) {
@@ -6359,7 +5866,7 @@ const TeamReportCompare: React.FC = () => {
 
     };
 
-  }, [data, selectedParametersForChart, selectedBusinessUnitsForChart, chartType, activeChartTab, compareType, comparisonValues, isBUHead, user?.business_unit, selectedClientName, selectedBusinessUnit, chartFilterBy, chartFilterValue, chartSortOrder, isCroreMode, clientMFSData, clientDataSelectedClients]);
+  }, [comparisonChartPrepared, chartType, isCroreMode]);
 
   // Render Waterfall Chart
   useEffect(() => {
@@ -6471,8 +5978,6 @@ const TeamReportCompare: React.FC = () => {
           color: kpi.isPositive ? am5.color(0x52c41a) : am5.color(0xff4d4f)
         };
       }).filter(Boolean);
-
-      console.log("🔍 Waterfall chart data:", waterfallData);
 
       // Create series
           const series = chart.series.push(
@@ -7495,7 +7000,7 @@ const TeamReportCompare: React.FC = () => {
             marginBottom: 16
           }}>
             {(() => {
-              const kpis = kpiData;
+              const kpis = memoizedKpis;
               const mainKPIs = ['Revenue', 'GPM', ...(showTeamCostKPI ? ['Team Cost'] : []), 'NP'];
               const displayKPIs = mainKPIs;
               
@@ -9200,15 +8705,6 @@ const TeamReportCompare: React.FC = () => {
           amount: item.periodValues.find(pv => pv.period === period)?.amount || 0
 
         }));
-
-      // Debug Efficiency Dashboard data
-      console.log(`🔍 Efficiency Dashboard Debug for ${period}:`, {
-        period,
-        periodData: periodData.map(pd => ({ parameter: pd.parameter, amount: pd.amount })),
-        netMargin: periodData.find(i => i.parameter === "Net Margin")?.amount || 0,
-        revenue: periodData.find(i => i.parameter === "Revenue")?.amount || 0,
-        hc: periodData.find(i => i.parameter === "HC")?.amount || 0
-      });
 
       return {
 

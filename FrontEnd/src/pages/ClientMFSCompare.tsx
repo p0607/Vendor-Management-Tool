@@ -6639,7 +6639,8 @@ const ClientMFSCompare: React.FC = () => {
             marginBottom: 16
           }}>
             {(() => {
-              const kpis = kpiData;
+              // Use live calculation to avoid stale KPI state when comparison year changes.
+              const kpis = calculateKPIs();
               const mainKPIs = ['Revenue', 'GPM', 'Team Cost', 'NP'];
               // Filter out GPM % and NP % from all KPIs
               // Always show only the 4 main KPIs (no "Show More" button)
