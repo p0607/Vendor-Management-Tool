@@ -13,7 +13,7 @@ const Login = () => {
 
   useEffect(() => {
     try {
-      if (localStorage.getItem('authToken') && localStorage.getItem('user')) {
+      if (localStorage.getItem('user')) {
         navigate('/HomePage', { replace: true });
       }
     } catch {
@@ -36,9 +36,13 @@ const Login = () => {
       const response = await apiClient.post('/login', { name, password });
       
       if (response.data.success) {
-        // Store user data and token
+        // Store user session data
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('authToken', response.data.token || '');
+        if (response.data.token) {
+          localStorage.setItem('authToken', response.data.token);
+        } else {
+          localStorage.removeItem('authToken');
+        }
         
         // Replace history so Back from Home does not return to login while session is active
         navigate('/HomePage', { replace: true });
