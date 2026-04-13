@@ -12,6 +12,7 @@ const HomePage: React.FC = () => {
     // Clear all authentication data
     localStorage.removeItem('user');
     localStorage.removeItem('userDesignation');
+    localStorage.removeItem('authToken');
     localStorage.removeItem('token');
     sessionStorage.clear();
     

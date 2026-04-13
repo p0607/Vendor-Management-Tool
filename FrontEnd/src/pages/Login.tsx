@@ -1,4 +1,4 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../config/api';
 import './login.css';
@@ -10,6 +10,16 @@ const Login = () => {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('authToken') && localStorage.getItem('user')) {
+        navigate('/HomePage', { replace: true });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [navigate]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -30,8 +40,8 @@ const Login = () => {
         localStorage.setItem('user', JSON.stringify(response.data.user));
         localStorage.setItem('authToken', response.data.token || '');
         
-        // Redirect to home page
-        navigate('/HomePage');
+        // Replace history so Back from Home does not return to login while session is active
+        navigate('/HomePage', { replace: true });
       } else {
         setError(response.data.message || 'Invalid credentials');
       }

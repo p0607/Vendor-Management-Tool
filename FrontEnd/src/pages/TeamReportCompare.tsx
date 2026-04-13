@@ -1096,6 +1096,7 @@ const TeamReportCompare: React.FC = () => {
   const [selectedPeriodsForCombination, setSelectedPeriodsForCombination] = useState<string[]>([]);
 
   const [data, setData] = useState<ReportData[]>([]);
+  const [allTeamSummaryData, setAllTeamSummaryData] = useState<ReportData[]>([]);
   const [routingData, setRoutingData] = useState<any[]>([]);
   const [ctsSummaryData, setCtsSummaryData] = useState<any[]>([]);
 
@@ -2428,26 +2429,28 @@ const TeamReportCompare: React.FC = () => {
     }
   }, [isBUHead, user?.business_unit, businessUnits]);
 
+  // Stable string key so BU head / single-BU chart selection does not refetch when array identity changes only
+  const clientMfsFetchBusinessUnitKey = useMemo(() => {
+    if (isBUHead && user?.business_unit) {
+      return normalizeBusinessUnitName(user.business_unit) || user.business_unit;
+    }
+    if (selectedBusinessUnit) {
+      return selectedBusinessUnit;
+    }
+    if (selectedBusinessUnitsForChart) {
+      if (Array.isArray(selectedBusinessUnitsForChart)) {
+        return selectedBusinessUnitsForChart.length === 1 ? selectedBusinessUnitsForChart[0] : null;
+      }
+      return selectedBusinessUnitsForChart;
+    }
+    return null;
+  }, [isBUHead, user?.business_unit, selectedBusinessUnit, selectedBusinessUnitsForChart]);
+
   // Fetch Client MFS data when admin selects a single business unit OR for BU heads
   useEffect(() => {
-    const fetchClientMFSData = async () => {
-      // Priority: selectedBusinessUnit (main view) > selectedBusinessUnitsForChart (chart view) > user.business_unit (BU head)
-      let selectedBU: string | null = null;
-      
-      if (isBUHead && user?.business_unit) {
-        // BU head: use their business unit
-        const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-        selectedBU = normalizedBU || user.business_unit;
-      } else if (selectedBusinessUnit) {
-        // Main comparison view: use selectedBusinessUnit if set
-        selectedBU = selectedBusinessUnit;
-      } else if (selectedBusinessUnitsForChart) {
-        // Chart view: check if single BU is selected
-        selectedBU = Array.isArray(selectedBusinessUnitsForChart) 
-          ? (selectedBusinessUnitsForChart.length === 1 ? selectedBusinessUnitsForChart[0] : null)
-          : selectedBusinessUnitsForChart;
-      }
+    const selectedBU = clientMfsFetchBusinessUnitKey;
 
+    const fetchClientMFSData = async () => {
       if (!selectedBU) {
         setClientMFSData([]);
         return;
@@ -2482,7 +2485,7 @@ const TeamReportCompare: React.FC = () => {
     };
 
     fetchClientMFSData();
-  }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
+  }, [clientMfsFetchBusinessUnitKey]);
 
   // Helper function to check if a specific business unit is selected (for showing Client Data button)
   // Check both selectedBusinessUnit (main view) and selectedBusinessUnitsForChart (chart view)
@@ -3062,252 +3065,103 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-  // Fetch business units from database
-
-  const fetchBusinessUnits = async () => {
-
+  // Derive business units from already-loaded team summary data (avoid repeated /team-summary-report fetches).
+  const fetchBusinessUnits = () => {
     try {
+      const unitsSet = new Set<string>();
 
-
-      
-      
-      const res = await apiClient.get("/team-summary-report");
-
-
-      
-      
-      if (res.data && Array.isArray(res.data)) {
-
-
-        
-        
-        // Extract business units, normalize them, and filter out null/undefined values
-        const unitsSet = new Set<string>();
-        
-        res.data.forEach((item: any) => {
-          if (item.business_unit) {
-            const normalized = normalizeBusinessUnitName(item.business_unit);
-            if (normalized) {
-              unitsSet.add(normalized);
-            }
+      allTeamSummaryData.forEach((item: any) => {
+        if (item.business_unit) {
+          const normalized = normalizeBusinessUnitName(item.business_unit);
+          if (normalized) {
+            unitsSet.add(normalized);
           }
-        });
-        
-        const uniqueBusinessUnits = Array.from(unitsSet).sort() as string[];
+        }
+      });
 
+      const uniqueBusinessUnits = Array.from(unitsSet).sort() as string[];
+      setBusinessUnits(uniqueBusinessUnits);
 
-        
-        
-        setBusinessUnits(uniqueBusinessUnits);
-        
-        // Initialize selectedBusinessUnitsForChart
-        // For BU heads, only show their business unit; for admin, show all business units by default
-        if (!selectedBusinessUnitsForChart && uniqueBusinessUnits.length > 0) {
-          if (isBUHead && user?.business_unit) {
-            const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-            const matchingBU = uniqueBusinessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
-            if (matchingBU) {
-              setSelectedBusinessUnitsForChart(matchingBU);
-            } else {
-              // Fallback: use normalized version if exact match not found
-              setSelectedBusinessUnitsForChart(normalizedBU || user.business_unit);
-            }
+      // Initialize selectedBusinessUnitsForChart
+      // For BU heads, only show their business unit; for admin, show all business units by default
+      if (!selectedBusinessUnitsForChart && uniqueBusinessUnits.length > 0) {
+        if (isBUHead && user?.business_unit) {
+          const normalizedBU = normalizeBusinessUnitName(user.business_unit);
+          const matchingBU = uniqueBusinessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
+          if (matchingBU) {
+            setSelectedBusinessUnitsForChart(matchingBU);
           } else {
-            // For admin users, select all business units by default
-            setSelectedBusinessUnitsForChart(uniqueBusinessUnits);
+            // Fallback: use normalized version if exact match not found
+            setSelectedBusinessUnitsForChart(normalizedBU || user.business_unit);
           }
-        }
-
-        
-        
-        // If no business units found, show a warning
-
-        if (uniqueBusinessUnits.length === 0) {
-
-          console.warn("⚠️ No business units found in the database. The table might be empty.");
-
-        }
-
-      } else {
-
-        console.warn("🔍 No data received from API or data is not an array");
-
-        console.warn("🔍 Data type:", typeof res.data);
-
-        console.warn("🔍 Data value:", res.data);
-
-        setBusinessUnits([]);
-
-      }
-
-    } catch (error: any) {
-
-      console.error("❌ Error fetching business units:", error);
-
-      console.error("❌ Error details:", error.response?.data);
-
-      console.error("❌ Error status:", error.response?.status);
-
-      console.error("❌ Full error object:", error);
-
-      setBusinessUnits([]);
-
-    }
-
-  };
-
-
-
-  // Fetch client names based on selected business unit
-
-  const fetchClientNames = async (businessUnit: string | null) => {
-
-    if (!businessUnit) {
-
-      setClientNames([]);
-
-      return;
-
-    }
-
-    
-    
-    try {
-
-      console.log(`🔍 Fetching client names for business unit: ${businessUnit}`);
-
-      const res = await apiClient.get("/team-summary-report");
-
-      
-      
-      if (res.data && Array.isArray(res.data)) {
-
-        // Filter data by business unit first (using normalized comparison)
-
-        const filteredData = res.data.filter((item: any) => 
-
-          compareBusinessUnits(item.business_unit, businessUnit)
-
-        );
-
-        
-        
-        let uniqueNames: string[];
-
-        if (businessUnit === "Managed Services" || businessUnit === "MS") {
-
-          // For Managed Services, show project names
-
-          const projectNames = filteredData
-
-            .map((item: any) => item.project_name)
-
-            .filter((name: any) => name && name.trim() !== '');
-
-          uniqueNames = Array.from(new Set(projectNames)) as string[];
-
         } else {
-
-          // For other business units, show client names
-
-          const clientNames = filteredData
-
-            .map((item: any) => item.client_name)
-
-            .filter((name: any) => name && name.trim() !== '');
-
-          uniqueNames = Array.from(new Set(clientNames)) as string[];
-
+          // For admin users, select all business units by default
+          setSelectedBusinessUnitsForChart(uniqueBusinessUnits);
         }
-
-        
-        
-        setClientNames(uniqueNames);
-
-        setFilteredClientNames(uniqueNames);
-
-      } else {
-
-        console.warn(`🔍 No data received for business unit: ${businessUnit}`);
-
-        setClientNames([]);
-
       }
-
     } catch (error: any) {
-
-      console.error("❌ Error fetching client names:", error);
-
-      console.error("❌ Error details:", error.response?.data);
-
-      setClientNames([]);
-
+      console.error("❌ Error preparing business units:", error);
+      setBusinessUnits([]);
     }
-
   };
 
-
-
-  // Fetch BU heads based on selected business unit
-
-  const fetchBUHeads = async (businessUnit: string | null) => {
-
+  // Derive client names from already-loaded team summary data.
+  const fetchClientNames = (businessUnit: string | null) => {
     if (!businessUnit) {
-
-      setBUHeads([]);
-
+      setClientNames([]);
+      setFilteredClientNames([]);
       return;
-
     }
 
-    
-    
     try {
+      const filteredData = allTeamSummaryData.filter((item: any) =>
+        compareBusinessUnits(item.business_unit, businessUnit)
+      );
 
-      const res = await apiClient.get("/team-summary-report");
-
-      if (res.data && Array.isArray(res.data)) {
-
-        // Filter data by business unit first (using normalized comparison)
-
-        const filteredData = res.data.filter((item: any) => 
-
-          compareBusinessUnits(item.business_unit, businessUnit)
-
-        );
-
-        
-        
-        const buHeadsFromData = filteredData
-
-          .map((item: any) => item.bu_head)
-
-          .filter((head: any) => head && head.trim() !== '');
-
-        const uniqueBUHeads = Array.from(new Set(buHeadsFromData)) as string[];
-
-        
-        
-        setBUHeads(uniqueBUHeads);
-
+      let uniqueNames: string[];
+      if (businessUnit === "Managed Services" || businessUnit === "MS") {
+        const projectNames = filteredData
+          .map((item: any) => item.project_name)
+          .filter((name: any) => name && name.trim() !== '');
+        uniqueNames = Array.from(new Set(projectNames)) as string[];
       } else {
-
-        console.warn(`🔍 No data received for business unit: ${businessUnit}`);
-
-        setBUHeads([]);
-
+        const clientNames = filteredData
+          .map((item: any) => item.client_name)
+          .filter((name: any) => name && name.trim() !== '');
+        uniqueNames = Array.from(new Set(clientNames)) as string[];
       }
 
+      setClientNames(uniqueNames);
+      setFilteredClientNames(uniqueNames);
     } catch (error: any) {
+      console.error("❌ Error preparing client names:", error);
+      setClientNames([]);
+      setFilteredClientNames([]);
+    }
+  };
 
-      console.error("❌ Error fetching BU heads:", error);
-
-      console.error("❌ Error details:", error.response?.data);
-
+  // Derive BU heads from already-loaded team summary data.
+  const fetchBUHeads = (businessUnit: string | null) => {
+    if (!businessUnit) {
       setBUHeads([]);
-
+      return;
     }
 
+    try {
+      const filteredData = allTeamSummaryData.filter((item: any) =>
+        compareBusinessUnits(item.business_unit, businessUnit)
+      );
+
+      const buHeadsFromData = filteredData
+        .map((item: any) => item.bu_head)
+        .filter((head: any) => head && head.trim() !== '');
+
+      const uniqueBUHeads = Array.from(new Set(buHeadsFromData)) as string[];
+      setBUHeads(uniqueBUHeads);
+    } catch (error: any) {
+      console.error("❌ Error preparing BU heads:", error);
+      setBUHeads([]);
+    }
   };
 
 
@@ -3320,216 +3174,75 @@ const TeamReportCompare: React.FC = () => {
   }, []); // Run only on mount
 
   useEffect(() => {
-
-    const fetchData = async () => {
-
+    const fetchAllTeamSummaryData = async () => {
       setIsLoading(true);
-
       try {
-
-
-        
-        
-        // Always fetch all data and filter on frontend for better control
-
         const res = await apiClient.get("/team-summary-report");
+        const sourceData = Array.isArray(res.data) ? res.data.filter(hasValidMonth) : [];
 
-        
-        
-        
-        
-        // Filter data on frontend
-
-        let filteredData = (res.data || []).filter(hasValidMonth);
-
-        
-        
-        if (selectedBusinessUnit) {
-
-          filteredData = filteredData.filter((item: any) => 
-
-            compareBusinessUnits(item.business_unit, selectedBusinessUnit)
-
-          );
-
-
-        }
-
-        
-        
-        if (selectedClientName) {
-
-          const normalizedBU = normalizeBusinessUnitName(selectedBusinessUnit);
-          if (normalizedBU === 'MS' || selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
-
-            filteredData = filteredData.filter((item: any) => 
-
-              item.project_name === selectedClientName
-
-            );
-
-
-          } else {
-
-            filteredData = filteredData.filter((item: any) => 
-
-              item.client_name === selectedClientName
-
-            );
-
-
-          }
-
-        }
-
-        
-        
-        if (selectedBUHead) {
-
-          filteredData = filteredData.filter((item: any) => 
-
-            item.bu_head === selectedBUHead
-
-          );
-
-
-        }
-
-        
-        
-        if (isBUHead && user.business_unit) {
-
-          filteredData = filteredData.filter((item: any) => 
-
-            compareBusinessUnits(item.business_unit, user.business_unit)
-
-          );
-
-
-        }
-
-        
-        
-        
-        // Convert amounts to numbers and handle formatting
-
-        const convertedData = filteredData.map((item: any) => {
-
-          // Convert numeric fields to numbers
-
+        // Convert amounts to numbers one time on load (instead of on every filter click).
+        const convertedData = sourceData.map((item: any) => {
           const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'year'];
-
-          
-          
           const processedItem = { ...item };
 
-          
-          
           for (const field of numericFields) {
-
             if (typeof processedItem[field] === 'string') {
-
               processedItem[field] = parseFloat(processedItem[field].replace(/,/g, '')) || 0;
-
-            } else if (typeof processedItem[field] === 'number') {
-
-              processedItem[field] = processedItem[field];
-
-            } else {
-
+            } else if (typeof processedItem[field] !== 'number') {
               processedItem[field] = 0;
-
             }
-
           }
 
           // Handle 2-digit year conversion (e.g., 23 -> 2023, 24 -> 2024)
-          if (processedItem.year && processedItem.year < 100) {
-            if (processedItem.year >= 0 && processedItem.year <= 99) {
-              // Assume years 0-99 map to 2000-2099
-              processedItem.year = 2000 + processedItem.year;
-            }
+          if (processedItem.year && processedItem.year < 100 && processedItem.year >= 0) {
+            processedItem.year = 2000 + processedItem.year;
           }
 
-          
-
-          // Month processing is handled by the backend during import - no need to process here
-
-          // Commented out - backend already handles month processing
-          if (false && processedItem.month && typeof processedItem.month === 'string') {
-
-            const monthNames = [
-
-              'January', 'February', 'March', 'April', 'May', 'June',
-
-              'July', 'August', 'September', 'October', 'November', 'December'
-
-            ];
-
-            
-            
-            const monthIndex = monthNames.findIndex(month => {
-              const lowerMonthStr = processedItem.month.toLowerCase();
-              const lowerMonth = month.toLowerCase();
-              
-              // Exact match or word boundary match to avoid false positives
-              return lowerMonthStr === lowerMonth || 
-                     lowerMonthStr.includes(` ${lowerMonth} `) ||
-                     lowerMonthStr.startsWith(`${lowerMonth} `) ||
-                     lowerMonthStr.endsWith(` ${lowerMonth}`) ||
-                     lowerMonthStr.includes(`${lowerMonth}-`) ||
-                     lowerMonthStr.includes(`-${lowerMonth}`) ||
-                     lowerMonthStr.includes(`${lowerMonth}_`) ||
-                     lowerMonthStr.includes(`_${lowerMonth}`);
-            });
-
-            
-            
-            if (monthIndex !== -1 && processedItem.year) {
-
-              // Create a proper date string using the year from the data
-
-              const year = processedItem.year;
-              if (!year) {
-                console.warn("⚠️ No year provided for month processing, skipping");
-                return;
-              }
-
-              processedItem.month = `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`;
-
-            }
-
-          }
-
-          
-          
           return processedItem;
-
         });
 
-        
-        
-        // Filter out records with invalid month data
-        const validData = convertedData.filter(hasValidMonth);
-        setData(validData);
-
+        setAllTeamSummaryData(convertedData.filter(hasValidMonth));
       } catch (error: any) {
-
         console.error("Error fetching data:", error);
-
+        setAllTeamSummaryData([]);
       } finally {
-
         setIsLoading(false);
-
       }
-
     };
 
+    fetchAllTeamSummaryData();
+  }, []);
 
+  useEffect(() => {
+    let filteredData = [...allTeamSummaryData];
 
-    fetchData();
+    if (selectedBusinessUnit) {
+      filteredData = filteredData.filter((item: any) =>
+        compareBusinessUnits(item.business_unit, selectedBusinessUnit)
+      );
+    }
 
-  }, [selectedBusinessUnit, selectedClientName, selectedBUHead, isBUHead, user?.business_unit]);
+    if (selectedClientName) {
+      const normalizedBU = normalizeBusinessUnitName(selectedBusinessUnit);
+      if (normalizedBU === 'MS' || selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
+        filteredData = filteredData.filter((item: any) => item.project_name === selectedClientName);
+      } else {
+        filteredData = filteredData.filter((item: any) => item.client_name === selectedClientName);
+      }
+    }
+
+    if (selectedBUHead) {
+      filteredData = filteredData.filter((item: any) => item.bu_head === selectedBUHead);
+    }
+
+    if (isBUHead && user.business_unit) {
+      filteredData = filteredData.filter((item: any) =>
+        compareBusinessUnits(item.business_unit, user.business_unit)
+      );
+    }
+
+    setData(filteredData);
+  }, [allTeamSummaryData, selectedBusinessUnit, selectedClientName, selectedBUHead, isBUHead, user?.business_unit]);
 
   // Fetch routing data
   useEffect(() => {
@@ -3829,7 +3542,7 @@ const TeamReportCompare: React.FC = () => {
 
     fetchBusinessUnits();
 
-  }, []);
+  }, [allTeamSummaryData, isBUHead, user?.business_unit, selectedBusinessUnitsForChart]);
 
 
 
@@ -3871,7 +3584,7 @@ const TeamReportCompare: React.FC = () => {
 
     setSelectedClientName(null); // Reset client name selection
 
-  }, [selectedBusinessUnit]);
+  }, [selectedBusinessUnit, allTeamSummaryData]);
 
 
 
@@ -3883,7 +3596,7 @@ const TeamReportCompare: React.FC = () => {
 
     setSelectedBUHead(null); // Reset BU head selection
 
-  }, [selectedBusinessUnit]);
+  }, [selectedBusinessUnit, allTeamSummaryData]);
 
 
 

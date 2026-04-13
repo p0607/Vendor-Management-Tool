@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Select, Dropdown, message } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
@@ -143,13 +143,6 @@ const MFSdata: React.FC = () => {
           throw new Error("Data is not an array");
         }
 
-        // Debug: Log sample data to see structure
-        if (response.data.length > 0) {
-          console.log('Sample team summary report data:', response.data[0]);
-          console.log('Total records:', response.data.length);
-          console.log('Sample month values:', response.data.slice(0, 5).map((item: any) => ({ month: item.month, year: item.year })));
-        }
-
         setTeamReportData(response.data as TeamReportItem[]);
       } catch (err: any) {
         console.error("Fetch failed:", err);
@@ -225,10 +218,17 @@ const MFSdata: React.FC = () => {
 
   // Use centralized normalizeBusinessUnitName function (imported from utils)
 
+  const teamReportDataForUser = useMemo(() => {
+    if (!isBUHead || !user?.business_unit) return teamReportData;
+    return teamReportData.filter(item =>
+      compareBusinessUnits(item.business_unit, user.business_unit)
+    );
+  }, [teamReportData, isBUHead, user?.business_unit]);
+
   // Get unique business units (normalized to handle case differences)
   const businessUnits = useMemo(() => {
     const unitsSet = new Set<string>();
-    teamReportData.forEach(item => {
+    teamReportDataForUser.forEach(item => {
       if (item.business_unit) {
         const normalized = normalizeBusinessUnitName(item.business_unit);
         if (normalized) {
@@ -237,18 +237,18 @@ const MFSdata: React.FC = () => {
       }
     });
     return Array.from(unitsSet).sort();
-  }, [teamReportData]);
+  }, [teamReportDataForUser]);
 
   // Get unique years
   const years = useMemo(() => {
     const yearSet = new Set<number>();
-    teamReportData.forEach(item => {
+    teamReportDataForUser.forEach(item => {
       if (item.year) {
         yearSet.add(item.year);
       }
     });
     return Array.from(yearSet).sort((a, b) => b - a);
-  }, [teamReportData]);
+  }, [teamReportDataForUser]);
 
   // Helper to normalize month name to full name (handles both full names and abbreviations)
   const normalizeToFullMonthName = (monthName: string): string => {
@@ -296,19 +296,12 @@ const MFSdata: React.FC = () => {
 
   // Filter data based on business unit and period
   const filteredData = useMemo(() => {
-    let filtered = [...teamReportData];
+    let filtered = [...teamReportDataForUser];
 
     // Filter by business unit (case-insensitive comparison)
     if (selectedBusinessUnit) {
       filtered = filtered.filter(item => {
         return compareBusinessUnits(item.business_unit, selectedBusinessUnit);
-      });
-    }
-
-    // BU head filter - ensure BU head only sees their business unit's data
-    if (isBUHead && user?.business_unit) {
-      filtered = filtered.filter(item => {
-        return compareBusinessUnits(item.business_unit, user.business_unit);
       });
     }
 
@@ -381,7 +374,7 @@ const MFSdata: React.FC = () => {
     }
 
     return filtered;
-  }, [teamReportData, selectedBusinessUnit, periodFilter, periodValue]);
+  }, [teamReportDataForUser, selectedBusinessUnit, periodFilter, periodValue]);
 
   // Get unique months from filtered data
   const months = useMemo(() => {
@@ -539,11 +532,17 @@ const MFSdata: React.FC = () => {
     return { monthName: normalizeToFullMonthName(String(m)), year: y };
   };
 
+  const clientMFSDataForUser = useMemo(() => {
+    if (!isBUHead || !user?.business_unit) return clientMFSData;
+    return clientMFSData.filter(item =>
+      compareBusinessUnits(item.business_unit, user.business_unit)
+    );
+  }, [clientMFSData, isBUHead, user?.business_unit]);
+
   // Filter client MFS data by selected BU and period (same logic as main table)
   const filteredClientMFSData = useMemo(() => {
-    let filtered = clientMFSData.filter(item => {
+    let filtered = clientMFSDataForUser.filter(item => {
       if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return false;
-      if (isBUHead && user?.business_unit && !compareBusinessUnits(item.business_unit, user.business_unit)) return false;
       return true;
     });
     if (!periodFilter || !periodValue) return filtered;
@@ -590,27 +589,27 @@ const MFSdata: React.FC = () => {
       }
     }
     return filtered;
-  }, [clientMFSData, selectedBusinessUnit, periodFilter, periodValue, isBUHead, user?.business_unit]);
+  }, [clientMFSDataForUser, selectedBusinessUnit, periodFilter, periodValue]);
 
   // Client section: BU and years from client data (so filters work when team summary is empty)
   const clientBusinessUnits = useMemo(() => {
     const unitsSet = new Set<string>();
-    clientMFSData.forEach(item => {
+    clientMFSDataForUser.forEach(item => {
       if (item.business_unit) {
         const normalized = normalizeBusinessUnitName(item.business_unit);
         if (normalized) unitsSet.add(normalized);
       }
     });
     return Array.from(unitsSet).sort();
-  }, [clientMFSData]);
+  }, [clientMFSDataForUser]);
 
   const clientYears = useMemo(() => {
     const yearSet = new Set<number>();
-    clientMFSData.forEach(item => {
+    clientMFSDataForUser.forEach(item => {
       if (item.year != null) yearSet.add(Number(item.year));
     });
     return Array.from(yearSet).sort((a, b) => b - a);
-  }, [clientMFSData]);
+  }, [clientMFSDataForUser]);
 
   const clientNames = useMemo(() => {
     const names = new Set<string>();
@@ -674,43 +673,52 @@ const MFSdata: React.FC = () => {
   // Build client table data: same structure as Client MFS Team Report Data (rows = clients, cells = param_monthKey)
   const clientTableData = useMemo(() => {
     if (clientTableRowKeys.length === 0 || clientTableMonths.length === 0) return [];
-    const rows: Array<{ client: string; project?: string; [key: string]: any }> = [];
+    const monthSet = new Set(clientTableMonths);
+    const rowTotalsMap = new Map<string, Record<string, number>>();
 
-    clientTableRowKeys.forEach(({ client: rowClient, project: rowProject }) => {
+    // Aggregate in one pass: (rowKey, monthKey, parameter) -> total
+    filteredClientMFSData.forEach(item => {
+      const client = String(item.client_name || '').trim();
+      const project = String(item.project_name || '').trim();
+
+      if (!client) return;
+      if (isClientMSSelected && !project) return;
+
+      const my = getItemMonthYear(item);
+      if (!my || !my.monthName) return;
+      const monthKey = getMonthKey(my.monthName, my.year);
+      if (!monthSet.has(monthKey)) return;
+
+      const rowKey = isClientMSSelected ? `${client}\0${project}` : client;
+      const rowTotals = rowTotalsMap.get(rowKey) || {};
+
+      clientTableParameters.forEach(param => {
+        const paramValue = item[param.key];
+        if (paramValue === null || paramValue === undefined || paramValue === '') return;
+        const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
+        if (isNaN(numValue)) return;
+        const cellKey = `${param.key}_${monthKey}`;
+        rowTotals[cellKey] = (rowTotals[cellKey] || 0) + numValue;
+      });
+
+      rowTotalsMap.set(rowKey, rowTotals);
+    });
+
+    return clientTableRowKeys.map(({ client: rowClient, project: rowProject }) => {
+      const rowKey = isClientMSSelected ? `${rowClient}\0${rowProject || ''}` : rowClient;
+      const rowTotals = rowTotalsMap.get(rowKey) || {};
       const row: { client: string; project?: string; [key: string]: any } = { client: rowClient };
       if (isClientMSSelected) row.project = rowProject;
 
-      const clientData = isClientMSSelected
-        ? filteredClientMFSData.filter(item =>
-            String(item.client_name || '').trim() === rowClient &&
-            String(item.project_name || '').trim() === rowProject)
-        : filteredClientMFSData.filter(item => String(item.client_name || '').trim() === rowClient);
-
       clientTableParameters.forEach(param => {
         clientTableMonths.forEach(monthKey => {
-          let totalValue = 0;
-          const [yearStr, monthNumStr] = monthKey.split('-');
-          const year = parseInt(yearStr, 10);
-          const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'];
-          const monthName = monthNames[parseInt(monthNumStr, 10)] || '';
-
-          clientData.forEach(item => {
-            const my = getItemMonthYear(item);
-            if (!my || my.monthName !== monthName || my.year !== year) return;
-            const paramValue = item[param.key];
-            if (paramValue !== null && paramValue !== undefined && paramValue !== '') {
-              const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
-              if (!isNaN(numValue)) totalValue += numValue;
-            }
-          });
-          row[`${param.key}_${monthKey}`] = totalValue;
+          const cellKey = `${param.key}_${monthKey}`;
+          row[cellKey] = rowTotals[cellKey] || 0;
         });
       });
-      rows.push(row);
-    });
 
-    return rows;
+      return row;
+    });
   }, [filteredClientMFSData, clientTableRowKeys, clientTableMonths, isClientMSSelected]);
 
   // Client table: which parameters to show (default all)
@@ -728,6 +736,53 @@ const MFSdata: React.FC = () => {
     }
     return rows;
   }, [clientTableData, clientSelectedClient, clientSelectedProject, isClientMSSelected]);
+
+  // Defer large table rendering updates so filter interactions stay responsive on large datasets.
+  const deferredPivotData = useDeferredValue(pivotData);
+  const deferredMonths = useDeferredValue(months);
+  const deferredClientTableDataFiltered = useDeferredValue(clientTableDataFiltered);
+  const deferredClientTableMonths = useDeferredValue(clientTableMonths);
+  const deferredClientTableParametersFiltered = useDeferredValue(clientTableParametersFiltered);
+
+  // Precompute client total-row values once per deferred render input (keeps rendering pure/UI-only optimization).
+  const clientTotalsByMonthAndParam = useMemo(() => {
+    const totalsMap: Record<string, number> = {};
+    deferredClientTableMonths.forEach(monthKey => {
+      const revKey = `revenue_${monthKey}`;
+      const gpmKey = `gpm_${monthKey}`;
+      const npKey = `np_${monthKey}`;
+      let sumRevenue = 0;
+      let sumGpm = 0;
+      let sumNp = 0;
+
+      deferredClientTableDataFiltered.forEach(r => {
+        sumRevenue += Number(r[revKey] ?? 0) || 0;
+        sumGpm += Number(r[gpmKey] ?? 0) || 0;
+        sumNp += Number(r[npKey] ?? 0) || 0;
+      });
+
+      deferredClientTableParametersFiltered.forEach(param => {
+        const mapKey = `${monthKey}|${param.key}`;
+        if (param.key === 'gpm_percentage') {
+          totalsMap[mapKey] = sumRevenue !== 0 ? (sumGpm / sumRevenue) * 100 : 0;
+          return;
+        }
+        if (param.key === 'np_percentage') {
+          totalsMap[mapKey] = sumRevenue !== 0 ? (sumNp / sumRevenue) * 100 : 0;
+          return;
+        }
+
+        const cellKey = `${param.key}_${monthKey}`;
+        let totalValue = 0;
+        deferredClientTableDataFiltered.forEach(r => {
+          const v = r[cellKey] ?? 0;
+          if (!isNaN(Number(v))) totalValue += Number(v);
+        });
+        totalsMap[mapKey] = totalValue;
+      });
+    });
+    return totalsMap;
+  }, [deferredClientTableDataFiltered, deferredClientTableMonths, deferredClientTableParametersFiltered]);
 
   // Format value for client table: show '-' for 0, N/A for null/NaN
   const formatClientTableValue = (value: number, parameter: string): string => {
@@ -1484,7 +1539,7 @@ const MFSdata: React.FC = () => {
   };
 
   const handleExportMFSData = () => {
-    const exportData = teamReportData.map((row: TeamReportItem) => ({
+    const exportData = teamReportDataForUser.map((row: TeamReportItem) => ({
       'Business Unit': row.business_unit || '',
       'Month': row.month || '',
       'Year': row.year,
@@ -1501,7 +1556,7 @@ const MFSdata: React.FC = () => {
   };
 
   const handleExportClientMFSData = () => {
-    const exportData = clientMFSData.map((row: TeamReportItem) => ({
+    const exportData = clientMFSDataForUser.map((row: TeamReportItem) => ({
       'Business Unit': row.business_unit || '', 'Client Name': row.client_name || '', 'Project Name': row.project_name || '',
       'BU Head': row.bu_head || '', 'Year': row.year, 'Month': row.month || '',
       'HC': row.hc || 0, 'Revenue': row.revenue || 0, 'Salary Cost': row.salary_cost || 0,
@@ -1725,7 +1780,7 @@ const MFSdata: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {pivotData.map((paramData) => (
+                  {deferredPivotData.map((paramData) => (
                     <tr key={paramData.parameter}>
                       <td className="parameter-cell">{paramData.label}</td>
                     </tr>
@@ -1739,7 +1794,7 @@ const MFSdata: React.FC = () => {
               <table className="pivot-table scrollable-table">
                 <thead>
                   <tr>
-                    {months.map(monthKey => {
+                    {deferredMonths.map(monthKey => {
                       const [year, monthNum] = monthKey.split('-');
                       const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1765,9 +1820,9 @@ const MFSdata: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {pivotData.map((paramData) => (
+                  {deferredPivotData.map((paramData) => (
                     <tr key={paramData.parameter}>
-                      {months.map(monthKey => {
+                      {deferredMonths.map(monthKey => {
                         const cellData = paramData.values[monthKey];
                         const isEditing = editingCell?.parameter === paramData.parameter &&
                                          editingCell?.monthKey === monthKey &&
@@ -1812,7 +1867,7 @@ const MFSdata: React.FC = () => {
                         {(() => {
                           // Calculate total for this parameter across all months
                           let paramTotal = 0;
-                          months.forEach(monthKey => {
+                          deferredMonths.forEach(monthKey => {
                             const cellData = paramData.values[monthKey];
                             if (cellData && !isNaN(cellData.value)) {
                               paramTotal += cellData.value;
@@ -1988,7 +2043,7 @@ const MFSdata: React.FC = () => {
               <div className="loading">Loading client data...</div>
             ) : !selectedBusinessUnit ? (
               <div className="empty">Please select a Business Unit to view client-wise data.</div>
-            ) : clientTableDataFiltered.length === 0 ? (
+            ) : deferredClientTableDataFiltered.length === 0 ? (
               <div className="empty">No client-wise data for the selected filters.</div>
             ) : (
               <div className={`split-table-container client-mfs-split ${isClientMSSelected ? 'ms-selected' : ''}`}>
@@ -1996,12 +2051,12 @@ const MFSdata: React.FC = () => {
                   <table className="pivot-table fixed-table client-mfs-fixed-table">
                     <thead>
                       <tr>
-                        <th className="parameter-header" rowSpan={clientTableParametersFiltered.length > 1 ? 2 : 1}>Client</th>
+                        <th className="parameter-header" rowSpan={deferredClientTableParametersFiltered.length > 1 ? 2 : 1}>Client</th>
                         {isClientMSSelected && (
-                          <th className="parameter-header" rowSpan={clientTableParametersFiltered.length > 1 ? 2 : 1}>Project</th>
+                          <th className="parameter-header" rowSpan={deferredClientTableParametersFiltered.length > 1 ? 2 : 1}>Project</th>
                         )}
                       </tr>
-                      {clientTableParametersFiltered.length > 1 ? (
+                      {deferredClientTableParametersFiltered.length > 1 ? (
                         <tr>
                           <th></th>
                           {isClientMSSelected && <th></th>}
@@ -2009,7 +2064,7 @@ const MFSdata: React.FC = () => {
                       ) : null}
                     </thead>
                     <tbody>
-                      {clientTableDataFiltered.map((row, rowIndex) => (
+                      {deferredClientTableDataFiltered.map((row, rowIndex) => (
                         <tr key={`cf_${row.client}_${row.project || ''}_${rowIndex}`} data-client={row.client} data-project={row.project || ''}>
                           <td className="parameter-cell">{row.client}</td>
                           {isClientMSSelected && (
@@ -2030,13 +2085,13 @@ const MFSdata: React.FC = () => {
                   <table className="pivot-table scrollable-table client-mfs-scrollable-table">
                     <thead>
                       <tr>
-                        {clientTableMonths.map(monthKey => {
+                        {deferredClientTableMonths.map(monthKey => {
                           const [year, monthNum] = monthKey.split('-');
                           const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                           const monthName = monthNames[parseInt(monthNum)];
                           return (
-                            <th key={monthKey} className="month-header" colSpan={clientTableParametersFiltered.length}>
+                            <th key={monthKey} className="month-header" colSpan={deferredClientTableParametersFiltered.length}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
                                 {monthName} {year}
                                 {editMode && (
@@ -2053,10 +2108,10 @@ const MFSdata: React.FC = () => {
                           );
                         })}
                       </tr>
-                      {clientTableParametersFiltered.length > 1 ? (
+                      {deferredClientTableParametersFiltered.length > 1 ? (
                         <tr>
-                          {clientTableMonths.map(monthKey =>
-                            clientTableParametersFiltered.map(param => (
+                          {deferredClientTableMonths.map(monthKey =>
+                            deferredClientTableParametersFiltered.map(param => (
                               <th key={`${monthKey}_${param.key}`} className="month-header">
                                 {param.label}
                               </th>
@@ -2066,10 +2121,10 @@ const MFSdata: React.FC = () => {
                       ) : null}
                     </thead>
                     <tbody>
-                      {clientTableDataFiltered.map((row, rowIndex) => (
+                      {deferredClientTableDataFiltered.map((row, rowIndex) => (
                         <tr key={`cs_${row.client}_${row.project || ''}_${rowIndex}`} data-client={row.client} data-project={row.project || ''}>
-                          {clientTableMonths.map(monthKey =>
-                            clientTableParametersFiltered.map(param => {
+                          {deferredClientTableMonths.map(monthKey =>
+                            deferredClientTableParametersFiltered.map(param => {
                               const cellKey = `${param.key}_${monthKey}`;
                               const cellValue = row[cellKey] ?? 0;
                               const isClientEditing =
@@ -2114,37 +2169,16 @@ const MFSdata: React.FC = () => {
                         </tr>
                       ))}
                       <tr className="total-row">
-                        {clientTableMonths.map(monthKey => {
-                          const revKey = `revenue_${monthKey}`;
-                          const gpmKey = `gpm_${monthKey}`;
-                          const npKey = `np_${monthKey}`;
-                          let sumRevenue = 0, sumGpm = 0, sumNp = 0;
-                          clientTableDataFiltered.forEach(r => {
-                            sumRevenue += Number(r[revKey] ?? 0) || 0;
-                            sumGpm += Number(r[gpmKey] ?? 0) || 0;
-                            sumNp += Number(r[npKey] ?? 0) || 0;
-                          });
-                          return clientTableParametersFiltered.map(param => {
-                            const cellKey = `${param.key}_${monthKey}`;
-                            let totalValue: number;
-                            if (param.key === 'gpm_percentage') {
-                              totalValue = sumRevenue !== 0 ? (sumGpm / sumRevenue) * 100 : 0;
-                            } else if (param.key === 'np_percentage') {
-                              totalValue = sumRevenue !== 0 ? (sumNp / sumRevenue) * 100 : 0;
-                            } else {
-                              totalValue = 0;
-                              clientTableDataFiltered.forEach(r => {
-                                const v = r[cellKey] ?? 0;
-                                if (!isNaN(Number(v))) totalValue += Number(v);
-                              });
-                            }
+                        {deferredClientTableMonths.map(monthKey =>
+                          deferredClientTableParametersFiltered.map(param => {
+                            const totalValue = clientTotalsByMonthAndParam[`${monthKey}|${param.key}`] || 0;
                             return (
                               <td key={`tot_${monthKey}_${param.key}`} className="data-cell total-cell">
                                 {formatClientTableValue(totalValue, param.key)}
                               </td>
                             );
-                          });
-                        })}
+                          })
+                        )}
                       </tr>
                     </tbody>
                   </table>
