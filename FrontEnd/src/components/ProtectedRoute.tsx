@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { getFinancialsUser, isFinancialsAuthenticated } from '../config/financialsAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -7,14 +8,16 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedDesignations }) => {
-  const user = localStorage.getItem('user');
-  
-  if (!user) {
+  if (!isFinancialsAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
+
+  const userData = getFinancialsUser();
+  if (!userData) {
     return <Navigate to="/" replace />;
   }
 
   try {
-    const userData = JSON.parse(user);
     const userDesignation = userData.designation?.toUpperCase() || '';
 
     // SUPER ADMIN has access to everything
@@ -40,4 +43,3 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedDesign
 };
 
 export default ProtectedRoute;
-

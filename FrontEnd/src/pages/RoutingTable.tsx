@@ -11,6 +11,7 @@ import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import logo from '../assets/logo_1.png';
 import apiClient from '../config/api';
+import { clearFinancialsSession } from '../config/financialsAuth';
 import { formatDateOnly } from '../utils/dateUtils';
 
 // Helper function to parse billing month from various formats including Excel serial numbers
@@ -1237,9 +1238,7 @@ const filteredData = useMemo(() => {
 
   // Handle logout
   const handleLogout = () => {
-    // Clear any stored authentication data
-    localStorage.removeItem('user');
-    sessionStorage.clear();
+    clearFinancialsSession();
     navigate('/');
   };
 

@@ -23,6 +23,7 @@ import { formatValueForTable } from '../utils/formatUtils';
 import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit } from '../utils/businessUnitUtils';
 
 import apiClient from '../config/api';
+import { getFinancialsUser } from '../config/financialsAuth';
 
 import * as XLSX from 'xlsx';
 
@@ -2638,11 +2639,9 @@ const ClientMFSCompare: React.FC = () => {
 
     try {
 
-      const storedUser = localStorage.getItem("user");
+      const parsedUser = getFinancialsUser();
 
-      if (storedUser && storedUser !== "undefined") {
-
-        const parsedUser = JSON.parse(storedUser);
+      if (parsedUser) {
 
         setUser(parsedUser);
 

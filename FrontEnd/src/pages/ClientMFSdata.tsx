@@ -4,6 +4,7 @@ import { Select } from 'antd';
 import './MFSdata.css';
 import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
+import { getFinancialsUser } from '../config/financialsAuth';
 import logo from '../assets/logo_1.png';
 
 interface TeamReportItem {
@@ -125,9 +126,8 @@ const ClientMFSdata: React.FC = () => {
   // Check user authentication and set BU head status
   useEffect(() => {
     try {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser && storedUser !== "undefined") {
-        const parsedUser = JSON.parse(storedUser);
+      const parsedUser = getFinancialsUser();
+      if (parsedUser) {
         setUser(parsedUser);
         
         const userIsBUHead = parsedUser?.designation === 'BU HEAD';

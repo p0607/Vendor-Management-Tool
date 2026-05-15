@@ -1,4 +1,8 @@
 import axios from 'axios';
+import {
+  clearFinancialsSession,
+  getFinancialsToken,
+} from './financialsAuth';
 
 // Environment-based API configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? 'http://40.67.147.19' : 'http://localhost:5001');
@@ -22,10 +26,10 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor
+// Request interceptor — Financials JWT only (not VMS authToken)
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
+    const token = getFinancialsToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -39,8 +43,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
+      clearFinancialsSession();
       window.location.href = '/';
     }
     return Promise.reject(error);

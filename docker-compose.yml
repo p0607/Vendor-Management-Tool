@@ -55,6 +55,9 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       FRONTEND_URL: ${FRONTEND_URL:-https://q9lab.in}
+      JWT_SECRET: ${JWT_SECRET:-change-this-financials-jwt-secret-in-production}
+      FINANCIALS_REQUIRE_JWT: ${FINANCIALS_REQUIRE_JWT:-true}
+      FINANCIALS_STRICT_API: ${FINANCIALS_STRICT_API:-false}
     ports:
       - "5001:5001"
     volumes:

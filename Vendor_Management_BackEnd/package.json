@@ -9,7 +9,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
-  "keywords": ["vendor-management", "api", "express", "postgresql"],
+  "keywords": [
+    "vendor-management",
+    "api",
+    "express",
+    "postgresql"
+  ],
   "author": "Alchemy Techsol",
   "license": "ISC",
   "description": "Production-ready backend API for Vendor Management Tool",
@@ -24,6 +29,7 @@
     "express-rate-limit": "^7.1.5",
     "fs": "^0.0.1-security",
     "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "path": "^0.12.7",

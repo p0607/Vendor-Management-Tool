@@ -1,22 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { clearFinancialsSession, getFinancialsUser } from '../config/financialsAuth';
 import './HomePage.css';
-import logo from '../assets/logo_1.png';
 
 const HomePage: React.FC = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const userDesignation = user.designation?.toUpperCase() || '';
+  const user = getFinancialsUser();
+  const userDesignation = (user?.designation ?? '').toUpperCase();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // Clear all authentication data
-    localStorage.removeItem('user');
-    localStorage.removeItem('userDesignation');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('token');
-    sessionStorage.clear();
-    
-    // Navigate to login page
+    clearFinancialsSession();
     navigate('/');
   };
 

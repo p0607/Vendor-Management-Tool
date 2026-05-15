@@ -13,6 +13,10 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const morgan = require('morgan');
 const winston = require('winston');
+const {
+  signFinancialsToken,
+  financialsApiAuthMiddleware,
+} = require('./middleware/financialsAuth');
 
 // Initialize Express app
 const app = express();
@@ -266,6 +270,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Financials JWT: protect /api/* except login, health, forgot/reset password.
+// Set FINANCIALS_REQUIRE_JWT=false only for emergency rollback.
+app.use(financialsApiAuthMiddleware);
+
 // Format Date to YYYY-MM-DD using local date components (avoids UTC shifting the day/month)
 function toLocalYYYYMMDD(date) {
   const y = date.getFullYear();
@@ -451,16 +459,21 @@ app.post('/api/login', async (req, res, next) => {
       }
     }
     
-    res.json({ 
-      success: true, 
+    const userPayload = {
+      id: user.id,
+      name: user.name,
+      designation: user.designation,
+      business_unit: normalizedBusinessUnit,
+      email: user.email,
+    };
+
+    const token = signFinancialsToken(userPayload);
+
+    res.json({
+      success: true,
       message: 'Login successful',
-      user: {
-        id: user.id,
-        name: user.name,
-        designation: user.designation,
-        business_unit: normalizedBusinessUnit,
-        email: user.email
-      }
+      user: userPayload,
+      token,
     });
   } catch (err) {
     next(err);

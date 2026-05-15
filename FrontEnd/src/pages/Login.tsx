@@ -1,8 +1,11 @@
 import React, { useState, FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../config/api';
+import {
+  isFinancialsAuthenticated,
+  setFinancialsSession,
+} from '../config/financialsAuth';
 import './login.css';
-import logo from '../assets/logo_1.png';
 
 const Login = () => {
   const [name, setName] = useState<string>('');
@@ -13,7 +16,7 @@ const Login = () => {
 
   useEffect(() => {
     try {
-      if (localStorage.getItem('user')) {
+      if (isFinancialsAuthenticated()) {
         navigate('/HomePage', { replace: true });
       }
     } catch {
@@ -23,7 +26,7 @@ const Login = () => {
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (!name || !password) {
       setError('Please fill in all fields');
       return;
@@ -34,24 +37,18 @@ const Login = () => {
 
     try {
       const response = await apiClient.post('/login', { name, password });
-      
-      if (response.data.success) {
-        // Store user session data
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        if (response.data.token) {
-          localStorage.setItem('authToken', response.data.token);
-        } else {
-          localStorage.removeItem('authToken');
-        }
-        
-        // Replace history so Back from Home does not return to login while session is active
+
+      if (response.data.success && response.data.user && response.data.token) {
+        setFinancialsSession(response.data.user, response.data.token);
         navigate('/HomePage', { replace: true });
+      } else if (response.data.success && response.data.user) {
+        setError('Login succeeded but no session token was returned. Please contact support.');
       } else {
         setError(response.data.message || 'Invalid credentials');
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      
+
       if (err.response?.data?.error) {
         setError(err.response.data.error);
       } else if (err.response?.data?.message) {
@@ -97,11 +94,7 @@ const Login = () => {
               required
             />
           </div>
-          <button 
-            type="submit" 
-            className="login-btn"
-            disabled={isLoading}
-          >
+          <button type="submit" className="login-btn" disabled={isLoading}>
             {isLoading ? 'Logging in...' : 'Log In'}
           </button>
         </form>
