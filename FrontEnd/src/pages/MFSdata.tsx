@@ -250,11 +250,46 @@ const MFSdata: React.FC = () => {
     return Array.from(yearSet).sort((a, b) => b - a);
   }, [teamReportDataForUser]);
 
+  // Helper to extract month from various formats (date string, month name, etc.)
+  const extractMonthFromValue = (monthValue: any): string => {
+    if (!monthValue) return '';
+
+    if (typeof monthValue === 'string') {
+      const dateMatch = monthValue.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?(?:[Tt].*)?$/);
+      if (dateMatch) {
+        const monthNum = parseInt(dateMatch[2], 10);
+        const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+        if (monthNum >= 1 && monthNum <= 12) {
+          return monthNames[monthNum];
+        }
+      }
+
+      const date = new Date(monthValue);
+      if (!isNaN(date.getTime())) {
+        const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+        return monthNames[date.getMonth() + 1];
+      }
+
+      return monthValue;
+    }
+
+    if (monthValue instanceof Date) {
+      const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      return monthNames[monthValue.getMonth() + 1];
+    }
+
+    return String(monthValue);
+  };
+
   // Helper to normalize month name to full name (handles both full names and abbreviations)
-  const normalizeToFullMonthName = (monthName: string): string => {
-    if (!monthName || typeof monthName !== 'string') return '';
-    
-    const normalized = monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+  const normalizeToFullMonthName = (monthName: any): string => {
+    const extractedMonth = extractMonthFromValue(monthName);
+    if (!extractedMonth) return '';
+
+    const normalized = extractedMonth.charAt(0).toUpperCase() + extractedMonth.slice(1).toLowerCase();
     
     // Map abbreviations to full names
     const abbreviationMap: { [key: string]: string } = {
@@ -530,6 +565,22 @@ const MFSdata: React.FC = () => {
       return { monthName: monthNames[monthNum] || '', year: y || parseInt(parts[0], 10) };
     }
     return { monthName: normalizeToFullMonthName(String(m)), year: y };
+  };
+
+  const getMonthNameYearFromKey = (monthKey: string): { monthName: string; year: number } => {
+    const [yearStr, monthNumStr] = monthKey.split('-');
+    const year = parseInt(yearStr, 10);
+    const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthName = monthNames[parseInt(monthNumStr, 10)] || '';
+    return { monthName, year };
+  };
+
+  const itemMatchesMonthKey = (item: TeamReportItem, monthKey: string): boolean => {
+    const my = getItemMonthYear(item);
+    if (!my) return false;
+    const { monthName, year } = getMonthNameYearFromKey(monthKey);
+    return my.monthName === monthName && my.year === year;
   };
 
   const clientMFSDataForUser = useMemo(() => {
@@ -1083,6 +1134,12 @@ const MFSdata: React.FC = () => {
     };
   }, [editingCell, editMode, clientTableDataFiltered, clientTableParametersFiltered, isClientMSSelected]);
 
+  const summaryMonthHasData = (monthKey: string): boolean =>
+    filteredData.some((item: TeamReportItem) => itemMatchesMonthKey(item, monthKey));
+
+  const clientMonthHasData = (monthKey: string): boolean =>
+    filteredClientMFSData.some((item: TeamReportItem) => itemMatchesMonthKey(item, monthKey));
+
   // Handle edit click (summary table or client table)
   const handleEditClick = (
     parameter: string,
@@ -1106,13 +1163,6 @@ const MFSdata: React.FC = () => {
   const handleSaveEdit = async () => {
     if (!editingCell) return;
 
-    const monthParts = editingCell.monthKey.split('-');
-    const year = parseInt(monthParts[0], 10);
-    const monthNum = parseInt(monthParts[1], 10);
-    const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'];
-    const monthName = monthNames[monthNum];
-
     const updateValue = parseFloat(editedValue);
     if (isNaN(updateValue)) {
       setError('Invalid number');
@@ -1122,12 +1172,8 @@ const MFSdata: React.FC = () => {
     try {
       if (editingCell.table === 'client') {
         // Client table: PATCH /team-report
-        let records = filteredClientMFSData.filter(
-          (item: TeamReportItem) => {
-            const my = getItemMonthYear(item);
-            if (!my || my.monthName !== monthName || my.year !== year) return false;
-            return true;
-          }
+        let records = filteredClientMFSData.filter((item: TeamReportItem) =>
+          itemMatchesMonthKey(item, editingCell.monthKey)
         );
         if (editingCell.clientName) {
           records = records.filter((item: TeamReportItem) => item.client_name === editingCell.clientName);
@@ -1150,19 +1196,28 @@ const MFSdata: React.FC = () => {
           setError(null);
         }
       } else {
-        // Summary table: PATCH /team-summary-report
-        const records = filteredData.filter(
-          (item: TeamReportItem) => item.month === monthName && item.year === year
-        );
-        if (records.length === 0) {
-          setError('No record found for this month');
-          return;
+        // Summary table: PATCH /team-summary-report (use pivot record id when available)
+        const paramRow = pivotData.find(p => p.parameter === editingCell.parameter);
+        const cellData = paramRow?.values[editingCell.monthKey];
+
+        if (cellData?.id) {
+          await apiClient.patch(`/team-summary-report/${cellData.id}`, {
+            [editingCell.parameter]: updateValue,
+          });
+        } else {
+          const records = filteredData.filter((item: TeamReportItem) =>
+            itemMatchesMonthKey(item, editingCell.monthKey)
+          );
+          if (records.length === 0) {
+            setError('No record found for this month');
+            return;
+          }
+          await Promise.all(
+            records.map((record: TeamReportItem) =>
+              apiClient.patch(`/team-summary-report/${record.id}`, { [editingCell.parameter]: updateValue })
+            )
+          );
         }
-        await Promise.all(
-          records.map((record: TeamReportItem) =>
-            apiClient.patch(`/team-summary-report/${record.id}`, { [editingCell.parameter]: updateValue })
-          )
-        );
         const response = await apiClient.get('/team-summary-report');
         if (Array.isArray(response.data)) {
           setTeamReportData(response.data as TeamReportItem[]);
@@ -1183,16 +1238,6 @@ const MFSdata: React.FC = () => {
     setEditedValue('');
   };
 
-  // Convert monthKey (e.g. "2025-04") to month name and year for matching records
-  const getMonthNameYearFromKey = (monthKey: string): { monthName: string; year: number } => {
-    const [yearStr, monthNumStr] = monthKey.split('-');
-    const year = parseInt(yearStr, 10);
-    const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'];
-    const monthName = monthNames[parseInt(monthNumStr, 10)] || '';
-    return { monthName, year };
-  };
-
   // Delete selected months from summary table (team-summary-report)
   const handleDeleteSummaryMonths = async () => {
     if (selectedSummaryMonthsToDelete.length === 0) {
@@ -1202,14 +1247,14 @@ const MFSdata: React.FC = () => {
     try {
       const toDelete: TeamReportItem[] = [];
       selectedSummaryMonthsToDelete.forEach(monthKey => {
-        const { monthName, year } = getMonthNameYearFromKey(monthKey);
-        const records = filteredData.filter(
-          (item: TeamReportItem) => item.month === monthName && item.year === year
+        const records = filteredData.filter((item: TeamReportItem) =>
+          itemMatchesMonthKey(item, monthKey)
         );
         toDelete.push(...records);
       });
       if (toDelete.length === 0) {
-        setError('No records found for selected months.');
+        setSelectedSummaryMonthsToDelete([]);
+        setError('No data to delete for selected month(s). They may already have been deleted.');
         return;
       }
       await Promise.all(
@@ -1236,14 +1281,14 @@ const MFSdata: React.FC = () => {
     try {
       const toDelete: TeamReportItem[] = [];
       selectedClientMonthsToDelete.forEach(monthKey => {
-        const { monthName, year } = getMonthNameYearFromKey(monthKey);
-        filteredClientMFSData.forEach((item: TeamReportItem) => {
-          const my = getItemMonthYear(item);
-          if (my && my.monthName === monthName && my.year === year) toDelete.push(item);
-        });
+        const records = filteredClientMFSData.filter((item: TeamReportItem) =>
+          itemMatchesMonthKey(item, monthKey)
+        );
+        toDelete.push(...records);
       });
       if (toDelete.length === 0) {
-        setError('No records found for selected months.');
+        setSelectedClientMonthsToDelete([]);
+        setError('No data to delete for selected month(s). They may already have been deleted.');
         return;
       }
       await Promise.all(
@@ -1803,7 +1848,7 @@ const MFSdata: React.FC = () => {
                         <th key={monthKey} className="month-header">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                             {monthName} {year}
-                            {editMode && (
+                            {editMode && summaryMonthHasData(monthKey) && (
                               <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
                                 <input
                                   type="checkbox"
@@ -2094,7 +2139,7 @@ const MFSdata: React.FC = () => {
                             <th key={monthKey} className="month-header" colSpan={deferredClientTableParametersFiltered.length}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
                                 {monthName} {year}
-                                {editMode && (
+                                {editMode && clientMonthHasData(monthKey) && (
                                   <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
                                     <input
                                       type="checkbox"
