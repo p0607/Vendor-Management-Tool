@@ -1281,9 +1281,12 @@ const MFSdata: React.FC = () => {
     try {
       const toDelete: TeamReportItem[] = [];
       selectedClientMonthsToDelete.forEach(monthKey => {
-        const records = filteredClientMFSData.filter((item: TeamReportItem) =>
-          itemMatchesMonthKey(item, monthKey)
-        );
+        const records = filteredClientMFSData.filter((item: TeamReportItem) => {
+          if (!itemMatchesMonthKey(item, monthKey)) return false;
+          if (clientSelectedClient && String(item.client_name || '').trim() !== clientSelectedClient) return false;
+          if (isClientMSSelected && clientSelectedProject && String(item.project_name || '').trim() !== clientSelectedProject) return false;
+          return true;
+        });
         toDelete.push(...records);
       });
       if (toDelete.length === 0) {
