@@ -35,6 +35,32 @@ interface TeamReportItem {
   [key: string]: any;
 }
 
+const MFS_HIDDEN_STORAGE = {
+  summaryMonths: 'mfsdata_hidden_summary_months',
+  summaryRows: 'mfsdata_hidden_summary_rows',
+  clientMonths: 'mfsdata_hidden_client_months',
+  clientRows: 'mfsdata_hidden_client_rows',
+} as const;
+
+const loadHiddenKeys = (storageKey: string): string[] => {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveHiddenKeys = (storageKey: string, keys: string[]) => {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(keys));
+  } catch {
+    // Ignore quota / private-mode errors
+  }
+};
+
 interface ParameterData {
   parameter: string;
   label: string;
@@ -94,8 +120,144 @@ const MFSdata: React.FC = () => {
   const [user, setUser] = useState<any>({});
   const [isBUHead, setIsBUHead] = useState<boolean>(false);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState<boolean>(false);
+  const [hiddenSummaryMonths, setHiddenSummaryMonths] = useState<string[]>(
+    () => loadHiddenKeys(MFS_HIDDEN_STORAGE.summaryMonths)
+  );
+  const [hiddenSummaryRows, setHiddenSummaryRows] = useState<string[]>(
+    () => loadHiddenKeys(MFS_HIDDEN_STORAGE.summaryRows)
+  );
+  const [hiddenClientMonths, setHiddenClientMonths] = useState<string[]>(
+    () => loadHiddenKeys(MFS_HIDDEN_STORAGE.clientMonths)
+  );
+  const [hiddenClientRows, setHiddenClientRows] = useState<string[]>(
+    () => loadHiddenKeys(MFS_HIDDEN_STORAGE.clientRows)
+  );
+
+  useEffect(() => {
+    saveHiddenKeys(MFS_HIDDEN_STORAGE.summaryMonths, hiddenSummaryMonths);
+  }, [hiddenSummaryMonths]);
+
+  useEffect(() => {
+    saveHiddenKeys(MFS_HIDDEN_STORAGE.summaryRows, hiddenSummaryRows);
+  }, [hiddenSummaryRows]);
+
+  useEffect(() => {
+    saveHiddenKeys(MFS_HIDDEN_STORAGE.clientMonths, hiddenClientMonths);
+  }, [hiddenClientMonths]);
+
+  useEffect(() => {
+    saveHiddenKeys(MFS_HIDDEN_STORAGE.clientRows, hiddenClientRows);
+  }, [hiddenClientRows]);
 
   const navigate = useNavigate();
+
+  const formatMonthKeyLabel = (monthKey: string): string => {
+    const [year, monthNum] = monthKey.split('-');
+    const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthName = monthNames[parseInt(monthNum, 10)] || monthKey;
+    return `${monthName} ${year}`;
+  };
+
+  const getClientRowKey = (row: { client: string; project?: string }): string =>
+    `${row.client}::${row.project || ''}`;
+
+  const hideSummaryMonth = (monthKey: string) => {
+    setHiddenSummaryMonths(prev => (prev.includes(monthKey) ? prev : [...prev, monthKey]));
+  };
+  const showSummaryMonth = (monthKey: string) => {
+    setHiddenSummaryMonths(prev => prev.filter(k => k !== monthKey));
+  };
+  const hideSummaryRow = (parameter: string) => {
+    setHiddenSummaryRows(prev => (prev.includes(parameter) ? prev : [...prev, parameter]));
+  };
+  const showSummaryRow = (parameter: string) => {
+    setHiddenSummaryRows(prev => prev.filter(k => k !== parameter));
+  };
+  const hideClientMonth = (monthKey: string) => {
+    setHiddenClientMonths(prev => (prev.includes(monthKey) ? prev : [...prev, monthKey]));
+  };
+  const showClientMonth = (monthKey: string) => {
+    setHiddenClientMonths(prev => prev.filter(k => k !== monthKey));
+  };
+  const hideClientRow = (rowKey: string) => {
+    setHiddenClientRows(prev => (prev.includes(rowKey) ? prev : [...prev, rowKey]));
+  };
+  const showClientRow = (rowKey: string) => {
+    setHiddenClientRows(prev => prev.filter(k => k !== rowKey));
+  };
+
+  const hasHiddenItems =
+    hiddenSummaryMonths.length > 0 ||
+    hiddenSummaryRows.length > 0 ||
+    hiddenClientMonths.length > 0 ||
+    hiddenClientRows.length > 0;
+
+  const handleShowAllHidden = () => {
+    setHiddenSummaryMonths([]);
+    setHiddenSummaryRows([]);
+    setHiddenClientMonths([]);
+    setHiddenClientRows([]);
+  };
+
+  const renderHideButton = (onHide: () => void, title: string) => (
+    <button
+      type="button"
+      className="mfs-hide-toggle"
+      onClick={(e) => { e.stopPropagation(); onHide(); }}
+      title={title}
+      aria-label={title}
+    >
+      −
+    </button>
+  );
+
+  const renderShowButton = (onShow: () => void, label: string) => (
+    <span className="mfs-restore-chip">
+      {label}
+      <button
+        type="button"
+        className="mfs-show-toggle"
+        onClick={onShow}
+        title={`Show ${label}`}
+        aria-label={`Show ${label}`}
+      >
+        +
+      </button>
+    </span>
+  );
+
+  const renderSummaryRestoreBar = () => {
+    if (hiddenSummaryMonths.length === 0 && hiddenSummaryRows.length === 0) return null;
+    return (
+      <div className="mfs-hidden-restore-bar">
+        <span className="mfs-hidden-restore-label">Hidden:</span>
+        {hiddenSummaryMonths.map(monthKey =>
+          renderShowButton(() => showSummaryMonth(monthKey), `Column ${formatMonthKeyLabel(monthKey)}`)
+        )}
+        {hiddenSummaryRows.map(parameter => {
+          const label = parameters.find(p => p.key === parameter)?.label || parameter;
+          return renderShowButton(() => showSummaryRow(parameter), `Row ${label}`);
+        })}
+      </div>
+    );
+  };
+
+  const renderClientRestoreBar = () => {
+    if (hiddenClientMonths.length === 0 && hiddenClientRows.length === 0) return null;
+    return (
+      <div className="mfs-hidden-restore-bar">
+        <span className="mfs-hidden-restore-label">Hidden:</span>
+        {hiddenClientMonths.map(monthKey =>
+          renderShowButton(() => showClientMonth(monthKey), `Column ${formatMonthKeyLabel(monthKey)}`)
+        )}
+        {hiddenClientRows.map(rowKey => {
+          const [client, project] = rowKey.split('::');
+          const label = project ? `${client} / ${project}` : client;
+          return renderShowButton(() => showClientRow(rowKey), `Row ${label}`);
+        })}
+      </div>
+    );
+  };
 
   const parseNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
@@ -795,10 +957,42 @@ const MFSdata: React.FC = () => {
   const deferredClientTableMonths = useDeferredValue(clientTableMonths);
   const deferredClientTableParametersFiltered = useDeferredValue(clientTableParametersFiltered);
 
+  const visibleSummaryMonths = useMemo(
+    () => deferredMonths.filter(monthKey => !hiddenSummaryMonths.includes(monthKey)),
+    [deferredMonths, hiddenSummaryMonths]
+  );
+  const visibleSummaryRows = useMemo(
+    () => deferredPivotData.filter(paramData => !hiddenSummaryRows.includes(paramData.parameter)),
+    [deferredPivotData, hiddenSummaryRows]
+  );
+  const visibleClientTableMonths = useMemo(
+    () => deferredClientTableMonths.filter(monthKey => !hiddenClientMonths.includes(monthKey)),
+    [deferredClientTableMonths, hiddenClientMonths]
+  );
+  const visibleClientTableDataFiltered = useMemo(
+    () => deferredClientTableDataFiltered.filter(row => !hiddenClientRows.includes(getClientRowKey(row))),
+    [deferredClientTableDataFiltered, hiddenClientRows]
+  );
+
+  // Drop hidden keys that no longer exist in the current filtered view (e.g. after BU/FY change).
+  useEffect(() => {
+    const validSummaryMonths = new Set(months);
+    setHiddenSummaryMonths(prev => prev.filter(k => validSummaryMonths.has(k)));
+    const validSummaryRows = new Set(parameters.map(p => p.key));
+    setHiddenSummaryRows(prev => prev.filter(k => validSummaryRows.has(k)));
+  }, [months, selectedBusinessUnit, periodFilter, periodValue]);
+
+  useEffect(() => {
+    const validClientMonths = new Set(clientTableMonths);
+    setHiddenClientMonths(prev => prev.filter(k => validClientMonths.has(k)));
+    const validClientRows = new Set(clientTableDataFiltered.map(row => getClientRowKey(row)));
+    setHiddenClientRows(prev => prev.filter(k => validClientRows.has(k)));
+  }, [clientTableMonths, clientTableDataFiltered, selectedBusinessUnit, periodFilter, periodValue]);
+
   // Precompute client total-row values once per deferred render input (keeps rendering pure/UI-only optimization).
   const clientTotalsByMonthAndParam = useMemo(() => {
     const totalsMap: Record<string, number> = {};
-    deferredClientTableMonths.forEach(monthKey => {
+    visibleClientTableMonths.forEach(monthKey => {
       const revKey = `revenue_${monthKey}`;
       const gpmKey = `gpm_${monthKey}`;
       const npKey = `np_${monthKey}`;
@@ -806,7 +1000,7 @@ const MFSdata: React.FC = () => {
       let sumGpm = 0;
       let sumNp = 0;
 
-      deferredClientTableDataFiltered.forEach(r => {
+      visibleClientTableDataFiltered.forEach(r => {
         sumRevenue += Number(r[revKey] ?? 0) || 0;
         sumGpm += Number(r[gpmKey] ?? 0) || 0;
         sumNp += Number(r[npKey] ?? 0) || 0;
@@ -825,7 +1019,7 @@ const MFSdata: React.FC = () => {
 
         const cellKey = `${param.key}_${monthKey}`;
         let totalValue = 0;
-        deferredClientTableDataFiltered.forEach(r => {
+        visibleClientTableDataFiltered.forEach(r => {
           const v = r[cellKey] ?? 0;
           if (!isNaN(Number(v))) totalValue += Number(v);
         });
@@ -833,7 +1027,7 @@ const MFSdata: React.FC = () => {
       });
     });
     return totalsMap;
-  }, [deferredClientTableDataFiltered, deferredClientTableMonths, deferredClientTableParametersFiltered]);
+  }, [visibleClientTableDataFiltered, visibleClientTableMonths, deferredClientTableParametersFiltered]);
 
   // Format value for client table: show '-' for 0, N/A for null/NaN
   const formatClientTableValue = (value: number, parameter: string): string => {
@@ -1132,7 +1326,7 @@ const MFSdata: React.FC = () => {
       if (syncTimeout) clearTimeout(syncTimeout);
       isSyncing = false;
     };
-  }, [editingCell, editMode, clientTableDataFiltered, clientTableParametersFiltered, isClientMSSelected]);
+  }, [editingCell, editMode, clientTableDataFiltered, clientTableParametersFiltered, isClientMSSelected, hiddenClientRows, hiddenClientMonths]);
 
   const summaryMonthHasData = (monthKey: string): boolean =>
     filteredData.some((item: TeamReportItem) => itemMatchesMonthKey(item, monthKey));
@@ -1689,6 +1883,15 @@ const MFSdata: React.FC = () => {
               {editMode ? 'Exit Edit Mode' : 'Edit Mode'}
             </button>
             )}
+            <button
+              type="button"
+              onClick={handleShowAllHidden}
+              disabled={!hasHiddenItems}
+              className="show-all-button"
+              title="Show all hidden rows and columns"
+            >
+              Show All
+            </button>
             {editMode && !isBUHead && (
               <>
                 <button
@@ -1818,6 +2021,15 @@ const MFSdata: React.FC = () => {
           {teamReportData.length === 0 ? (
             <div className="empty" style={{ padding: '1rem 0' }}>No MFS team summary records found.</div>
           ) : (
+          <>
+          {renderSummaryRestoreBar()}
+          {(visibleSummaryMonths.length === 0 && months.length > 0) || (visibleSummaryRows.length === 0 && pivotData.length > 0) ? (
+            <div className="empty">
+              {visibleSummaryMonths.length === 0 && months.length > 0
+                ? 'All summary columns are hidden. Use + above to show them again.'
+                : 'All summary rows are hidden. Use + above to show them again.'}
+            </div>
+          ) : (
           <div className="split-table-container">
             {/* Fixed Parameter Column Table */}
             <div className="fixed-column-table">
@@ -1828,9 +2040,12 @@ const MFSdata: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {deferredPivotData.map((paramData) => (
+                  {visibleSummaryRows.map((paramData) => (
                     <tr key={paramData.parameter}>
-                      <td className="parameter-cell">{paramData.label}</td>
+                      <td className="parameter-cell mfs-row-label-cell">
+                        <span>{paramData.label}</span>
+                        {renderHideButton(() => hideSummaryRow(paramData.parameter), `Hide row ${paramData.label}`)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1842,24 +2057,27 @@ const MFSdata: React.FC = () => {
               <table className="pivot-table scrollable-table">
                 <thead>
                   <tr>
-                    {deferredMonths.map(monthKey => {
+                    {visibleSummaryMonths.map(monthKey => {
                       const [year, monthNum] = monthKey.split('-');
                       const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                       const monthName = monthNames[parseInt(monthNum)];
                       return (
                         <th key={monthKey} className="month-header">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                            {monthName} {year}
-                            {editMode && summaryMonthHasData(monthKey) && (
-                              <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedSummaryMonthsToDelete.includes(monthKey)}
-                                  onChange={() => toggleSummaryMonthForDelete(monthKey)}
-                                />
-                              </label>
-                            )}
+                          <div className="mfs-col-header-wrap">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                              {monthName} {year}
+                              {editMode && summaryMonthHasData(monthKey) && (
+                                <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedSummaryMonthsToDelete.includes(monthKey)}
+                                    onChange={() => toggleSummaryMonthForDelete(monthKey)}
+                                  />
+                                </label>
+                              )}
+                            </div>
+                            {renderHideButton(() => hideSummaryMonth(monthKey), `Hide column ${monthName} ${year}`)}
                           </div>
                         </th>
                       );
@@ -1868,9 +2086,9 @@ const MFSdata: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {deferredPivotData.map((paramData) => (
+                  {visibleSummaryRows.map((paramData) => (
                     <tr key={paramData.parameter}>
-                      {deferredMonths.map(monthKey => {
+                      {visibleSummaryMonths.map(monthKey => {
                         const cellData = paramData.values[monthKey];
                         const isEditing = editingCell?.parameter === paramData.parameter &&
                                          editingCell?.monthKey === monthKey &&
@@ -1913,9 +2131,9 @@ const MFSdata: React.FC = () => {
                       })}
                       <td className="data-cell parameter-total-cell">
                         {(() => {
-                          // Calculate total for this parameter across all months
+                          // Calculate total for this parameter across visible months
                           let paramTotal = 0;
-                          deferredMonths.forEach(monthKey => {
+                          visibleSummaryMonths.forEach(monthKey => {
                             const cellData = paramData.values[monthKey];
                             if (cellData && !isNaN(cellData.value)) {
                               paramTotal += cellData.value;
@@ -1930,6 +2148,8 @@ const MFSdata: React.FC = () => {
               </table>
             </div>
           </div>
+          )}
+          </>
           )}
 
           {/* Second table: Client wise data (API: /team-report) - different table/API from above */}
@@ -2091,9 +2311,16 @@ const MFSdata: React.FC = () => {
               <div className="loading">Loading client data...</div>
             ) : !selectedBusinessUnit ? (
               <div className="empty">Please select a Business Unit to view client-wise data.</div>
-            ) : deferredClientTableDataFiltered.length === 0 ? (
-              <div className="empty">No client-wise data for the selected filters.</div>
             ) : (
+              <>
+              {renderClientRestoreBar()}
+              {deferredClientTableDataFiltered.length === 0 ? (
+                <div className="empty">No client-wise data for the selected filters.</div>
+              ) : visibleClientTableDataFiltered.length === 0 ? (
+                <div className="empty">All client rows are hidden. Use + above to show them again.</div>
+              ) : visibleClientTableMonths.length === 0 && deferredClientTableMonths.length > 0 ? (
+                <div className="empty">All client columns are hidden. Use + above to show them again.</div>
+              ) : (
               <div className={`split-table-container client-mfs-split ${isClientMSSelected ? 'ms-selected' : ''}`}>
                 <div className={`fixed-column-table ${isClientMSSelected ? 'ms-selected' : ''}`}>
                   <table className="pivot-table fixed-table client-mfs-fixed-table">
@@ -2112,14 +2339,19 @@ const MFSdata: React.FC = () => {
                       ) : null}
                     </thead>
                     <tbody>
-                      {deferredClientTableDataFiltered.map((row, rowIndex) => (
+                      {visibleClientTableDataFiltered.map((row, rowIndex) => {
+                        const rowKey = getClientRowKey(row);
+                        return (
                         <tr key={`cf_${row.client}_${row.project || ''}_${rowIndex}`} data-client={row.client} data-project={row.project || ''}>
-                          <td className="parameter-cell">{row.client}</td>
+                          <td className="parameter-cell mfs-row-label-cell">
+                            <span>{row.client}</span>
+                            {renderHideButton(() => hideClientRow(rowKey), `Hide row ${row.client}`)}
+                          </td>
                           {isClientMSSelected && (
                             <td className="parameter-cell">{row.project || 'N/A'}</td>
                           )}
                         </tr>
-                      ))}
+                      );})}
                       <tr className="total-row">
                         <td className="parameter-cell total-label">Total</td>
                         {isClientMSSelected && (
@@ -2133,24 +2365,27 @@ const MFSdata: React.FC = () => {
                   <table className="pivot-table scrollable-table client-mfs-scrollable-table">
                     <thead>
                       <tr>
-                        {deferredClientTableMonths.map(monthKey => {
+                        {visibleClientTableMonths.map(monthKey => {
                           const [year, monthNum] = monthKey.split('-');
                           const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                           const monthName = monthNames[parseInt(monthNum)];
                           return (
                             <th key={monthKey} className="month-header" colSpan={deferredClientTableParametersFiltered.length}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                {monthName} {year}
-                                {editMode && clientMonthHasData(monthKey) && (
-                                  <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedClientMonthsToDelete.includes(monthKey)}
-                                      onChange={() => toggleClientMonthForDelete(monthKey)}
-                                    />
-                                  </label>
-                                )}
+                              <div className="mfs-col-header-wrap">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                  {monthName} {year}
+                                  {editMode && clientMonthHasData(monthKey) && (
+                                    <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedClientMonthsToDelete.includes(monthKey)}
+                                        onChange={() => toggleClientMonthForDelete(monthKey)}
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+                                {renderHideButton(() => hideClientMonth(monthKey), `Hide column ${monthName} ${year}`)}
                               </div>
                             </th>
                           );
@@ -2158,7 +2393,7 @@ const MFSdata: React.FC = () => {
                       </tr>
                       {deferredClientTableParametersFiltered.length > 1 ? (
                         <tr>
-                          {deferredClientTableMonths.map(monthKey =>
+                          {visibleClientTableMonths.map(monthKey =>
                             deferredClientTableParametersFiltered.map(param => (
                               <th key={`${monthKey}_${param.key}`} className="month-header">
                                 {param.label}
@@ -2169,9 +2404,9 @@ const MFSdata: React.FC = () => {
                       ) : null}
                     </thead>
                     <tbody>
-                      {deferredClientTableDataFiltered.map((row, rowIndex) => (
+                      {visibleClientTableDataFiltered.map((row, rowIndex) => (
                         <tr key={`cs_${row.client}_${row.project || ''}_${rowIndex}`} data-client={row.client} data-project={row.project || ''}>
-                          {deferredClientTableMonths.map(monthKey =>
+                          {visibleClientTableMonths.map(monthKey =>
                             deferredClientTableParametersFiltered.map(param => {
                               const cellKey = `${param.key}_${monthKey}`;
                               const cellValue = row[cellKey] ?? 0;
@@ -2217,7 +2452,7 @@ const MFSdata: React.FC = () => {
                         </tr>
                       ))}
                       <tr className="total-row">
-                        {deferredClientTableMonths.map(monthKey =>
+                        {visibleClientTableMonths.map(monthKey =>
                           deferredClientTableParametersFiltered.map(param => {
                             const totalValue = clientTotalsByMonthAndParam[`${monthKey}|${param.key}`] || 0;
                             return (
@@ -2232,6 +2467,8 @@ const MFSdata: React.FC = () => {
                   </table>
                 </div>
               </div>
+              )}
+              </>
             )}
           </div>
         </div>

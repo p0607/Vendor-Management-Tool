@@ -9,6 +9,7 @@ import {
   normalizeToFullMonthNameForGrowth,
   getMonthKeyForGrowth
 } from './ClientWiseGrowthChart';
+import { formatFYFromStartYear, formatKpiPeriodDisplay, normalizeCalendarQ4LabelForDisplay } from '../utils/formatUtils';
 import './ClientWiseGrowthChart.css';
 
 const MONTH_ABBR = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -573,7 +574,7 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
               value={selectedYears}
               onChange={(vals) => setSelectedYears(vals?.length ? vals : [getCurrentFinancialYearForGrowthChart()])}
               style={{ width: '100%' }}
-              options={yearOptions.map((y) => ({ label: String(y), value: y }))}
+              options={yearOptions.map((y) => ({ label: formatFYFromStartYear(y), value: y }))}
             />
           </div>
         )}
@@ -586,7 +587,10 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
               value={selectedQuarters}
               onChange={(vals) => setSelectedQuarters(vals || [])}
               style={{ width: '100%' }}
-              options={quarterOptions.map((q) => ({ label: q, value: q }))}
+              options={quarterOptions.map((q) => ({
+                label: formatKpiPeriodDisplay(normalizeCalendarQ4LabelForDisplay(q)),
+                value: q
+              }))}
             />
           </div>
         )}
@@ -599,7 +603,7 @@ export default function ClientWiseGrowthChartSection({ data, businessUnit, chart
               value={selectedMonths}
               onChange={(vals) => setSelectedMonths(vals || [])}
               style={{ width: '100%' }}
-              options={monthOptions.map((m) => ({ label: m, value: m }))}
+              options={monthOptions.map((m) => ({ label: formatKpiPeriodDisplay(m), value: m }))}
             />
           </div>
         )}

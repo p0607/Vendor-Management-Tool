@@ -18,7 +18,7 @@ import axios from "axios";
 
 import ClientParameterTrackingChart from './ClientParameterTrackingChart';
 
-import { formatValueForTable } from '../utils/formatUtils';
+import { formatValueForTable, formatKpiPeriodDisplay, formatFYFromStartYear, getRecentAndComparePeriods } from '../utils/formatUtils';
 
 import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit } from '../utils/businessUnitUtils';
 
@@ -341,10 +341,10 @@ const ClientMFSCompare: React.FC = () => {
 
     // If comparing by quarters and we have selected quarters
     if (compareType === 'quarter' && comparisonValues.some(v => v)) {
-      const currentQuarter = comparisonValues[0];
-      const previousQuarter = comparisonValues[1];
-      
-      if (!currentQuarter || !previousQuarter) return {};
+      const ordered = getRecentAndComparePeriods(comparisonValues, 'quarter');
+      if (!ordered) return {};
+      const currentQuarter = ordered.recent;
+      const previousQuarter = ordered.compare;
 
       const currentQuarterMonths = getQuarterMonths(currentQuarter);
       const previousQuarterMonths = getQuarterMonths(previousQuarter);
@@ -511,12 +511,13 @@ const ClientMFSCompare: React.FC = () => {
     
     // If we have comparison values set, use them
     if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
-      // Accept both "FY 2025" and "2025" formats.
-      const currentFYMatch = comparisonValues[0].match(/(\d{4})/);
-      const previousFYMatch = comparisonValues[1].match(/(\d{4})/);
-      
-      if (currentFYMatch) currentFY = parseInt(currentFYMatch[1]);
-      if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
+      const ordered = getRecentAndComparePeriods(comparisonValues, 'year');
+      if (ordered) {
+        const recentFYMatch = ordered.recent.match(/(\d{4})/);
+        const compareFYMatch = ordered.compare.match(/(\d{4})/);
+        if (recentFYMatch) currentFY = parseInt(recentFYMatch[1]);
+        if (compareFYMatch) previousFY = parseInt(compareFYMatch[1]);
+      }
     }
 
 
@@ -527,8 +528,9 @@ const ClientMFSCompare: React.FC = () => {
     let previousFYData: any[] = [];
 
     if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
-      currentFYData = getFilteredDataByPeriod(comparisonValues[0], 'year');
-      previousFYData = getFilteredDataByPeriod(comparisonValues[1], 'year');
+      const ordered = getRecentAndComparePeriods(comparisonValues, 'year');
+      currentFYData = getFilteredDataByPeriod(ordered?.recent ?? comparisonValues[0], 'year');
+      previousFYData = getFilteredDataByPeriod(ordered?.compare ?? comparisonValues[1], 'year');
     } else {
       currentFYData = data.filter(item => {
         const itemDate = parseDate(item.month, item.year);
@@ -689,12 +691,13 @@ const ClientMFSCompare: React.FC = () => {
         growthPercentage,
         isPositive: growthPercentage >= 0,
         period: (() => {
-          if (compareType === 'quarter' && comparisonValues[0] && comparisonValues[1]) {
-            return `${comparisonValues[0]} vs ${comparisonValues[1]}`;
-          } else if (compareType === 'year' && comparisonValues[0] && comparisonValues[1]) {
-            return `${comparisonValues[0]} vs ${comparisonValues[1]}`;
+          const ordered = getRecentAndComparePeriods(comparisonValues, compareType);
+          if (compareType === 'quarter' && ordered) {
+            return formatKpiPeriodDisplay(`${ordered.recent} vs ${ordered.compare}`);
+          } else if (compareType === 'year' && ordered) {
+            return formatKpiPeriodDisplay(`${ordered.recent} vs ${ordered.compare}`);
           } else {
-            return `FY ${currentFY} vs FY ${previousFY}`;
+            return formatKpiPeriodDisplay(`FY ${currentFY} vs FY ${previousFY}`);
           }
         })()
       };
@@ -733,13 +736,10 @@ const ClientMFSCompare: React.FC = () => {
 
     // If comparing by months and we have selected months
     if (compareType === 'month' && comparisonValues.some(v => v)) {
-      // Removed verbose console.log for performance
-      const currentMonth = comparisonValues[0];
-      const previousMonth = comparisonValues[1];
-      
-      // Removed verbose console.log for performance
-      
-      if (!currentMonth || !previousMonth) return {};
+      const ordered = getRecentAndComparePeriods(comparisonValues, 'month');
+      if (!ordered) return {};
+      const currentMonth = ordered.recent;
+      const previousMonth = ordered.compare;
 
       // Parse month and year from strings like "November 2023"
       const currentMonthMatch = currentMonth.match(/(\w+) (\d{4})/);
@@ -801,10 +801,10 @@ const ClientMFSCompare: React.FC = () => {
 
     // If comparing by quarters and we have selected quarters
     if (compareType === 'quarter' && comparisonValues.some(v => v)) {
-      const currentQuarter = comparisonValues[0];
-      const previousQuarter = comparisonValues[1];
-      
-      if (!currentQuarter || !previousQuarter) return {};
+      const ordered = getRecentAndComparePeriods(comparisonValues, 'quarter');
+      if (!ordered) return {};
+      const currentQuarter = ordered.recent;
+      const previousQuarter = ordered.compare;
 
       const currentQuarterMonths = getQuarterMonths(currentQuarter);
       const previousQuarterMonths = getQuarterMonths(previousQuarter);
@@ -897,12 +897,13 @@ const ClientMFSCompare: React.FC = () => {
     
     // If we have comparison values set, use them
     if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
-      // Accept both "FY 2025" and "2025" formats.
-      const currentFYMatch = comparisonValues[0].match(/(\d{4})/);
-      const previousFYMatch = comparisonValues[1].match(/(\d{4})/);
-      
-      if (currentFYMatch) currentFY = parseInt(currentFYMatch[1]);
-      if (previousFYMatch) previousFY = parseInt(previousFYMatch[1]);
+      const ordered = getRecentAndComparePeriods(comparisonValues, 'year');
+      if (ordered) {
+        const recentFYMatch = ordered.recent.match(/(\d{4})/);
+        const compareFYMatch = ordered.compare.match(/(\d{4})/);
+        if (recentFYMatch) currentFY = parseInt(recentFYMatch[1]);
+        if (compareFYMatch) previousFY = parseInt(compareFYMatch[1]);
+      }
     }
     
     let monthsCompleted = getMonthsCompletedInCurrentFY();
@@ -911,8 +912,9 @@ const ClientMFSCompare: React.FC = () => {
     // Year compare: compute KPI cards from the same period helper used by Growth Analysis.
     // This avoids divergence where KPI shows 0 while Growth has data.
     if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
-      const currentPeriod = comparisonValues[0];
-      const previousPeriod = comparisonValues[1];
+      const ordered = getRecentAndComparePeriods(comparisonValues, 'year');
+      const currentPeriod = ordered?.recent ?? comparisonValues[0];
+      const previousPeriod = ordered?.compare ?? comparisonValues[1];
       const currentPeriodData = getFilteredDataByPeriod(currentPeriod, 'year');
       const previousPeriodData = getFilteredDataByPeriod(previousPeriod, 'year');
 
@@ -1055,8 +1057,9 @@ const ClientMFSCompare: React.FC = () => {
     let currentFYData: any[] = [];
     let previousFYData: any[] = [];
     if (compareType === 'year' && comparisonValues.length >= 2 && comparisonValues[0] && comparisonValues[1]) {
-      currentFYData = getFilteredDataByPeriod(comparisonValues[0], 'year');
-      previousFYData = getFilteredDataByPeriod(comparisonValues[1], 'year');
+      const ordered = getRecentAndComparePeriods(comparisonValues, 'year');
+      currentFYData = getFilteredDataByPeriod(ordered?.recent ?? comparisonValues[0], 'year');
+      previousFYData = getFilteredDataByPeriod(ordered?.compare ?? comparisonValues[1], 'year');
     } else {
       currentFYData = data.filter(item => {
         const itemDate = parseDate(item.month, item.year);
@@ -1311,12 +1314,13 @@ const ClientMFSCompare: React.FC = () => {
         monthsCompleted,
         monthsRemaining,
         period: (() => {
-          if (compareType === 'quarter' && comparisonValues[0] && comparisonValues[1]) {
-            return `${comparisonValues[0]} vs ${comparisonValues[1]}`;
-          } else if (compareType === 'year' && comparisonValues[0] && comparisonValues[1]) {
-            return `${comparisonValues[0]} vs ${comparisonValues[1]}`;
+          const ordered = getRecentAndComparePeriods(comparisonValues, compareType);
+          if (compareType === 'quarter' && ordered) {
+            return formatKpiPeriodDisplay(`${ordered.recent} vs ${ordered.compare}`);
+          } else if (compareType === 'year' && ordered) {
+            return formatKpiPeriodDisplay(`${ordered.recent} vs ${ordered.compare}`);
           } else {
-            return `FY ${currentFY} vs FY ${previousFY}`;
+            return formatKpiPeriodDisplay(`FY ${currentFY} vs FY ${previousFY}`);
           }
         })(),
         currentFYActual,
@@ -1387,6 +1391,11 @@ const ClientMFSCompare: React.FC = () => {
     const yearValues = [`FY ${currentFY}`, `FY ${previousFY}`];
     return yearValues;
   });
+
+  const growthComparisonPeriods = useMemo(
+    () => getRecentAndComparePeriods(comparisonValues, compareType),
+    [comparisonValues, compareType]
+  );
 
   const [combinedPeriods, setCombinedPeriods] = useState<CombinedPeriod[]>([]);
 
@@ -3380,10 +3389,11 @@ const ClientMFSCompare: React.FC = () => {
   // Helper function to get target months based on current comparison period
   const getTargetMonthsForRouting = (): { month: number; year: number }[] => {
     let targetMonths: { month: number; year: number }[] = [];
+    const recentPeriod = growthComparisonPeriods?.recent ?? comparisonValues[0];
     
-    if (compareType === 'month' && comparisonValues[0]) {
+    if (compareType === 'month' && recentPeriod) {
       // Single month comparison
-      const monthMatch = comparisonValues[0].match(/(\w+) (\d{4})/);
+      const monthMatch = recentPeriod.match(/(\w+) (\d{4})/);
       if (monthMatch) {
         const monthName = monthMatch[1];
         const year = parseInt(monthMatch[2]);
@@ -3394,10 +3404,10 @@ const ClientMFSCompare: React.FC = () => {
           targetMonths = [{ month: monthIndex + 1, year }];
         }
       }
-    } else if (compareType === 'quarter' && comparisonValues[0]) {
+    } else if (compareType === 'quarter' && recentPeriod) {
       // Quarter comparison
-      const quarterMatch = comparisonValues[0].match(/Q(\d)/);
-      const yearMatch = comparisonValues[0].match(/(\d{4})/);
+      const quarterMatch = recentPeriod.match(/Q(\d)/);
+      const yearMatch = recentPeriod.match(/(\d{4})/);
       if (quarterMatch && yearMatch) {
         const quarter = parseInt(quarterMatch[1]);
         const year = parseInt(yearMatch[1]);
@@ -3780,11 +3790,11 @@ const ClientMFSCompare: React.FC = () => {
 
   // Helper function to get month range for a given FY - uses same logic as KPI calculations
   const getMonthRangeForFY = useCallback((fyPeriod: string) => {
-    if (!fyPeriod || !data.length) return fyPeriod;
+    if (!fyPeriod || !data.length) return formatKpiPeriodDisplay(fyPeriod);
     
     // Extract year from period (supports "FY 2025" and "2025")
     const yearMatch = fyPeriod.match(/(\d{4})/);
-    if (!yearMatch) return fyPeriod;
+    if (!yearMatch) return formatKpiPeriodDisplay(fyPeriod);
     
     const targetYear = parseInt(yearMatch[1]);
     
@@ -3832,7 +3842,7 @@ const ClientMFSCompare: React.FC = () => {
     
     if (uniqueMonths.length === 0) {
       // If no data found, return the period without month range
-      return fyPeriod;
+      return formatKpiPeriodDisplay(fyPeriod);
     }
     
     // Sort months according to financial year order
@@ -3845,9 +3855,9 @@ const ClientMFSCompare: React.FC = () => {
     
     // Show the actual data range from database (same data used in KPI calculations)
     if (sortedMonths.length <= 2) {
-      return `${fyPeriod} (${sortedMonths.join(', ')})`;
+      return formatKpiPeriodDisplay(`${fyPeriod} (${sortedMonths.join(', ')})`);
     } else {
-      return `${fyPeriod} (${sortedMonths[0]} - ${sortedMonths[sortedMonths.length - 1]})`;
+      return formatKpiPeriodDisplay(`${fyPeriod} (${sortedMonths[0]} - ${sortedMonths[sortedMonths.length - 1]})`);
     }
   }, [data]);
 
@@ -4861,43 +4871,40 @@ const ClientMFSCompare: React.FC = () => {
         const currentValue = periodData[parameter] || 0;
         
         // For quarter comparison, we need to find the corresponding previous quarter
-        if (compareType === 'quarter' && comparisonValues.length >= 2) {
-          const currentQuarter = comparisonValues[0];
-          const previousQuarter = comparisonValues[1];
-          
-          if (currentQuarter && previousQuarter) {
-            // Find the previous quarter data
-            const previousPeriodData = comparisonData.find(p => p.period === previousQuarter);
-            const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
-            
-            const growthPercentage = previousValue > 0 
-              ? ((currentValue - previousValue) / previousValue) * 100 
-              : 0;
-            
-            growthData[parameter] = growthPercentage;
-          }
+        if (compareType === 'month' && growthComparisonPeriods) {
+          const previousPeriodData = comparisonData.find(p => p.period === growthComparisonPeriods.compare);
+          const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
+          const recentPeriodData = comparisonData.find(p => p.period === growthComparisonPeriods.recent);
+          const recentValue = recentPeriodData ? recentPeriodData[parameter] || 0 : currentValue;
+
+          const growthPercentage = previousValue > 0
+            ? ((recentValue - previousValue) / previousValue) * 100
+            : 0;
+
+          growthData[parameter] = growthPercentage;
+        } else if (compareType === 'quarter' && growthComparisonPeriods) {
+          const previousPeriodData = comparisonData.find(p => p.period === growthComparisonPeriods.compare);
+          const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
+          const recentPeriodData = comparisonData.find(p => p.period === growthComparisonPeriods.recent);
+          const recentValue = recentPeriodData ? recentPeriodData[parameter] || 0 : currentValue;
+
+          const growthPercentage = previousValue > 0
+            ? ((recentValue - previousValue) / previousValue) * 100
+            : 0;
+
+          growthData[parameter] = growthPercentage;
+        } else if (compareType === 'year' && growthComparisonPeriods) {
+          const previousPeriodData = comparisonData.find(p => p.period === growthComparisonPeriods.compare);
+          const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
+          const recentPeriodData = comparisonData.find(p => p.period === growthComparisonPeriods.recent);
+          const recentValue = recentPeriodData ? recentPeriodData[parameter] || 0 : currentValue;
+
+          const growthPercentage = previousValue > 0
+            ? ((recentValue - previousValue) / previousValue) * 100
+            : 0;
+
+          growthData[parameter] = growthPercentage;
         } else {
-          // For year comparison, use the selected comparison values
-          if (compareType === 'year' && comparisonValues.length >= 2) {
-            const currentYear = comparisonValues[0];
-            const previousYear = comparisonValues[1];
-            
-            // Removed verbose debug logs for performance
-            
-            if (currentYear && previousYear) {
-              // Find previous year data
-              const previousPeriodData = comparisonData.find(p => p.period === previousYear);
-              const previousValue = previousPeriodData ? previousPeriodData[parameter] || 0 : 0;
-              
-              const growthPercentage = previousValue > 0 
-                ? ((currentValue - previousValue) / previousValue) * 100 
-                : 0;
-              
-              // Removed verbose console.log for performance
-              
-              growthData[parameter] = growthPercentage;
-            }
-          } else {
             // Fallback to default year calculation - use actual comparison values
             const currentYear = getCurrentFinancialYear();
             const previousYear = currentYear - 1;
@@ -4913,7 +4920,6 @@ const ClientMFSCompare: React.FC = () => {
               : 0;
             
             growthData[parameter] = growthPercentage;
-          }
         }
       });
       
@@ -6417,7 +6423,7 @@ const ClientMFSCompare: React.FC = () => {
 
             {availableOptions.map((option: string) => (
 
-              <Option key={option} value={option}>{option}</Option>
+              <Option key={option} value={option}>{formatKpiPeriodDisplay(option)}</Option>
 
             ))}
 
@@ -6760,13 +6766,10 @@ const ClientMFSCompare: React.FC = () => {
                       textAlign: 'center'
                     }}>
                       {(() => {
-                        if (compareType === 'quarter' && comparisonValues[1]) {
-                          return `vs ${comparisonValues[1]}`;
-                        } else if (compareType === 'year' && comparisonValues[1]) {
-                          return `vs ${comparisonValues[1]}`;
-                        } else {
-                          return `vs ${comparisonValues[1] || 'Previous Period'}`;
+                        if (growthComparisonPeriods?.compare) {
+                          return `vs ${formatKpiPeriodDisplay(growthComparisonPeriods.compare)}`;
                         }
+                        return 'vs Previous Period';
                       })()}
                     </div>
 
@@ -6863,22 +6866,19 @@ const ClientMFSCompare: React.FC = () => {
                       flexWrap: 'nowrap'
                     }}>
                       <span style={{ whiteSpace: 'nowrap' }}>{(() => {
-                        if (compareType === 'month' && comparisonValues[0]) {
-                          return `${comparisonValues[0]} (Projected)`;
-                        } else if (compareType === 'quarter' && comparisonValues[0]) {
-                          return `${comparisonValues[0]} (Projected)`;
+                        if (compareType === 'month' && growthComparisonPeriods?.recent) {
+                          return `${formatKpiPeriodDisplay(growthComparisonPeriods.recent)} (Projected)`;
+                        } else if (compareType === 'quarter' && growthComparisonPeriods?.recent) {
+                          return `${formatKpiPeriodDisplay(growthComparisonPeriods.recent)} (Projected)`;
                         } else {
-                          return `${getMonthRangeForFY(comparisonValues[0] || 'FY 2025')} (Projected)`;
+                          return `${getMonthRangeForFY(growthComparisonPeriods?.recent || comparisonValues[0] || 'FY 2025')} (Projected)`;
                         }
                       })()}</span>
                       <span style={{ whiteSpace: 'nowrap' }}>{formatValue(kpi.previousFY)} {(() => {
-                        if (compareType === 'month' && comparisonValues[1]) {
-                          return comparisonValues[1];
-                        } else if (compareType === 'quarter' && comparisonValues[1]) {
-                          return comparisonValues[1];
-                        } else {
-                          return comparisonValues[1] || 'Previous FY';
+                        if (growthComparisonPeriods?.compare) {
+                          return formatKpiPeriodDisplay(growthComparisonPeriods.compare);
                         }
+                        return 'Previous FY';
                       })()}</span>
                     </div>
 
@@ -6938,9 +6938,13 @@ const ClientMFSCompare: React.FC = () => {
                       }}>
                         {(() => {
                           if (compareType === 'quarter') {
-                            return comparisonValues[0] || 'Quarter data';
+                            return growthComparisonPeriods?.recent
+                              ? formatKpiPeriodDisplay(growthComparisonPeriods.recent)
+                              : 'Quarter data';
                           } else if (compareType === 'year') {
-                            return comparisonValues[0] || 'Year data';
+                            return growthComparisonPeriods?.recent
+                              ? getMonthRangeForFY(growthComparisonPeriods.recent)
+                              : 'Year data';
                           } else {
                             return kpi.monthsRemaining > 0 ? `Projected for 7 months` : 'Full year data';
                           }
@@ -7143,13 +7147,13 @@ const ClientMFSCompare: React.FC = () => {
                           allowClear
                         >
                           {chartFilterBy === 'year' && getAvailableYears().map(year => (
-                            <Option key={year} value={String(year)}>FY {year}</Option>
+                            <Option key={year} value={String(year)}>{formatFYFromStartYear(year)}</Option>
                           ))}
                           {chartFilterBy === 'quarter' && getAvailableQuarters().map(quarter => (
-                            <Option key={quarter} value={quarter}>{quarter}</Option>
+                            <Option key={quarter} value={quarter}>{formatKpiPeriodDisplay(quarter)}</Option>
                           ))}
                           {chartFilterBy === 'month' && getAvailableMonths().map(month => (
-                            <Option key={month} value={month}>{month}</Option>
+                            <Option key={month} value={month}>{formatKpiPeriodDisplay(month)}</Option>
                           ))}
                         </Select>
                       </div>
@@ -7242,7 +7246,7 @@ const ClientMFSCompare: React.FC = () => {
 
 <p style={{ marginBottom: 8, color: '#000000', fontSize: 10 }}>
 
-  Comparing {comparisonValues.filter(Boolean).join(' vs ')} for {selectedBusinessUnit || "All Business Units"}
+  Comparing {comparisonValues.filter(Boolean).map(formatKpiPeriodDisplay).join(' vs ')} for {selectedBusinessUnit || "All Business Units"}
 
   {selectedClientName && ` - ${selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS" ? "Project" : "Client"}: ${selectedClientName}`}
 
@@ -7287,7 +7291,7 @@ const ClientMFSCompare: React.FC = () => {
           return (
             <React.Fragment key={i}>
               <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-                {isCurrentFY ? getMonthRangeForFY(period || '') : period || ''}
+                {isCurrentFY ? getMonthRangeForFY(period || '') : formatKpiPeriodDisplay(period || '')}
               </th>
               {/* Add Predicted and Sum columns only for default year comparison (current year vs previous year) */}
               {isDefaultYearComparison && isCurrentFY && (
@@ -7926,7 +7930,7 @@ const ClientMFSCompare: React.FC = () => {
                     return (
                       <React.Fragment key={i}>
                         <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-                          {isCurrentFY ? getMonthRangeForFY(period || '') : period || ''}
+                          {isCurrentFY ? getMonthRangeForFY(period || '') : formatKpiPeriodDisplay(period || '')}
                         </th>
                         {/* Add Predicted and Sum columns only for default year comparison */}
                         {isDefaultYearComparison && isCurrentFY && (
@@ -8493,7 +8497,7 @@ const ClientMFSCompare: React.FC = () => {
                   return (
                     <React.Fragment key={i}>
                       <th style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #d9d9d9', color: '#000000', fontSize: '10px' }}>
-                        {isCurrentFY ? getMonthRangeForFY(period || '') : period || ''}
+                        {isCurrentFY ? getMonthRangeForFY(period || '') : formatKpiPeriodDisplay(period || '')}
                       </th>
                       {/* Add Predicted and Sum columns only for default year comparison */}
                       {isDefaultYearComparison && isCurrentFY && (
@@ -9541,7 +9545,7 @@ const ClientMFSCompare: React.FC = () => {
 
         selectedBusinessUnit={selectedBusinessUnit}
 
-        selectedPeriod={comparisonValues[0]}
+        selectedPeriod={growthComparisonPeriods?.recent ?? comparisonValues[0]}
 
         compareType={compareType}
 
@@ -9687,7 +9691,7 @@ const ClientMFSCompare: React.FC = () => {
 
                   >
 
-                    {option}
+                    {formatKpiPeriodDisplay(option)}
 
                   </div>
 
@@ -9721,7 +9725,7 @@ const ClientMFSCompare: React.FC = () => {
 
                 }}>
 
-                  {selectedPeriodsForCombination.join(' + ')}
+                  {selectedPeriodsForCombination.map(formatKpiPeriodDisplay).join(' + ')}
 
                 </div>
 
