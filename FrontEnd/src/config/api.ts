@@ -43,8 +43,13 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      clearFinancialsSession();
-      window.location.href = '/';
+      const requestUrl = String(error.config?.url || '');
+      const isLoginRequest = requestUrl.includes('/login');
+      // Let the login page show invalid-credentials; only expire session on other routes
+      if (!isLoginRequest) {
+        clearFinancialsSession();
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }

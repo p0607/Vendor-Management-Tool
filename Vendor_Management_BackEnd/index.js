@@ -399,8 +399,13 @@ app.post('/api/login', async (req, res, next) => {
     }
 
     const user = result.rows[0];
-    const isPasswordValid = (password === user.password);
-    
+    // Support both bcrypt hashes ($2a$ / $2b$) and legacy plain-text passwords
+    const storedPassword = String(user.password || '');
+    const isBcryptHash = /^\$2[aby]\$\d{2}\$/.test(storedPassword);
+    const isPasswordValid = isBcryptHash
+      ? await bcrypt.compare(password, storedPassword)
+      : password === storedPassword;
+
     if (!isPasswordValid) {
       logger.warn('Failed login attempt', { username: name, ip: req.ip });
       return res.status(401).json({ 
@@ -2541,8 +2546,23 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         team_cost, opr_cost, funding_cost, np, np_percentage, 
         rebate, passthrough, vendor_cost, discount, month, year
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`;
+
+      const findExistingQuery = `SELECT id FROM team_report WHERE
+        business_unit IS NOT DISTINCT FROM $1 AND
+        client_name IS NOT DISTINCT FROM $2 AND
+        project_name IS NOT DISTINCT FROM $3 AND
+        month = $4 AND year = $5
+        LIMIT 1`;
+
+      const updateQuery = `UPDATE team_report SET
+        bu_head = $1, hc = $2, salary_cost = $3, revenue = $4, gpm = $5, gpm_percentage = $6,
+        leave_encashment = $7, team_cost = $8, opr_cost = $9, funding_cost = $10,
+        np = $11, np_percentage = $12, rebate = $13, passthrough = $14,
+        vendor_cost = $15, discount = $16
+        WHERE id = $17`;
       
       let insertedCount = 0;
+      let updatedCount = 0;
       let failedCount = 0;
       const errors = [];
       
@@ -2558,12 +2578,13 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
           if (!record.year || record.year === 0) {
             throw new Error(`Record ${i + 1}: Year is missing or invalid`);
           }
-          
-          await client.query(insertQuery, [
-            record.client_name === '' ? null : record.client_name,
-            record.project_name === '' ? null : record.project_name,
-            record.business_unit === '' ? null : record.business_unit,
-            record.bu_head === '' ? null : record.bu_head,
+
+          const clientName = record.client_name === '' ? null : record.client_name;
+          const projectName = record.project_name === '' ? null : record.project_name;
+          const businessUnit = record.business_unit === '' ? null : record.business_unit;
+          const buHead = record.bu_head === '' ? null : record.bu_head;
+          const rowValues = [
+            buHead,
             record.hc || 0,
             record.salary_cost || 0,
             record.revenue || 0,
@@ -2579,10 +2600,30 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             record.passthrough || 0,
             record.vendor_cost ?? 0,
             record.discount ?? 0,
+          ];
+
+          const existing = await client.query(findExistingQuery, [
+            businessUnit,
+            clientName,
+            projectName,
             record.month,
-            record.year
+            record.year,
           ]);
-          insertedCount++;
+
+          if (existing.rows.length > 0) {
+            await client.query(updateQuery, [...rowValues, existing.rows[0].id]);
+            updatedCount++;
+          } else {
+            await client.query(insertQuery, [
+              clientName,
+              projectName,
+              businessUnit,
+              ...rowValues,
+              record.month,
+              record.year,
+            ]);
+            insertedCount++;
+          }
         } catch (insertErr) {
           failedCount++;
           const errorMsg = `Record ${i + 1}: ${insertErr.message || insertErr.detail || insertErr.code || 'Unknown error'}`;
@@ -2610,11 +2651,13 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       
       logger.info('Team report bulk import completed', { 
         totalRecords: data.length,
-        insertedCount: insertedCount,
-        failedCount: failedCount
+        insertedCount,
+        updatedCount,
+        failedCount
       });
       
-      if (insertedCount === 0) {
+      const processedCount = insertedCount + updatedCount;
+      if (processedCount === 0) {
         res.status(400).json({
           success: false,
           message: `Failed to import all ${data.length} records`,
@@ -2623,16 +2666,20 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       } else if (failedCount > 0) {
         res.status(207).json({ // 207 Multi-Status
           success: true,
-          message: `Imported ${insertedCount} records successfully, ${failedCount} records failed`,
-          insertedCount: insertedCount,
-          failedCount: failedCount,
+          message: `Imported ${processedCount} records successfully (${insertedCount} new, ${updatedCount} updated), ${failedCount} records failed`,
+          insertedCount,
+          updatedCount,
+          failedCount,
           errors: errors.slice(0, 10) // Return first 10 errors
         });
       } else {
         res.status(201).json({
           success: true,
-          message: `Successfully imported ${insertedCount} records`,
-          insertedCount: insertedCount
+          message: updatedCount > 0
+            ? `Successfully imported ${processedCount} records (${insertedCount} new, ${updatedCount} updated)`
+            : `Successfully imported ${insertedCount} records`,
+          insertedCount,
+          updatedCount
         });
       }
     } catch (err) {

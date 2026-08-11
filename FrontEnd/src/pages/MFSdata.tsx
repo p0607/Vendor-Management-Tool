@@ -199,6 +199,34 @@ const MFSdata: React.FC = () => {
     setHiddenClientRows([]);
   };
 
+  // Define parameters to display - matching team_summary_report table structure
+  const parameters = [
+    { key: 'hc', label: 'HC' },
+    { key: 'revenue', label: 'Revenue' },
+    { key: 'gpm', label: 'GPM' },
+    { key: 'team_cost', label: 'Team Cost' },
+    { key: 'net_margin', label: 'Net Margin' }
+  ];
+
+  // Client-wise table: same parameters as Client MFS Team Report Data page (/team-report)
+  const clientTableParameters = [
+    { key: 'hc', label: 'HC' },
+    { key: 'revenue', label: 'Revenue' },
+    { key: 'salary_cost', label: 'Salary Cost' },
+    { key: 'gpm', label: 'GPM' },
+    { key: 'gpm_percentage', label: 'GPM %' },
+    { key: 'np', label: 'NP' },
+    { key: 'np_percentage', label: 'NP %' },
+    { key: 'leave_encashment', label: 'Leave Encashment' },
+    { key: 'team_cost', label: 'Team Cost' },
+    { key: 'opr_cost', label: 'Opr Cost' },
+    { key: 'funding_cost', label: 'Funding Cost' },
+    { key: 'rebate', label: 'Rebate' },
+    { key: 'passthrough', label: 'Passthrough' },
+    { key: 'vendor_cost', label: 'Vendor Cost' },
+    { key: 'discount', label: 'Discount' }
+  ];
+
   const renderHideButton = (onHide: () => void, title: string) => (
     <button
       type="button"
@@ -267,34 +295,6 @@ const MFSdata: React.FC = () => {
     const parsed = parseFloat(stringValue.replace(/,/g, '').replace(/[()]/g, (m) => (m === '(' ? '-' : '')));
     return isNaN(parsed) ? 0 : parsed;
   };
-
-  // Define parameters to display - matching team_summary_report table structure
-  const parameters = [
-    { key: 'hc', label: 'HC' },
-    { key: 'revenue', label: 'Revenue' },
-    { key: 'gpm', label: 'GPM' },
-    { key: 'team_cost', label: 'Team Cost' },
-    { key: 'net_margin', label: 'Net Margin' }
-  ];
-
-  // Client-wise table: same parameters as Client MFS Team Report Data page (/team-report)
-  const clientTableParameters = [
-    { key: 'hc', label: 'HC' },
-    { key: 'revenue', label: 'Revenue' },
-    { key: 'salary_cost', label: 'Salary Cost' },
-    { key: 'gpm', label: 'GPM' },
-    { key: 'gpm_percentage', label: 'GPM %' },
-    { key: 'np', label: 'NP' },
-    { key: 'np_percentage', label: 'NP %' },
-    { key: 'leave_encashment', label: 'Leave Encashment' },
-    { key: 'team_cost', label: 'Team Cost' },
-    { key: 'opr_cost', label: 'Opr Cost' },
-    { key: 'funding_cost', label: 'Funding Cost' },
-    { key: 'rebate', label: 'Rebate' },
-    { key: 'passthrough', label: 'Passthrough' },
-    { key: 'vendor_cost', label: 'Vendor Cost' },
-    { key: 'discount', label: 'Discount' }
-  ];
 
   // Fetch data from API - using same endpoint as TeamReportCompare
   useEffect(() => {
