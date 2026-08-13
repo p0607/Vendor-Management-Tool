@@ -96,7 +96,13 @@ const UserAccountUpdateForm: React.FC<UserAccountUpdateFormProps> = ({
         setError(response.data.error || 'User not found');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load user');
+      const status = err.response?.status;
+      const apiError = err.response?.data?.error;
+      if (status === 403) {
+        setError(apiError || 'Admin access required. Log out and log back in as Admin or Super Admin, then try again.');
+      } else {
+        setError(apiError || 'Failed to load user');
+      }
     } finally {
       setIsLoadingUser(false);
     }
@@ -168,7 +174,13 @@ const UserAccountUpdateForm: React.FC<UserAccountUpdateFormProps> = ({
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || err.response?.data?.message || 'Update failed');
+      const status = err.response?.status;
+      const apiError = err.response?.data?.error;
+      if (status === 403) {
+        setError(apiError || 'Admin access required. Log out and log back in as Admin or Super Admin, then try again.');
+      } else {
+        setError(apiError || err.response?.data?.message || 'Update failed');
+      }
     } finally {
       setIsLoading(false);
     }

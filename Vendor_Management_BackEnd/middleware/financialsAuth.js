@@ -59,7 +59,23 @@ const attachFinancialsUser = (decoded) => ({
   email: decoded.email,
 });
 
+const attachFinancialsUserFromHeader = (req) => {
+  const header = req.headers.authorization || '';
+  const [scheme, token] = header.split(' ');
+  if (scheme !== 'Bearer' || !token) {
+    return;
+  }
+  try {
+    const decoded = verifyFinancialsToken(token);
+    req.financialsUser = attachFinancialsUser(decoded);
+  } catch (_) {
+    // Invalid token — leave req.financialsUser unset; route handler decides if required
+  }
+};
+
 const requireFinancialsAuth = (req, res, next) => {
+  attachFinancialsUserFromHeader(req);
+
   if (!isJwtRequired()) {
     return next();
   }
@@ -78,16 +94,14 @@ const requireFinancialsAuth = (req, res, next) => {
     return next();
   }
 
-  try {
-    const decoded = verifyFinancialsToken(token);
-    req.financialsUser = attachFinancialsUser(decoded);
+  if (req.financialsUser) {
     return next();
-  } catch (error) {
-    return res.status(401).json({
-      success: false,
-      error: 'Invalid or expired session',
-    });
   }
+
+  return res.status(401).json({
+    success: false,
+    error: 'Invalid or expired session',
+  });
 };
 
 const financialsApiAuthMiddleware = (req, res, next) => {
@@ -100,7 +114,9 @@ const financialsApiAuthMiddleware = (req, res, next) => {
     return next();
   }
 
+  // Public routes: still parse Bearer token when sent (admin profile updates on /reset-password)
   if (PUBLIC_API_PATHS.has(path)) {
+    attachFinancialsUserFromHeader(req);
     return next();
   }
 

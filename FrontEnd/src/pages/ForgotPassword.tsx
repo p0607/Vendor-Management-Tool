@@ -81,7 +81,7 @@ const ForgotPassword: React.FC = () => {
       <div className="signup-container">
         <div className="signup-form">
           <h2>Forgot Password</h2>
-          <p style={{ color: '#e2e8f0', fontSize: '12px', textAlign: 'center', marginBottom: '1rem' }}>
+          <p className="signup-form-hint">
             Enter your registered email and choose a new password.
           </p>
 
