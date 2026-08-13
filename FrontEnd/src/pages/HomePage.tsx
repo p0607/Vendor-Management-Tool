@@ -93,7 +93,7 @@ const HomePage: React.FC = () => {
               className="auth-button"
               onClick={() => navigate('/reset-password')}
             >
-              Reset Password
+              Manage User Account
             </button>
           </>
         )}

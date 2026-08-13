@@ -155,6 +155,23 @@ body, html {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+.login-forgot-wrap {
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+.login-forgot-link {
+  color: #4299e1;
+  font-size: 12px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.login-forgot-link:hover {
+  text-decoration: underline;
+  color: #3182ce;
+}
+
 .login-logo-topright {
   position: absolute;
   top: 24px;

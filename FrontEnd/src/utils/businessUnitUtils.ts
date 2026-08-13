@@ -209,6 +209,10 @@ export const getCanonicalBusinessUnit = (name: string | null | undefined): strin
   return normalizeBusinessUnitName(name);
 };
 
+/** True when user designation is BU HEAD (trim + case-insensitive). */
+export const isBuHeadDesignation = (designation: string | null | undefined): boolean =>
+  String(designation || '').trim().toUpperCase() === 'BU HEAD';
+
 /** Comma-separated list in users.business_unit (BU HEAD may have multiple). */
 export const USER_BU_DELIMITER = ',';
 
@@ -241,7 +245,7 @@ export const isMultiBuHead = (
   designation: string | null | undefined,
   businessUnitStored: string | null | undefined
 ): boolean =>
-  designation === 'BU HEAD' && parseUserBusinessUnits(businessUnitStored).length > 1;
+  isBuHeadDesignation(designation) && parseUserBusinessUnits(businessUnitStored).length > 1;
 
 /** Dropdown options for a BU HEAD's assigned business units. */
 export const getBuHeadDropdownUnits = (businessUnitStored: string | null | undefined): string[] =>
@@ -265,7 +269,7 @@ export const initializeBuHeadSelection = (
   if (buFromURL) {
     return normalizeBusinessUnitName(buFromURL) || buFromURL;
   }
-  if (user.designation !== 'BU HEAD' || !user.business_unit) {
+  if (!isBuHeadDesignation(user.designation) || !user.business_unit) {
     return '';
   }
   const units = parseUserBusinessUnits(user.business_unit);

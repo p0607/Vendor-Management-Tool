@@ -332,6 +332,25 @@ function normalizeStoredBusinessUnits(business_unit) {
   return normalizeSingleBusinessUnitName(trimmed);
 }
 
+function normalizeDesignation(designation) {
+  const raw = String(designation || '').trim();
+  if (!raw) return raw;
+  const upper = raw.toUpperCase();
+  if (upper === 'BU HEAD' || upper === 'BUHEAD' || upper === 'BU_HEAD') return 'BU HEAD';
+  if (upper === 'SUPER ADMIN' || upper === 'SUPERADMIN') return 'SUPER ADMIN';
+  if (upper === 'FINANCE EXECUTIVE' || upper === 'FINANCE') return 'FINANCE EXECUTIVE';
+  if (upper === 'ADMIN') return 'ADMIN';
+  if (upper === 'ASSOCIATE_VENDOR_MANAGEMENT') return 'ASSOCIATE_VENDOR_MANAGEMENT';
+  return raw;
+}
+
+function isAdminFinancialsUser(req) {
+  const user = req.financialsUser;
+  if (!user) return false;
+  const role = normalizeDesignation(user.designation);
+  return role === 'ADMIN' || role === 'SUPER ADMIN';
+}
+
 // Signup endpoint
 app.post('/api/signup', 
   validateRequiredFields(['name', 'designation', 'email', 'phone_number', 'password', 'business_unit']),
@@ -339,23 +358,54 @@ app.post('/api/signup',
     try {
       const { name, designation, email, phone_number, password, business_unit } = req.body;
 
+      const normalizedDesignation = normalizeDesignation(designation);
+      const normalizedBusinessUnit = normalizeStoredBusinessUnits(business_unit);
+
       // Validate designation
-      if (!ALLOWED_DESIGNATIONS.includes(designation)) {
+      if (!ALLOWED_DESIGNATIONS.includes(normalizedDesignation)) {
         return res.status(400).json({
           success: false,
           error: 'Invalid designation'
         });
       }
 
-      // Normalize business unit(s) — comma-separated for multi-BU BU HEAD
-      const normalizedBusinessUnit = normalizeStoredBusinessUnits(business_unit);
+      if (!normalizedBusinessUnit) {
+        return res.status(400).json({
+          success: false,
+          error: 'Business unit is required'
+        });
+      }
+
+      if (normalizedDesignation === 'BU HEAD') {
+        const buParts = normalizedBusinessUnit.split(',').map((p) => p.trim()).filter(Boolean);
+        if (buParts.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'BU HEAD must have at least one business unit selected'
+          });
+        }
+      }
+
+      logger.info('Signup request', {
+        email,
+        designation: normalizedDesignation,
+        business_unit: normalizedBusinessUnit,
+        buCount: normalizedDesignation === 'BU HEAD'
+          ? normalizedBusinessUnit.split(',').filter(Boolean).length
+          : 1,
+      });
 
       const result = await executeQuery(
-        'INSERT INTO users (name, designation, email, phone_number, password, business_unit) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email',
-        [name, designation, email, phone_number, password, normalizedBusinessUnit]
+        'INSERT INTO users (name, designation, email, phone_number, password, business_unit) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, designation, business_unit',
+        [name, normalizedDesignation, email, phone_number, password, normalizedBusinessUnit]
       );
       
-      logger.info('User created successfully', { userId: result.rows[0].id, email });
+      logger.info('User created successfully', {
+        userId: result.rows[0].id,
+        email,
+        designation: result.rows[0].designation,
+        business_unit: result.rows[0].business_unit,
+      });
       
       res.status(201).json({
         success: true,
@@ -408,11 +458,12 @@ app.post('/api/login', async (req, res, next) => {
     logger.info('User logged in successfully', { userId: user.id, name: user.name });
     
     const normalizedBusinessUnit = normalizeStoredBusinessUnits(user.business_unit);
+    const normalizedDesignation = normalizeDesignation(user.designation);
     
     const userPayload = {
       id: user.id,
       name: user.name,
-      designation: user.designation,
+      designation: normalizedDesignation,
       business_unit: normalizedBusinessUnit,
       email: user.email,
     };
@@ -1570,10 +1621,50 @@ app.post('/api/forgot-password', async (req, res, next) => {
   }
 });
 
-// Reset Password endpoint - allows admin to change user password by email
+// Lookup user by email (admin only — for account correction UI)
+app.get('/api/user-by-email', async (req, res, next) => {
+  try {
+    if (!isAdminFinancialsUser(req)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only admin can look up user accounts',
+      });
+    }
+
+    const email = String(req.query.email || '').trim();
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+
+    const result = await executeQuery(
+      'SELECT id, name, email, designation, business_unit FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'User not found with the provided email' });
+    }
+
+    const user = result.rows[0];
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        designation: normalizeDesignation(user.designation),
+        business_unit: normalizeStoredBusinessUnits(user.business_unit),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Reset Password endpoint - update password and/or designation & business unit by email
 app.post('/api/reset-password', async (req, res, next) => {
   try {
-    const { email, newPassword } = req.body;
+    const { email, newPassword, designation, business_unit } = req.body;
     
     if (!email) {
       return res.status(400).json({
@@ -1582,14 +1673,30 @@ app.post('/api/reset-password', async (req, res, next) => {
       });
     }
 
-    if (!newPassword) {
+    const hasPasswordUpdate = Boolean(newPassword);
+    const hasProfileUpdate = designation !== undefined || business_unit !== undefined;
+
+    if (!hasPasswordUpdate && !hasProfileUpdate) {
       return res.status(400).json({
         success: false,
-        error: 'New password is required'
+        error: 'Provide a new password and/or designation/business unit to update'
       });
     }
 
-    // Check if user exists
+    if (hasPasswordUpdate && String(newPassword).length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters'
+      });
+    }
+
+    if (hasProfileUpdate && !isAdminFinancialsUser(req)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only admin can update designation and business unit',
+      });
+    }
+
     const userResult = await executeQuery('SELECT * FROM users WHERE email = $1', [email]);
     
     if (userResult.rows.length === 0) {
@@ -1599,32 +1706,73 @@ app.post('/api/reset-password', async (req, res, next) => {
       });
     }
 
-    // Update password
+    const existingUser = userResult.rows[0];
+    const nextDesignation = designation !== undefined
+      ? normalizeDesignation(designation)
+      : normalizeDesignation(existingUser.designation);
+    const nextBusinessUnit = business_unit !== undefined
+      ? normalizeStoredBusinessUnits(business_unit)
+      : normalizeStoredBusinessUnits(existingUser.business_unit);
+
+    if (designation !== undefined && !ALLOWED_DESIGNATIONS.includes(nextDesignation)) {
+      return res.status(400).json({ success: false, error: 'Invalid designation' });
+    }
+
+    if (business_unit !== undefined && !nextBusinessUnit) {
+      return res.status(400).json({ success: false, error: 'Business unit is required' });
+    }
+
+    if (nextDesignation === 'BU HEAD') {
+      const buParts = String(nextBusinessUnit || '').split(',').map((p) => p.trim()).filter(Boolean);
+      if (buParts.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'BU HEAD must have at least one business unit'
+        });
+      }
+    }
+
     const updateResult = await executeQuery(
-      'UPDATE users SET password = $1 WHERE email = $2 RETURNING id, name, email',
-      [newPassword, email]
+      `UPDATE users SET
+        password = COALESCE($1, password),
+        designation = $2,
+        business_unit = $3
+      WHERE email = $4
+      RETURNING id, name, email, designation, business_unit`,
+      [hasPasswordUpdate ? newPassword : null, nextDesignation, nextBusinessUnit, email]
     );
 
     if (updateResult.rows.length === 0) {
       return res.status(500).json({
         success: false,
-        error: 'Failed to update password'
+        error: 'Failed to update user'
       });
     }
 
-    logger.info('Password reset successfully', { email, userId: updateResult.rows[0].id });
+    const updated = updateResult.rows[0];
+    logger.info('User account updated', {
+      email,
+      userId: updated.id,
+      passwordChanged: hasPasswordUpdate,
+      designation: updated.designation,
+      business_unit: updated.business_unit,
+    });
     
     res.json({
       success: true,
-      message: 'Password has been reset successfully',
+      message: hasPasswordUpdate
+        ? 'User account updated successfully (password and profile)'
+        : 'User designation and business unit updated successfully',
       user: {
-        id: updateResult.rows[0].id,
-        name: updateResult.rows[0].name,
-        email: updateResult.rows[0].email
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        designation: updated.designation,
+        business_unit: updated.business_unit,
       }
     });
   } catch (err) {
-    logger.error('Password reset error', { error: err.message, stack: err.stack });
+    logger.error('User account update error', { error: err.message, stack: err.stack });
     next(err);
   }
 });

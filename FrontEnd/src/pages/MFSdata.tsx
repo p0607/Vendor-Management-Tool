@@ -4,7 +4,7 @@ import { Select, Dropdown, message } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import './MFSdata.css';
-import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection } from '../utils/businessUnitUtils';
+import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isBuHeadDesignation } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
 import logo from '../assets/logo_1.png';
@@ -352,7 +352,7 @@ const MFSdata: React.FC = () => {
       if (parsedUser) {
         setUser(parsedUser);
         
-        const userIsBUHead = parsedUser?.designation === 'BU HEAD';
+        const userIsBUHead = isBuHeadDesignation(parsedUser?.designation);
         setIsBUHead(userIsBUHead);
         
         // Auto-select business unit for single-BU BU head; multi-BU defaults to All (combined)
@@ -2338,10 +2338,7 @@ const MFSdata: React.FC = () => {
                         )}
                       </tr>
                       {deferredClientTableParametersFiltered.length > 1 ? (
-                        <tr>
-                          <th></th>
-                          {isClientMSSelected && <th></th>}
-                        </tr>
+                        <tr className="fixed-header-spacer-row" aria-hidden="true" />
                       ) : null}
                     </thead>
                     <tbody>

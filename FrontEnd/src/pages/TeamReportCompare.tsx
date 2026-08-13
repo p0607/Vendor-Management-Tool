@@ -21,7 +21,7 @@ import ClientWiseGrowthChartSection from './ClientWiseGrowthChartSection';
 
 import { formatValueForTable, formatKpiPeriodDisplay, formatFYFromStartYear, normalizeCalendarQ4LabelForDisplay, getRecentAndComparePeriods } from '../utils/formatUtils';
 
-import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isMultiBuHead, parseUserBusinessUnits } from '../utils/businessUnitUtils';
+import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isMultiBuHead, parseUserBusinessUnits, isBuHeadDesignation } from '../utils/businessUnitUtils';
 
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
@@ -2398,7 +2398,7 @@ const TeamReportCompare: React.FC = () => {
 
         setUser(parsedUser);
 
-        const userIsBUHead = parsedUser?.designation === 'BU HEAD';
+        const userIsBUHead = isBuHeadDesignation(parsedUser?.designation);
 
         setIsBUHead(userIsBUHead);
         

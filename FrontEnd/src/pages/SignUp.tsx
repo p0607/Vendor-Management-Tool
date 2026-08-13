@@ -1,25 +1,15 @@
 import React, { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './signup.css';
-import { normalizeBusinessUnitName, serializeUserBusinessUnits } from '../utils/businessUnitUtils';
+import { normalizeBusinessUnitName, serializeUserBusinessUnits, isBuHeadDesignation } from '../utils/businessUnitUtils';
+import { DESIGNATION_OPTIONS, BUSINESS_UNIT_OPTIONS } from '../constants/userFormOptions';
 import apiClient from '../config/api';
 import logo from '../assets/logo_1.png';
 
 type Designation = 'ASSOCIATE_VENDOR_MANAGEMENT' |'ADMIN'|'SUPER ADMIN' | 'BU HEAD' | 'FINANCE EXECUTIVE';
 type BusinessUnit =  'CAPTIVE' | 'SI Tech' | 'SI BPO' | 'MANAGED  SERVICES' | 'ENGINEERING' | 'ALL';
 
-const SIGNUP_BUSINESS_UNIT_OPTIONS = [
-  { value: 'CAPTIVE', label: 'CAPTIVE' },
-  { value: 'BPO|HTD', label: 'BPO|HTD' },
-  { value: 'Canada', label: 'Canada' },
-  { value: 'Japan', label: 'Japan' },
-  { value: 'Singapore', label: 'Singapore' },
-  { value: 'SI', label: 'SI' },
-  { value: 'USA', label: 'USA' },
-  { value: 'MS', label: 'MS' },
-  { value: 'Egg', label: 'Egg' },
-  { value: 'ALL', label: 'FINANCE' },
-] as const;
+const SIGNUP_BUSINESS_UNIT_OPTIONS = BUSINESS_UNIT_OPTIONS;
 
 interface SignUpResponse {
   success: boolean;
@@ -28,6 +18,8 @@ interface SignUpResponse {
     id: string;
     name: string;
     email: string;
+    designation?: string;
+    business_unit?: string;
   };
   error?: string;
 }
@@ -70,26 +62,50 @@ const SignUp = () => {
   e.preventDefault();
   setError(null);
 
-  if (isBuHeadSignup && selectedBusinessUnits.length === 0) {
+  // Read designation from DOM at submit time (avoids autofill / stale React state)
+  const designationSelect = document.getElementById('designation') as HTMLSelectElement | null;
+  const designation = (designationSelect?.value || formData.designation || '').trim();
+  const signingUpAsBuHead = isBuHeadDesignation(designation);
+
+  if (signingUpAsBuHead && selectedBusinessUnits.length === 0) {
     setError('Please select at least one business unit for BU HEAD.');
+    return;
+  }
+
+  if (!signingUpAsBuHead && !formData.business_unit) {
+    setError('Please select a business unit.');
     return;
   }
 
   setIsLoading(true);
 
   try {
-    const business_unit = isBuHeadSignup
+    const business_unit = signingUpAsBuHead
       ? serializeUserBusinessUnits(selectedBusinessUnits)
       : (normalizeBusinessUnitName(formData.business_unit) || formData.business_unit);
 
-    const normalizedFormData = {
-      ...formData,
+    if (!business_unit) {
+      setError('Business unit is required.');
+      setIsLoading(false);
+      return;
+    }
+
+    const payload = {
+      name: formData.name.trim(),
+      designation,
+      email: formData.email.trim(),
+      phone_number: formData.phone_number.trim(),
+      password: formData.password,
       business_unit,
     };
-    const response = await apiClient.post<SignUpResponse>('/signup', normalizedFormData);
+
+    const response = await apiClient.post<SignUpResponse>('/signup', payload);
     
     if (response.data.success) {
-      alert('User signed up successfully!');
+      const created = response.data.user as { designation?: string; business_unit?: string } | undefined;
+      const buSummary = created?.business_unit || business_unit;
+      const roleSummary = created?.designation || designation;
+      alert(`User signed up successfully!\nRole: ${roleSummary}\nBusiness unit(s): ${buSummary}`);
       navigate('/');
     } else {
       setError(response.data.message || 'Signup completed but with unexpected response');
@@ -124,7 +140,7 @@ const SignUp = () => {
         <div className="signup-form">
           <h2>Create Your New Account</h2>
           {error && <div className="error-message">{error}</div>}
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autoComplete="off">
             <div className="form-group">
               <label htmlFor="name">Name</label>
               <input
@@ -189,13 +205,13 @@ const SignUp = () => {
   className="form-control"
   value={formData.designation}
   onChange={handleChange}
+  autoComplete="off"
   required
 >
   <option value="">Select Designation</option>
-  <option value="ADMIN">ADMIN</option>
-  <option value="SUPER ADMIN">SUPER ADMIN</option>
-  <option value="BU HEAD">BU HEAD</option>
-  <option value="FINANCE EXECUTIVE">FINANCE EXECUTIVE</option>
+  {DESIGNATION_OPTIONS.map((opt) => (
+    <option key={opt.value} value={opt.value}>{opt.label}</option>
+  ))}
 </select>
             </div>
 
@@ -205,6 +221,11 @@ const SignUp = () => {
               </label>
               {isBuHeadSignup ? (
                 <div className="bu-checkbox-list" role="group" aria-labelledby="business_units_multi_label">
+                  {selectedBusinessUnits.length > 0 && (
+                    <div className="bu-selected-summary">
+                      Selected: {serializeUserBusinessUnits(selectedBusinessUnits)}
+                    </div>
+                  )}
                   {SIGNUP_BUSINESS_UNIT_OPTIONS.map((opt) => {
                     const checked = selectedBusinessUnits.includes(opt.value);
                     return (
@@ -240,24 +261,6 @@ const SignUp = () => {
 
             <button type="submit" className="submit-btn" disabled={isLoading}>Sign Up</button>
           </form>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', gap: '1rem' }}>
-            <button 
-              type="button" 
-              onClick={() => navigate('/forgot_password')}
-              style={{ 
-                background: 'none', 
-                border: 'none', 
-                color: '#4299e1', 
-                cursor: 'pointer', 
-                fontSize: '0.9rem',
-                textDecoration: 'underline',
-                padding: 0
-              }}
-            >
-              Forgot Password?
-            </button>
-          </div>
 
           <p className="form-footer">
             Already have an account? <Link to="/">Log in</Link>

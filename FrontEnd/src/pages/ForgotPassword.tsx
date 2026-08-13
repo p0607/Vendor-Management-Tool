@@ -1,50 +1,67 @@
 import React, { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import apiClient from '../config/api';
 import './ForgotPassword.css';
+import './signup.css';
+import logo from '../assets/logo_1.png';
 
-interface ForgotPasswordResponse {
+interface ResetPasswordResponse {
   message?: string;
   error?: string;
   success?: boolean;
 }
 
 const ForgotPassword: React.FC = () => {
-  const [email, setEmail] = useState<string>('');
-  const [message, setMessage] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [email, setEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleForgotPassword = async (e: FormEvent) => {
+  const handleResetPassword = async (e: FormEvent) => {
     e.preventDefault();
+    setError('');
+    setMessage('');
 
-    if (!email) {
+    if (!email.trim()) {
       setError('Please enter your email');
+      return;
+    }
+    if (!newPassword) {
+      setError('Please enter a new password');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
     setIsLoading(true);
-    setError('');
-    setMessage('');
-
     try {
-      const response = await apiClient.post<ForgotPasswordResponse>(
-        '/forgot-password', 
-        { email }
-      );
-      
-      // Handle both success and error responses from backend
+      const response = await apiClient.post<ResetPasswordResponse>('/reset-password', {
+        email: email.trim(),
+        newPassword,
+      });
+
       if (response.data.success === false) {
-        setError(response.data.error || response.data.message || 'Failed to send reset link. Please try again later.');
+        setError(response.data.error || response.data.message || 'Failed to reset password.');
       } else {
-        setMessage(response.data.message || 'Password reset instructions sent to your email');
+        setMessage(response.data.message || 'Password has been reset successfully. You can log in now.');
+        setNewPassword('');
+        setConfirmPassword('');
       }
     } catch (err: any) {
-      console.error('Forgot password error:', err);
-      // Backend returns error in error field for 404/400, or message field
-      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to send reset link. Please try again later.';
-      setError(errorMessage);
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          'Failed to reset password. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -52,27 +69,95 @@ const ForgotPassword: React.FC = () => {
 
   return (
     <div className="forgot-password-page">
-      <header className="header">
-        <div className="logo">
-          <img src="/Logo.jpg" alt="Alchemy Logo" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2rem 2rem 0 2rem' }}>
+        <div className="signup-logo-top-left">
+          <img src={logo} alt="Company Logo" />
         </div>
-        <div className='back-btn'>
-          <button onClick={() => navigate(-1)}>Back</button>
+        <div className="back-btn">
+          <button type="button" onClick={() => navigate('/')}>Back to Login</button>
         </div>
-      </header>
-      <h2>Forgot Password</h2>
-      <form onSubmit={handleForgotPassword}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-        />
-        <button type="submit">Send Reset Link</button>
-      </form>
+      </div>
 
-      {message && <p className="success-message">{message}</p>}
-      {error && <p className="error-message">{error}</p>}
+      <div className="signup-container">
+        <div className="signup-form">
+          <h2>Forgot Password</h2>
+          <p style={{ color: '#e2e8f0', fontSize: '12px', textAlign: 'center', marginBottom: '1rem' }}>
+            Enter your registered email and choose a new password.
+          </p>
+
+          {error && <div className="error-message">{error}</div>}
+          {message && (
+            <div
+              style={{
+                color: '#48bb78',
+                backgroundColor: '#f0fff4',
+                padding: '0.8rem 1rem',
+                borderRadius: '8px',
+                marginBottom: '1.5rem',
+                textAlign: 'center',
+                fontSize: '0.9rem',
+                border: '1px solid #9ae6b4',
+              }}
+            >
+              {message}
+            </div>
+          )}
+
+          <form onSubmit={handleResetPassword} autoComplete="off">
+            <div className="form-group">
+              <label htmlFor="forgot-email">Email</label>
+              <input
+                type="email"
+                id="forgot-email"
+                className="form-control"
+                placeholder="Your registered email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="forgot-new-password">New Password</label>
+              <input
+                type="password"
+                id="forgot-new-password"
+                className="form-control"
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={isLoading}
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="forgot-confirm-password">Confirm New Password</label>
+              <input
+                type="password"
+                id="forgot-confirm-password"
+                className="form-control"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
+                required
+                minLength={6}
+              />
+            </div>
+
+            <button type="submit" className="submit-btn" disabled={isLoading}>
+              {isLoading ? 'Resetting...' : 'Reset Password'}
+            </button>
+          </form>
+
+          <p className="form-footer">
+            Remember your password? <Link to="/">Log in</Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

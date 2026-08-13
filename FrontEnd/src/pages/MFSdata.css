@@ -380,7 +380,22 @@ body, html {
   box-sizing: border-box;
 }
 
-/* Ensure empty cells in second row of fixed table don't affect height or create extra columns */
+/* Spacer row under rowSpan headers — must have no cells (invalid extra th breaks column layout) */
+.fixed-table thead tr.fixed-header-spacer-row {
+  height: 0;
+  line-height: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.fixed-table thead tr.fixed-header-spacer-row th,
+.fixed-table thead tr.fixed-header-spacer-row td {
+  padding: 0 !important;
+  border: none !important;
+  height: 0 !important;
+}
+
+/* Legacy: empty th in second row (deprecated) */
 .fixed-table thead tr:nth-child(2) th:empty {
   padding: 0 !important;
   height: 0 !important;

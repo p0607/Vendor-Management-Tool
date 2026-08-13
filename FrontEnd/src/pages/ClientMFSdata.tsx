@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Select } from 'antd';
 import './MFSdata.css';
-import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection } from '../utils/businessUnitUtils';
+import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isBuHeadDesignation } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
 import logo from '../assets/logo_1.png';
@@ -130,7 +130,7 @@ const ClientMFSdata: React.FC = () => {
       if (parsedUser) {
         setUser(parsedUser);
         
-        const userIsBUHead = parsedUser?.designation === 'BU HEAD';
+        const userIsBUHead = isBuHeadDesignation(parsedUser?.designation);
         setIsBUHead(userIsBUHead);
         
         // Auto-select business unit for BU head
@@ -636,10 +636,11 @@ const ClientMFSdata: React.FC = () => {
       // Prevent concurrent syncs
       if (isSyncing) return;
       
-      const fixedTable = document.querySelector('.fixed-table tbody');
-      const scrollableTable = document.querySelector('.scrollable-table tbody');
-      const fixedHeader = document.querySelector('.fixed-table thead');
-      const scrollableHeader = document.querySelector('.scrollable-table thead');
+      const root = document.querySelector('.split-table-container');
+      const fixedTable = root?.querySelector('.fixed-table tbody');
+      const scrollableTable = root?.querySelector('.scrollable-table tbody');
+      const fixedHeader = root?.querySelector('.fixed-table thead');
+      const scrollableHeader = root?.querySelector('.scrollable-table thead');
       
       if (!fixedTable || !scrollableTable) return;
       
@@ -845,7 +846,7 @@ const ClientMFSdata: React.FC = () => {
     });
     
     const scrollableTable = document.querySelector('.scrollable-table tbody');
-    const fixedTable = document.querySelector('.fixed-table tbody');
+    const fixedTable = document.querySelector('.split-table-container .fixed-table tbody');
     
     if (scrollableTable) {
       observer.observe(scrollableTable, {
@@ -880,7 +881,7 @@ const ClientMFSdata: React.FC = () => {
     
     // Throttled scroll handler
     let scrollTimeout: NodeJS.Timeout | null = null;
-    const scrollableContainer = document.querySelector('.scrollable-columns-table');
+    const scrollableContainer = document.querySelector('.split-table-container .scrollable-columns-table');
     const handleScroll = () => {
       if (scrollTimeout) {
         clearTimeout(scrollTimeout);
@@ -1256,10 +1257,7 @@ const ClientMFSdata: React.FC = () => {
                       )}
                     </tr>
                     {parameters.length > 1 ? (
-                      <tr>
-                        <th></th>
-                        {isMSSelected && <th></th>}
-                      </tr>
+                      <tr className="fixed-header-spacer-row" aria-hidden="true" />
                     ) : null}
                   </thead>
                   <tbody>

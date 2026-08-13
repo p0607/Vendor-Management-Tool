@@ -1,5 +1,5 @@
 import React, { useState, FormEvent, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import apiClient from '../config/api';
 import {
   isFinancialsAuthenticated,
@@ -97,6 +97,11 @@ const Login = () => {
           <button type="submit" className="login-btn" disabled={isLoading}>
             {isLoading ? 'Logging in...' : 'Log In'}
           </button>
+          <div className="login-forgot-wrap">
+            <Link to="/forgot_password" className="login-forgot-link">
+              Forgot Password?
+            </Link>
+          </div>
         </form>
       </main>
     </div>

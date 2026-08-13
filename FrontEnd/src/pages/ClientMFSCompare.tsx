@@ -20,7 +20,7 @@ import ClientParameterTrackingChart from './ClientParameterTrackingChart';
 
 import { formatValueForTable, formatKpiPeriodDisplay, formatFYFromStartYear, getRecentAndComparePeriods } from '../utils/formatUtils';
 
-import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isMultiBuHead, parseUserBusinessUnits } from '../utils/businessUnitUtils';
+import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isMultiBuHead, parseUserBusinessUnits, isBuHeadDesignation } from '../utils/businessUnitUtils';
 
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
@@ -2654,7 +2654,7 @@ const ClientMFSCompare: React.FC = () => {
 
         setUser(parsedUser);
 
-        const userIsBUHead = parsedUser?.designation === 'BU HEAD';
+        const userIsBUHead = isBuHeadDesignation(parsedUser?.designation);
 
         setIsBUHead(userIsBUHead);
         
