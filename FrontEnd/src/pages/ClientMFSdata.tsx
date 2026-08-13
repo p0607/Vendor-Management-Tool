@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Select } from 'antd';
 import './MFSdata.css';
-import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit } from '../utils/businessUnitUtils';
+import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
 import logo from '../assets/logo_1.png';
@@ -135,8 +135,7 @@ const ClientMFSdata: React.FC = () => {
         
         // Auto-select business unit for BU head
         if (userIsBUHead && parsedUser.business_unit) {
-          const normalizedBU = normalizeBusinessUnitName(parsedUser.business_unit);
-          setSelectedBusinessUnit(normalizedBU || parsedUser.business_unit);
+          setSelectedBusinessUnit(initializeBuHeadSelection(parsedUser));
         }
       }
     } catch (error) {
@@ -148,6 +147,9 @@ const ClientMFSdata: React.FC = () => {
 
   // Get unique business units (normalized to handle case differences)
   const businessUnits = useMemo(() => {
+    if (isBUHead && user?.business_unit) {
+      return getBuHeadDropdownUnits(user.business_unit);
+    }
     const unitsSet = new Set<string>();
     teamReportData.forEach(item => {
       if (item.business_unit) {
@@ -158,7 +160,7 @@ const ClientMFSdata: React.FC = () => {
       }
     });
     return Array.from(unitsSet).sort();
-  }, [teamReportData]);
+  }, [teamReportData, isBUHead, user?.business_unit]);
 
   // Get unique client names (filtered by business unit if selected)
   const clientNames = useMemo(() => {
@@ -277,7 +279,7 @@ const ClientMFSdata: React.FC = () => {
     // BU head filter - ensure BU head only sees their business unit's data
     if (isBUHead && user?.business_unit) {
       filtered = filtered.filter(item => {
-        return compareBusinessUnits(item.business_unit, user.business_unit);
+        return itemMatchesUserBusinessUnits(item.business_unit, user.business_unit);
       });
     }
 
@@ -1091,7 +1093,7 @@ const ClientMFSdata: React.FC = () => {
                   }
                 }}
                 className="filter-select"
-                disabled={isBUHead}
+                disabled={isBUHead && !isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
               >
                 <option value="">All Business Units</option>
                 {businessUnits.map(unit => (

@@ -291,6 +291,47 @@ const ALLOWED_DESIGNATIONS = [
   'FINANCE EXECUTIVE'
 ];
 
+function normalizeSingleBusinessUnitName(buTrimmed) {
+  if (!buTrimmed) return buTrimmed;
+  const buLower = buTrimmed.toLowerCase();
+  const normalizedForComparison = buLower
+    .replace(/\s*\|\s*/g, '|')
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/\s*-\s*/g, '-');
+  if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
+    return 'BPO|HTD';
+  }
+  if (buLower === 'captive') return 'Captive';
+  if (buLower === 'canada') return 'Canada';
+  if (buLower === 'japan') return 'Japan';
+  if (buLower === 'singapore') return 'Singapore';
+  if (buLower === 'si' || buLower === 'si tech' || buLower === 'si bpo') return 'SI';
+  if (buLower === 'usa') return 'USA';
+  if (buLower === 'ms' || buLower === 'managed services' || buLower === 'managed  services') return 'MS';
+  if (buLower === 'egg' || buLower === 'engg' || buLower === 'engineering') return 'Egg';
+  if (buLower === 'all' || buLower === 'finance') return 'Finance';
+  const buNormalizedForCheck = buTrimmed.replace(/\s*\|\s*/g, '|');
+  if (buNormalizedForCheck.toUpperCase() === 'BPO|HTD' || buNormalizedForCheck === 'BPO|HTD') {
+    return 'BPO|HTD';
+  }
+  return buTrimmed;
+}
+
+/** Single BU or comma-separated list (multi BU HEAD signup). */
+function normalizeStoredBusinessUnits(business_unit) {
+  if (!business_unit) return business_unit;
+  const trimmed = String(business_unit).trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.includes(',')) {
+    const parts = trimmed
+      .split(',')
+      .map((part) => normalizeSingleBusinessUnitName(part.trim()))
+      .filter(Boolean);
+    return [...new Set(parts)].join(',');
+  }
+  return normalizeSingleBusinessUnitName(trimmed);
+}
+
 // Signup endpoint
 app.post('/api/signup', 
   validateRequiredFields(['name', 'designation', 'email', 'phone_number', 'password', 'business_unit']),
@@ -306,58 +347,8 @@ app.post('/api/signup',
         });
       }
 
-      // Normalize business unit to ensure case-insensitive consistency
-      // This ensures "BPO|HTD", "bpo|htd", "Bpo|Htd" all become "BPO|HTD"
-      let normalizedBusinessUnit = business_unit;
-      if (business_unit) {
-        const buTrimmed = String(business_unit).trim();
-        const buLower = buTrimmed.toLowerCase();
-        
-        // Handle BPO|HTD variations (case-insensitive, with or without spaces)
-        // Remove spaces around pipe/slash/dash for comparison
-        const normalizedForComparison = buLower.replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
-        if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
-          normalizedBusinessUnit = 'BPO|HTD';
-        }
-        // Handle other common variations
-        else if (buLower === 'captive') {
-          normalizedBusinessUnit = 'Captive';
-        }
-        else if (buLower === 'canada') {
-          normalizedBusinessUnit = 'Canada';
-        }
-        else if (buLower === 'japan') {
-          normalizedBusinessUnit = 'Japan';
-        }
-        else if (buLower === 'singapore') {
-          normalizedBusinessUnit = 'Singapore';
-        }
-        else if (buLower === 'si' || buLower === 'si tech' || buLower === 'si bpo') {
-          normalizedBusinessUnit = 'SI';
-        }
-        else if (buLower === 'usa') {
-          normalizedBusinessUnit = 'USA';
-        }
-        else if (buLower === 'ms' || buLower === 'managed services' || buLower === 'managed  services') {
-          normalizedBusinessUnit = 'MS';
-        }
-        else if (buLower === 'egg' || buLower === 'engg' || buLower === 'engineering') {
-          normalizedBusinessUnit = 'Egg';
-        }
-        else if (buLower === 'all' || buLower === 'finance') {
-          normalizedBusinessUnit = 'Finance';
-        }
-        // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation, including spaces)
-        // Normalize spaces around pipe before checking
-        const buNormalizedForCheck = buTrimmed.replace(/\s*\|\s*/g, '|');
-        if (buNormalizedForCheck.toUpperCase() === 'BPO|HTD' || buNormalizedForCheck === 'BPO|HTD') {
-          normalizedBusinessUnit = 'BPO|HTD';
-        }
-        // If already normalized by frontend, keep as is
-        else {
-          normalizedBusinessUnit = buTrimmed;
-        }
-      }
+      // Normalize business unit(s) — comma-separated for multi-BU BU HEAD
+      const normalizedBusinessUnit = normalizeStoredBusinessUnits(business_unit);
 
       const result = await executeQuery(
         'INSERT INTO users (name, designation, email, phone_number, password, business_unit) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email',
@@ -416,53 +407,7 @@ app.post('/api/login', async (req, res, next) => {
 
     logger.info('User logged in successfully', { userId: user.id, name: user.name });
     
-    // Normalize business unit to ensure consistency
-    let normalizedBusinessUnit = user.business_unit;
-    if (user.business_unit) {
-      const buTrimmed = String(user.business_unit).trim();
-      const buLower = buTrimmed.toLowerCase();
-      
-      // Handle BPO|HTD variations (case-insensitive, with or without spaces)
-      // Remove spaces around pipe/slash/dash for comparison
-      const normalizedForComparison = buLower.replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
-      if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
-        normalizedBusinessUnit = 'BPO|HTD';
-      }
-      // Handle other common variations
-      else if (buLower === 'captive') {
-        normalizedBusinessUnit = 'Captive';
-      }
-      else if (buLower === 'canada') {
-        normalizedBusinessUnit = 'Canada';
-      }
-      else if (buLower === 'japan') {
-        normalizedBusinessUnit = 'Japan';
-      }
-      else if (buLower === 'singapore') {
-        normalizedBusinessUnit = 'Singapore';
-      }
-      else if (buLower === 'si' || buLower === 'si tech' || buLower === 'si bpo') {
-        normalizedBusinessUnit = 'SI';
-      }
-      else if (buLower === 'usa') {
-        normalizedBusinessUnit = 'USA';
-      }
-      else if (buLower === 'ms' || buLower === 'managed services' || buLower === 'managed  services') {
-        normalizedBusinessUnit = 'MS';
-      }
-      else if (buLower === 'egg' || buLower === 'engg' || buLower === 'engineering') {
-        normalizedBusinessUnit = 'Egg';
-      }
-      else if (buLower === 'all' || buLower === 'finance') {
-        normalizedBusinessUnit = 'Finance';
-      }
-      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation, including spaces)
-      // Normalize spaces around pipe before checking
-      const buNormalizedForCheck = buTrimmed.replace(/\s*\|\s*/g, '|');
-      if (buNormalizedForCheck.toUpperCase() === 'BPO|HTD' || buNormalizedForCheck === 'BPO|HTD') {
-        normalizedBusinessUnit = 'BPO|HTD';
-      }
-    }
+    const normalizedBusinessUnit = normalizeStoredBusinessUnits(user.business_unit);
     
     const userPayload = {
       id: user.id,

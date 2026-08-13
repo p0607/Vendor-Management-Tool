@@ -209,3 +209,72 @@ export const getCanonicalBusinessUnit = (name: string | null | undefined): strin
   return normalizeBusinessUnitName(name);
 };
 
+/** Comma-separated list in users.business_unit (BU HEAD may have multiple). */
+export const USER_BU_DELIMITER = ',';
+
+/** Parse stored user.business_unit → canonical BU list (supports single or comma-separated). */
+export const parseUserBusinessUnits = (stored: string | null | undefined): string[] => {
+  if (!stored) return [];
+  const trimmed = String(stored).trim();
+  if (!trimmed) return [];
+  const parts = trimmed.includes(USER_BU_DELIMITER)
+    ? trimmed.split(USER_BU_DELIMITER)
+    : [trimmed];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  parts.forEach((part) => {
+    const normalized = normalizeBusinessUnitName(part.trim());
+    if (normalized && !seen.has(normalized)) {
+      seen.add(normalized);
+      result.push(normalized);
+    }
+  });
+  return result;
+};
+
+/** Serialize selected BUs for storage in users.business_unit. */
+export const serializeUserBusinessUnits = (units: string[]): string =>
+  parseUserBusinessUnits(units.join(USER_BU_DELIMITER)).join(USER_BU_DELIMITER);
+
+/** BU HEAD with more than one assigned business unit. */
+export const isMultiBuHead = (
+  designation: string | null | undefined,
+  businessUnitStored: string | null | undefined
+): boolean =>
+  designation === 'BU HEAD' && parseUserBusinessUnits(businessUnitStored).length > 1;
+
+/** Dropdown options for a BU HEAD's assigned business units. */
+export const getBuHeadDropdownUnits = (businessUnitStored: string | null | undefined): string[] =>
+  [...parseUserBusinessUnits(businessUnitStored)].sort();
+
+/** True if data row BU is within the user's assigned BU list. */
+export const itemMatchesUserBusinessUnits = (
+  itemBu: string | null | undefined,
+  userBusinessUnitStored: string | null | undefined
+): boolean => {
+  const userUnits = parseUserBusinessUnits(userBusinessUnitStored);
+  if (userUnits.length === 0) return true;
+  return userUnits.some((bu) => compareBusinessUnits(itemBu, bu));
+};
+
+/** Initial selected BU: single-BU head → that BU; multi-BU head → '' (all assigned BUs combined). */
+export const initializeBuHeadSelection = (
+  user: { designation?: string; business_unit?: string },
+  buFromURL?: string | null
+): string => {
+  if (buFromURL) {
+    return normalizeBusinessUnitName(buFromURL) || buFromURL;
+  }
+  if (user.designation !== 'BU HEAD' || !user.business_unit) {
+    return '';
+  }
+  const units = parseUserBusinessUnits(user.business_unit);
+  return units.length === 1 ? units[0] : '';
+};
+
+/** Multi-BU BU HEAD can change the business unit filter; single-BU stays locked. */
+export const isBuHeadDropdownEnabled = (
+  designation: string | null | undefined,
+  businessUnitStored: string | null | undefined
+): boolean => isMultiBuHead(designation, businessUnitStored);
+

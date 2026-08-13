@@ -21,7 +21,7 @@ import ClientWiseGrowthChartSection from './ClientWiseGrowthChartSection';
 
 import { formatValueForTable, formatKpiPeriodDisplay, formatFYFromStartYear, normalizeCalendarQ4LabelForDisplay, getRecentAndComparePeriods } from '../utils/formatUtils';
 
-import { compareBusinessUnits, normalizeBusinessUnitName } from '../utils/businessUnitUtils';
+import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isMultiBuHead, parseUserBusinessUnits } from '../utils/businessUnitUtils';
 
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
@@ -2413,9 +2413,7 @@ const TeamReportCompare: React.FC = () => {
           const normalizedBU = normalizeBusinessUnitName(buFromURL);
           setSelectedBusinessUnit(normalizedBU || buFromURL);
         } else if (userIsBUHead && parsedUser.business_unit) {
-          // Normalize user's business unit for BU head login (case-insensitive)
-          const normalizedBU = normalizeBusinessUnitName(parsedUser.business_unit);
-          setSelectedBusinessUnit(normalizedBU || parsedUser.business_unit);
+          setSelectedBusinessUnit(initializeBuHeadSelection(parsedUser));
         }
 
       }
@@ -2431,23 +2429,26 @@ const TeamReportCompare: React.FC = () => {
   // Update selectedBusinessUnitsForChart when user/isBUHead changes (for BU heads)
   useEffect(() => {
     if (isBUHead && user?.business_unit && businessUnits.length > 0 && !selectedBusinessUnitsForChart) {
-      const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-      const matchingBU = businessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
-      if (matchingBU) {
-        setSelectedBusinessUnitsForChart(matchingBU);
-      } else {
-        setSelectedBusinessUnitsForChart(normalizedBU || user.business_unit);
+      const userUnits = getBuHeadDropdownUnits(user.business_unit);
+      if (userUnits.length === 1) {
+        setSelectedBusinessUnitsForChart(userUnits[0]);
+      } else if (userUnits.length > 1) {
+        setSelectedBusinessUnitsForChart(userUnits);
       }
     }
   }, [isBUHead, user?.business_unit, businessUnits]);
 
   // Stable string key so BU head / single-BU chart selection does not refetch when array identity changes only
   const clientMfsFetchBusinessUnitKey = useMemo(() => {
-    if (isBUHead && user?.business_unit) {
-      return normalizeBusinessUnitName(user.business_unit) || user.business_unit;
-    }
     if (selectedBusinessUnit) {
       return selectedBusinessUnit;
+    }
+    if (isBUHead && user?.business_unit) {
+      if (isMultiBuHead(user?.designation, user?.business_unit)) {
+        return '__ALL_USER_BUs__';
+      }
+      const units = parseUserBusinessUnits(user.business_unit);
+      return units.length === 1 ? units[0] : null;
     }
     if (selectedBusinessUnitsForChart) {
       if (Array.isArray(selectedBusinessUnitsForChart)) {
@@ -2456,7 +2457,7 @@ const TeamReportCompare: React.FC = () => {
       return selectedBusinessUnitsForChart;
     }
     return null;
-  }, [isBUHead, user?.business_unit, selectedBusinessUnit, selectedBusinessUnitsForChart]);
+  }, [isBUHead, user?.business_unit, user?.designation, selectedBusinessUnit, selectedBusinessUnitsForChart]);
 
   // Fetch Client MFS data when admin selects a single business unit OR for BU heads
   useEffect(() => {
@@ -2470,19 +2471,16 @@ const TeamReportCompare: React.FC = () => {
 
       setIsLoadingClientMFS(true);
       try {
-        // Fetch all team-report data (same as ClientMFSCompare does)
-        // Using /team-report endpoint which queries team_report table (has client_name, project_name)
-        // This is the Client MFS data source, NOT team-summary-report (MFS)
         const res = await apiClient.get("/team-report");
 
         if (res.data && Array.isArray(res.data)) {
-          
-          // Filter by business unit on frontend (using normalized comparison)
           const filteredData = res.data.filter((item: any) => {
+            if (selectedBU === '__ALL_USER_BUs__') {
+              return itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit);
+            }
             return compareBusinessUnits(item.business_unit, selectedBU);
           });
-          
-          
+
           setClientMFSData(filteredData);
         } else {
           console.warn(`⚠️ No data received from /team-report API`);
@@ -2497,13 +2495,15 @@ const TeamReportCompare: React.FC = () => {
     };
 
     fetchClientMFSData();
-  }, [clientMfsFetchBusinessUnitKey]);
+  }, [clientMfsFetchBusinessUnitKey, user?.business_unit]);
 
   // Helper function to check if a specific business unit is selected (for showing Client Data button)
   // Check both selectedBusinessUnit (main view) and selectedBusinessUnitsForChart (chart view)
   const isSpecificBusinessUnitSelected = useMemo(() => {
-    // BU head always has their specific BU
     if (isBUHead && user?.business_unit) {
+      if (isMultiBuHead(user?.designation, user?.business_unit)) {
+        return Boolean(selectedBusinessUnit);
+      }
       return true;
     }
     
@@ -2521,15 +2521,20 @@ const TeamReportCompare: React.FC = () => {
     }
     
     return typeof selectedBusinessUnitsForChart === 'string';
-  }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
+  }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit, user?.designation]);
 
   // Get the selected business unit for Client Data table
-  // Priority: selectedBusinessUnit (main view) > selectedBusinessUnitsForChart (chart view) > user.business_unit (BU head)
+  // Priority: selectedBusinessUnit (main view) > selectedBusinessUnitsForChart (chart view) > user.business_unit (single-BU head)
   const getSelectedBUForClientData = useMemo(() => {
-    // BU head: use their business unit
     if (isBUHead && user?.business_unit) {
-      const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-      return normalizedBU || user.business_unit;
+      if (selectedBusinessUnit) {
+        return selectedBusinessUnit;
+      }
+      if (!isMultiBuHead(user?.designation, user?.business_unit)) {
+        const units = parseUserBusinessUnits(user.business_unit);
+        return units[0] || null;
+      }
+      return null;
     }
     
     // Main comparison view: use selectedBusinessUnit if set
@@ -2545,15 +2550,22 @@ const TeamReportCompare: React.FC = () => {
     }
     
     return selectedBusinessUnitsForChart;
-  }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit]);
+  }, [selectedBusinessUnit, selectedBusinessUnitsForChart, isBUHead, user?.business_unit, user?.designation]);
 
-  // Data for Client Wise Growth Chart: same BU as Client Data, so chart and table use same source
+  // Data for Client Wise Growth Chart: same BU scope as Client Data
   const clientMFSDataForGrowthChart = useMemo(() => {
-    if (!getSelectedBUForClientData) return [];
-    return clientMFSData.filter((item: any) =>
-      compareBusinessUnits(item.business_unit, getSelectedBUForClientData)
-    );
-  }, [clientMFSData, getSelectedBUForClientData]);
+    if (getSelectedBUForClientData) {
+      return clientMFSData.filter((item: any) =>
+        compareBusinessUnits(item.business_unit, getSelectedBUForClientData)
+      );
+    }
+    if (isBUHead && user?.business_unit && isMultiBuHead(user?.designation, user?.business_unit)) {
+      return clientMFSData.filter((item: any) =>
+        itemMatchesUserBusinessUnits(item.business_unit, user.business_unit)
+      );
+    }
+    return [];
+  }, [clientMFSData, getSelectedBUForClientData, isBUHead, user?.business_unit, user?.designation]);
 
   // MS exception: when this BU is selected, Client Data shows both client name and project name (e.g. "Client - Project")
   const isClientDataMS = Boolean(getSelectedBUForClientData && compareBusinessUnits(getSelectedBUForClientData, 'MS'));
@@ -3091,20 +3103,20 @@ const TeamReportCompare: React.FC = () => {
         }
       });
 
-      const uniqueBusinessUnits = Array.from(unitsSet).sort() as string[];
+      const uniqueBusinessUnits = (isBUHead && user?.business_unit
+        ? getBuHeadDropdownUnits(user.business_unit)
+        : Array.from(unitsSet).sort()) as string[];
       setBusinessUnits(uniqueBusinessUnits);
 
       // Initialize selectedBusinessUnitsForChart
-      // For BU heads, only show their business unit; for admin, show all business units by default
+      // For BU heads, single-BU → that BU; multi-BU → all assigned BUs combined
       if (!selectedBusinessUnitsForChart && uniqueBusinessUnits.length > 0) {
         if (isBUHead && user?.business_unit) {
-          const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-          const matchingBU = uniqueBusinessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
-          if (matchingBU) {
-            setSelectedBusinessUnitsForChart(matchingBU);
-          } else {
-            // Fallback: use normalized version if exact match not found
-            setSelectedBusinessUnitsForChart(normalizedBU || user.business_unit);
+          const userUnits = getBuHeadDropdownUnits(user.business_unit);
+          if (userUnits.length === 1) {
+            setSelectedBusinessUnitsForChart(userUnits[0]);
+          } else if (userUnits.length > 1) {
+            setSelectedBusinessUnitsForChart(userUnits);
           }
         } else {
           // For admin users, select all business units by default
@@ -3249,7 +3261,7 @@ const TeamReportCompare: React.FC = () => {
 
     if (isBUHead && user.business_unit) {
       filteredData = filteredData.filter((item: any) =>
-        compareBusinessUnits(item.business_unit, user.business_unit)
+        itemMatchesUserBusinessUnits(item.business_unit, user.business_unit)
       );
     }
 
@@ -4761,7 +4773,7 @@ const TeamReportCompare: React.FC = () => {
       }
 
       if (isBUHead && user?.business_unit) {
-        if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+        if (!itemMatchesUserBusinessUnits(item.business_unit, user.business_unit)) {
           return false;
         }
       }
@@ -4873,7 +4885,9 @@ const TeamReportCompare: React.FC = () => {
       : selectedBusinessUnitsForChart !== null && selectedBusinessUnitsForChart !== undefined;
 
     // Prefer client view when single BU is selected (use clientMFSData from /team-report); fall back to BU view only when multiple BUs
-    const shouldShowClients = selectedBusinessUnitsForChart && (isBUHead || isSingleBU);
+    const shouldShowClients = selectedBusinessUnitsForChart && (
+      (isBUHead && !isMultiBuHead(user?.designation, user?.business_unit)) || isSingleBU
+    );
 
     if (!selectedBusinessUnitsForChart) {
       return null;
@@ -4883,9 +4897,11 @@ const TeamReportCompare: React.FC = () => {
 
     if (shouldShowClients) {
       // Show clients for the selected business unit (data from /team-report has client_name/project_name)
-      const selectedBU = isBUHead && user?.business_unit
-        ? (normalizeBusinessUnitName(user.business_unit) || user.business_unit)
-        : (Array.isArray(selectedBusinessUnitsForChart) ? selectedBusinessUnitsForChart[0] : selectedBusinessUnitsForChart);
+      const selectedBU = selectedBusinessUnit
+        || (Array.isArray(selectedBusinessUnitsForChart) ? selectedBusinessUnitsForChart[0] : selectedBusinessUnitsForChart)
+        || (!isMultiBuHead(user?.designation, user?.business_unit)
+          ? parseUserBusinessUnits(user?.business_unit)[0]
+          : null);
       const selectedParameter = selectedParametersForChart[0]; // Use first selected parameter
 
       // Map parameter names to database field names
@@ -4987,11 +5003,15 @@ const TeamReportCompare: React.FC = () => {
       // Show business units (original logic)
       let businessUnitsToShow: string[] = [];
       if (isBUHead && user?.business_unit) {
-        const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-        const selectedBU = Array.isArray(selectedBusinessUnitsForChart)
-          ? selectedBusinessUnitsForChart[0]
-          : selectedBusinessUnitsForChart;
-        businessUnitsToShow = [normalizedBU || user.business_unit];
+        if (selectedBusinessUnit) {
+          businessUnitsToShow = [selectedBusinessUnit];
+        } else if (isMultiBuHead(user?.designation, user?.business_unit)) {
+          businessUnitsToShow = Array.isArray(selectedBusinessUnitsForChart)
+            ? selectedBusinessUnitsForChart
+            : getBuHeadDropdownUnits(user.business_unit);
+        } else {
+          businessUnitsToShow = getBuHeadDropdownUnits(user.business_unit);
+        }
       } else {
         businessUnitsToShow = Array.isArray(selectedBusinessUnitsForChart)
           ? selectedBusinessUnitsForChart
@@ -6204,9 +6224,9 @@ const TeamReportCompare: React.FC = () => {
         onChange={(value) => setSelectedBusinessUnit(value || null)}
 
               style={{ width: '100%' }}
-        disabled={isBUHead}
+        disabled={isBUHead && !isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
 
-        allowClear={!isBUHead}
+        allowClear={!isBUHead || isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
 
         showSearch
 
@@ -7183,19 +7203,16 @@ const TeamReportCompare: React.FC = () => {
                         style={{ width: '100%' }}
                         placeholder={isBUHead ? "Select business unit" : "Select business units"}
                         loading={isLoading}
-                        allowClear={!isBUHead}
-                        disabled={isBUHead}
+                        allowClear={!isBUHead || isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
+                        disabled={isBUHead && !isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
                         showSearch
                         filterOption={(input, option) =>
                           (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
                         }
                         optionFilterProp="children"
                       >
-                        {(isBUHead && user?.business_unit 
-                          ? businessUnits.filter(bu => {
-                              const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-                              return compareBusinessUnits(bu, normalizedBU || user.business_unit);
-                            })
+                        {(isBUHead && user?.business_unit
+                          ? getBuHeadDropdownUnits(user.business_unit)
                           : businessUnits
                         ).map((bu: string) => (
                           <Option key={bu} value={bu}>{bu}</Option>

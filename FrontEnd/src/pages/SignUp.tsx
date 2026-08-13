@@ -1,12 +1,26 @@
 import React, { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './signup.css';
-import { normalizeBusinessUnitName } from '../utils/businessUnitUtils';
+import { normalizeBusinessUnitName, serializeUserBusinessUnits } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import logo from '../assets/logo_1.png';
 
 type Designation = 'ASSOCIATE_VENDOR_MANAGEMENT' |'ADMIN'|'SUPER ADMIN' | 'BU HEAD' | 'FINANCE EXECUTIVE';
 type BusinessUnit =  'CAPTIVE' | 'SI Tech' | 'SI BPO' | 'MANAGED  SERVICES' | 'ENGINEERING' | 'ALL';
+
+const SIGNUP_BUSINESS_UNIT_OPTIONS = [
+  { value: 'CAPTIVE', label: 'CAPTIVE' },
+  { value: 'BPO|HTD', label: 'BPO|HTD' },
+  { value: 'Canada', label: 'Canada' },
+  { value: 'Japan', label: 'Japan' },
+  { value: 'Singapore', label: 'Singapore' },
+  { value: 'SI', label: 'SI' },
+  { value: 'USA', label: 'USA' },
+  { value: 'MS', label: 'MS' },
+  { value: 'Egg', label: 'Egg' },
+  { value: 'ALL', label: 'FINANCE' },
+] as const;
+
 interface SignUpResponse {
   success: boolean;
   message?: string;
@@ -27,28 +41,49 @@ const SignUp = () => {
     password: '',
     business_unit: '' as BusinessUnit,
   });
+  const [selectedBusinessUnits, setSelectedBusinessUnits] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
+
+  const isBuHeadSignup = formData.designation === 'BU HEAD';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      ...(name === 'designation' && value !== 'BU HEAD' ? {} : {}),
     }));
+    if (name === 'designation' && value !== 'BU HEAD') {
+      setSelectedBusinessUnits([]);
+    }
+  };
+
+  const handleBusinessUnitMultiChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = Array.from(e.target.selectedOptions).map((opt) => opt.value);
+    setSelectedBusinessUnits(selected);
   };
 
  const handleSubmit = async (e: FormEvent) => {
   e.preventDefault();
   setError(null);
+
+  if (isBuHeadSignup && selectedBusinessUnits.length === 0) {
+    setError('Please select at least one business unit for BU HEAD.');
+    return;
+  }
+
   setIsLoading(true);
 
   try {
-    // Normalize business unit before submitting to ensure consistency
+    const business_unit = isBuHeadSignup
+      ? serializeUserBusinessUnits(selectedBusinessUnits)
+      : (normalizeBusinessUnitName(formData.business_unit) || formData.business_unit);
+
     const normalizedFormData = {
       ...formData,
-      business_unit: normalizeBusinessUnitName(formData.business_unit) || formData.business_unit
+      business_unit,
     };
     const response = await apiClient.post<SignUpResponse>('/signup', normalizedFormData);
     
@@ -164,28 +199,39 @@ const SignUp = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="business_unit">Business Unit</label>
-              <select
-                id="business_unit"
-                name="business_unit"
-                className="form-control"
-                value={formData.business_unit}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Business Unit</option>
-                <option value="CAPTIVE">CAPTIVE</option>
-                <option value="BPO|HTD">BPO|HTD</option>
-                <option value="Canada">Canada</option>
-                <option value="Japan">Japan</option>
-                <option value="Singapore">Singapore</option>
-                <option value="SI">SI</option>
-                <option value="USA">USA</option>
-                <option value="MS">MS</option>
-                <option value="Egg">Egg</option>
-                <option value="ALL">FINANCE</option>
-
-              </select>
+              <label htmlFor={isBuHeadSignup ? 'business_units_multi' : 'business_unit'}>
+                Business Unit{isBuHeadSignup ? ' (select one or more)' : ''}
+              </label>
+              {isBuHeadSignup ? (
+                <select
+                  id="business_units_multi"
+                  name="business_units_multi"
+                  className="form-control"
+                  multiple
+                  size={6}
+                  value={selectedBusinessUnits}
+                  onChange={handleBusinessUnitMultiChange}
+                  required
+                >
+                  {SIGNUP_BUSINESS_UNIT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <select
+                  id="business_unit"
+                  name="business_unit"
+                  className="form-control"
+                  value={formData.business_unit}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select Business Unit</option>
+                  {SIGNUP_BUSINESS_UNIT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <button type="submit" className="submit-btn" disabled={isLoading}>Sign Up</button>

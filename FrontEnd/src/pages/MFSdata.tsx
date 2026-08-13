@@ -4,7 +4,7 @@ import { Select, Dropdown, message } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import './MFSdata.css';
-import { compareBusinessUnits, normalizeBusinessUnitName } from '../utils/businessUnitUtils';
+import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
 import logo from '../assets/logo_1.png';
@@ -355,10 +355,9 @@ const MFSdata: React.FC = () => {
         const userIsBUHead = parsedUser?.designation === 'BU HEAD';
         setIsBUHead(userIsBUHead);
         
-        // Auto-select business unit for BU head
+        // Auto-select business unit for single-BU BU head; multi-BU defaults to All (combined)
         if (userIsBUHead && parsedUser.business_unit) {
-          const normalizedBU = normalizeBusinessUnitName(parsedUser.business_unit);
-          setSelectedBusinessUnit(normalizedBU || parsedUser.business_unit);
+          setSelectedBusinessUnit(initializeBuHeadSelection(parsedUser));
         }
       }
     } catch (error) {
@@ -383,12 +382,15 @@ const MFSdata: React.FC = () => {
   const teamReportDataForUser = useMemo(() => {
     if (!isBUHead || !user?.business_unit) return teamReportData;
     return teamReportData.filter(item =>
-      compareBusinessUnits(item.business_unit, user.business_unit)
+      itemMatchesUserBusinessUnits(item.business_unit, user.business_unit)
     );
   }, [teamReportData, isBUHead, user?.business_unit]);
 
   // Get unique business units (normalized to handle case differences)
   const businessUnits = useMemo(() => {
+    if (isBUHead && user?.business_unit) {
+      return getBuHeadDropdownUnits(user.business_unit);
+    }
     const unitsSet = new Set<string>();
     teamReportDataForUser.forEach(item => {
       if (item.business_unit) {
@@ -399,7 +401,7 @@ const MFSdata: React.FC = () => {
       }
     });
     return Array.from(unitsSet).sort();
-  }, [teamReportDataForUser]);
+  }, [teamReportDataForUser, isBUHead, user?.business_unit]);
 
   // Get unique years
   const years = useMemo(() => {
@@ -748,7 +750,7 @@ const MFSdata: React.FC = () => {
   const clientMFSDataForUser = useMemo(() => {
     if (!isBUHead || !user?.business_unit) return clientMFSData;
     return clientMFSData.filter(item =>
-      compareBusinessUnits(item.business_unit, user.business_unit)
+      itemMatchesUserBusinessUnits(item.business_unit, user.business_unit)
     );
   }, [clientMFSData, isBUHead, user?.business_unit]);
 
@@ -806,6 +808,9 @@ const MFSdata: React.FC = () => {
 
   // Client section: BU and years from client data (so filters work when team summary is empty)
   const clientBusinessUnits = useMemo(() => {
+    if (isBUHead && user?.business_unit) {
+      return getBuHeadDropdownUnits(user.business_unit);
+    }
     const unitsSet = new Set<string>();
     clientMFSDataForUser.forEach(item => {
       if (item.business_unit) {
@@ -814,7 +819,7 @@ const MFSdata: React.FC = () => {
       }
     });
     return Array.from(unitsSet).sort();
-  }, [clientMFSDataForUser]);
+  }, [clientMFSDataForUser, isBUHead, user?.business_unit]);
 
   const clientYears = useMemo(() => {
     const yearSet = new Set<number>();
@@ -1932,7 +1937,7 @@ const MFSdata: React.FC = () => {
                 }
               }}
               className="filter-select"
-              disabled={isBUHead}
+              disabled={isBUHead && !isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
             >
               <option value="">All Business Units</option>
               {businessUnits.map(unit => (
@@ -2182,6 +2187,7 @@ const MFSdata: React.FC = () => {
                     setClientSelectedProject('');
                   }}
                   className="filter-select"
+                  disabled={isBUHead && !isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
                 >
                   <option value="">All Business Units</option>
                   {clientBusinessUnits.map(unit => (
@@ -2309,7 +2315,7 @@ const MFSdata: React.FC = () => {
 
             {loadingClientMFS ? (
               <div className="loading">Loading client data...</div>
-            ) : !selectedBusinessUnit ? (
+            ) : !selectedBusinessUnit && !(isBUHead && isBuHeadDropdownEnabled(user?.designation, user?.business_unit)) ? (
               <div className="empty">Please select a Business Unit to view client-wise data.</div>
             ) : (
               <>

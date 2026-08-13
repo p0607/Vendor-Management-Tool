@@ -20,7 +20,7 @@ import ClientParameterTrackingChart from './ClientParameterTrackingChart';
 
 import { formatValueForTable, formatKpiPeriodDisplay, formatFYFromStartYear, getRecentAndComparePeriods } from '../utils/formatUtils';
 
-import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit } from '../utils/businessUnitUtils';
+import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isMultiBuHead, parseUserBusinessUnits } from '../utils/businessUnitUtils';
 
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
@@ -1481,7 +1481,7 @@ const ClientMFSCompare: React.FC = () => {
 
       // User business unit filter (case-insensitive comparison for BU head login)
       if (isBUHead && user?.business_unit) {
-        if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+        if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) {
           return false;
         }
       }
@@ -2669,9 +2669,7 @@ const ClientMFSCompare: React.FC = () => {
           const normalizedBU = normalizeBusinessUnitName(buFromURL);
           setSelectedBusinessUnit(normalizedBU || buFromURL);
         } else if (userIsBUHead && parsedUser.business_unit) {
-          // Normalize user's business unit for BU head login (case-insensitive)
-          const normalizedBU = normalizeBusinessUnitName(parsedUser.business_unit);
-          setSelectedBusinessUnit(normalizedBU || parsedUser.business_unit);
+          setSelectedBusinessUnit(initializeBuHeadSelection(parsedUser));
         }
 
       }
@@ -2687,12 +2685,9 @@ const ClientMFSCompare: React.FC = () => {
   // Update selectedBusinessUnitsForChart when user/isBUHead changes (for BU heads)
   useEffect(() => {
     if (isBUHead && user?.business_unit && businessUnits.length > 0 && !selectedBusinessUnitsForChart) {
-      const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-      const matchingBU = businessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
-      if (matchingBU) {
-        setSelectedBusinessUnitsForChart(matchingBU);
-      } else {
-        setSelectedBusinessUnitsForChart(normalizedBU || user.business_unit);
+      const userUnits = getBuHeadDropdownUnits(user.business_unit);
+      if (userUnits.length === 1) {
+        setSelectedBusinessUnitsForChart(userUnits[0]);
       }
     }
   }, [isBUHead, user?.business_unit, businessUnits]);
@@ -2910,21 +2905,18 @@ const ClientMFSCompare: React.FC = () => {
         });
         
         // Get unique business units (normalized names) and sort them
-        const uniqueBusinessUnits = Array.from(unitsSet).sort() as string[];
+        const uniqueBusinessUnits = (isBUHead && user?.business_unit
+          ? getBuHeadDropdownUnits(user.business_unit)
+          : Array.from(unitsSet).sort()) as string[];
 
         setBusinessUnits(uniqueBusinessUnits);
         
         // Initialize selectedBusinessUnitsForChart
-        // For BU heads, only show their business unit; otherwise select first available
         if (!selectedBusinessUnitsForChart && uniqueBusinessUnits.length > 0) {
           if (isBUHead && user?.business_unit) {
-            const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-            const matchingBU = uniqueBusinessUnits.find(bu => compareBusinessUnits(bu, normalizedBU || user.business_unit));
-            if (matchingBU) {
-              setSelectedBusinessUnitsForChart(matchingBU);
-            } else {
-              // Fallback: use normalized version if exact match not found
-              setSelectedBusinessUnitsForChart(normalizedBU || user.business_unit);
+            const userUnits = getBuHeadDropdownUnits(user.business_unit);
+            if (userUnits.length === 1) {
+              setSelectedBusinessUnitsForChart(userUnits[0]);
             }
           } else {
             // Select first business unit by default
@@ -3615,7 +3607,7 @@ const ClientMFSCompare: React.FC = () => {
       
       // BU head filter - ensure BU head only sees their business unit's data
       if (isBUHead && user?.business_unit) {
-        if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+        if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) {
           return false;
         }
       }
@@ -3894,7 +3886,7 @@ const ClientMFSCompare: React.FC = () => {
             
             // BU head filter - ensure BU head only sees their business unit's data
             if (isBUHead && user?.business_unit) {
-              if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+              if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) {
                 return false;
               }
             }
@@ -4034,7 +4026,7 @@ const ClientMFSCompare: React.FC = () => {
       
       // BU head filter - ensure BU head only sees their business unit's data
       if (isBUHead && user?.business_unit) {
-        if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+        if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) {
           return false;
         }
       }
@@ -4331,7 +4323,7 @@ const ClientMFSCompare: React.FC = () => {
                   
                   // BU head filter - ensure BU head only sees their business unit's data
                   if (isBUHead && user?.business_unit) {
-                    if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+                    if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) return false;
                   }
                   // Client name/project name filter - enabled for team_report
                   if (selectedClientName) {
@@ -4421,7 +4413,7 @@ const ClientMFSCompare: React.FC = () => {
                   
                   // BU head filter - ensure BU head only sees their business unit's data
                   if (isBUHead && user?.business_unit) {
-                    if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+                    if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) return false;
                   }
 
                   // Filter by client name/project name if selected
@@ -4551,7 +4543,7 @@ const ClientMFSCompare: React.FC = () => {
 
               // BU head filter - ensure BU head only sees their business unit's data
               if (isBUHead && user?.business_unit) {
-                if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+                if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) return false;
               }
 
               // Filter by client name/project name if selected
@@ -4701,7 +4693,7 @@ const ClientMFSCompare: React.FC = () => {
               
               // BU head filter - ensure BU head only sees their business unit's data
               if (isBUHead && user?.business_unit) {
-                if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+                if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) return false;
               }
               if (selectedClientName) {
                 if (selectedBusinessUnit === "Managed Services" || selectedBusinessUnit === "MS") {
@@ -5126,7 +5118,7 @@ const ClientMFSCompare: React.FC = () => {
           }
           
           if (isBUHead && user?.business_unit) {
-            if (!compareBusinessUnits(item.business_unit, user.business_unit)) {
+            if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) {
               return false;
             }
           }
@@ -5220,40 +5212,39 @@ const ClientMFSCompare: React.FC = () => {
       }
       
       // Prepare data: group by business unit, show periods as series
-      // Only show selected business unit (single selection)
-      if (!selectedBusinessUnitsForChart) {
+      let businessUnitsToShow: string[] = [];
+      if (isBUHead && user?.business_unit) {
+        if (selectedBusinessUnit) {
+          businessUnitsToShow = [selectedBusinessUnit];
+        } else if (selectedBusinessUnitsForChart) {
+          businessUnitsToShow = [selectedBusinessUnitsForChart];
+        } else if (isMultiBuHead(user?.designation, user?.business_unit)) {
+          businessUnitsToShow = getBuHeadDropdownUnits(user.business_unit);
+        } else {
+          businessUnitsToShow = getBuHeadDropdownUnits(user.business_unit);
+        }
+      } else if (selectedBusinessUnitsForChart) {
+        businessUnitsToShow = [selectedBusinessUnitsForChart];
+      } else {
         return;
       }
-      
-      // For BU heads, ensure only their business unit is shown
-      const businessUnitToShow = isBUHead && user?.business_unit
-        ? (() => {
-            const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-            return compareBusinessUnits(selectedBusinessUnitsForChart, normalizedBU || user.business_unit) 
-              ? selectedBusinessUnitsForChart 
-              : (normalizedBU || user.business_unit);
-          })()
-        : selectedBusinessUnitsForChart;
-      
+
       const chartData: any[] = [];
-      const bu = businessUnitToShow;
-      const dataPoint: any = { businessUnit: bu };
-      
-      // Calculate total value for sorting (sum across all periods and parameters)
-      let totalValue = 0;
-      
-      // For each selected parameter, create a data point with values for each period
-      selectedParametersForChart.forEach(parameter => {
-        periods.forEach((period, periodIndex) => {
-          const value = getParameterValueForBU(bu, period, parameter);
-          // Create a field name like "FY 2025_Revenue" for each period-parameter combination
-          dataPoint[`${period}_${parameter}`] = value;
-          totalValue += Math.abs(value); // Use absolute value for sorting
+      businessUnitsToShow.forEach(bu => {
+        const dataPoint: any = { businessUnit: bu };
+        let totalValue = 0;
+
+        selectedParametersForChart.forEach(parameter => {
+          periods.forEach((period) => {
+            const value = getParameterValueForBU(bu, period, parameter);
+            dataPoint[`${period}_${parameter}`] = value;
+            totalValue += Math.abs(value);
+          });
         });
+
+        dataPoint._totalValue = totalValue;
+        chartData.push(dataPoint);
       });
-      
-      dataPoint._totalValue = totalValue; // Store total for sorting
-      chartData.push(dataPoint);
       
       // Sort chart data if sort order is specified
       if (chartSortOrder) {
@@ -6126,9 +6117,9 @@ const ClientMFSCompare: React.FC = () => {
         onChange={(value) => setSelectedBusinessUnit(value || null)}
 
               style={{ width: '100%' }}
-        disabled={isBUHead}
+        disabled={isBUHead && !isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
 
-        allowClear={!isBUHead}
+        allowClear={!isBUHead || isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
 
         showSearch
 
@@ -7051,19 +7042,16 @@ const ClientMFSCompare: React.FC = () => {
                         style={{ width: '100%' }}
                         placeholder="Select business unit"
                         loading={isLoading}
-                        allowClear={!isBUHead}
-                        disabled={isBUHead}
+                        allowClear={!isBUHead || isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
+                        disabled={isBUHead && !isBuHeadDropdownEnabled(user?.designation, user?.business_unit)}
                         showSearch
                         filterOption={(input, option) =>
                           (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
                         }
                         optionFilterProp="children"
                       >
-                        {(isBUHead && user?.business_unit 
-                          ? businessUnits.filter(bu => {
-                              const normalizedBU = normalizeBusinessUnitName(user.business_unit);
-                              return compareBusinessUnits(bu, normalizedBU || user.business_unit);
-                            })
+                        {(isBUHead && user?.business_unit
+                          ? getBuHeadDropdownUnits(user.business_unit)
                           : businessUnits
                         ).map((bu: string) => (
                           <Option key={bu} value={bu}>{bu}</Option>
@@ -7620,7 +7608,7 @@ const ClientMFSCompare: React.FC = () => {
             
             // BU head filter - ensure BU head only sees their business unit's data
             if (isBUHead && user?.business_unit) {
-              if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+              if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) return false;
             }
             // For MS, match project_name; otherwise match client_name
             if (selectedBusinessUnit === 'MS' || selectedBusinessUnit === 'Managed Services') {
@@ -7739,7 +7727,7 @@ const ClientMFSCompare: React.FC = () => {
               
               // BU head filter - ensure BU head only sees their business unit's data
               if (isBUHead && user?.business_unit) {
-                if (!compareBusinessUnits(item.business_unit, user.business_unit)) return false;
+                if (!itemMatchesUserBusinessUnits(item.business_unit, user?.business_unit)) return false;
               }
               // For MS, match project_name; otherwise match client_name
               if (selectedBusinessUnit === 'MS' || selectedBusinessUnit === 'Managed Services') {
