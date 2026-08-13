@@ -60,9 +60,10 @@ const SignUp = () => {
     }
   };
 
-  const handleBusinessUnitMultiChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selected = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-    setSelectedBusinessUnits(selected);
+  const toggleBusinessUnit = (value: string) => {
+    setSelectedBusinessUnits((prev) =>
+      prev.includes(value) ? prev.filter((bu) => bu !== value) : [...prev, value]
+    );
   };
 
  const handleSubmit = async (e: FormEvent) => {
@@ -199,24 +200,27 @@ const SignUp = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor={isBuHeadSignup ? 'business_units_multi' : 'business_unit'}>
+              <label id="business_units_multi_label" htmlFor={isBuHeadSignup ? undefined : 'business_unit'}>
                 Business Unit{isBuHeadSignup ? ' (select one or more)' : ''}
               </label>
               {isBuHeadSignup ? (
-                <select
-                  id="business_units_multi"
-                  name="business_units_multi"
-                  className="form-control"
-                  multiple
-                  size={6}
-                  value={selectedBusinessUnits}
-                  onChange={handleBusinessUnitMultiChange}
-                  required
-                >
-                  {SIGNUP_BUSINESS_UNIT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                <div className="bu-checkbox-list" role="group" aria-labelledby="business_units_multi_label">
+                  {SIGNUP_BUSINESS_UNIT_OPTIONS.map((opt) => {
+                    const checked = selectedBusinessUnits.includes(opt.value);
+                    return (
+                      <label key={opt.value} className={`bu-checkbox-item${checked ? ' bu-checkbox-item--selected' : ''}`}>
+                        <input
+                          type="checkbox"
+                          name="business_units_multi"
+                          value={opt.value}
+                          checked={checked}
+                          onChange={() => toggleBusinessUnit(opt.value)}
+                        />
+                        <span>{opt.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               ) : (
                 <select
                   id="business_unit"

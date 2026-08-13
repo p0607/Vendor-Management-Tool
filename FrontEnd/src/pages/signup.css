@@ -122,6 +122,52 @@ select.form-control {
   background-size: 1em;
 }
 
+.bu-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.bu-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: white;
+  transition: background-color 0.15s ease;
+}
+
+.bu-checkbox-item:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.bu-checkbox-item--selected {
+  background-color: rgba(66, 153, 225, 0.25);
+}
+
+.bu-checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #4299e1;
+  flex-shrink: 0;
+}
+
+.bu-checkbox-item span {
+  color: white;
+  user-select: none;
+}
+
 .submit-btn {
   width: 100%;
   padding: 0.6rem;
