@@ -1086,6 +1086,26 @@ const MFSdata: React.FC = () => {
     () => deferredPivotData.filter(paramData => !hiddenSummaryRows.includes(paramData.parameter)),
     [deferredPivotData, hiddenSummaryRows]
   );
+
+  const sumSummaryRowTotal = (
+    values: { [monthKey: string]: { value: number; id: number; record: TeamReportItem } } | null,
+    columns: SummaryColumn[],
+    includeFFQuarters: boolean
+  ): number => {
+    let total = 0;
+    columns.forEach(column => {
+      if (column.type === 'month') {
+        const cellData = values?.[column.monthKey];
+        if (cellData && !isNaN(cellData.value)) {
+          total += cellData.value;
+        }
+      } else if (includeFFQuarters && column.type === 'ff' && column.ffKey !== 'fy') {
+        total += getStoredFFValue(column.ffKey);
+      }
+    });
+    return total;
+  };
+
   const visibleClientTableMonths = useMemo(
     () => deferredClientTableMonths.filter(monthKey => !hiddenClientMonths.includes(monthKey)),
     [deferredClientTableMonths, hiddenClientMonths]
@@ -2338,20 +2358,17 @@ const MFSdata: React.FC = () => {
                             <td key={`ff-${column.ffKey}-${index}`} className="data-cell ff-cell">-</td>
                           );
                         }
-                        return (
-                          <td key="summary-total" className="data-cell parameter-total-cell">
-                            {(() => {
-                              let paramTotal = 0;
-                              visibleSummaryMonths.forEach(monthKey => {
-                                const cellData = paramData.values[monthKey];
-                                if (cellData && !isNaN(cellData.value)) {
-                                  paramTotal += cellData.value;
-                                }
-                              });
-                              return formatValue(paramTotal, paramData.parameter);
-                            })()}
-                          </td>
-                        );
+                        if (column.type === 'total') {
+                          return (
+                            <td key="summary-total" className="data-cell parameter-total-cell">
+                              {formatValue(
+                                sumSummaryRowTotal(paramData.values, visibleSummaryColumns, false),
+                                paramData.parameter
+                              )}
+                            </td>
+                          );
+                        }
+                        return null;
                       })}
                     </tr>
                   ))}
@@ -2416,11 +2433,17 @@ const MFSdata: React.FC = () => {
                             </td>
                           );
                         }
-                        return (
-                          <td key="summary-total" className="data-cell parameter-total-cell">
-                            {formatValue(getStoredFFValue('fy'), F_AND_F_ROW_KEY)}
-                          </td>
-                        );
+                        if (column.type === 'total') {
+                          return (
+                            <td key="summary-total" className="data-cell parameter-total-cell">
+                              {formatValue(
+                                sumSummaryRowTotal(null, visibleSummaryColumns, true),
+                                F_AND_F_ROW_KEY
+                              )}
+                            </td>
+                          );
+                        }
+                        return null;
                       })}
                     </tr>
                   )}
