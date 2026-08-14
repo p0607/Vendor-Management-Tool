@@ -1572,25 +1572,29 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-        return {
-
+        const record: any = {
           business_unit: normalizeBusinessUnitName(stringOrNull(row['Business_Unit'] || row['Business Unit'] || row.business_unit)),
-
           month: stringOrNull(row['Month'] || row.month),
-
           year: parseNumericValue(row['Year'] || row.year) || null,
-
           hc: parseNumericValue(row['HC'] || row.hc),
-
           revenue: parseNumericValue(row['Revenue'] || row.revenue),
-
           gpm: parseNumericValue(row['GPM'] || row.gpm),
-
           team_cost: parseNumericValue(row['Team Cost'] || row['Team_Cost'] || row.team_cost),
-
           net_margin: parseNumericValue(row['Net Margin'] || row['Net_Margin'] || row.net_margin),
-
         };
+        if ('F&F Q1' in row || row.f_and_f_q1 != null) {
+          record.f_and_f_q1 = parseNumericValue(row['F&F Q1'] || row.f_and_f_q1);
+        }
+        if ('F&F Q2' in row || row.f_and_f_q2 != null) {
+          record.f_and_f_q2 = parseNumericValue(row['F&F Q2'] || row.f_and_f_q2);
+        }
+        if ('F&F Q3' in row || row.f_and_f_q3 != null) {
+          record.f_and_f_q3 = parseNumericValue(row['F&F Q3'] || row.f_and_f_q3);
+        }
+        if ('F&F Q4' in row || row.f_and_f_q4 != null) {
+          record.f_and_f_q4 = parseNumericValue(row['F&F Q4'] || row.f_and_f_q4);
+        }
+        return record;
 
       });
 
@@ -1794,6 +1798,11 @@ const TeamReportCompare: React.FC = () => {
         'Team Cost': '',
 
         'Net Margin': '',
+
+        'F&F Q1': '',
+        'F&F Q2': '',
+        'F&F Q3': '',
+        'F&F Q4': '',
 
       }
 

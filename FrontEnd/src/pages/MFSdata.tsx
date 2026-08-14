@@ -24,6 +24,10 @@ interface TeamReportItem {
   gpm_percentage?: number;
   leave_encashment?: number;
   team_cost?: number;
+  f_and_f_q1?: number;
+  f_and_f_q2?: number;
+  f_and_f_q3?: number;
+  f_and_f_q4?: number;
   opr_cost?: number;
   funding_cost?: number;
   np?: number;
@@ -109,6 +113,7 @@ const MFSdata: React.FC = () => {
     table?: 'summary' | 'client';
     clientName?: string;
     projectName?: string;
+    ffKey?: 'q1' | 'q2' | 'q3' | 'q4';
   } | null>(null);
   const [editedValue, setEditedValue] = useState<string>('');
   const [editMode, setEditMode] = useState<boolean>(false);
@@ -208,6 +213,52 @@ const MFSdata: React.FC = () => {
     { key: 'net_margin', label: 'Net Margin' }
   ];
 
+  const F_AND_F_ROW_KEY = 'f_and_f';
+
+  type SummaryColumn =
+    | { type: 'month'; monthKey: string }
+    | { type: 'ff'; label: string; ffKey: 'q1' | 'q2' | 'q3' | 'q4' | 'fy' }
+    | { type: 'total' };
+
+  const FF_LABELS: Record<'q1' | 'q2' | 'q3' | 'q4' | 'fy', string> = {
+    q1: 'F&F Q1',
+    q2: 'F&F Q2',
+    q3: 'F&F Q3',
+    q4: 'F&F Q4',
+    fy: 'F&F Q1+Q2+Q3+Q4',
+  };
+
+  const getMonthNumFromKey = (monthKey: string): number => parseInt(monthKey.split('-')[1], 10);
+
+  const sortMonthKeysFY = (keys: string[]): string[] =>
+    [...keys].sort((a, b) => {
+      const fyIndex = (monthKey: string) => {
+        const [yearStr, monthStr] = monthKey.split('-');
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStr, 10);
+        if (month >= 4) return year * 12 + (month - 4);
+        return year * 12 + (month + 8);
+      };
+      return fyIndex(a) - fyIndex(b);
+    });
+
+  const buildSummaryColumns = (visibleMonths: string[]): SummaryColumn[] => {
+    const columns: SummaryColumn[] = [];
+    sortMonthKeysFY(visibleMonths).forEach(monthKey => {
+      columns.push({ type: 'month', monthKey });
+      const monthNum = getMonthNumFromKey(monthKey);
+      if (monthNum === 6) columns.push({ type: 'ff', label: FF_LABELS.q1, ffKey: 'q1' });
+      if (monthNum === 9) columns.push({ type: 'ff', label: FF_LABELS.q2, ffKey: 'q2' });
+      if (monthNum === 12) columns.push({ type: 'ff', label: FF_LABELS.q3, ffKey: 'q3' });
+      if (monthNum === 3) {
+        columns.push({ type: 'ff', label: FF_LABELS.q4, ffKey: 'q4' });
+        columns.push({ type: 'ff', label: FF_LABELS.fy, ffKey: 'fy' });
+      }
+    });
+    columns.push({ type: 'total' });
+    return columns;
+  };
+
   // Client-wise table: same parameters as Client MFS Team Report Data page (/team-report)
   const clientTableParameters = [
     { key: 'hc', label: 'HC' },
@@ -263,7 +314,9 @@ const MFSdata: React.FC = () => {
           renderShowButton(() => showSummaryMonth(monthKey), `Column ${formatMonthKeyLabel(monthKey)}`)
         )}
         {hiddenSummaryRows.map(parameter => {
-          const label = parameters.find(p => p.key === parameter)?.label || parameter;
+          const label = parameter === F_AND_F_ROW_KEY
+            ? 'F&F'
+            : parameters.find(p => p.key === parameter)?.label || parameter;
           return renderShowButton(() => showSummaryRow(parameter), `Row ${label}`);
         })}
       </div>
@@ -747,6 +800,53 @@ const MFSdata: React.FC = () => {
     return my.monthName === monthName && my.year === year;
   };
 
+  const activeFYStartYear = useMemo(() => {
+    if (periodFilter === 'year' && periodValue) return parseInt(periodValue, 10);
+    if (months.length > 0) {
+      const { monthName, year } = getMonthNameYearFromKey(sortMonthKeysFY(months)[0]);
+      if (['January', 'February', 'March'].includes(monthName)) return year - 1;
+      return year;
+    }
+    return getCurrentFYStartYear();
+  }, [periodFilter, periodValue, months]);
+
+  const quarterlyFF = useMemo(() => {
+    const totals = { q1: 0, q2: 0, q3: 0, q4: 0, recordId: null as number | null };
+    filteredData.forEach(item => {
+      const my = getItemMonthYear(item);
+      if (!my || my.monthName !== 'April' || my.year !== activeFYStartYear) return;
+      if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return;
+
+      const q1 = Number(item.f_and_f_q1) || 0;
+      const q2 = Number(item.f_and_f_q2) || 0;
+      const q3 = Number(item.f_and_f_q3) || 0;
+      const q4 = Number(item.f_and_f_q4) || 0;
+
+      if (selectedBusinessUnit) {
+        totals.q1 = q1;
+        totals.q2 = q2;
+        totals.q3 = q3;
+        totals.q4 = q4;
+        totals.recordId = item.id;
+      } else {
+        totals.q1 += q1;
+        totals.q2 += q2;
+        totals.q3 += q3;
+        totals.q4 += q4;
+      }
+    });
+    return totals;
+  }, [filteredData, activeFYStartYear, selectedBusinessUnit]);
+
+  const getStoredFFValue = (ffKey: 'q1' | 'q2' | 'q3' | 'q4' | 'fy'): number => {
+    if (ffKey === 'fy') {
+      return quarterlyFF.q1 + quarterlyFF.q2 + quarterlyFF.q3 + quarterlyFF.q4;
+    }
+    return quarterlyFF[ffKey];
+  };
+
+  const getFFParameterKey = (ffKey: 'q1' | 'q2' | 'q3' | 'q4'): string => `f_and_f_${ffKey}`;
+
   const clientMFSDataForUser = useMemo(() => {
     if (!isBUHead || !user?.business_unit) return clientMFSData;
     return clientMFSData.filter(item =>
@@ -963,9 +1063,14 @@ const MFSdata: React.FC = () => {
   const deferredClientTableParametersFiltered = useDeferredValue(clientTableParametersFiltered);
 
   const visibleSummaryMonths = useMemo(
-    () => deferredMonths.filter(monthKey => !hiddenSummaryMonths.includes(monthKey)),
+    () => sortMonthKeysFY(deferredMonths.filter(monthKey => !hiddenSummaryMonths.includes(monthKey))),
     [deferredMonths, hiddenSummaryMonths]
   );
+  const visibleSummaryColumns = useMemo(
+    () => buildSummaryColumns(visibleSummaryMonths),
+    [visibleSummaryMonths]
+  );
+  const showFAndFRow = !hiddenSummaryRows.includes(F_AND_F_ROW_KEY);
   const visibleSummaryRows = useMemo(
     () => deferredPivotData.filter(paramData => !hiddenSummaryRows.includes(paramData.parameter)),
     [deferredPivotData, hiddenSummaryRows]
@@ -983,7 +1088,7 @@ const MFSdata: React.FC = () => {
   useEffect(() => {
     const validSummaryMonths = new Set(months);
     setHiddenSummaryMonths(prev => prev.filter(k => validSummaryMonths.has(k)));
-    const validSummaryRows = new Set(parameters.map(p => p.key));
+    const validSummaryRows = new Set([...parameters.map(p => p.key), F_AND_F_ROW_KEY]);
     setHiddenSummaryRows(prev => prev.filter(k => validSummaryRows.has(k)));
   }, [months, selectedBusinessUnit, periodFilter, periodValue]);
 
@@ -1346,14 +1451,16 @@ const MFSdata: React.FC = () => {
     currentValue: number,
     table: 'summary' | 'client' = 'summary',
     clientName?: string,
-    projectName?: string
+    projectName?: string,
+    ffKey?: 'q1' | 'q2' | 'q3' | 'q4'
   ) => {
     setEditingCell({
       parameter,
       monthKey,
       table,
       clientName,
-      projectName
+      projectName,
+      ffKey
     });
     setEditedValue(String(currentValue || ''));
   };
@@ -1392,6 +1499,19 @@ const MFSdata: React.FC = () => {
         const response = await apiClient.get('/team-report');
         if (Array.isArray(response.data)) {
           setClientMFSData(response.data as TeamReportItem[]);
+          setError(null);
+        }
+      } else if (editingCell.parameter.startsWith('f_and_f_q')) {
+        if (!quarterlyFF.recordId) {
+          setError('Select a single business unit to edit quarterly F&F values.');
+          return;
+        }
+        await apiClient.patch(`/team-summary-report/${quarterlyFF.recordId}`, {
+          [editingCell.parameter]: updateValue,
+        });
+        const response = await apiClient.get('/team-summary-report');
+        if (Array.isArray(response.data)) {
+          setTeamReportData(response.data as TeamReportItem[]);
           setError(null);
         }
       } else {
@@ -1568,7 +1688,10 @@ const MFSdata: React.FC = () => {
 
   // --- Actions dropdown handlers (same as Team Report Compare page) ---
   const handleDownloadTemplate = () => {
-    const templateData = [{ 'Business_Unit': '', 'Month': '', 'Year': '', 'HC': '', 'Revenue': '', 'GPM': '', 'Team Cost': '', 'Net Margin': '' }];
+    const templateData = [{
+      'Business_Unit': '', 'Month': '', 'Year': '', 'HC': '', 'Revenue': '', 'GPM': '', 'Team Cost': '', 'Net Margin': '',
+      'F&F Q1': '', 'F&F Q2': '', 'F&F Q3': '', 'F&F Q4': '',
+    }];
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'MFS_Summary_Template');
@@ -1598,16 +1721,31 @@ const MFSdata: React.FC = () => {
         if (monthNamesFull.some(m => m.toLowerCase() === s.toLowerCase())) return monthNamesFull.find(m => m.toLowerCase() === s.toLowerCase()) || s;
         return s;
       };
-      const mappedData = jsonData.map((row: any) => ({
-        business_unit: normalizeBusinessUnitName(String(row['Business_Unit'] || row['Business Unit'] || row.business_unit || '').trim() || null),
-        month: normalizeMonthForImport(row['Month'] ?? row.month ?? '') || null,
-        year: parseNumericValue(row['Year'] || row.year) || null,
-        hc: parseNumericValue(row['HC'] || row.hc),
-        revenue: parseNumericValue(row['Revenue'] || row.revenue),
-        gpm: parseNumericValue(row['GPM'] || row.gpm),
-        team_cost: parseNumericValue(row['Team Cost'] || row['Team_Cost'] || row.team_cost),
-        net_margin: parseNumericValue(row['Net Margin'] || row['Net_Margin'] || row.net_margin),
-      }));
+      const mappedData = jsonData.map((row: any) => {
+        const record: any = {
+          business_unit: normalizeBusinessUnitName(String(row['Business_Unit'] || row['Business Unit'] || row.business_unit || '').trim() || null),
+          month: normalizeMonthForImport(row['Month'] ?? row.month ?? '') || null,
+          year: parseNumericValue(row['Year'] || row.year) || null,
+          hc: parseNumericValue(row['HC'] || row.hc),
+          revenue: parseNumericValue(row['Revenue'] || row.revenue),
+          gpm: parseNumericValue(row['GPM'] || row.gpm),
+          team_cost: parseNumericValue(row['Team Cost'] || row['Team_Cost'] || row.team_cost),
+          net_margin: parseNumericValue(row['Net Margin'] || row['Net_Margin'] || row.net_margin),
+        };
+        if ('F&F Q1' in row || 'F&F_Q1' in row || row.f_and_f_q1 != null) {
+          record.f_and_f_q1 = parseNumericValue(row['F&F Q1'] || row['F&F_Q1'] || row.f_and_f_q1);
+        }
+        if ('F&F Q2' in row || 'F&F_Q2' in row || row.f_and_f_q2 != null) {
+          record.f_and_f_q2 = parseNumericValue(row['F&F Q2'] || row['F&F_Q2'] || row.f_and_f_q2);
+        }
+        if ('F&F Q3' in row || 'F&F_Q3' in row || row.f_and_f_q3 != null) {
+          record.f_and_f_q3 = parseNumericValue(row['F&F Q3'] || row['F&F_Q3'] || row.f_and_f_q3);
+        }
+        if ('F&F Q4' in row || 'F&F_Q4' in row || row.f_and_f_q4 != null) {
+          record.f_and_f_q4 = parseNumericValue(row['F&F Q4'] || row['F&F_Q4'] || row.f_and_f_q4);
+        }
+        return record;
+      });
       try {
         const batchSize = 100;
         let successCount = 0, errorCount = 0;
@@ -1786,16 +1924,24 @@ const MFSdata: React.FC = () => {
   };
 
   const handleExportMFSData = () => {
-    const exportData = teamReportDataForUser.map((row: TeamReportItem) => ({
-      'Business Unit': row.business_unit || '',
-      'Month': row.month || '',
-      'Year': row.year,
-      'HC': row.hc ?? 0,
-      'Revenue': row.revenue ?? 0,
-      'GPM': row.gpm ?? 0,
-      'Team Cost': row.team_cost ?? 0,
-      'Net Margin': row.net_margin ?? 0,
-    }));
+    const exportData = teamReportDataForUser.map((row: TeamReportItem) => {
+      const monthName = row.month ? normalizeToFullMonthName(String(row.month)) : '';
+      const isAprilAnchor = monthName === 'April';
+      return {
+        'Business Unit': row.business_unit || '',
+        'Month': row.month || '',
+        'Year': row.year,
+        'HC': row.hc ?? 0,
+        'Revenue': row.revenue ?? 0,
+        'GPM': row.gpm ?? 0,
+        'Team Cost': row.team_cost ?? 0,
+        'Net Margin': row.net_margin ?? 0,
+        'F&F Q1': isAprilAnchor ? (row.f_and_f_q1 ?? 0) : '',
+        'F&F Q2': isAprilAnchor ? (row.f_and_f_q2 ?? 0) : '',
+        'F&F Q3': isAprilAnchor ? (row.f_and_f_q3 ?? 0) : '',
+        'F&F Q4': isAprilAnchor ? (row.f_and_f_q4 ?? 0) : '',
+      };
+    });
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'MFS_Report');
@@ -2028,7 +2174,7 @@ const MFSdata: React.FC = () => {
           ) : (
           <>
           {renderSummaryRestoreBar()}
-          {(visibleSummaryMonths.length === 0 && months.length > 0) || (visibleSummaryRows.length === 0 && pivotData.length > 0) ? (
+          {(visibleSummaryMonths.length === 0 && months.length > 0) || (visibleSummaryRows.length === 0 && !showFAndFRow && pivotData.length > 0) ? (
             <div className="empty">
               {visibleSummaryMonths.length === 0 && months.length > 0
                 ? 'All summary columns are hidden. Use + above to show them again.'
@@ -2053,6 +2199,14 @@ const MFSdata: React.FC = () => {
                       </td>
                     </tr>
                   ))}
+                  {showFAndFRow && (
+                    <tr key={F_AND_F_ROW_KEY}>
+                      <td className="parameter-cell mfs-row-label-cell">
+                        <span>F&F</span>
+                        {renderHideButton(() => hideSummaryRow(F_AND_F_ROW_KEY), 'Hide row F&F')}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -2062,93 +2216,183 @@ const MFSdata: React.FC = () => {
               <table className="pivot-table scrollable-table">
                 <thead>
                   <tr>
-                    {visibleSummaryMonths.map(monthKey => {
-                      const [year, monthNum] = monthKey.split('-');
-                      const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                      const monthName = monthNames[parseInt(monthNum)];
-                      return (
-                        <th key={monthKey} className="month-header">
-                          <div className="mfs-col-header-wrap">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                              {monthName} {year}
-                              {editMode && summaryMonthHasData(monthKey) && (
-                                <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedSummaryMonthsToDelete.includes(monthKey)}
-                                    onChange={() => toggleSummaryMonthForDelete(monthKey)}
-                                  />
-                                </label>
-                              )}
+                    {visibleSummaryColumns.map((column, index) => {
+                      if (column.type === 'month') {
+                        const monthKey = column.monthKey;
+                        const [year, monthNum] = monthKey.split('-');
+                        const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const monthName = monthNames[parseInt(monthNum, 10)];
+                        return (
+                          <th key={monthKey} className="month-header">
+                            <div className="mfs-col-header-wrap">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                {monthName} {year}
+                                {editMode && summaryMonthHasData(monthKey) && (
+                                  <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedSummaryMonthsToDelete.includes(monthKey)}
+                                      onChange={() => toggleSummaryMonthForDelete(monthKey)}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+                              {renderHideButton(() => hideSummaryMonth(monthKey), `Hide column ${monthName} ${year}`)}
                             </div>
-                            {renderHideButton(() => hideSummaryMonth(monthKey), `Hide column ${monthName} ${year}`)}
-                          </div>
-                        </th>
+                          </th>
+                        );
+                      }
+                      if (column.type === 'ff') {
+                        return (
+                          <th key={`ff-${column.ffKey}-${index}`} className="month-header ff-header">
+                            {column.label}
+                          </th>
+                        );
+                      }
+                      return (
+                        <th key="summary-total" className="total-header">Total</th>
                       );
                     })}
-                    <th className="total-header">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleSummaryRows.map((paramData) => (
                     <tr key={paramData.parameter}>
-                      {visibleSummaryMonths.map(monthKey => {
-                        const cellData = paramData.values[monthKey];
-                        const isEditing = editingCell?.parameter === paramData.parameter &&
-                                         editingCell?.monthKey === monthKey &&
-                                         editingCell?.table !== 'client';
-                        
-                        return (
-                          <td key={monthKey} className="data-cell">
-                            {isEditing ? (
-                              <div className="edit-container">
-                                <input
-                                  type="text"
-                                  value={editedValue}
-                                  onChange={(e) => setEditedValue(e.target.value)}
-                                  className="edit-input"
-                                  autoFocus
-                                />
-                                <button onClick={handleSaveEdit} className="save-button">
-                                  Save
-                                </button>
-                                <button onClick={handleCancelEdit} className="cancel-button">
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="cell-content">
-                                <span>{cellData ? formatValue(cellData.value, paramData.parameter) : 'N/A'}</span>
-                                {editMode && (
-                                  <button
-                                    onClick={() => handleEditClick(paramData.parameter, monthKey, cellData?.value || 0, 'summary')}
-                                    className="edit-pen-button"
-                                    title="Edit"
-                                  >
-                                    ✏️
+                      {visibleSummaryColumns.map((column, index) => {
+                        if (column.type === 'month') {
+                          const monthKey = column.monthKey;
+                          const cellData = paramData.values[monthKey];
+                          const isEditing = editingCell?.parameter === paramData.parameter &&
+                                           editingCell?.monthKey === monthKey &&
+                                           editingCell?.table !== 'client';
+
+                          return (
+                            <td key={monthKey} className="data-cell">
+                              {isEditing ? (
+                                <div className="edit-container">
+                                  <input
+                                    type="text"
+                                    value={editedValue}
+                                    onChange={(e) => setEditedValue(e.target.value)}
+                                    className="edit-input"
+                                    autoFocus
+                                  />
+                                  <button onClick={handleSaveEdit} className="save-button">
+                                    Save
                                   </button>
-                                )}
-                              </div>
-                            )}
+                                  <button onClick={handleCancelEdit} className="cancel-button">
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="cell-content">
+                                  <span>{cellData ? formatValue(cellData.value, paramData.parameter) : 'N/A'}</span>
+                                  {editMode && (
+                                    <button
+                                      onClick={() => handleEditClick(paramData.parameter, monthKey, cellData?.value || 0, 'summary')}
+                                      className="edit-pen-button"
+                                      title="Edit"
+                                    >
+                                      ✏️
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        }
+                        if (column.type === 'ff') {
+                          return (
+                            <td key={`ff-${column.ffKey}-${index}`} className="data-cell ff-cell">-</td>
+                          );
+                        }
+                        return (
+                          <td key="summary-total" className="data-cell parameter-total-cell">
+                            {(() => {
+                              let paramTotal = 0;
+                              visibleSummaryMonths.forEach(monthKey => {
+                                const cellData = paramData.values[monthKey];
+                                if (cellData && !isNaN(cellData.value)) {
+                                  paramTotal += cellData.value;
+                                }
+                              });
+                              return formatValue(paramTotal, paramData.parameter);
+                            })()}
                           </td>
                         );
                       })}
-                      <td className="data-cell parameter-total-cell">
-                        {(() => {
-                          // Calculate total for this parameter across visible months
-                          let paramTotal = 0;
-                          visibleSummaryMonths.forEach(monthKey => {
-                            const cellData = paramData.values[monthKey];
-                            if (cellData && !isNaN(cellData.value)) {
-                              paramTotal += cellData.value;
-                            }
-                          });
-                          return formatValue(paramTotal, paramData.parameter);
-                        })()}
-                      </td>
                     </tr>
                   ))}
+                  {showFAndFRow && (
+                    <tr key={F_AND_F_ROW_KEY}>
+                      {visibleSummaryColumns.map((column, index) => {
+                        if (column.type === 'month') {
+                          return (
+                            <td key={column.monthKey} className="data-cell ff-cell">-</td>
+                          );
+                        }
+                        if (column.type === 'ff') {
+                          if (column.ffKey === 'fy') {
+                            return (
+                              <td key={`ff-${column.ffKey}-${index}`} className="data-cell ff-cell parameter-total-cell">
+                                {formatValue(getStoredFFValue('fy'), F_AND_F_ROW_KEY)}
+                              </td>
+                            );
+                          }
+                          const quarterKey = column.ffKey;
+                          const ffValue = getStoredFFValue(quarterKey);
+                          const paramKey = getFFParameterKey(quarterKey);
+                          const isEditing = editingCell?.parameter === paramKey && editingCell?.table !== 'client';
+                          const canEditFF = editMode && selectedBusinessUnit && quarterlyFF.recordId;
+
+                          return (
+                            <td key={`ff-${column.ffKey}-${index}`} className="data-cell ff-cell parameter-total-cell">
+                              {isEditing ? (
+                                <div className="edit-container">
+                                  <input
+                                    type="text"
+                                    value={editedValue}
+                                    onChange={(e) => setEditedValue(e.target.value)}
+                                    className="edit-input"
+                                    autoFocus
+                                  />
+                                  <button onClick={handleSaveEdit} className="save-button">Save</button>
+                                  <button onClick={handleCancelEdit} className="cancel-button">Cancel</button>
+                                </div>
+                              ) : (
+                                <div className="cell-content">
+                                  <span>{formatValue(ffValue, F_AND_F_ROW_KEY)}</span>
+                                  {canEditFF && (
+                                    <button
+                                      onClick={() => handleEditClick(
+                                        paramKey,
+                                        '',
+                                        ffValue,
+                                        'summary',
+                                        undefined,
+                                        undefined,
+                                        quarterKey
+                                      )}
+                                      className="edit-pen-button"
+                                      title="Edit"
+                                    >
+                                      ✏️
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        }
+                        return (
+                          <td key="summary-total" className="data-cell parameter-total-cell">
+                            {formatValue(getStoredFFValue('fy'), F_AND_F_ROW_KEY)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

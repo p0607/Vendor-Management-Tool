@@ -2264,7 +2264,7 @@ app.post('/api/team-report', async (req, res, next) => {
       }
       
       // Convert numeric fields to numbers (handle parentheses, commas, percentages)
-      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount'];
+      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f'];
       const processedFields = {};
       for (const field of numericFields) {
         const value = req.body[field];
@@ -2404,8 +2404,8 @@ app.post('/api/team-report', async (req, res, next) => {
           client_name, project_name, business_unit, bu_head, hc,
           salary_cost, revenue, gpm, gpm_percentage, leave_encashment,
           team_cost, opr_cost, funding_cost, np, np_percentage, 
-          rebate, passthrough, vendor_cost, discount, month, year
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
+          rebate, passthrough, vendor_cost, discount, f_and_f, month, year
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
         [
           client_name === '' ? null : client_name,
           project_name === '' ? null : project_name,
@@ -2426,6 +2426,7 @@ app.post('/api/team-report', async (req, res, next) => {
           processedFields.passthrough,
           processedFields.vendor_cost ?? 0,
           processedFields.discount ?? 0,
+          processedFields.f_and_f ?? 0,
           normalizedMonth,
           year
         ]
@@ -2514,7 +2515,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       }
       
       // Convert numeric fields to numbers
-      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount'];
+      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f'];
       for (const field of numericFields) {
         if (record[field] !== null && record[field] !== undefined && record[field] !== '') {
           if (typeof record[field] === 'string') {
@@ -2637,8 +2638,8 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         client_name, project_name, business_unit, bu_head, hc,
         salary_cost, revenue, gpm, gpm_percentage, leave_encashment,
         team_cost, opr_cost, funding_cost, np, np_percentage, 
-        rebate, passthrough, vendor_cost, discount, month, year
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`;
+        rebate, passthrough, vendor_cost, discount, f_and_f, month, year
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`;
 
       const findExistingQuery = `SELECT id FROM team_report WHERE
         business_unit IS NOT DISTINCT FROM $1 AND
@@ -2651,8 +2652,8 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         bu_head = $1, hc = $2, salary_cost = $3, revenue = $4, gpm = $5, gpm_percentage = $6,
         leave_encashment = $7, team_cost = $8, opr_cost = $9, funding_cost = $10,
         np = $11, np_percentage = $12, rebate = $13, passthrough = $14,
-        vendor_cost = $15, discount = $16
-        WHERE id = $17`;
+        vendor_cost = $15, discount = $16, f_and_f = $17
+        WHERE id = $18`;
       
       let insertedCount = 0;
       let updatedCount = 0;
@@ -2693,6 +2694,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             record.passthrough || 0,
             record.vendor_cost ?? 0,
             record.discount ?? 0,
+            record.f_and_f ?? 0,
           ];
 
           const existing = await client.query(findExistingQuery, [
@@ -2925,7 +2927,8 @@ app.get('/api/team-summary-report', async (req, res, next) => {
 app.post('/api/team-summary-report', async (req, res, next) => {
   try {
     const { 
-      business_unit, month, year, hc, revenue, gpm, team_cost, net_margin
+      business_unit, month, year, hc, revenue, gpm, team_cost, net_margin,
+      f_and_f_q1, f_and_f_q2, f_and_f_q3, f_and_f_q4
     } = req.body;
     
     // Validate required fields
@@ -2966,8 +2969,9 @@ app.post('/api/team-summary-report', async (req, res, next) => {
 
     const result = await executeQuery(
       `INSERT INTO team_summary_report (
-        business_unit, month, year, hc, revenue, gpm, team_cost, net_margin
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        business_unit, month, year, hc, revenue, gpm, team_cost, net_margin,
+        f_and_f_q1, f_and_f_q2, f_and_f_q3, f_and_f_q4
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
       [
         business_unit,
         month,
@@ -2976,7 +2980,11 @@ app.post('/api/team-summary-report', async (req, res, next) => {
         revenue || 0,
         gpm || 0,
         team_cost || 0,
-        net_margin || 0
+        net_margin || 0,
+        f_and_f_q1 || 0,
+        f_and_f_q2 || 0,
+        f_and_f_q3 || 0,
+        f_and_f_q4 || 0
       ]
     );
     
@@ -3021,6 +3029,20 @@ app.post('/api/team-summary-report/bulk', async (req, res, next) => {
       return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
     };
 
+    // Helper: FY start year from month + calendar year (Apr–Mar)
+    const getFYStartYear = (month, year) => {
+      const fyStartMonths = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const y = Number(year) || 0;
+      if (fyStartMonths.includes(month)) return y;
+      return y - 1;
+    };
+
+    const parseOptionalNumber = (value) => {
+      if (value === null || value === undefined || value === '') return undefined;
+      if (typeof value === 'string') return parseFloat(value.replace(/,/g, '')) || 0;
+      return Number(value) || 0;
+    };
+
     // Process and validate each record
     for (let i = 0; i < data.length; i++) {
       const record = data[i];
@@ -3042,6 +3064,18 @@ app.post('/api/team-summary-report/bulk', async (req, res, next) => {
       if (!record.year || record.year === 0) {
         throw new Error(`Record ${i + 1}: Year is required.`);
       }
+
+      // Optional quarterly F&F (manual entry from Excel)
+      const ffQ1 = parseOptionalNumber(record.f_and_f_q1 ?? record['F&F Q1'] ?? record['F&F_Q1']);
+      const ffQ2 = parseOptionalNumber(record.f_and_f_q2 ?? record['F&F Q2'] ?? record['F&F_Q2']);
+      const ffQ3 = parseOptionalNumber(record.f_and_f_q3 ?? record['F&F Q3'] ?? record['F&F_Q3']);
+      const ffQ4 = parseOptionalNumber(record.f_and_f_q4 ?? record['F&F Q4'] ?? record['F&F_Q4']);
+      record._ffUpdates = {};
+      if (ffQ1 !== undefined) record._ffUpdates.q1 = ffQ1;
+      if (ffQ2 !== undefined) record._ffUpdates.q2 = ffQ2;
+      if (ffQ3 !== undefined) record._ffUpdates.q3 = ffQ3;
+      if (ffQ4 !== undefined) record._ffUpdates.q4 = ffQ4;
+      record._ffFYStart = getFYStartYear(record.month, record.year);
       
       // Convert numeric fields to numbers
       const numericFields = ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin', 'year'];
@@ -3141,6 +3175,38 @@ app.post('/api/team-summary-report/bulk', async (req, res, next) => {
               record.hc, record.revenue, record.gpm, record.team_cost, record.net_margin
             ]
           );
+        }
+
+        // Persist manual quarterly F&F on the April anchor row for this BU + FY
+        if (record._ffUpdates && Object.keys(record._ffUpdates).length > 0) {
+          const fyStart = record._ffFYStart;
+          const aprilExisting = await client.query(
+            `SELECT id, f_and_f_q1, f_and_f_q2, f_and_f_q3, f_and_f_q4
+             FROM team_summary_report WHERE business_unit = $1 AND month = 'April' AND year = $2`,
+            [record.business_unit, fyStart]
+          );
+          const current = aprilExisting.rows[0] || {};
+          const nextQ1 = record._ffUpdates.q1 !== undefined ? record._ffUpdates.q1 : (current.f_and_f_q1 || 0);
+          const nextQ2 = record._ffUpdates.q2 !== undefined ? record._ffUpdates.q2 : (current.f_and_f_q2 || 0);
+          const nextQ3 = record._ffUpdates.q3 !== undefined ? record._ffUpdates.q3 : (current.f_and_f_q3 || 0);
+          const nextQ4 = record._ffUpdates.q4 !== undefined ? record._ffUpdates.q4 : (current.f_and_f_q4 || 0);
+
+          if (aprilExisting.rows.length > 0) {
+            await client.query(
+              `UPDATE team_summary_report SET
+               f_and_f_q1 = $1, f_and_f_q2 = $2, f_and_f_q3 = $3, f_and_f_q4 = $4, updated_at = CURRENT_TIMESTAMP
+               WHERE id = $5`,
+              [nextQ1, nextQ2, nextQ3, nextQ4, aprilExisting.rows[0].id]
+            );
+          } else {
+            await client.query(
+              `INSERT INTO team_summary_report (
+                business_unit, month, year, hc, revenue, gpm, team_cost, net_margin,
+                f_and_f_q1, f_and_f_q2, f_and_f_q3, f_and_f_q4
+              ) VALUES ($1, 'April', $2, 0, 0, 0, 0, 0, $3, $4, $5, $6)`,
+              [record.business_unit, fyStart, nextQ1, nextQ2, nextQ3, nextQ4]
+            );
+          }
         }
         
         insertedCount++;
