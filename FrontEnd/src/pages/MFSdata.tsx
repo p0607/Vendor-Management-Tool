@@ -439,6 +439,15 @@ const MFSdata: React.FC = () => {
     );
   }, [teamReportData, isBUHead, user?.business_unit]);
 
+  const effectiveBusinessUnitForEdit = useMemo(() => {
+    if (selectedBusinessUnit) return selectedBusinessUnit;
+    if (isBUHead && user?.business_unit && !isBuHeadDropdownEnabled(user?.designation, user?.business_unit)) {
+      const units = getBuHeadDropdownUnits(user.business_unit);
+      return units[0] || '';
+    }
+    return '';
+  }, [selectedBusinessUnit, isBUHead, user?.business_unit, user?.designation]);
+
   // Get unique business units (normalized to handle case differences)
   const businessUnits = useMemo(() => {
     if (isBUHead && user?.business_unit) {
@@ -812,17 +821,19 @@ const MFSdata: React.FC = () => {
 
   const quarterlyFF = useMemo(() => {
     const totals = { q1: 0, q2: 0, q3: 0, q4: 0, recordId: null as number | null };
-    filteredData.forEach(item => {
+    const buForFF = effectiveBusinessUnitForEdit;
+
+    teamReportDataForUser.forEach(item => {
       const my = getItemMonthYear(item);
       if (!my || my.monthName !== 'April' || my.year !== activeFYStartYear) return;
-      if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return;
+      if (buForFF && !compareBusinessUnits(item.business_unit, buForFF)) return;
 
       const q1 = Number(item.f_and_f_q1) || 0;
       const q2 = Number(item.f_and_f_q2) || 0;
       const q3 = Number(item.f_and_f_q3) || 0;
       const q4 = Number(item.f_and_f_q4) || 0;
 
-      if (selectedBusinessUnit) {
+      if (buForFF) {
         totals.q1 = q1;
         totals.q2 = q2;
         totals.q3 = q3;
@@ -836,7 +847,7 @@ const MFSdata: React.FC = () => {
       }
     });
     return totals;
-  }, [filteredData, activeFYStartYear, selectedBusinessUnit]);
+  }, [teamReportDataForUser, activeFYStartYear, effectiveBusinessUnitForEdit]);
 
   const getStoredFFValue = (ffKey: 'q1' | 'q2' | 'q3' | 'q4' | 'fy'): number => {
     if (ffKey === 'fy') {
@@ -1502,13 +1513,33 @@ const MFSdata: React.FC = () => {
           setError(null);
         }
       } else if (editingCell.parameter.startsWith('f_and_f_q')) {
-        if (!quarterlyFF.recordId) {
+        const bu = effectiveBusinessUnitForEdit;
+        if (!bu) {
           setError('Select a single business unit to edit quarterly F&F values.');
           return;
         }
-        await apiClient.patch(`/team-summary-report/${quarterlyFF.recordId}`, {
+        const ffPayload = {
+          f_and_f_q1: quarterlyFF.q1,
+          f_and_f_q2: quarterlyFF.q2,
+          f_and_f_q3: quarterlyFF.q3,
+          f_and_f_q4: quarterlyFF.q4,
           [editingCell.parameter]: updateValue,
-        });
+        };
+        if (quarterlyFF.recordId) {
+          await apiClient.patch(`/team-summary-report/${quarterlyFF.recordId}`, ffPayload);
+        } else {
+          await apiClient.post('/team-summary-report', {
+            business_unit: bu,
+            month: 'April',
+            year: activeFYStartYear,
+            hc: 0,
+            revenue: 0,
+            gpm: 0,
+            team_cost: 0,
+            net_margin: 0,
+            ...ffPayload,
+          });
+        }
         const response = await apiClient.get('/team-summary-report');
         if (Array.isArray(response.data)) {
           setTeamReportData(response.data as TeamReportItem[]);
@@ -2344,7 +2375,7 @@ const MFSdata: React.FC = () => {
                           const ffValue = getStoredFFValue(quarterKey);
                           const paramKey = getFFParameterKey(quarterKey);
                           const isEditing = editingCell?.parameter === paramKey && editingCell?.table !== 'client';
-                          const canEditFF = editMode && selectedBusinessUnit && quarterlyFF.recordId;
+                          const canEditFF = editMode && !!effectiveBusinessUnitForEdit;
 
                           return (
                             <td key={`ff-${column.ffKey}-${index}`} className="data-cell ff-cell parameter-total-cell">

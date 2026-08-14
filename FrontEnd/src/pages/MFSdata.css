@@ -532,12 +532,27 @@ body, html {
 }
 
 .month-header {
-  background-color: #ff8c00 !important; /* Orange color matching button (--button-bg) */
-  color: #000000 !important; /* Black text */
-  min-width: 80px; /* Increased to 80px for better column name fit */
-  max-width: 80px; /* Set max-width to match min-width */
-  border: 2px solid #000000 !important; /* Black border */
-  text-align: right; /* Align with right-aligned numeric data */
+  background-color: #ff8c00 !important;
+  color: #000000 !important;
+  min-width: 72px;
+  max-width: 72px;
+  width: 72px;
+  font-size: 10px;
+  border: 2px solid #000000 !important;
+  text-align: right;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.month-header.ff-header {
+  min-width: 68px;
+  max-width: 68px;
+  width: 68px;
+  font-size: 8px;
+  line-height: 1.15;
+  padding: 2px;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .total-header {
@@ -726,14 +741,24 @@ body, html {
 }
 
 .data-cell {
-  padding: 6px 3px; /* Decreased from 6px 8px to reduce cell width */
+  padding: 4px 2px;
   border: 1px solid #000000;
   background-color: #e8f4f8;
-  text-align: right; /* Right-align all numeric data in both tables */
-  font-size: 12px; /* Increased font size to match table */
-  min-width: 80px; /* Set min-width to match header */
-  max-width: 80px; /* Set max-width to match header */
-  width: 80px; /* Fixed width for consistent column sizing */
+  text-align: right;
+  font-size: 10px;
+  min-width: 72px;
+  max-width: 72px;
+  width: 72px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.data-cell.ff-cell {
+  min-width: 68px;
+  max-width: 68px;
+  width: 68px;
+  font-size: 9px;
+  padding: 3px 2px;
 }
 
 .routing-table tbody tr {
@@ -880,36 +905,42 @@ body, html {
   background: none !important;
   border: none;
   cursor: pointer;
-  margin-left: 4px;
-  padding: 2px;
-  font-size: 12px;
+  margin-left: 2px;
+  padding: 0;
+  font-size: 9px;
+  line-height: 1;
   color: #666;
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
+  flex-shrink: 0;
 }
 
 .edit-pen-button:hover {
   color: #333;
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .edit-container {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px;
+  gap: 2px;
+  padding: 1px;
+  flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .edit-input {
-  padding: 2px 4px;
+  padding: 1px 3px;
   border: 1px solid #ddd;
   border-radius: 3px;
-  flex-grow: 1;
+  flex: 1 1 40px;
+  min-width: 0;
+  max-width: 100%;
   color: black !important;
   background-color: white !important;
-  font-size: 11px;
-  min-width: 40px;
+  font-size: 9px;
 }
 
 .save-button {
@@ -917,15 +948,16 @@ body, html {
   color: #4CAF50;
   border: none;
   border-radius: 2px;
-  padding: 2px 4px;
+  padding: 0 2px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 10px;
   font-weight: bold;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
-  height: 20px;
+  min-width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .save-button:hover {
@@ -938,15 +970,16 @@ body, html {
   color: #f44336;
   border: none;
   border-radius: 2px;
-  padding: 2px 4px;
+  padding: 0 2px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 10px;
   font-weight: bold;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
-  height: 20px;
+  min-width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .cancel-button:hover {
@@ -957,12 +990,29 @@ body, html {
 .cell-content {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Right-align numeric cell content (both tables) */
 .data-cell .cell-content {
   justify-content: flex-end;
+}
+
+.data-cell .cell-content span {
+  font-size: 10px;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.data-cell.ff-cell .cell-content span {
+  font-size: 9px;
 }
 
 .expand-button {
