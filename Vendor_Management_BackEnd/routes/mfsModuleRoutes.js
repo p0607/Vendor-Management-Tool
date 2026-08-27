@@ -178,7 +178,10 @@ async function syncMfsStructureToFtFnf(pool, logger, type = 'all') {
           INSERT INTO ${table} (business_unit, month, year, hc, revenue, gpm, team_cost, net_margin)
           SELECT s.business_unit, s.month, s.year, 0, 0, 0, 0, 0
           FROM team_summary_report s
-          WHERE NOT EXISTS (
+          WHERE s.business_unit IS NOT NULL AND TRIM(s.business_unit) <> ''
+            AND s.month IS NOT NULL AND TRIM(s.month) <> ''
+            AND s.year IS NOT NULL
+            AND NOT EXISTS (
             SELECT 1 FROM ${table} t
             WHERE t.business_unit = s.business_unit AND t.month = s.month AND t.year = s.year
           )
