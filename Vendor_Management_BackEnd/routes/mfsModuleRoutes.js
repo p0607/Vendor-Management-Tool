@@ -57,11 +57,21 @@ const parseNumeric = (value) => {
 };
 
 const CLIENT_DIMENSION_COLS = ['client_name', 'project_name', 'business_unit', 'bu_head', 'month', 'year'];
+const CLIENT_OPTIONAL_TEXT_COLS = ['alchemy_name'];
 const CLIENT_METRIC_COLS = [
   'hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment',
   'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage',
   'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f',
 ];
+
+function getClientUpdateValue(record, key) {
+  if (key === 'bu_head' || CLIENT_OPTIONAL_TEXT_COLS.includes(key)) {
+    const value = record[key];
+    if (value === undefined || value === null || String(value).trim() === '') return null;
+    return String(value).trim();
+  }
+  return record[key] ?? 0;
+}
 
 async function getTableColumns(client, tableName) {
   const safeName = String(tableName).replace(/[^a-z0-9_]/gi, '');
@@ -105,8 +115,17 @@ async function insertClientStructureFromMfs(client, targetTable) {
 }
 
 /** Build UPDATE for client bulk import using only columns present on the module table. */
-function buildClientUpdateParts(targetCols) {
-  const fields = ['bu_head', ...CLIENT_METRIC_COLS].filter((f) => targetCols.has(f));
+function buildClientUpdateParts(targetCols, record = null) {
+  const optionalTextFields = CLIENT_OPTIONAL_TEXT_COLS.filter((f) => {
+    if (!targetCols.has(f)) return false;
+    if (record && !Object.prototype.hasOwnProperty.call(record, f)) return false;
+    return true;
+  });
+  const fields = [
+    'bu_head',
+    ...optionalTextFields,
+    ...CLIENT_METRIC_COLS.filter((f) => targetCols.has(f)),
+  ];
   if (fields.length === 0) {
     throw new Error('No updatable columns found on client module table.');
   }
@@ -318,7 +337,6 @@ function registerMfsModuleRoutes(app, deps) {
         try {
           await client.query('BEGIN');
           const targetCols = await getTableColumns(client, clientTable);
-          const { setClause, valueKeys, idParam } = buildClientUpdateParts(targetCols);
           let updated = 0;
           let skipped = 0;
           const skippedSamples = [];
@@ -335,6 +353,14 @@ function registerMfsModuleRoutes(app, deps) {
             numericFields.forEach((f) => {
               if (targetCols.has(f)) record[f] = parseNumeric(record[f]);
             });
+            if (targetCols.has('alchemy_name') && Object.prototype.hasOwnProperty.call(raw, 'alchemy_name')) {
+              const rawAlchemy = record.alchemy_name;
+              record.alchemy_name = rawAlchemy === undefined || rawAlchemy === null || String(rawAlchemy).trim() === ''
+                ? null
+                : String(rawAlchemy).trim();
+            } else {
+              delete record.alchemy_name;
+            }
             if (computeGpmNpForTeamReport) {
               const gpmNp = computeGpmNpForTeamReport(record);
               record.gpm = gpmNp.gpm;
@@ -348,7 +374,8 @@ function registerMfsModuleRoutes(app, deps) {
               [record.business_unit || null, record.client_name || null, record.project_name || null, record.month, record.year]
             );
             if (existing.rows.length > 0) {
-              const values = valueKeys.map((key) => record[key] ?? (key === 'bu_head' ? null : 0));
+              const { setClause, valueKeys, idParam } = buildClientUpdateParts(targetCols, record);
+              const values = valueKeys.map((key) => getClientUpdateValue(record, key));
               await client.query(
                 `UPDATE ${clientTable} SET ${setClause} WHERE id = $${idParam}`,
                 [...values, existing.rows[0].id]

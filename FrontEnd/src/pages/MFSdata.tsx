@@ -34,6 +34,7 @@ interface TeamReportItem {
   np_percentage?: number;
   month?: string;
   year?: number;
+  alchemy_name?: string | null;
   created_at?: string;
   updated_at?: string;
   [key: string]: any;
@@ -1052,6 +1053,7 @@ const MFSdata: React.FC = () => {
     if (clientTableRowKeys.length === 0 || clientTableMonths.length === 0) return [];
     const monthSet = new Set(clientTableMonths);
     const rowTotalsMap = new Map<string, Record<string, number>>();
+    const alchemyNameMap = new Map<string, string>();
 
     // Aggregate in one pass: (rowKey, monthKey, parameter) -> total
     filteredClientMFSData.forEach(item => {
@@ -1069,6 +1071,11 @@ const MFSdata: React.FC = () => {
       const rowKey = isClientMSSelected ? `${client}\0${project}` : client;
       const rowTotals = rowTotalsMap.get(rowKey) || {};
 
+      if (dataModule === 'ft') {
+        const alchemy = String(item.alchemy_name || '').trim();
+        if (alchemy && !alchemyNameMap.has(rowKey)) alchemyNameMap.set(rowKey, alchemy);
+      }
+
       clientTableParameters.forEach(param => {
         const paramValue = item[param.key];
         if (paramValue === null || paramValue === undefined || paramValue === '') return;
@@ -1084,8 +1091,9 @@ const MFSdata: React.FC = () => {
     return clientTableRowKeys.map(({ client: rowClient, project: rowProject }) => {
       const rowKey = isClientMSSelected ? `${rowClient}\0${rowProject || ''}` : rowClient;
       const rowTotals = rowTotalsMap.get(rowKey) || {};
-      const row: { client: string; project?: string; [key: string]: any } = { client: rowClient };
+      const row: { client: string; project?: string; alchemy_name?: string; [key: string]: any } = { client: rowClient };
       if (isClientMSSelected) row.project = rowProject;
+      if (dataModule === 'ft') row.alchemy_name = alchemyNameMap.get(rowKey) || '';
 
       clientTableParameters.forEach(param => {
         clientTableMonths.forEach(monthKey => {
@@ -1096,7 +1104,7 @@ const MFSdata: React.FC = () => {
 
       return row;
     });
-  }, [filteredClientMFSData, clientTableRowKeys, clientTableMonths, isClientMSSelected]);
+  }, [filteredClientMFSData, clientTableRowKeys, clientTableMonths, isClientMSSelected, dataModule]);
 
   // Client table: which parameters to show (default all)
   const clientTableParametersFiltered = useMemo(() => {
@@ -1527,7 +1535,7 @@ const MFSdata: React.FC = () => {
   const handleEditClick = (
     parameter: string,
     monthKey: string,
-    currentValue: number,
+    currentValue: number | string,
     table: 'summary' | 'client' = 'summary',
     clientName?: string,
     projectName?: string,
@@ -1542,7 +1550,7 @@ const MFSdata: React.FC = () => {
       projectName,
       ffKey
     });
-    setEditedValue(String(currentValue || ''));
+    setEditedValue(String(currentValue ?? ''));
   };
 
   const syncMfsModuleStructure = async (type: 'summary' | 'client' | 'all' = 'all') => {
@@ -1557,33 +1565,53 @@ const MFSdata: React.FC = () => {
   const handleSaveEdit = async () => {
     if (!editingCell) return;
 
-    const updateValue = parseFloat(editedValue);
-    if (isNaN(updateValue)) {
-      setError('Invalid number');
-      return;
-    }
+    const isAlchemyNameEdit = editingCell.parameter === 'alchemy_name';
 
     try {
       if (editingCell.table === 'client') {
-        // Client table: PATCH /team-report
-        let records = filteredClientMFSData.filter((item: TeamReportItem) =>
-          itemMatchesMonthKey(item, editingCell.monthKey)
-        );
-        if (editingCell.clientName) {
-          records = records.filter((item: TeamReportItem) => item.client_name === editingCell.clientName);
+        if (isAlchemyNameEdit) {
+          const textValue = editedValue.trim() === '' ? null : editedValue.trim();
+          let records = filteredClientMFSData;
+          if (editingCell.clientName) {
+            records = records.filter((item: TeamReportItem) => item.client_name === editingCell.clientName);
+          }
+          if (isClientMSSelected && editingCell.projectName) {
+            records = records.filter((item: TeamReportItem) => item.project_name === editingCell.projectName);
+          }
+          if (records.length === 0) {
+            setError('No record found for this row');
+            return;
+          }
+          await Promise.all(
+            records.map((record: TeamReportItem) =>
+              apiClient.patch(`${moduleApiPaths.client}/${record.id}`, { alchemy_name: textValue })
+            )
+          );
+        } else {
+          const updateValue = parseFloat(editedValue);
+          if (isNaN(updateValue)) {
+            setError('Invalid number');
+            return;
+          }
+          let records = filteredClientMFSData.filter((item: TeamReportItem) =>
+            itemMatchesMonthKey(item, editingCell.monthKey)
+          );
+          if (editingCell.clientName) {
+            records = records.filter((item: TeamReportItem) => item.client_name === editingCell.clientName);
+          }
+          if (isClientMSSelected && editingCell.projectName) {
+            records = records.filter((item: TeamReportItem) => item.project_name === editingCell.projectName);
+          }
+          if (records.length === 0) {
+            setError('No record found for this cell');
+            return;
+          }
+          await Promise.all(
+            records.map((record: TeamReportItem) =>
+              apiClient.patch(`${moduleApiPaths.client}/${record.id}`, { [editingCell!.parameter]: updateValue })
+            )
+          );
         }
-        if (isClientMSSelected && editingCell.projectName) {
-          records = records.filter((item: TeamReportItem) => item.project_name === editingCell.projectName);
-        }
-        if (records.length === 0) {
-          setError('No record found for this cell');
-          return;
-        }
-        await Promise.all(
-          records.map((record: TeamReportItem) =>
-            apiClient.patch(`${moduleApiPaths.client}/${record.id}`, { [editingCell!.parameter]: updateValue })
-          )
-        );
         const response = await apiClient.get(moduleApiPaths.client);
         if (Array.isArray(response.data)) {
           setClientMFSData(response.data as TeamReportItem[]);
@@ -1592,66 +1620,73 @@ const MFSdata: React.FC = () => {
         if (dataModule !== 'mfs') {
           await refetchSummaryIfDerived();
         }
-      } else if (dataModule === 'mfs' && editingCell.parameter.startsWith('f_and_f_q')) {
-        const bu = effectiveBusinessUnitForEdit;
-        if (!bu) {
-          setError('Select a single business unit to edit quarterly F&F values.');
+      } else {
+        const updateValue = parseFloat(editedValue);
+        if (isNaN(updateValue)) {
+          setError('Invalid number');
           return;
         }
-        const ffPayload = {
-          f_and_f_q1: quarterlyFF.q1,
-          f_and_f_q2: quarterlyFF.q2,
-          f_and_f_q3: quarterlyFF.q3,
-          f_and_f_q4: quarterlyFF.q4,
-          [editingCell.parameter]: updateValue,
-        };
-        if (quarterlyFF.recordId) {
-          await apiClient.patch(`${moduleApiPaths.summary}/${quarterlyFF.recordId}`, ffPayload);
-        } else {
-          await apiClient.post(moduleApiPaths.summary, {
-            business_unit: bu,
-            month: 'April',
-            year: activeFYStartYear,
-            hc: 0,
-            revenue: 0,
-            gpm: 0,
-            team_cost: 0,
-            net_margin: 0,
-            ...ffPayload,
-          });
-        }
-        const response = await apiClient.get(moduleApiPaths.summary);
-        if (Array.isArray(response.data)) {
-          setTeamReportData(response.data as TeamReportItem[]);
-          setError(null);
-        }
-      } else {
-        // Summary table: PATCH team summary (use pivot record id when available)
-        const paramRow = pivotData.find(p => p.parameter === editingCell.parameter);
-        const cellData = paramRow?.values[editingCell.monthKey];
-
-        if (cellData?.id) {
-          await apiClient.patch(`${moduleApiPaths.summary}/${cellData.id}`, {
-            [editingCell.parameter]: updateValue,
-          });
-        } else {
-          const records = filteredData.filter((item: TeamReportItem) =>
-            itemMatchesMonthKey(item, editingCell.monthKey)
-          );
-          if (records.length === 0) {
-            setError('No record found for this month');
+        if (dataModule === 'mfs' && editingCell.parameter.startsWith('f_and_f_q')) {
+          const bu = effectiveBusinessUnitForEdit;
+          if (!bu) {
+            setError('Select a single business unit to edit quarterly F&F values.');
             return;
           }
-          await Promise.all(
-            records.map((record: TeamReportItem) =>
-              apiClient.patch(`${moduleApiPaths.summary}/${record.id}`, { [editingCell.parameter]: updateValue })
-            )
-          );
-        }
-        const response = await apiClient.get(moduleApiPaths.summary);
-        if (Array.isArray(response.data)) {
-          setTeamReportData(response.data as TeamReportItem[]);
-          setError(null);
+          const ffPayload = {
+            f_and_f_q1: quarterlyFF.q1,
+            f_and_f_q2: quarterlyFF.q2,
+            f_and_f_q3: quarterlyFF.q3,
+            f_and_f_q4: quarterlyFF.q4,
+            [editingCell.parameter]: updateValue,
+          };
+          if (quarterlyFF.recordId) {
+            await apiClient.patch(`${moduleApiPaths.summary}/${quarterlyFF.recordId}`, ffPayload);
+          } else {
+            await apiClient.post(moduleApiPaths.summary, {
+              business_unit: bu,
+              month: 'April',
+              year: activeFYStartYear,
+              hc: 0,
+              revenue: 0,
+              gpm: 0,
+              team_cost: 0,
+              net_margin: 0,
+              ...ffPayload,
+            });
+          }
+          const response = await apiClient.get(moduleApiPaths.summary);
+          if (Array.isArray(response.data)) {
+            setTeamReportData(response.data as TeamReportItem[]);
+            setError(null);
+          }
+        } else {
+          // Summary table: PATCH team summary (use pivot record id when available)
+          const paramRow = pivotData.find(p => p.parameter === editingCell.parameter);
+          const cellData = paramRow?.values[editingCell.monthKey];
+
+          if (cellData?.id) {
+            await apiClient.patch(`${moduleApiPaths.summary}/${cellData.id}`, {
+              [editingCell.parameter]: updateValue,
+            });
+          } else {
+            const records = filteredData.filter((item: TeamReportItem) =>
+              itemMatchesMonthKey(item, editingCell.monthKey)
+            );
+            if (records.length === 0) {
+              setError('No record found for this month');
+              return;
+            }
+            await Promise.all(
+              records.map((record: TeamReportItem) =>
+                apiClient.patch(`${moduleApiPaths.summary}/${record.id}`, { [editingCell.parameter]: updateValue })
+              )
+            );
+          }
+          const response = await apiClient.get(moduleApiPaths.summary);
+          if (Array.isArray(response.data)) {
+            setTeamReportData(response.data as TeamReportItem[]);
+            setError(null);
+          }
         }
       }
       setEditingCell(null);
@@ -1921,6 +1956,17 @@ const MFSdata: React.FC = () => {
   };
 
   const buildPrefilledClientTemplateRows = (): Record<string, string | number>[] => {
+    const includeAlchemy = dataModule === 'ft';
+    const metricCols: Record<string, string> = {
+      'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
+      'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '',
+      'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
+    };
+    const emptyRow = (): Record<string, string | number> => ({
+      'Business Unit': '', 'Client Name': '', 'Project Name': '', 'BU Head': '', 'Year': '', 'Month': '',
+      ...(includeAlchemy ? { 'Alchemy_Name': '' } : {}),
+      ...metricCols,
+    });
     const seen = new Set<string>();
     const rows: Record<string, string | number>[] = [];
     const source = mfsClientDimensions.length > 0 ? mfsClientDimensions : clientMFSData;
@@ -1936,18 +1982,11 @@ const MFSdata: React.FC = () => {
         'BU Head': row.bu_head || '',
         'Year': row.year ?? '',
         'Month': row.month || '',
-        'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
-        'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '',
-        'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
+        ...(includeAlchemy ? { 'Alchemy_Name': row.alchemy_name || '' } : {}),
+        ...metricCols,
       });
     });
-    if (rows.length === 0) {
-      return [{
-        'Business Unit': '', 'Client Name': '', 'Project Name': '', 'BU Head': '', 'Year': '', 'Month': '',
-        'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
-        'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '', 'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
-      }];
-    }
+    if (rows.length === 0) return [emptyRow()];
     return rows.sort((a, b) =>
       String(a['Business Unit']).localeCompare(String(b['Business Unit']))
       || String(a['Client Name']).localeCompare(String(b['Client Name']))
@@ -1959,10 +1998,14 @@ const MFSdata: React.FC = () => {
 
   const handleDownloadClientTemplate = () => {
     const usePrefill = dataModule === 'ft' || dataModule === 'fnf';
+    const metricCols: Record<string, string> = {
+      'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
+      'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '',
+      'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
+    };
     const templateData = usePrefill ? buildPrefilledClientTemplateRows() : [{
       'Business Unit': '', 'Client Name': '', 'Project Name': '', 'BU Head': '', 'Year': '', 'Month': '',
-      'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
-      'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '', 'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
+      ...metricCols,
     }];
     const sheetLabel = dataModule === 'ft' ? 'FT_Client_Template' : dataModule === 'fnf' ? 'FNF_Client_Template' : 'MFS_Client_Template';
     const fileLabel = dataModule === 'ft' ? 'FT_Client_Template.xlsx' : dataModule === 'fnf' ? 'FNF_Client_Template.xlsx' : 'MFS_Client_Template.xlsx';
@@ -2031,6 +2074,13 @@ const MFSdata: React.FC = () => {
           project_name: stringOrNull(row['Project Name'] || row['Project_Na'] || row.project_name),
           bu_head: stringOrNull(row['BU Head'] || row['BU_Head'] || row.bu_head),
           month: monthValue ? String(monthValue).trim() : null, year: yearValue,
+          ...(dataModule === 'ft' && (
+            row['Alchemy_Name'] !== undefined ||
+            row['Alchemy Name'] !== undefined ||
+            row.alchemy_name !== undefined
+          ) ? {
+            alchemy_name: stringOrNull(row['Alchemy_Name'] || row['Alchemy Name'] || row.alchemy_name),
+          } : {}),
           hc: parseNumericValue(row['HC'] || row.hc), revenue: parseNumericValue(row['Revenue'] || row.revenue),
           salary_cost: parseNumericValue(row['Salary Cost'] || row['Salary_Cost'] || row.salary_cost),
           gpm: parseNumericValue(row['GPM'] || row.gpm), gpm_percentage: parseNumericValue(row['GPM -%'] || row['GPM %'] || row.gpm_percentage),
@@ -2191,14 +2241,23 @@ const MFSdata: React.FC = () => {
   };
 
   const handleExportClientMFSData = () => {
-    const exportData = clientMFSDataForUser.map((row: TeamReportItem) => ({
-      'Business Unit': row.business_unit || '', 'Client Name': row.client_name || '', 'Project Name': row.project_name || '',
-      'BU Head': row.bu_head || '', 'Year': row.year, 'Month': row.month || '',
-      'HC': row.hc || 0, 'Revenue': row.revenue || 0, 'Salary Cost': row.salary_cost || 0,
-      'GPM': row.gpm || 0, 'GPM -%': row.gpm_percentage || 0, 'NP': row.np || 0, 'NP %': row.np_percentage || 0,
-      'Leave Encsh': row.leave_encashment || 0, 'Team Cost': row.team_cost || 0, 'Opr Cost': row.opr_cost || 0,
-      'Funding Cost': row.funding_cost || 0, 'Rebate': row.rebate || 0, 'Passthrough': row.passthrough || 0, 'Vendor Cost': row.vendor_cost ?? 0, 'Discount': row.discount ?? 0,
-    }));
+    const exportData = clientMFSDataForUser.map((row: TeamReportItem) => {
+      const base: Record<string, string | number> = {
+        'Business Unit': row.business_unit || '', 'Client Name': row.client_name || '', 'Project Name': row.project_name || '',
+        'BU Head': row.bu_head || '', 'Year': row.year ?? 0, 'Month': row.month || '',
+      };
+      if (dataModule === 'ft') {
+        base['Alchemy_Name'] = row.alchemy_name || '';
+      }
+      return {
+        ...base,
+        'HC': row.hc || 0, 'Revenue': row.revenue || 0, 'Salary Cost': row.salary_cost || 0,
+        'GPM': row.gpm || 0, 'GPM -%': row.gpm_percentage || 0, 'NP': row.np || 0, 'NP %': row.np_percentage || 0,
+        'Leave Encsh': row.leave_encashment || 0, 'Team Cost': row.team_cost || 0, 'Opr Cost': row.opr_cost || 0,
+        'Funding Cost': row.funding_cost || 0, 'Rebate': row.rebate || 0, 'Passthrough': row.passthrough || 0,
+        'Vendor Cost': row.vendor_cost ?? 0, 'Discount': row.discount ?? 0,
+      };
+    });
     const sheetLabel = dataModule === 'ft' ? 'FT_Client_Report' : dataModule === 'fnf' ? 'FNF_Client_Report' : 'MFS_Client_Report';
     const fileLabel = dataModule === 'ft' ? 'FT_Client_Report.xlsx' : dataModule === 'fnf' ? 'FNF_Client_Report.xlsx' : 'MFS_Client_Report.xlsx';
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -2911,6 +2970,9 @@ const MFSdata: React.FC = () => {
                         {isClientMSSelected && (
                           <th className="parameter-header" rowSpan={deferredClientTableParametersFiltered.length > 1 ? 2 : 1}>Project</th>
                         )}
+                        {dataModule === 'ft' && (
+                          <th className="parameter-header" rowSpan={deferredClientTableParametersFiltered.length > 1 ? 2 : 1}>Alchemy Name</th>
+                        )}
                       </tr>
                       {deferredClientTableParametersFiltered.length > 1 ? (
                         <tr className="fixed-header-spacer-row" aria-hidden="true" />
@@ -2919,6 +2981,13 @@ const MFSdata: React.FC = () => {
                     <tbody>
                       {visibleClientTableDataFiltered.map((row, rowIndex) => {
                         const rowKey = getClientRowKey(row);
+                        const isAlchemyEditing =
+                          dataModule === 'ft' &&
+                          editMode &&
+                          editingCell?.table === 'client' &&
+                          editingCell?.parameter === 'alchemy_name' &&
+                          editingCell?.clientName === row.client &&
+                          (!isClientMSSelected || editingCell?.projectName === row.project);
                         return (
                         <tr key={`cf_${row.client}_${row.project || ''}_${rowIndex}`} data-client={row.client} data-project={row.project || ''}>
                           <td className="parameter-cell mfs-row-label-cell">
@@ -2928,11 +2997,44 @@ const MFSdata: React.FC = () => {
                           {isClientMSSelected && (
                             <td className="parameter-cell">{row.project || 'N/A'}</td>
                           )}
+                          {dataModule === 'ft' && (
+                            <td className="parameter-cell">
+                              {isAlchemyEditing ? (
+                                <div className="edit-container">
+                                  <input
+                                    type="text"
+                                    value={editedValue}
+                                    onChange={(e) => setEditedValue(e.target.value)}
+                                    className="edit-input"
+                                    autoFocus
+                                  />
+                                  <button onClick={handleSaveEdit} className="save-button" title="Save">✓</button>
+                                  <button onClick={handleCancelEdit} className="cancel-button" title="Cancel">✕</button>
+                                </div>
+                              ) : (
+                                <div className="cell-content">
+                                  <span>{row.alchemy_name || ''}</span>
+                                  {editMode && (
+                                    <button
+                                      onClick={() => handleEditClick('alchemy_name', '', row.alchemy_name || '', 'client', row.client, row.project)}
+                                      className="edit-pen-button"
+                                      title="Edit Alchemy Name"
+                                    >
+                                      ✏️
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       );})}
                       <tr className="total-row">
                         <td className="parameter-cell total-label">Total</td>
                         {isClientMSSelected && (
+                          <td className="parameter-cell total-label"></td>
+                        )}
+                        {dataModule === 'ft' && (
                           <td className="parameter-cell total-label"></td>
                         )}
                       </tr>

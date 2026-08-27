@@ -32,3 +32,7 @@ ALTER TABLE team_report_ft
 ALTER TABLE team_report_fnf
   ADD COLUMN IF NOT EXISTS discount NUMERIC DEFAULT 0,
   ADD COLUMN IF NOT EXISTS f_and_f NUMERIC DEFAULT 0;
+
+-- FT-only optional text label (not used for import matching)
+ALTER TABLE team_report_ft
+  ADD COLUMN IF NOT EXISTS alchemy_name VARCHAR(255);
