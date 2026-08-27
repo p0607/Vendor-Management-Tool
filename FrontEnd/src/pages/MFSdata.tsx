@@ -165,16 +165,57 @@ const MFSdata: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (dataModule === 'mfs') return;
-    (async () => {
-      try {
-        await apiClient.post('/mfs-modules/sync-structure', { type: 'all' });
-      } catch (err) {
-        console.error('Failed to sync module structure:', err);
+  const refreshMfsClientDimensions = async () => {
+    try {
+      const response = await apiClient.get('/team-report');
+      if (Array.isArray(response.data)) {
+        setMfsClientDimensions(response.data as TeamReportItem[]);
       }
-    })();
-  }, [dataModule]);
+    } catch (err) {
+      console.error('Failed to load MFS client dimensions:', err);
+    }
+  };
+
+  // Load module data; for FT/F&F sync structure from MFS first (dimensions only, zero values)
+  useEffect(() => {
+    let cancelled = false;
+    const loadModuleData = async () => {
+      setLoading(true);
+      setLoadingClientMFS(true);
+      try {
+        if (dataModule !== 'mfs') {
+          await apiClient.post('/mfs-modules/sync-structure', { type: 'all' });
+        }
+        const [summaryRes, clientRes] = await Promise.all([
+          apiClient.get(moduleApiPaths.summary),
+          apiClient.get(moduleApiPaths.client),
+        ]);
+        if (cancelled) return;
+        if (!Array.isArray(summaryRes.data)) {
+          throw new Error('Summary data is not an array');
+        }
+        setTeamReportData(summaryRes.data as TeamReportItem[]);
+        setClientMFSData(Array.isArray(clientRes.data) ? (clientRes.data as TeamReportItem[]) : []);
+        setError(null);
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('Module data load failed:', err);
+          setError(err.response?.data?.error || err.message || 'An unknown error occurred');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setLoadingClientMFS(false);
+        }
+      }
+    };
+    loadModuleData();
+    return () => { cancelled = true; };
+  }, [dataModule, moduleApiPaths.summary, moduleApiPaths.client]);
+
+  useEffect(() => {
+    refreshMfsClientDimensions();
+  }, []);
 
   useEffect(() => {
     saveHiddenKeys(MFS_HIDDEN_STORAGE.summaryMonths, hiddenSummaryMonths);
@@ -387,66 +428,6 @@ const MFSdata: React.FC = () => {
     const parsed = parseFloat(stringValue.replace(/,/g, '').replace(/[()]/g, (m) => (m === '(' ? '-' : '')));
     return isNaN(parsed) ? 0 : parsed;
   };
-
-  // Fetch data from API - using same endpoint as TeamReportCompare
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const response = await apiClient.get(moduleApiPaths.summary);
-        
-        if (!Array.isArray(response.data)) {
-          throw new Error("Data is not an array");
-        }
-
-        setTeamReportData(response.data as TeamReportItem[]);
-        setError(null);
-      } catch (err: any) {
-        console.error("Fetch failed:", err);
-        setError(err.response?.data?.error || err.message || 'An unknown error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [moduleApiPaths.summary]);
-
-  // Always load main MFS client rows for FT/F&F template pre-fill and dimension sync
-  useEffect(() => {
-    const fetchMfsDimensions = async () => {
-      try {
-        const response = await apiClient.get('/team-report');
-        if (Array.isArray(response.data)) {
-          setMfsClientDimensions(response.data as TeamReportItem[]);
-        }
-      } catch (err) {
-        console.error('Failed to load MFS client dimensions:', err);
-      }
-    };
-    fetchMfsDimensions();
-  }, []);
-
-  // Fetch client-wise MFS data from /team-report (has client_name, project_name)
-  useEffect(() => {
-    const fetchClientData = async () => {
-      setLoadingClientMFS(true);
-      try {
-        const response = await apiClient.get(moduleApiPaths.client);
-        if (Array.isArray(response.data)) {
-          setClientMFSData(response.data as TeamReportItem[]);
-        } else {
-          setClientMFSData([]);
-        }
-      } catch (err: any) {
-        console.error('Fetch client MFS failed:', err);
-        setClientMFSData([]);
-      } finally {
-        setLoadingClientMFS(false);
-      }
-    };
-    fetchClientData();
-  }, [moduleApiPaths.client]);
 
   // Reset client/project selection when Business Unit changes (e.g. from top filters)
   useEffect(() => {
@@ -1913,6 +1894,21 @@ const MFSdata: React.FC = () => {
     reader.readAsBinaryString(file);
   };
 
+  const buildClientImportKey = (row: {
+    business_unit?: string | null;
+    client_name?: string | null;
+    project_name?: string | null;
+    month?: string | null;
+    year?: number | null;
+  }): string => {
+    const bu = row.business_unit ? normalizeBusinessUnitName(String(row.business_unit)) || '' : '';
+    const client = String(row.client_name || '').trim();
+    const project = String(row.project_name || '').trim();
+    const month = row.month ? normalizeToFullMonthName(String(row.month)) : '';
+    const year = row.year ?? '';
+    return `${bu}|${client}|${project}|${month}|${year}`;
+  };
+
   const buildPrefilledClientTemplateRows = (): Record<string, string | number>[] => {
     const seen = new Set<string>();
     const rows: Record<string, string | number>[] = [];
@@ -2049,30 +2045,79 @@ const MFSdata: React.FC = () => {
         return { ...record, gpm, gpm_percentage: gpmPct, ...(np !== null ? { np, np_percentage: npPct } : {}) };
       });
       if (!mappedData.length) { message.error('No valid data found in the Excel file.'); return; }
+
+      let rowsToImport = mappedData;
+      let preSkipped = 0;
+      if (summaryIsDerived) {
+        const allowedKeys = new Set(
+          clientMFSData.map(row => buildClientImportKey(row))
+        );
+        const matched: typeof mappedData = [];
+        preSkipped = 0;
+        mappedData.forEach(row => {
+          if (allowedKeys.has(buildClientImportKey(row))) {
+            matched.push(row);
+          } else {
+            preSkipped += 1;
+          }
+        });
+        rowsToImport = matched;
+        if (rowsToImport.length === 0) {
+          message.error(
+            preSkipped > 0
+              ? `No rows matched the ${dataModule === 'ft' ? 'FT' : 'F&F'} client structure (${preSkipped} skipped). Download the template and fill values only — do not change client, project, BU, month, or year.`
+              : 'No valid data found in the Excel file.'
+          );
+          return;
+        }
+        if (preSkipped > 0) {
+          message.warning(`${preSkipped} row(s) skipped — client/project/BU/month did not match. Importing ${rowsToImport.length} matching row(s).`, 6);
+        }
+      }
+
       try {
         const batchSize = 50;
-        let successCount = 0, errorCount = 0;
-        message.loading(`Importing ${mappedData.length} records...`, 0);
-        for (let i = 0; i < mappedData.length; i += batchSize) {
-          const batch = mappedData.slice(i, i + batchSize);
+        let updatedTotal = 0;
+        let skippedTotal = summaryIsDerived ? preSkipped : 0;
+        let failedBatches = 0;
+        message.loading(`Importing ${rowsToImport.length} records...`, 0);
+        for (let i = 0; i < rowsToImport.length; i += batchSize) {
+          const batch = rowsToImport.slice(i, i + batchSize);
           try {
-            await apiClient.post(`${moduleApiPaths.client}/bulk`, { data: batch }, { timeout: 60000 });
-            successCount += batch.length;
-          } catch { errorCount += batch.length; }
+            const res = await apiClient.post(`${moduleApiPaths.client}/bulk`, { data: batch }, { timeout: 60000 });
+            updatedTotal += res.data?.updated ?? batch.length;
+            skippedTotal += res.data?.skipped ?? 0;
+          } catch (err: any) {
+            failedBatches += 1;
+            skippedTotal += err.response?.data?.skipped ?? batch.length;
+            if (err.response?.data?.updated) {
+              updatedTotal += err.response.data.updated;
+            }
+          }
           await new Promise(r => setTimeout(r, 100));
         }
         message.destroy();
-        if (errorCount === 0) {
+        if (updatedTotal > 0 && skippedTotal === 0) {
           message.success(
             summaryIsDerived
-              ? `Successfully imported all ${successCount} records! Summary table updated automatically.`
-              : `Successfully imported all ${successCount} records!`,
+              ? `Updated ${updatedTotal} ${dataModule === 'ft' ? 'FT' : 'F&F'} client row(s). Summary table updated automatically.`
+              : `Successfully imported all ${updatedTotal} records!`,
             5
           );
+        } else if (updatedTotal > 0 && skippedTotal > 0) {
+          message.warning(
+            `Updated ${updatedTotal} row(s). ${skippedTotal} row(s) skipped — use the downloaded template and do not edit client/project names.`,
+            10
+          );
+        } else if (failedBatches > 0 || skippedTotal > 0) {
+          message.error(
+            `Import failed — no rows matched. Download the ${dataModule === 'ft' ? 'FT' : 'F&F'} Client template, fill values only, and import again.`,
+            10
+          );
+        } else {
+          message.error('All batches failed to import.');
         }
-        else if (successCount > 0) message.warning(`Imported ${successCount} successfully, ${errorCount} failed.`, 8);
-        else message.error(`All batches failed (${errorCount} records).`, 8);
-        if (successCount > 0) {
+        if (updatedTotal > 0) {
           if (dataModule === 'mfs') {
             await syncMfsModuleStructure('client');
             try {
@@ -2202,7 +2247,9 @@ const MFSdata: React.FC = () => {
               Import {clientModuleLabel}
             </button>
             {summaryIsDerived && (
-              <span className="mfs-actions-hint">Summary table updates automatically from client data</span>
+              <span className="mfs-actions-hint">
+                Download client template first. Strict import: only existing MFS clients — fill values only.
+              </span>
             )}
           </div>
         )}

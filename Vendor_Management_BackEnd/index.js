@@ -131,6 +131,17 @@ pool.on('error', (err) => {
   process.exit(-1);
 });
 
+const { registerMfsModuleRoutes, syncMfsStructureToFtFnf } = require('./routes/mfsModuleRoutes');
+
+/** Copy MFS dimensions (BU, month, client, project) into FT/F&F with zero values. */
+async function triggerFtFnfStructureSync(type = 'all') {
+  try {
+    await syncMfsStructureToFtFnf(pool, logger, type);
+  } catch (err) {
+    logger.warn('FT/F&F structure sync failed (non-fatal)', { error: err.message, type });
+  }
+}
+
 // File upload configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -1580,6 +1591,7 @@ app.patch('/api/team-report/:id', async (req, res, next) => {
     }
     
     logger.info('Team report record patched', { recordId: id });
+    await triggerFtFnfStructureSync('client');
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
@@ -2432,8 +2444,9 @@ app.post('/api/team-report', async (req, res, next) => {
         ]
       );
       
-      logger.info('Team report created', { recordId: result.rows[0].id });
-      res.status(201).json(result.rows[0]);
+    logger.info('Team report created', { recordId: result.rows[0].id });
+    await triggerFtFnfStructureSync('client');
+    res.status(201).json(result.rows[0]);
     } catch (err) {
       logger.error('Failed to create team report', { 
         error: err.message, 
@@ -2743,6 +2756,10 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       }
       
       await client.query('COMMIT');
+
+      if (insertedCount + updatedCount > 0) {
+        await triggerFtFnfStructureSync('client');
+      }
       
       logger.info('Team report bulk import completed', { 
         totalRecords: data.length,
@@ -2989,6 +3006,7 @@ app.post('/api/team-summary-report', async (req, res, next) => {
     );
     
     logger.info('Team summary report created', { recordId: result.rows[0].id });
+    await triggerFtFnfStructureSync('summary');
     res.status(201).json(result.rows[0]);
   } catch (err) {
     logger.error('Failed to create team summary report', { 
@@ -3213,6 +3231,10 @@ app.post('/api/team-summary-report/bulk', async (req, res, next) => {
       }
       
       await client.query('COMMIT');
+
+      if (insertedCount > 0) {
+        await triggerFtFnfStructureSync('summary');
+      }
       
       logger.info('Team summary report bulk import completed', { 
         totalRecords: data.length,
@@ -3281,6 +3303,7 @@ app.patch('/api/team-summary-report/:id', async (req, res, next) => {
     }
     
     logger.info('Team summary report record patched', { recordId: id });
+    await triggerFtFnfStructureSync('summary');
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
@@ -3288,7 +3311,6 @@ app.patch('/api/team-summary-report/:id', async (req, res, next) => {
 });
 
 // FT and F&F module routes (separate tables, same schema)
-const { registerMfsModuleRoutes } = require('./routes/mfsModuleRoutes');
 registerMfsModuleRoutes(app, { pool, executeQuery, logger, computeGpmNpForTeamReport });
 
 // HRMS Data Routes

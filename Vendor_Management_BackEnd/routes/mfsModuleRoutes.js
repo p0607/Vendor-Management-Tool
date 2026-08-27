@@ -104,6 +104,67 @@ async function recomputeSummaryFromClient(runQuery, clientTable, summaryTable) {
   `);
 }
 
+async function syncMfsStructureToFtFnf(pool, logger, type = 'all') {
+  const client = await pool.connect();
+  let summarySynced = 0;
+  let clientSynced = 0;
+  try {
+    await client.query('BEGIN');
+    if (type === 'summary' || type === 'all') {
+      for (const table of ['team_summary_report_ft', 'team_summary_report_fnf']) {
+        const result = await client.query(`
+          INSERT INTO ${table} (business_unit, month, year, hc, revenue, gpm, team_cost, net_margin)
+          SELECT s.business_unit, s.month, s.year, 0, 0, 0, 0, 0
+          FROM team_summary_report s
+          WHERE NOT EXISTS (
+            SELECT 1 FROM ${table} t
+            WHERE t.business_unit = s.business_unit AND t.month = s.month AND t.year = s.year
+          )
+        `);
+        summarySynced += result.rowCount || 0;
+      }
+    }
+    if (type === 'client' || type === 'all') {
+      for (const table of ['team_report_ft', 'team_report_fnf']) {
+        const result = await client.query(`
+          INSERT INTO ${table} (
+            client_name, project_name, business_unit, bu_head, hc, salary_cost, revenue, gpm, gpm_percentage,
+            leave_encashment, team_cost, opr_cost, funding_cost, np, np_percentage, rebate, passthrough, vendor_cost, discount, f_and_f, month, year
+          )
+          SELECT
+            s.client_name, s.project_name, s.business_unit, s.bu_head,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, s.month, s.year
+          FROM team_report s
+          WHERE NOT EXISTS (
+            SELECT 1 FROM ${table} t
+            WHERE t.business_unit IS NOT DISTINCT FROM s.business_unit
+              AND t.client_name IS NOT DISTINCT FROM s.client_name
+              AND t.project_name IS NOT DISTINCT FROM s.project_name
+              AND t.month = s.month AND t.year = s.year
+          )
+        `);
+        clientSynced += result.rowCount || 0;
+      }
+    }
+    if (type === 'client' || type === 'all') {
+      for (const [clientTable, summaryTable] of [
+        ['team_report_ft', 'team_summary_report_ft'],
+        ['team_report_fnf', 'team_summary_report_fnf'],
+      ]) {
+        await recomputeSummaryFromClient((sql, params) => client.query(sql, params), clientTable, summaryTable);
+      }
+    }
+    await client.query('COMMIT');
+    logger.info('MFS module structure synced', { summarySynced, clientSynced, type });
+    return { summarySynced, clientSynced };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 function registerMfsModuleRoutes(app, deps) {
   const { pool, executeQuery, logger, computeGpmNpForTeamReport } = deps;
 
@@ -204,8 +265,11 @@ function registerMfsModuleRoutes(app, deps) {
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
-          let inserted = 0;
           let updated = 0;
+          let skipped = 0;
+          const skippedSamples = [];
+          const maxSkippedSamples = 10;
+
           for (const raw of data) {
             const record = { ...raw };
             if (record.business_unit) record.business_unit = normalizeBusinessUnitName(record.business_unit);
@@ -238,18 +302,29 @@ function registerMfsModuleRoutes(app, deps) {
               );
               updated += 1;
             } else {
-              await client.query(
-                `INSERT INTO ${clientTable} (
-                  client_name, project_name, business_unit, bu_head, hc, salary_cost, revenue, gpm, gpm_percentage,
-                  leave_encashment, team_cost, opr_cost, funding_cost, np, np_percentage, rebate, passthrough, vendor_cost, discount, f_and_f, month, year
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
-                [record.client_name || null, record.project_name || null, record.business_unit || null, record.bu_head || null,
-                  record.hc, record.salary_cost, record.revenue, record.gpm, record.gpm_percentage, record.leave_encashment,
-                  record.team_cost, record.opr_cost, record.funding_cost, record.np, record.np_percentage,
-                  record.rebate, record.passthrough, record.vendor_cost, record.discount, record.f_and_f, record.month, record.year]
-              );
-              inserted += 1;
+              skipped += 1;
+              if (skippedSamples.length < maxSkippedSamples) {
+                skippedSamples.push({
+                  business_unit: record.business_unit || '',
+                  client_name: record.client_name || '',
+                  project_name: record.project_name || '',
+                  month: record.month,
+                  year: record.year,
+                });
+              }
             }
+          }
+          if (updated === 0 && skipped > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+              success: false,
+              error: 'No rows matched existing FT/F&F structure. Download the client template — do not change client, project, BU, month, or year.',
+              updated: 0,
+              skipped,
+              skippedSamples,
+              module: moduleKey,
+              strictImport: true,
+            });
           }
           await recomputeSummaryFromClient(
             (sql, params) => client.query(sql, params),
@@ -257,7 +332,15 @@ function registerMfsModuleRoutes(app, deps) {
             summaryTable
           );
           await client.query('COMMIT');
-          res.json({ success: true, inserted, updated, module: moduleKey, summaryRecomputed: true });
+          res.json({
+            success: true,
+            updated,
+            skipped,
+            skippedSamples,
+            module: moduleKey,
+            summaryRecomputed: true,
+            strictImport: true,
+          });
         } catch (err) {
           await client.query('ROLLBACK');
           throw err;
@@ -340,60 +423,12 @@ function registerMfsModuleRoutes(app, deps) {
   app.post('/api/mfs-modules/sync-structure', async (req, res, next) => {
     try {
       const { type } = req.body;
-      const client = await pool.connect();
-      let summarySynced = 0;
-      let clientSynced = 0;
-      try {
-        await client.query('BEGIN');
-        if (type === 'summary' || type === 'all') {
-          for (const table of ['team_summary_report_ft', 'team_summary_report_fnf']) {
-            const result = await client.query(`
-              INSERT INTO ${table} (business_unit, month, year, hc, revenue, gpm, team_cost, net_margin)
-              SELECT s.business_unit, s.month, s.year, 0, 0, 0, 0, 0
-              FROM team_summary_report s
-              WHERE NOT EXISTS (
-                SELECT 1 FROM ${table} t
-                WHERE t.business_unit = s.business_unit AND t.month = s.month AND t.year = s.year
-              )
-            `);
-            summarySynced += result.rowCount || 0;
-          }
-        }
-        if (type === 'client' || type === 'all') {
-          for (const table of ['team_report_ft', 'team_report_fnf']) {
-            const result = await client.query(`
-              INSERT INTO ${table} (
-                client_name, project_name, business_unit, bu_head, hc, salary_cost, revenue, gpm, gpm_percentage,
-                leave_encashment, team_cost, opr_cost, funding_cost, np, np_percentage, rebate, passthrough, vendor_cost, discount, f_and_f, month, year
-              )
-              SELECT
-                s.client_name, s.project_name, s.business_unit, s.bu_head,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, s.month, s.year
-              FROM team_report s
-              WHERE NOT EXISTS (
-                SELECT 1 FROM ${table} t
-                WHERE t.business_unit IS NOT DISTINCT FROM s.business_unit
-                  AND t.client_name IS NOT DISTINCT FROM s.client_name
-                  AND t.project_name IS NOT DISTINCT FROM s.project_name
-                  AND t.month = s.month AND t.year = s.year
-              )
-            `);
-            clientSynced += result.rowCount || 0;
-          }
-        }
-        await client.query('COMMIT');
-        logger.info('MFS module structure synced', { summarySynced, clientSynced });
-        res.json({ success: true, summarySynced, clientSynced });
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
+      const result = await syncMfsStructureToFtFnf(pool, logger, type || 'all');
+      res.json({ success: true, ...result });
     } catch (err) {
       next(err);
     }
   });
 }
 
-module.exports = { registerMfsModuleRoutes, MODULE_CONFIG };
+module.exports = { registerMfsModuleRoutes, syncMfsStructureToFtFnf, MODULE_CONFIG };
