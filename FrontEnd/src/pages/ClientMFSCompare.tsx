@@ -2369,9 +2369,9 @@ const ClientMFSCompare: React.FC = () => {
 
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Client_MFS_Report");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "MFS_Client_Report");
 
-    XLSX.writeFile(workbook, "Client_MFS_Report.xlsx");
+    XLSX.writeFile(workbook, "MFS_Client_Report.xlsx");
 
   };
 
@@ -2424,11 +2424,11 @@ const ClientMFSCompare: React.FC = () => {
 
         'Rebate': '',  // Can be empty
 
-        'Passthrough': '',  // Can be empty
+        'Passthrough': '',  
 
-        'Vendor Cost': '',  // Can be empty
+        'Vendor Cost': '',  
 
-        'Discount': '',  // Can be empty
+        'Discount': '',  
 
       }
 
@@ -2440,9 +2440,9 @@ const ClientMFSCompare: React.FC = () => {
 
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Client_MFS_Template");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "MFS_Client_Template");
 
-    XLSX.writeFile(workbook, "Client_MFS_Template.xlsx");
+    XLSX.writeFile(workbook, "MFS_Client_Template.xlsx");
 
   };
 
@@ -2466,7 +2466,7 @@ const ClientMFSCompare: React.FC = () => {
         message.error(err?.response?.data?.error || err?.message || 'Failed to update existing data.', 5);
       }
     } },
-    { key: 'export', label: 'Export Excel', onClick: handleExportExcel },
+    { key: 'export', label: 'Export MFS Client', onClick: handleExportExcel },
   ];
   const actionDropdownItems = isBUHead
     ? allActionDropdownItems.filter((item) => item.key !== 'add' && item.key !== 'import')
@@ -2513,8 +2513,6 @@ const ClientMFSCompare: React.FC = () => {
     }
 
   };
-
-
 
   // Handle changing a comparison period value
 

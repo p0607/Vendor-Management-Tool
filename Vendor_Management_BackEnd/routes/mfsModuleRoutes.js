@@ -1,0 +1,399 @@
+/**
+ * FT and F&F (fnf) MFS module routes — same fields as MFS, separate tables.
+ */
+
+const MODULE_CONFIG = {
+  ft: {
+    prefix: '/api/ft',
+    summaryTable: 'team_summary_report_ft',
+    clientTable: 'team_report_ft',
+  },
+  fnf: {
+    prefix: '/api/fnf',
+    summaryTable: 'team_summary_report_fnf',
+    clientTable: 'team_report_fnf',
+  },
+};
+
+const normalizeBusinessUnitName = (name) => {
+  if (!name || name === '') return null;
+  const trimmed = String(name).trim();
+  if (trimmed === '') return null;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+};
+
+const normalizeMonthName = (month) => {
+  const monthNames = {
+    January: 'January', February: 'February', March: 'March', April: 'April',
+    May: 'May', June: 'June', July: 'July', August: 'August',
+    September: 'September', October: 'October', November: 'November', December: 'December',
+    Jan: 'January', Feb: 'February', Mar: 'March', Apr: 'April',
+    Jun: 'June', Jul: 'July', Aug: 'August', Sep: 'September', Oct: 'October', Nov: 'November', Dec: 'December',
+  };
+  const fullMonthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  if (!month) return null;
+  let normalized = monthNames[month];
+  if (!normalized) {
+    const monthStr = String(month).trim();
+    const capitalized = monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase();
+    normalized = monthNames[capitalized];
+    if (!normalized) {
+      const monthNum = parseInt(monthStr, 10);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        normalized = fullMonthNames[monthNum - 1];
+      }
+    }
+  }
+  return normalized || month;
+};
+
+const parseNumeric = (value) => {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return value;
+  const strValue = String(value).trim();
+  if (strValue === '-' || strValue === '') return 0;
+  return parseFloat(strValue.replace(/,/g, '')) || 0;
+};
+
+/** Roll up client rows into summary (HC, Revenue, GPM, Team Cost; NP → net_margin) per BU/month/year. */
+async function recomputeSummaryFromClient(runQuery, clientTable, summaryTable) {
+  const aggSubquery = `
+    SELECT business_unit, month, year,
+      COALESCE(SUM(hc), 0) AS hc,
+      COALESCE(SUM(revenue), 0) AS revenue,
+      COALESCE(SUM(gpm), 0) AS gpm,
+      COALESCE(SUM(team_cost), 0) AS team_cost,
+      COALESCE(SUM(np), 0) AS net_margin
+    FROM ${clientTable}
+    WHERE business_unit IS NOT NULL AND TRIM(business_unit) <> ''
+      AND month IS NOT NULL AND year IS NOT NULL
+    GROUP BY business_unit, month, year
+  `;
+
+  await runQuery(`
+    UPDATE ${summaryTable} s
+    SET
+      hc = a.hc,
+      revenue = a.revenue,
+      gpm = a.gpm,
+      team_cost = a.team_cost,
+      net_margin = a.net_margin,
+      updated_at = CURRENT_TIMESTAMP
+    FROM (${aggSubquery}) a
+    WHERE s.business_unit = a.business_unit AND s.month = a.month AND s.year = a.year
+  `);
+
+  await runQuery(`
+    INSERT INTO ${summaryTable} (business_unit, month, year, hc, revenue, gpm, team_cost, net_margin)
+    SELECT a.business_unit, a.month, a.year, a.hc, a.revenue, a.gpm, a.team_cost, a.net_margin
+    FROM (${aggSubquery}) a
+    WHERE NOT EXISTS (
+      SELECT 1 FROM ${summaryTable} s
+      WHERE s.business_unit = a.business_unit AND s.month = a.month AND s.year = a.year
+    )
+  `);
+
+  await runQuery(`
+    UPDATE ${summaryTable} s
+    SET hc = 0, revenue = 0, gpm = 0, team_cost = 0, net_margin = 0, updated_at = CURRENT_TIMESTAMP
+    WHERE NOT EXISTS (
+      SELECT 1 FROM ${clientTable} c
+      WHERE c.business_unit = s.business_unit AND c.month = s.month AND c.year = s.year
+    )
+  `);
+}
+
+function registerMfsModuleRoutes(app, deps) {
+  const { pool, executeQuery, logger, computeGpmNpForTeamReport } = deps;
+
+  Object.entries(MODULE_CONFIG).forEach(([moduleKey, config]) => {
+    const { prefix, summaryTable, clientTable } = config;
+
+    app.get(`${prefix}/team-summary-report`, async (req, res, next) => {
+      try {
+        const { business_unit: businessUnit } = req.query;
+        let query = `SELECT * FROM ${summaryTable}`;
+        const params = [];
+        if (businessUnit) {
+          query += " WHERE LOWER(REGEXP_REPLACE(TRIM(business_unit), '\\s*\\|\\s*', '|', 'g')) = LOWER(REGEXP_REPLACE(TRIM($1), '\\s*\\|\\s*', '|', 'g'))";
+          params.push(businessUnit);
+        }
+        query += ' ORDER BY year DESC, month, business_unit';
+        const result = await executeQuery(query, params);
+        res.json(result.rows);
+      } catch (err) {
+        next(err);
+      }
+    });
+
+    app.get(`${prefix}/team-report`, async (req, res, next) => {
+      try {
+        const { designation, business_unit: businessUnit } = req.query;
+        let query = `SELECT * FROM ${clientTable}`;
+        const params = [];
+        if (designation === 'BU HEAD' && businessUnit) {
+          query += " WHERE LOWER(REGEXP_REPLACE(TRIM(business_unit), '\\s*\\|\\s*', '|', 'g')) = LOWER(REGEXP_REPLACE(TRIM($1), '\\s*\\|\\s*', '|', 'g'))";
+          params.push(businessUnit);
+        }
+        const result = await executeQuery(query, params);
+        res.json(result.rows);
+      } catch (err) {
+        next(err);
+      }
+    });
+
+    app.post(`${prefix}/team-summary-report/bulk`, async (req, res, next) => {
+      try {
+        const { data } = req.body;
+        if (!Array.isArray(data) || data.length === 0) {
+          return res.status(400).json({ success: false, error: 'Expected non-empty array.' });
+        }
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          let count = 0;
+          for (const raw of data) {
+            const record = { ...raw };
+            if (record.business_unit) record.business_unit = normalizeBusinessUnitName(record.business_unit);
+            if (!record.business_unit || !record.month || !record.year) {
+              throw new Error('Business Unit, Month, and Year are required.');
+            }
+            record.month = normalizeMonthName(record.month);
+            if (record.year < 100) record.year = 2000 + record.year;
+            ['hc', 'revenue', 'gpm', 'team_cost', 'net_margin'].forEach((f) => {
+              record[f] = parseNumeric(record[f]);
+            });
+            const existing = await client.query(
+              `SELECT id FROM ${summaryTable} WHERE business_unit = $1 AND month = $2 AND year = $3`,
+              [record.business_unit, record.month, record.year]
+            );
+            if (existing.rows.length > 0) {
+              await client.query(
+                `UPDATE ${summaryTable} SET hc = $1, revenue = $2, gpm = $3, team_cost = $4, net_margin = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6`,
+                [record.hc, record.revenue, record.gpm, record.team_cost, record.net_margin, existing.rows[0].id]
+              );
+            } else {
+              await client.query(
+                `INSERT INTO ${summaryTable} (business_unit, month, year, hc, revenue, gpm, team_cost, net_margin)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [record.business_unit, record.month, record.year, record.hc, record.revenue, record.gpm, record.team_cost, record.net_margin]
+              );
+            }
+            count += 1;
+          }
+          await client.query('COMMIT');
+          res.json({ success: true, inserted: count, module: moduleKey });
+        } catch (err) {
+          await client.query('ROLLBACK');
+          throw err;
+        } finally {
+          client.release();
+        }
+      } catch (err) {
+        next(err);
+      }
+    });
+
+    app.post(`${prefix}/team-report/bulk`, async (req, res, next) => {
+      try {
+        const { data } = req.body;
+        if (!Array.isArray(data) || data.length === 0) {
+          return res.status(400).json({ success: false, error: 'Expected non-empty array.' });
+        }
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          let inserted = 0;
+          let updated = 0;
+          for (const raw of data) {
+            const record = { ...raw };
+            if (record.business_unit) record.business_unit = normalizeBusinessUnitName(record.business_unit);
+            if (!record.month || !record.year) throw new Error('Month and Year are required.');
+            record.month = normalizeMonthName(record.month);
+            if (record.year < 100) record.year = 2000 + record.year;
+            const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment',
+              'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f'];
+            numericFields.forEach((f) => { record[f] = parseNumeric(record[f]); });
+            if (computeGpmNpForTeamReport) {
+              const gpmNp = computeGpmNpForTeamReport(record);
+              record.gpm = gpmNp.gpm;
+              record.gpm_percentage = gpmNp.gpm_percentage;
+              record.np = gpmNp.np !== null ? gpmNp.np : 0;
+              record.np_percentage = gpmNp.np_percentage;
+            }
+            const existing = await client.query(
+              `SELECT id FROM ${clientTable} WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
+               AND project_name IS NOT DISTINCT FROM $3 AND month = $4 AND year = $5 LIMIT 1`,
+              [record.business_unit || null, record.client_name || null, record.project_name || null, record.month, record.year]
+            );
+            if (existing.rows.length > 0) {
+              await client.query(
+                `UPDATE ${clientTable} SET bu_head = $1, hc = $2, salary_cost = $3, revenue = $4, gpm = $5, gpm_percentage = $6,
+                 leave_encashment = $7, team_cost = $8, opr_cost = $9, funding_cost = $10, np = $11, np_percentage = $12,
+                 rebate = $13, passthrough = $14, vendor_cost = $15, discount = $16, f_and_f = $17 WHERE id = $18`,
+                [record.bu_head || null, record.hc, record.salary_cost, record.revenue, record.gpm, record.gpm_percentage,
+                  record.leave_encashment, record.team_cost, record.opr_cost, record.funding_cost, record.np, record.np_percentage,
+                  record.rebate, record.passthrough, record.vendor_cost, record.discount, record.f_and_f, existing.rows[0].id]
+              );
+              updated += 1;
+            } else {
+              await client.query(
+                `INSERT INTO ${clientTable} (
+                  client_name, project_name, business_unit, bu_head, hc, salary_cost, revenue, gpm, gpm_percentage,
+                  leave_encashment, team_cost, opr_cost, funding_cost, np, np_percentage, rebate, passthrough, vendor_cost, discount, f_and_f, month, year
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
+                [record.client_name || null, record.project_name || null, record.business_unit || null, record.bu_head || null,
+                  record.hc, record.salary_cost, record.revenue, record.gpm, record.gpm_percentage, record.leave_encashment,
+                  record.team_cost, record.opr_cost, record.funding_cost, record.np, record.np_percentage,
+                  record.rebate, record.passthrough, record.vendor_cost, record.discount, record.f_and_f, record.month, record.year]
+              );
+              inserted += 1;
+            }
+          }
+          await recomputeSummaryFromClient(
+            (sql, params) => client.query(sql, params),
+            clientTable,
+            summaryTable
+          );
+          await client.query('COMMIT');
+          res.json({ success: true, inserted, updated, module: moduleKey, summaryRecomputed: true });
+        } catch (err) {
+          await client.query('ROLLBACK');
+          throw err;
+        } finally {
+          client.release();
+        }
+      } catch (err) {
+        next(err);
+      }
+    });
+
+    app.patch(`${prefix}/team-summary-report/:id`, async (req, res, next) => {
+      try {
+        const { id } = req.params;
+        const updates = req.body;
+        const fields = Object.keys(updates);
+        if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
+        const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
+        const result = await executeQuery(
+          `UPDATE ${summaryTable} SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`,
+          [...Object.values(updates), id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Record not found' });
+        res.json(result.rows[0]);
+      } catch (err) {
+        next(err);
+      }
+    });
+
+    app.patch(`${prefix}/team-report/:id`, async (req, res, next) => {
+      try {
+        const { id } = req.params;
+        const updates = req.body;
+        const fields = Object.keys(updates);
+        if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
+        const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
+        const result = await executeQuery(
+          `UPDATE ${clientTable} SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`,
+          [...Object.values(updates), id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Record not found' });
+        await recomputeSummaryFromClient(
+          (sql, params) => executeQuery(sql, params),
+          clientTable,
+          summaryTable
+        );
+        res.json(result.rows[0]);
+      } catch (err) {
+        next(err);
+      }
+    });
+
+    app.delete(`${prefix}/team-summary-report/:id`, async (req, res, next) => {
+      try {
+        const result = await executeQuery(`DELETE FROM ${summaryTable} WHERE id = $1 RETURNING id`, [req.params.id]);
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Record not found' });
+        res.status(200).json({ message: 'Record deleted successfully', id: Number(req.params.id) });
+      } catch (err) {
+        next(err);
+      }
+    });
+
+    app.delete(`${prefix}/team-report/:id`, async (req, res, next) => {
+      try {
+        const result = await executeQuery(`DELETE FROM ${clientTable} WHERE id = $1 RETURNING id`, [req.params.id]);
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Record not found' });
+        await recomputeSummaryFromClient(
+          (sql, params) => executeQuery(sql, params),
+          clientTable,
+          summaryTable
+        );
+        res.status(200).json({ message: 'Record deleted successfully', id: Number(req.params.id), summaryRecomputed: true });
+      } catch (err) {
+        next(err);
+      }
+    });
+  });
+
+  // Sync dimension rows from main MFS tables into FT and FNF (zero metric values)
+  app.post('/api/mfs-modules/sync-structure', async (req, res, next) => {
+    try {
+      const { type } = req.body;
+      const client = await pool.connect();
+      let summarySynced = 0;
+      let clientSynced = 0;
+      try {
+        await client.query('BEGIN');
+        if (type === 'summary' || type === 'all') {
+          for (const table of ['team_summary_report_ft', 'team_summary_report_fnf']) {
+            const result = await client.query(`
+              INSERT INTO ${table} (business_unit, month, year, hc, revenue, gpm, team_cost, net_margin)
+              SELECT s.business_unit, s.month, s.year, 0, 0, 0, 0, 0
+              FROM team_summary_report s
+              WHERE NOT EXISTS (
+                SELECT 1 FROM ${table} t
+                WHERE t.business_unit = s.business_unit AND t.month = s.month AND t.year = s.year
+              )
+            `);
+            summarySynced += result.rowCount || 0;
+          }
+        }
+        if (type === 'client' || type === 'all') {
+          for (const table of ['team_report_ft', 'team_report_fnf']) {
+            const result = await client.query(`
+              INSERT INTO ${table} (
+                client_name, project_name, business_unit, bu_head, hc, salary_cost, revenue, gpm, gpm_percentage,
+                leave_encashment, team_cost, opr_cost, funding_cost, np, np_percentage, rebate, passthrough, vendor_cost, discount, f_and_f, month, year
+              )
+              SELECT
+                s.client_name, s.project_name, s.business_unit, s.bu_head,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, s.month, s.year
+              FROM team_report s
+              WHERE NOT EXISTS (
+                SELECT 1 FROM ${table} t
+                WHERE t.business_unit IS NOT DISTINCT FROM s.business_unit
+                  AND t.client_name IS NOT DISTINCT FROM s.client_name
+                  AND t.project_name IS NOT DISTINCT FROM s.project_name
+                  AND t.month = s.month AND t.year = s.year
+              )
+            `);
+            clientSynced += result.rowCount || 0;
+          }
+        }
+        await client.query('COMMIT');
+        logger.info('MFS module structure synced', { summarySynced, clientSynced });
+        res.json({ success: true, summarySynced, clientSynced });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } catch (err) {
+      next(err);
+    }
+  });
+}
+
+module.exports = { registerMfsModuleRoutes, MODULE_CONFIG };

@@ -1765,9 +1765,9 @@ const TeamReportCompare: React.FC = () => {
 
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "TeamReport");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "MFS_Summary_Report");
 
-    XLSX.writeFile(workbook, "TeamReport.xlsx");
+    XLSX.writeFile(workbook, "MFS_Summary_Report.xlsx");
 
   };
 
@@ -1879,9 +1879,9 @@ const TeamReportCompare: React.FC = () => {
 
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Client_MFS_Template");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "MFS_Client_Template");
 
-    XLSX.writeFile(workbook, "Client_MFS_Template.xlsx");
+    XLSX.writeFile(workbook, "MFS_Client_Template.xlsx");
 
   };
 
@@ -2212,14 +2212,14 @@ const TeamReportCompare: React.FC = () => {
 
 
 
-  // Action dropdown items (hide Add MFS Data, Import MFS, Import Client MFS for BU Head)
+  // Action dropdown items (hide Add MFS Summary, Import MFS Summary, Import MFS Client for BU Head)
   const allActionDropdownItems = [
-    { key: 'add', label: 'Add MFS Data', onClick: () => navigate('/AddTeamReportData') },
-    { key: 'template', label: 'Download MFS Template', onClick: handleDownloadTemplate },
-    { key: 'import', label: 'Import MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportExcel(e as any); input.click(); } },
-    { key: 'client_template', label: 'Download Client MFS Template', onClick: handleDownloadClientTemplate },
-    { key: 'client_import', label: 'Import Client MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportClientMFS(e as any); input.click(); } },
-    { key: 'export', label: 'Export Excel', onClick: handleExportExcel },
+    { key: 'add', label: 'Add MFS Summary', onClick: () => navigate('/AddTeamReportData') },
+    { key: 'template', label: 'Download MFS Summary Template', onClick: handleDownloadTemplate },
+    { key: 'import', label: 'Import MFS Summary', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportExcel(e as any); input.click(); } },
+    { key: 'client_template', label: 'Download MFS Client Template', onClick: handleDownloadClientTemplate },
+    { key: 'client_import', label: 'Import MFS Client', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportClientMFS(e as any); input.click(); } },
+    { key: 'export', label: 'Export MFS Summary', onClick: handleExportExcel },
   ];
   const actionDropdownItems = isBUHead
     ? allActionDropdownItems.filter((item) => item.key !== 'add' && item.key !== 'import' && item.key !== 'client_import')

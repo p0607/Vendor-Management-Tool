@@ -167,6 +167,16 @@ export const normalizeBusinessUnitName = (name: string | null | undefined): stri
   return normalized;
 };
 
+/** F&F and FT are data modules, not business units — exclude from BU dropdowns */
+export const isReservedNonBusinessUnit = (name: string | null | undefined): boolean => {
+  if (!name) return false;
+  const normalized = String(name).trim().toLowerCase().replace(/[\s&_.-]/g, '');
+  return normalized === 'ff' || normalized === 'fnf' || normalized === 'ft' || normalized === 'fandf';
+};
+
+export const filterValidBusinessUnits = (units: string[]): string[] =>
+  units.filter(u => !isReservedNonBusinessUnit(u));
+
 /**
  * Maps Client MFS business unit names to MFS business unit names
  * This is a legacy function maintained for backward compatibility

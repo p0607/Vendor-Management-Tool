@@ -3287,6 +3287,10 @@ app.patch('/api/team-summary-report/:id', async (req, res, next) => {
   }
 });
 
+// FT and F&F module routes (separate tables, same schema)
+const { registerMfsModuleRoutes } = require('./routes/mfsModuleRoutes');
+registerMfsModuleRoutes(app, { pool, executeQuery, logger, computeGpmNpForTeamReport });
+
 // HRMS Data Routes
 app.post('/api/hrms_data', async (req, res, next) => {
   try {

@@ -4,7 +4,7 @@ import { Select, Dropdown, message } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import './MFSdata.css';
-import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isBuHeadDesignation } from '../utils/businessUnitUtils';
+import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isBuHeadDesignation, filterValidBusinessUnits } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
 import logo from '../assets/logo_1.png';
@@ -70,6 +70,18 @@ interface ParameterData {
   label: string;
   values: { [monthKey: string]: { value: number; id: number; record: TeamReportItem } };
 }
+
+type DataModule = 'mfs' | 'ft' | 'fnf';
+
+const getModuleApiPaths = (module: DataModule) => {
+  if (module === 'ft') {
+    return { summary: '/ft/team-summary-report', client: '/ft/team-report', label: 'FT' };
+  }
+  if (module === 'fnf') {
+    return { summary: '/fnf/team-summary-report', client: '/fnf/team-report', label: 'F&F' };
+  }
+  return { summary: '/team-summary-report', client: '/team-report', label: 'MFS' };
+};
 
 const MFSdata: React.FC = () => {
   // Helper function to get current Financial Year start year
@@ -137,6 +149,32 @@ const MFSdata: React.FC = () => {
   const [hiddenClientRows, setHiddenClientRows] = useState<string[]>(
     () => loadHiddenKeys(MFS_HIDDEN_STORAGE.clientRows)
   );
+  const [dataModule, setDataModule] = useState<DataModule>('mfs');
+  const [mfsClientDimensions, setMfsClientDimensions] = useState<TeamReportItem[]>([]);
+
+  const moduleApiPaths = useMemo(() => getModuleApiPaths(dataModule), [dataModule]);
+  const summaryIsDerived = dataModule !== 'mfs';
+
+  const refetchSummaryIfDerived = async () => {
+    if (!summaryIsDerived) return;
+    try {
+      const response = await apiClient.get(moduleApiPaths.summary);
+      if (Array.isArray(response.data)) setTeamReportData(response.data as TeamReportItem[]);
+    } catch (err) {
+      console.error('Failed to refresh derived summary:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (dataModule === 'mfs') return;
+    (async () => {
+      try {
+        await apiClient.post('/mfs-modules/sync-structure', { type: 'all' });
+      } catch (err) {
+        console.error('Failed to sync module structure:', err);
+      }
+    })();
+  }, [dataModule]);
 
   useEffect(() => {
     saveHiddenKeys(MFS_HIDDEN_STORAGE.summaryMonths, hiddenSummaryMonths);
@@ -160,7 +198,7 @@ const MFSdata: React.FC = () => {
     const [year, monthNum] = monthKey.split('-');
     const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthName = monthNames[parseInt(monthNum, 10)] || monthKey;
-    return `${monthName} ${year}`;
+    return `${monthName} ${year.slice(-2)}`;
   };
 
   const getClientRowKey = (row: { client: string; project?: string }): string =>
@@ -242,10 +280,11 @@ const MFSdata: React.FC = () => {
       return fyIndex(a) - fyIndex(b);
     });
 
-  const buildSummaryColumns = (visibleMonths: string[]): SummaryColumn[] => {
+  const buildSummaryColumns = (visibleMonths: string[], includeFFColumns = true): SummaryColumn[] => {
     const columns: SummaryColumn[] = [];
     sortMonthKeysFY(visibleMonths).forEach(monthKey => {
       columns.push({ type: 'month', monthKey });
+      if (!includeFFColumns) return;
       const monthNum = getMonthNumFromKey(monthKey);
       if (monthNum === 6) columns.push({ type: 'ff', label: FF_LABELS.q1, ffKey: 'q1' });
       if (monthNum === 9) columns.push({ type: 'ff', label: FF_LABELS.q2, ffKey: 'q2' });
@@ -352,14 +391,16 @@ const MFSdata: React.FC = () => {
   // Fetch data from API - using same endpoint as TeamReportCompare
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const response = await apiClient.get('/team-summary-report');
+        const response = await apiClient.get(moduleApiPaths.summary);
         
         if (!Array.isArray(response.data)) {
           throw new Error("Data is not an array");
         }
 
         setTeamReportData(response.data as TeamReportItem[]);
+        setError(null);
       } catch (err: any) {
         console.error("Fetch failed:", err);
         setError(err.response?.data?.error || err.message || 'An unknown error occurred');
@@ -369,6 +410,21 @@ const MFSdata: React.FC = () => {
     };
 
     fetchData();
+  }, [moduleApiPaths.summary]);
+
+  // Always load main MFS client rows for FT/F&F template pre-fill and dimension sync
+  useEffect(() => {
+    const fetchMfsDimensions = async () => {
+      try {
+        const response = await apiClient.get('/team-report');
+        if (Array.isArray(response.data)) {
+          setMfsClientDimensions(response.data as TeamReportItem[]);
+        }
+      } catch (err) {
+        console.error('Failed to load MFS client dimensions:', err);
+      }
+    };
+    fetchMfsDimensions();
   }, []);
 
   // Fetch client-wise MFS data from /team-report (has client_name, project_name)
@@ -376,7 +432,7 @@ const MFSdata: React.FC = () => {
     const fetchClientData = async () => {
       setLoadingClientMFS(true);
       try {
-        const response = await apiClient.get('/team-report');
+        const response = await apiClient.get(moduleApiPaths.client);
         if (Array.isArray(response.data)) {
           setClientMFSData(response.data as TeamReportItem[]);
         } else {
@@ -390,7 +446,7 @@ const MFSdata: React.FC = () => {
       }
     };
     fetchClientData();
-  }, []);
+  }, [moduleApiPaths.client]);
 
   // Reset client/project selection when Business Unit changes (e.g. from top filters)
   useEffect(() => {
@@ -451,7 +507,7 @@ const MFSdata: React.FC = () => {
   // Get unique business units (normalized to handle case differences)
   const businessUnits = useMemo(() => {
     if (isBUHead && user?.business_unit) {
-      return getBuHeadDropdownUnits(user.business_unit);
+      return filterValidBusinessUnits(getBuHeadDropdownUnits(user.business_unit));
     }
     const unitsSet = new Set<string>();
     teamReportDataForUser.forEach(item => {
@@ -462,7 +518,7 @@ const MFSdata: React.FC = () => {
         }
       }
     });
-    return Array.from(unitsSet).sort();
+    return filterValidBusinessUnits(Array.from(unitsSet).sort());
   }, [teamReportDataForUser, isBUHead, user?.business_unit]);
 
   // Get unique years
@@ -920,7 +976,7 @@ const MFSdata: React.FC = () => {
   // Client section: BU and years from client data (so filters work when team summary is empty)
   const clientBusinessUnits = useMemo(() => {
     if (isBUHead && user?.business_unit) {
-      return getBuHeadDropdownUnits(user.business_unit);
+      return filterValidBusinessUnits(getBuHeadDropdownUnits(user.business_unit));
     }
     const unitsSet = new Set<string>();
     clientMFSDataForUser.forEach(item => {
@@ -929,7 +985,7 @@ const MFSdata: React.FC = () => {
         if (normalized) unitsSet.add(normalized);
       }
     });
-    return Array.from(unitsSet).sort();
+    return filterValidBusinessUnits(Array.from(unitsSet).sort());
   }, [clientMFSDataForUser, isBUHead, user?.business_unit]);
 
   const clientYears = useMemo(() => {
@@ -1078,10 +1134,10 @@ const MFSdata: React.FC = () => {
     [deferredMonths, hiddenSummaryMonths]
   );
   const visibleSummaryColumns = useMemo(
-    () => buildSummaryColumns(visibleSummaryMonths),
-    [visibleSummaryMonths]
+    () => buildSummaryColumns(visibleSummaryMonths, dataModule === 'mfs'),
+    [visibleSummaryMonths, dataModule]
   );
-  const showFAndFRow = !hiddenSummaryRows.includes(F_AND_F_ROW_KEY);
+  const showFAndFRow = dataModule === 'mfs' && !hiddenSummaryRows.includes(F_AND_F_ROW_KEY);
   const visibleSummaryRows = useMemo(
     () => deferredPivotData.filter(paramData => !hiddenSummaryRows.includes(paramData.parameter)),
     [deferredPivotData, hiddenSummaryRows]
@@ -1485,6 +1541,7 @@ const MFSdata: React.FC = () => {
     projectName?: string,
     ffKey?: 'q1' | 'q2' | 'q3' | 'q4'
   ) => {
+    if (table === 'summary' && dataModule !== 'mfs') return;
     setEditingCell({
       parameter,
       monthKey,
@@ -1494,6 +1551,14 @@ const MFSdata: React.FC = () => {
       ffKey
     });
     setEditedValue(String(currentValue || ''));
+  };
+
+  const syncMfsModuleStructure = async (type: 'summary' | 'client' | 'all' = 'all') => {
+    try {
+      await apiClient.post('/mfs-modules/sync-structure', { type });
+    } catch (err) {
+      console.error('Failed to sync FT/F&F module structure:', err);
+    }
   };
 
   // Handle save edit (both summary and client table)
@@ -1524,15 +1589,18 @@ const MFSdata: React.FC = () => {
         }
         await Promise.all(
           records.map((record: TeamReportItem) =>
-            apiClient.patch(`/team-report/${record.id}`, { [editingCell!.parameter]: updateValue })
+            apiClient.patch(`${moduleApiPaths.client}/${record.id}`, { [editingCell!.parameter]: updateValue })
           )
         );
-        const response = await apiClient.get('/team-report');
+        const response = await apiClient.get(moduleApiPaths.client);
         if (Array.isArray(response.data)) {
           setClientMFSData(response.data as TeamReportItem[]);
           setError(null);
         }
-      } else if (editingCell.parameter.startsWith('f_and_f_q')) {
+        if (dataModule !== 'mfs') {
+          await refetchSummaryIfDerived();
+        }
+      } else if (dataModule === 'mfs' && editingCell.parameter.startsWith('f_and_f_q')) {
         const bu = effectiveBusinessUnitForEdit;
         if (!bu) {
           setError('Select a single business unit to edit quarterly F&F values.');
@@ -1546,9 +1614,9 @@ const MFSdata: React.FC = () => {
           [editingCell.parameter]: updateValue,
         };
         if (quarterlyFF.recordId) {
-          await apiClient.patch(`/team-summary-report/${quarterlyFF.recordId}`, ffPayload);
+          await apiClient.patch(`${moduleApiPaths.summary}/${quarterlyFF.recordId}`, ffPayload);
         } else {
-          await apiClient.post('/team-summary-report', {
+          await apiClient.post(moduleApiPaths.summary, {
             business_unit: bu,
             month: 'April',
             year: activeFYStartYear,
@@ -1560,18 +1628,18 @@ const MFSdata: React.FC = () => {
             ...ffPayload,
           });
         }
-        const response = await apiClient.get('/team-summary-report');
+        const response = await apiClient.get(moduleApiPaths.summary);
         if (Array.isArray(response.data)) {
           setTeamReportData(response.data as TeamReportItem[]);
           setError(null);
         }
       } else {
-        // Summary table: PATCH /team-summary-report (use pivot record id when available)
+        // Summary table: PATCH team summary (use pivot record id when available)
         const paramRow = pivotData.find(p => p.parameter === editingCell.parameter);
         const cellData = paramRow?.values[editingCell.monthKey];
 
         if (cellData?.id) {
-          await apiClient.patch(`/team-summary-report/${cellData.id}`, {
+          await apiClient.patch(`${moduleApiPaths.summary}/${cellData.id}`, {
             [editingCell.parameter]: updateValue,
           });
         } else {
@@ -1584,11 +1652,11 @@ const MFSdata: React.FC = () => {
           }
           await Promise.all(
             records.map((record: TeamReportItem) =>
-              apiClient.patch(`/team-summary-report/${record.id}`, { [editingCell.parameter]: updateValue })
+              apiClient.patch(`${moduleApiPaths.summary}/${record.id}`, { [editingCell.parameter]: updateValue })
             )
           );
         }
-        const response = await apiClient.get('/team-summary-report');
+        const response = await apiClient.get(moduleApiPaths.summary);
         if (Array.isArray(response.data)) {
           setTeamReportData(response.data as TeamReportItem[]);
           setError(null);
@@ -1628,9 +1696,9 @@ const MFSdata: React.FC = () => {
         return;
       }
       await Promise.all(
-        toDelete.map((record: TeamReportItem) => apiClient.delete(`/team-summary-report/${record.id}`))
+        toDelete.map((record: TeamReportItem) => apiClient.delete(`${moduleApiPaths.summary}/${record.id}`))
       );
-      const response = await apiClient.get('/team-summary-report');
+      const response = await apiClient.get(moduleApiPaths.summary);
       if (Array.isArray(response.data)) {
         setTeamReportData(response.data as TeamReportItem[]);
         setSelectedSummaryMonthsToDelete([]);
@@ -1665,13 +1733,16 @@ const MFSdata: React.FC = () => {
         return;
       }
       await Promise.all(
-        toDelete.map((record: TeamReportItem) => apiClient.delete(`/team-report/${record.id}`))
+        toDelete.map((record: TeamReportItem) => apiClient.delete(`${moduleApiPaths.client}/${record.id}`))
       );
-      const response = await apiClient.get('/team-report');
+      const response = await apiClient.get(moduleApiPaths.client);
       if (Array.isArray(response.data)) {
         setClientMFSData(response.data as TeamReportItem[]);
         setSelectedClientMonthsToDelete([]);
         setError(null);
+      }
+      if (dataModule !== 'mfs') {
+        await refetchSummaryIfDerived();
       }
     } catch (err: any) {
       console.error('Delete client months failed:', err);
@@ -1741,12 +1812,14 @@ const MFSdata: React.FC = () => {
   const handleDownloadTemplate = () => {
     const templateData = [{
       'Business_Unit': '', 'Month': '', 'Year': '', 'HC': '', 'Revenue': '', 'GPM': '', 'Team Cost': '', 'Net Margin': '',
-      'F&F Q1': '', 'F&F Q2': '', 'F&F Q3': '', 'F&F Q4': '',
+      ...(dataModule === 'mfs' ? { 'F&F Q1': '', 'F&F Q2': '', 'F&F Q3': '', 'F&F Q4': '' } : {}),
     }];
+    const sheetLabel = dataModule === 'ft' ? 'FT_Summary_Template' : dataModule === 'fnf' ? 'FNF_Summary_Template' : 'MFS_Summary_Template';
+    const fileLabel = dataModule === 'ft' ? 'FT_Summary_Template.xlsx' : dataModule === 'fnf' ? 'FNF_Summary_Template.xlsx' : 'MFS_Summary_Template.xlsx';
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'MFS_Summary_Template');
-    XLSX.writeFile(workbook, 'MFS_Summary_Template.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetLabel);
+    XLSX.writeFile(workbook, fileLabel);
   };
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1804,7 +1877,7 @@ const MFSdata: React.FC = () => {
         for (let i = 0; i < mappedData.length; i += batchSize) {
           const batch = mappedData.slice(i, i + batchSize);
           try {
-            await apiClient.post('/team-summary-report/bulk', { data: batch });
+            await apiClient.post(`${moduleApiPaths.summary}/bulk`, { data: batch });
             successCount += batch.length;
           } catch {
             errorCount += batch.length;
@@ -1816,6 +1889,9 @@ const MFSdata: React.FC = () => {
         else if (successCount > 0) message.warning(`Imported ${successCount}, ${errorCount} failed.`);
         else message.error('All batches failed to import.');
         if (successCount > 0) {
+          if (dataModule === 'mfs') {
+            await syncMfsModuleStructure('summary');
+          }
           const fyMonthsStart = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
           const importedFYStartYears = mappedData.map((r: any) => {
             const y = Number(r.year) || 0;
@@ -1837,16 +1913,56 @@ const MFSdata: React.FC = () => {
     reader.readAsBinaryString(file);
   };
 
+  const buildPrefilledClientTemplateRows = (): Record<string, string | number>[] => {
+    const seen = new Set<string>();
+    const rows: Record<string, string | number>[] = [];
+    const source = mfsClientDimensions.length > 0 ? mfsClientDimensions : clientMFSData;
+    source.forEach(row => {
+      if (selectedBusinessUnit && row.business_unit && !compareBusinessUnits(row.business_unit, selectedBusinessUnit)) return;
+      const key = `${row.business_unit}|${row.client_name}|${row.project_name}|${row.month}|${row.year}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      rows.push({
+        'Business Unit': row.business_unit || '',
+        'Client Name': row.client_name || '',
+        'Project Name': row.project_name || '',
+        'BU Head': row.bu_head || '',
+        'Year': row.year ?? '',
+        'Month': row.month || '',
+        'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
+        'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '',
+        'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
+      });
+    });
+    if (rows.length === 0) {
+      return [{
+        'Business Unit': '', 'Client Name': '', 'Project Name': '', 'BU Head': '', 'Year': '', 'Month': '',
+        'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
+        'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '', 'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
+      }];
+    }
+    return rows.sort((a, b) =>
+      String(a['Business Unit']).localeCompare(String(b['Business Unit']))
+      || String(a['Client Name']).localeCompare(String(b['Client Name']))
+      || String(a['Project Name']).localeCompare(String(b['Project Name']))
+      || String(a['Year']).localeCompare(String(b['Year']))
+      || String(a['Month']).localeCompare(String(b['Month']))
+    );
+  };
+
   const handleDownloadClientTemplate = () => {
-    const templateData = [{
+    const usePrefill = dataModule === 'ft' || dataModule === 'fnf';
+    const templateData = usePrefill ? buildPrefilledClientTemplateRows() : [{
       'Business Unit': '', 'Client Name': '', 'Project Name': '', 'BU Head': '', 'Year': '', 'Month': '',
       'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
       'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '', 'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
     }];
+    const sheetLabel = dataModule === 'ft' ? 'FT_Client_Template' : dataModule === 'fnf' ? 'FNF_Client_Template' : 'MFS_Client_Template';
+    const fileLabel = dataModule === 'ft' ? 'FT_Client_Template.xlsx' : dataModule === 'fnf' ? 'FNF_Client_Template.xlsx' : 'MFS_Client_Template.xlsx';
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Client_MFS_Template');
-    XLSX.writeFile(workbook, 'Client_MFS_Template.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetLabel);
+    XLSX.writeFile(workbook, fileLabel);
   };
 
   const handleImportClientMFS = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1940,16 +2056,30 @@ const MFSdata: React.FC = () => {
         for (let i = 0; i < mappedData.length; i += batchSize) {
           const batch = mappedData.slice(i, i + batchSize);
           try {
-            await apiClient.post('/team-report/bulk', { data: batch }, { timeout: 60000 });
+            await apiClient.post(`${moduleApiPaths.client}/bulk`, { data: batch }, { timeout: 60000 });
             successCount += batch.length;
           } catch { errorCount += batch.length; }
           await new Promise(r => setTimeout(r, 100));
         }
         message.destroy();
-        if (errorCount === 0) message.success(`Successfully imported all ${successCount} records!`, 5);
+        if (errorCount === 0) {
+          message.success(
+            summaryIsDerived
+              ? `Successfully imported all ${successCount} records! Summary table updated automatically.`
+              : `Successfully imported all ${successCount} records!`,
+            5
+          );
+        }
         else if (successCount > 0) message.warning(`Imported ${successCount} successfully, ${errorCount} failed.`, 8);
         else message.error(`All batches failed (${errorCount} records).`, 8);
         if (successCount > 0) {
+          if (dataModule === 'mfs') {
+            await syncMfsModuleStructure('client');
+            try {
+              const dimRes = await apiClient.get('/team-report');
+              if (Array.isArray(dimRes.data)) setMfsClientDimensions(dimRes.data as TeamReportItem[]);
+            } catch (_) {}
+          }
           // Switch period to the FY that contains the imported months so the new data is visible
           const fyMonthsStart = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
           const importedFYStartYears = mappedData.map((r: any) => {
@@ -1978,25 +2108,30 @@ const MFSdata: React.FC = () => {
     const exportData = teamReportDataForUser.map((row: TeamReportItem) => {
       const monthName = row.month ? normalizeToFullMonthName(String(row.month)) : '';
       const isAprilAnchor = monthName === 'April';
-      return {
+      const baseRow: Record<string, string | number> = {
         'Business Unit': row.business_unit || '',
         'Month': row.month || '',
-        'Year': row.year,
+        'Year': row.year ?? 0,
         'HC': row.hc ?? 0,
         'Revenue': row.revenue ?? 0,
         'GPM': row.gpm ?? 0,
         'Team Cost': row.team_cost ?? 0,
         'Net Margin': row.net_margin ?? 0,
-        'F&F Q1': isAprilAnchor ? (row.f_and_f_q1 ?? 0) : '',
-        'F&F Q2': isAprilAnchor ? (row.f_and_f_q2 ?? 0) : '',
-        'F&F Q3': isAprilAnchor ? (row.f_and_f_q3 ?? 0) : '',
-        'F&F Q4': isAprilAnchor ? (row.f_and_f_q4 ?? 0) : '',
       };
+      if (dataModule === 'mfs') {
+        baseRow['F&F Q1'] = isAprilAnchor ? (row.f_and_f_q1 ?? 0) : '';
+        baseRow['F&F Q2'] = isAprilAnchor ? (row.f_and_f_q2 ?? 0) : '';
+        baseRow['F&F Q3'] = isAprilAnchor ? (row.f_and_f_q3 ?? 0) : '';
+        baseRow['F&F Q4'] = isAprilAnchor ? (row.f_and_f_q4 ?? 0) : '';
+      }
+      return baseRow;
     });
+    const sheetLabel = dataModule === 'ft' ? 'FT_Summary_Report' : dataModule === 'fnf' ? 'FNF_Summary_Report' : 'MFS_Summary_Report';
+    const fileLabel = dataModule === 'ft' ? 'FT_Summary_Report.xlsx' : dataModule === 'fnf' ? 'FNF_Summary_Report.xlsx' : 'MFS_Summary_Report.xlsx';
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'MFS_Report');
-    XLSX.writeFile(workbook, 'MFS_Report.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetLabel);
+    XLSX.writeFile(workbook, fileLabel);
   };
 
   const handleExportClientMFSData = () => {
@@ -2008,24 +2143,82 @@ const MFSdata: React.FC = () => {
       'Leave Encsh': row.leave_encashment || 0, 'Team Cost': row.team_cost || 0, 'Opr Cost': row.opr_cost || 0,
       'Funding Cost': row.funding_cost || 0, 'Rebate': row.rebate || 0, 'Passthrough': row.passthrough || 0, 'Vendor Cost': row.vendor_cost ?? 0, 'Discount': row.discount ?? 0,
     }));
+    const sheetLabel = dataModule === 'ft' ? 'FT_Client_Report' : dataModule === 'fnf' ? 'FNF_Client_Report' : 'MFS_Client_Report';
+    const fileLabel = dataModule === 'ft' ? 'FT_Client_Report.xlsx' : dataModule === 'fnf' ? 'FNF_Client_Report.xlsx' : 'MFS_Client_Report.xlsx';
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Client_MFS_Report');
-    XLSX.writeFile(workbook, 'Client_MFS_Report.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetLabel);
+    XLSX.writeFile(workbook, fileLabel);
   };
 
-  const allActionDropdownItems = [
-    { key: 'add', label: 'Add MFS Data', onClick: () => navigate('/AddTeamReportData') },
-    { key: 'template', label: 'Download MFS Template', onClick: handleDownloadTemplate },
-    { key: 'import', label: 'Import MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportExcel(e as any); input.click(); } },
-    { key: 'client_template', label: 'Download Client MFS Template', onClick: handleDownloadClientTemplate },
-    { key: 'client_import', label: 'Import Client MFS', onClick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls'; input.onchange = (e) => handleImportClientMFS(e as any); input.click(); } },
-    { key: 'export_mfs', label: 'Export MFS Data', onClick: handleExportMFSData },
-    { key: 'export_client_mfs', label: 'Export Client MFS Data', onClick: handleExportClientMFSData },
-  ];
-  const actionDropdownItems = isBUHead
-    ? allActionDropdownItems.filter((item) => item.key !== 'add' && item.key !== 'import' && item.key !== 'client_import')
-    : allActionDropdownItems;
+  const moduleLabel = moduleApiPaths.label;
+  const clientModuleLabel = dataModule === 'mfs' ? 'MFS Client' : `${moduleLabel} Client`;
+
+  const closeActionsDropdown = () => setIsActionDropdownOpen(false);
+
+  const triggerFileImport = (handler: (e: React.ChangeEvent<HTMLInputElement>) => void) => {
+    closeActionsDropdown();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,.xls';
+    input.onchange = (e) => handler(e as unknown as React.ChangeEvent<HTMLInputElement>);
+    input.click();
+  };
+
+  const runAction = (action: () => void) => {
+    closeActionsDropdown();
+    action();
+  };
+
+  const renderActionsPanel = () => (
+    <div className={`mfs-actions-panel${isBUHead ? ' mfs-actions-panel--bu-head' : ''}`} onClick={(e) => e.stopPropagation()}>
+      <div className="mfs-actions-grid">
+        <div className="mfs-actions-col">
+          <div className="mfs-actions-col-title">Download</div>
+          {!summaryIsDerived && (
+            <button type="button" className="mfs-actions-item" onClick={() => runAction(handleDownloadTemplate)}>
+              {moduleLabel} Summary template
+            </button>
+          )}
+          <button type="button" className="mfs-actions-item" onClick={() => runAction(handleDownloadClientTemplate)}>
+            {clientModuleLabel} template
+          </button>
+          {dataModule === 'mfs' && !isBUHead && (
+            <button type="button" className="mfs-actions-item mfs-actions-item-muted" onClick={() => runAction(() => navigate('/AddTeamReportData'))}>
+              Add MFS Summary manually
+            </button>
+          )}
+        </div>
+
+        {!isBUHead && (
+          <div className="mfs-actions-col">
+            <div className="mfs-actions-col-title">Import</div>
+            {!summaryIsDerived && (
+              <button type="button" className="mfs-actions-item" onClick={() => triggerFileImport(handleImportExcel)}>
+                Import {moduleLabel} Summary
+              </button>
+            )}
+            <button type="button" className="mfs-actions-item" onClick={() => triggerFileImport(handleImportClientMFS)}>
+              Import {clientModuleLabel}
+            </button>
+            {summaryIsDerived && (
+              <span className="mfs-actions-hint">Summary table updates automatically from client data</span>
+            )}
+          </div>
+        )}
+
+        <div className="mfs-actions-col">
+          <div className="mfs-actions-col-title">Export</div>
+          <button type="button" className="mfs-actions-item" onClick={() => runAction(handleExportMFSData)}>
+            Export {moduleLabel} Summary
+          </button>
+          <button type="button" className="mfs-actions-item" onClick={() => runAction(handleExportClientMFSData)}>
+            Export {clientModuleLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   // Show full page so both tables are visible (first: MFS from team-summary-report, second: client wise from team-report)
   if (loading) return <div className="loading">Loading data...</div>;
@@ -2047,13 +2240,14 @@ const MFSdata: React.FC = () => {
           fontFamily: 'Montserrat, sans-serif', 
           margin: 0, 
           zIndex: 1 
-        }}>MFS Data</h2>
+        }}>{dataModule === 'mfs' ? 'MFS Summary' : `${moduleLabel} Summary`}</h2>
         <div className="auth-buttons-container" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Dropdown
-            menu={{ items: actionDropdownItems }}
             trigger={['click']}
             open={isActionDropdownOpen}
             onOpenChange={setIsActionDropdownOpen}
+            dropdownRender={renderActionsPanel}
+            placement="bottomRight"
           >
             <button className="auth-button" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               Actions <DownOutlined />
@@ -2096,15 +2290,17 @@ const MFSdata: React.FC = () => {
             </button>
             {editMode && !isBUHead && (
               <>
-                <button
-                  type="button"
-                  onClick={handleDeleteSummaryMonths}
-                  disabled={selectedSummaryMonthsToDelete.length === 0}
-                  className="auth-button"
-                  style={{ background: '#c0392b', color: '#fff' }}
-                >
-                  Delete selected (Summary table)
-                </button>
+                {!summaryIsDerived && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteSummaryMonths}
+                    disabled={selectedSummaryMonthsToDelete.length === 0}
+                    className="auth-button"
+                    style={{ background: '#c0392b', color: '#fff' }}
+                  >
+                    Delete selected (Summary table)
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleDeleteClientMonths}
@@ -2183,6 +2379,33 @@ const MFSdata: React.FC = () => {
               </select>
             </div>
           )}
+
+          <div className="filter-group mfs-module-tabs">
+            <span className="mfs-module-tabs-label">Module:</span>
+            <div className="mfs-module-tab-buttons">
+              <button
+                type="button"
+                className={`mfs-module-tab ${dataModule === 'mfs' ? 'active' : ''}`}
+                onClick={() => setDataModule('mfs')}
+              >
+                MFS
+              </button>
+              <button
+                type="button"
+                className={`mfs-module-tab ${dataModule === 'ft' ? 'active' : ''}`}
+                onClick={() => setDataModule('ft')}
+              >
+                FT
+              </button>
+              <button
+                type="button"
+                className={`mfs-module-tab ${dataModule === 'fnf' ? 'active' : ''}`}
+                onClick={() => setDataModule('fnf')}
+              >
+                F&F
+              </button>
+            </div>
+          </div>
 
           {periodFilter === 'quarter' && (
             <div className="filter-group">
@@ -2270,15 +2493,11 @@ const MFSdata: React.FC = () => {
                     {visibleSummaryColumns.map((column, index) => {
                       if (column.type === 'month') {
                         const monthKey = column.monthKey;
-                        const [year, monthNum] = monthKey.split('-');
-                        const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        const monthName = monthNames[parseInt(monthNum, 10)];
                         return (
                           <th key={monthKey} className="month-header">
                             <div className="mfs-col-header-wrap">
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                                {monthName} {year}
+                                {formatMonthKeyLabel(monthKey)}
                                 {editMode && summaryMonthHasData(monthKey) && (
                                   <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
                                     <input
@@ -2289,7 +2508,7 @@ const MFSdata: React.FC = () => {
                                   </label>
                                 )}
                               </div>
-                              {renderHideButton(() => hideSummaryMonth(monthKey), `Hide column ${monthName} ${year}`)}
+                              {renderHideButton(() => hideSummaryMonth(monthKey), `Hide column ${formatMonthKeyLabel(monthKey)}`)}
                             </div>
                           </th>
                         );
@@ -2339,7 +2558,7 @@ const MFSdata: React.FC = () => {
                               ) : (
                                 <div className="cell-content">
                                   <span>{cellData ? formatValue(cellData.value, paramData.parameter) : 'N/A'}</span>
-                                  {editMode && (
+                                  {editMode && !summaryIsDerived && (
                                     <button
                                       onClick={() => handleEditClick(paramData.parameter, monthKey, cellData?.value || 0, 'summary')}
                                       className="edit-pen-button"
@@ -2667,15 +2886,11 @@ const MFSdata: React.FC = () => {
                     <thead>
                       <tr>
                         {visibleClientTableMonths.map(monthKey => {
-                          const [year, monthNum] = monthKey.split('-');
-                          const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                          const monthName = monthNames[parseInt(monthNum)];
                           return (
                             <th key={monthKey} className="month-header" colSpan={deferredClientTableParametersFiltered.length}>
                               <div className="mfs-col-header-wrap">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                  {monthName} {year}
+                                  {formatMonthKeyLabel(monthKey)}
                                   {editMode && clientMonthHasData(monthKey) && (
                                     <label title="Select month to delete" style={{ display: 'flex', alignItems: 'center' }}>
                                       <input
@@ -2686,7 +2901,7 @@ const MFSdata: React.FC = () => {
                                     </label>
                                   )}
                                 </div>
-                                {renderHideButton(() => hideClientMonth(monthKey), `Hide column ${monthName} ${year}`)}
+                                {renderHideButton(() => hideClientMonth(monthKey), `Hide column ${formatMonthKeyLabel(monthKey)}`)}
                               </div>
                             </th>
                           );
