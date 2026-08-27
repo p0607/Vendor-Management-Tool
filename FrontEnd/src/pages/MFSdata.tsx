@@ -184,7 +184,18 @@ const MFSdata: React.FC = () => {
       setLoadingClientMFS(true);
       try {
         if (dataModule !== 'mfs') {
-          await apiClient.post('/mfs-modules/sync-structure', { type: 'all' });
+          try {
+            await apiClient.post('/mfs-modules/sync-structure', { type: 'all' });
+          } catch (syncErr: any) {
+            const syncMsg = syncErr.response?.data?.error || syncErr.message;
+            console.error('FT/F&F structure sync failed:', syncMsg);
+            message.warning(
+              syncMsg?.includes('does not exist')
+                ? 'FT/F&F database tables missing. Run create_ft_fnf_module_tables.sql on the server.'
+                : `Structure sync failed: ${syncMsg || 'check API logs'}`,
+              8
+            );
+          }
         }
         const [summaryRes, clientRes] = await Promise.all([
           apiClient.get(moduleApiPaths.summary),

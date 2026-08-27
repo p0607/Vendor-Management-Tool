@@ -56,6 +56,65 @@ const parseNumeric = (value) => {
   return parseFloat(strValue.replace(/,/g, '')) || 0;
 };
 
+const CLIENT_DIMENSION_COLS = ['client_name', 'project_name', 'business_unit', 'bu_head', 'month', 'year'];
+const CLIENT_METRIC_COLS = [
+  'hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment',
+  'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage',
+  'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f',
+];
+
+async function getTableColumns(client, tableName) {
+  const safeName = String(tableName).replace(/[^a-z0-9_]/gi, '');
+  const { rows } = await client.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`,
+    [safeName]
+  );
+  return new Set(rows.map((r) => r.column_name));
+}
+
+/** Copy client dimension rows from MFS with zero metrics — only uses columns that exist on the target table. */
+async function insertClientStructureFromMfs(client, targetTable) {
+  const targetCols = await getTableColumns(client, targetTable);
+  if (targetCols.size === 0) {
+    throw new Error(`Table "${targetTable}" does not exist. Run create_ft_fnf_module_tables.sql.`);
+  }
+  const insertCols = [
+    ...CLIENT_DIMENSION_COLS.filter((c) => targetCols.has(c)),
+    ...CLIENT_METRIC_COLS.filter((c) => targetCols.has(c)),
+  ];
+  if (!insertCols.includes('month') || !insertCols.includes('year')) {
+    throw new Error(`Table "${targetTable}" is missing month/year columns.`);
+  }
+  const colList = insertCols.join(', ');
+  const selectList = insertCols
+    .map((col) => (CLIENT_DIMENSION_COLS.includes(col) ? `s.${col}` : '0'))
+    .join(', ');
+  const result = await client.query(`
+    INSERT INTO ${targetTable} (${colList})
+    SELECT ${selectList}
+    FROM team_report s
+    WHERE NOT EXISTS (
+      SELECT 1 FROM ${targetTable} t
+      WHERE t.business_unit IS NOT DISTINCT FROM s.business_unit
+        AND t.client_name IS NOT DISTINCT FROM s.client_name
+        AND t.project_name IS NOT DISTINCT FROM s.project_name
+        AND t.month = s.month AND t.year = s.year
+    )
+  `);
+  return result.rowCount || 0;
+}
+
+/** Build UPDATE for client bulk import using only columns present on the module table. */
+function buildClientUpdateParts(targetCols) {
+  const fields = ['bu_head', ...CLIENT_METRIC_COLS].filter((f) => targetCols.has(f));
+  if (fields.length === 0) {
+    throw new Error('No updatable columns found on client module table.');
+  }
+  const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
+  const valueKeys = fields;
+  return { setClause, valueKeys, idParam: fields.length + 1 };
+}
+
 /** Roll up client rows into summary (HC, Revenue, GPM, Team Cost; NP → net_margin) per BU/month/year. */
 async function recomputeSummaryFromClient(runQuery, clientTable, summaryTable) {
   const aggSubquery = `
@@ -78,8 +137,7 @@ async function recomputeSummaryFromClient(runQuery, clientTable, summaryTable) {
       revenue = a.revenue,
       gpm = a.gpm,
       team_cost = a.team_cost,
-      net_margin = a.net_margin,
-      updated_at = CURRENT_TIMESTAMP
+      net_margin = a.net_margin
     FROM (${aggSubquery}) a
     WHERE s.business_unit = a.business_unit AND s.month = a.month AND s.year = a.year
   `);
@@ -96,7 +154,7 @@ async function recomputeSummaryFromClient(runQuery, clientTable, summaryTable) {
 
   await runQuery(`
     UPDATE ${summaryTable} s
-    SET hc = 0, revenue = 0, gpm = 0, team_cost = 0, net_margin = 0, updated_at = CURRENT_TIMESTAMP
+    SET hc = 0, revenue = 0, gpm = 0, team_cost = 0, net_margin = 0
     WHERE NOT EXISTS (
       SELECT 1 FROM ${clientTable} c
       WHERE c.business_unit = s.business_unit AND c.month = s.month AND c.year = s.year
@@ -109,6 +167,10 @@ async function syncMfsStructureToFtFnf(pool, logger, type = 'all') {
   let summarySynced = 0;
   let clientSynced = 0;
   try {
+    const ftSummaryCols = await getTableColumns(client, 'team_summary_report_ft');
+    if (ftSummaryCols.size === 0) {
+      throw new Error('Table "team_summary_report_ft" does not exist. Run create_ft_fnf_module_tables.sql on the database.');
+    }
     await client.query('BEGIN');
     if (type === 'summary' || type === 'all') {
       for (const table of ['team_summary_report_ft', 'team_summary_report_fnf']) {
@@ -126,24 +188,7 @@ async function syncMfsStructureToFtFnf(pool, logger, type = 'all') {
     }
     if (type === 'client' || type === 'all') {
       for (const table of ['team_report_ft', 'team_report_fnf']) {
-        const result = await client.query(`
-          INSERT INTO ${table} (
-            client_name, project_name, business_unit, bu_head, hc, salary_cost, revenue, gpm, gpm_percentage,
-            leave_encashment, team_cost, opr_cost, funding_cost, np, np_percentage, rebate, passthrough, vendor_cost, discount, f_and_f, month, year
-          )
-          SELECT
-            s.client_name, s.project_name, s.business_unit, s.bu_head,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, s.month, s.year
-          FROM team_report s
-          WHERE NOT EXISTS (
-            SELECT 1 FROM ${table} t
-            WHERE t.business_unit IS NOT DISTINCT FROM s.business_unit
-              AND t.client_name IS NOT DISTINCT FROM s.client_name
-              AND t.project_name IS NOT DISTINCT FROM s.project_name
-              AND t.month = s.month AND t.year = s.year
-          )
-        `);
-        clientSynced += result.rowCount || 0;
+        clientSynced += await insertClientStructureFromMfs(client, table);
       }
     }
     if (type === 'client' || type === 'all') {
@@ -158,7 +203,11 @@ async function syncMfsStructureToFtFnf(pool, logger, type = 'all') {
     logger.info('MFS module structure synced', { summarySynced, clientSynced, type });
     return { summarySynced, clientSynced };
   } catch (err) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {
+      /* connection may already be closed */
+    }
     throw err;
   } finally {
     client.release();
@@ -231,7 +280,7 @@ function registerMfsModuleRoutes(app, deps) {
             );
             if (existing.rows.length > 0) {
               await client.query(
-                `UPDATE ${summaryTable} SET hc = $1, revenue = $2, gpm = $3, team_cost = $4, net_margin = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6`,
+                `UPDATE ${summaryTable} SET hc = $1, revenue = $2, gpm = $3, team_cost = $4, net_margin = $5 WHERE id = $6`,
                 [record.hc, record.revenue, record.gpm, record.team_cost, record.net_margin, existing.rows[0].id]
               );
             } else {
@@ -265,6 +314,8 @@ function registerMfsModuleRoutes(app, deps) {
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
+          const targetCols = await getTableColumns(client, clientTable);
+          const { setClause, valueKeys, idParam } = buildClientUpdateParts(targetCols);
           let updated = 0;
           let skipped = 0;
           const skippedSamples = [];
@@ -278,7 +329,9 @@ function registerMfsModuleRoutes(app, deps) {
             if (record.year < 100) record.year = 2000 + record.year;
             const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment',
               'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f'];
-            numericFields.forEach((f) => { record[f] = parseNumeric(record[f]); });
+            numericFields.forEach((f) => {
+              if (targetCols.has(f)) record[f] = parseNumeric(record[f]);
+            });
             if (computeGpmNpForTeamReport) {
               const gpmNp = computeGpmNpForTeamReport(record);
               record.gpm = gpmNp.gpm;
@@ -292,13 +345,10 @@ function registerMfsModuleRoutes(app, deps) {
               [record.business_unit || null, record.client_name || null, record.project_name || null, record.month, record.year]
             );
             if (existing.rows.length > 0) {
+              const values = valueKeys.map((key) => record[key] ?? (key === 'bu_head' ? null : 0));
               await client.query(
-                `UPDATE ${clientTable} SET bu_head = $1, hc = $2, salary_cost = $3, revenue = $4, gpm = $5, gpm_percentage = $6,
-                 leave_encashment = $7, team_cost = $8, opr_cost = $9, funding_cost = $10, np = $11, np_percentage = $12,
-                 rebate = $13, passthrough = $14, vendor_cost = $15, discount = $16, f_and_f = $17 WHERE id = $18`,
-                [record.bu_head || null, record.hc, record.salary_cost, record.revenue, record.gpm, record.gpm_percentage,
-                  record.leave_encashment, record.team_cost, record.opr_cost, record.funding_cost, record.np, record.np_percentage,
-                  record.rebate, record.passthrough, record.vendor_cost, record.discount, record.f_and_f, existing.rows[0].id]
+                `UPDATE ${clientTable} SET ${setClause} WHERE id = $${idParam}`,
+                [...values, existing.rows[0].id]
               );
               updated += 1;
             } else {
@@ -426,7 +476,18 @@ function registerMfsModuleRoutes(app, deps) {
       const result = await syncMfsStructureToFtFnf(pool, logger, type || 'all');
       res.json({ success: true, ...result });
     } catch (err) {
-      next(err);
+      logger.error('MFS module sync-structure failed', {
+        error: err.message,
+        code: err.code,
+        detail: err.detail,
+        table: err.table,
+      });
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to sync FT/F&F structure from MFS',
+        hint: 'Ensure create_ft_fnf_module_tables.sql was run on the database.',
+        code: err.code,
+      });
     }
   });
 }
