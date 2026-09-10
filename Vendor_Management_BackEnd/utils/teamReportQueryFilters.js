@@ -59,23 +59,37 @@ function appendBuFilter(conditions, params, businessUnit) {
   params.push(businessUnit);
 }
 
+function isSummaryTable(tableName) {
+  return String(tableName).includes('summary');
+}
+
+function quoteSqlLiteral(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
 function appendFyFilter(conditions, params, fyStartYears) {
   if (!fyStartYears || fyStartYears.length === 0) return;
+
+  const startMonthsIn = FY_START_MONTHS.map(quoteSqlLiteral).join(', ');
+  const endMonthsIn = FY_END_MONTHS.map(quoteSqlLiteral).join(', ');
 
   const fyClauses = fyStartYears.map((fyStartYear) => {
     const startYearParam = params.length + 1;
     params.push(fyStartYear);
-    const startMonthsParam = params.length + 1;
-    params.push(FY_START_MONTHS);
     const endYearParam = params.length + 1;
     params.push(fyStartYear + 1);
-    const endMonthsParam = params.length + 1;
-    params.push(FY_END_MONTHS);
 
-    return `((year = $${startYearParam} AND month = ANY($${startMonthsParam})) OR (year = $${endYearParam} AND month = ANY($${endMonthsParam})))`;
+    return `((year::int = $${startYearParam} AND TRIM(month::text) IN (${startMonthsIn})) OR (year::int = $${endYearParam} AND TRIM(month::text) IN (${endMonthsIn})))`;
   });
 
   conditions.push(`(${fyClauses.join(' OR ')})`);
+}
+
+function buildOrderClause(tableName) {
+  if (isSummaryTable(tableName)) {
+    return ' ORDER BY year DESC, month, business_unit';
+  }
+  return ' ORDER BY year DESC, month, business_unit, client_name, project_name';
 }
 
 /**
@@ -103,6 +117,14 @@ function buildTeamReportListQuery(tableName, req) {
   }
 
   if (isTruthyFlag(query.dimensions_only)) {
+    if (isSummaryTable(safeTable)) {
+      return {
+        query: `SELECT DISTINCT business_unit, month, year
+                FROM ${safeTable}${whereClause}
+                ORDER BY business_unit, year, month`,
+        params,
+      };
+    }
     return {
       query: `SELECT DISTINCT business_unit, client_name, project_name, bu_head, month, year
               FROM ${safeTable}${whereClause}
@@ -112,7 +134,7 @@ function buildTeamReportListQuery(tableName, req) {
   }
 
   return {
-    query: `SELECT * FROM ${safeTable}${whereClause} ORDER BY year DESC, month, business_unit, client_name`,
+    query: `SELECT * FROM ${safeTable}${whereClause}${buildOrderClause(safeTable)}`,
     params,
   };
 }
