@@ -4,6 +4,7 @@ import * as am5xy from "@amcharts/amcharts5/xy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import { Card, Row, Col, Select, Typography } from 'antd';
 import apiClient from '../config/api';
+import { buildTeamReportQueryParams } from '../utils/teamReportApiParams';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -204,15 +205,12 @@ const ClientParameterTrackingChart: React.FC<ClientParameterTrackingChartProps> 
     
     setIsLoading(true);
     try {
-      const params: any = {};
-      
-      // Use chart's own business unit filter if set, otherwise use prop
       const businessUnitToUse = selectedBusinessUnitFilter !== 'all' ? selectedBusinessUnitFilter : selectedBusinessUnit;
-      if (businessUnitToUse && businessUnitToUse !== 'all') {
-        params.business_unit = businessUnitToUse;
-      }
-      
-      // Use team-report API instead of team-summary-report
+      const params = buildTeamReportQueryParams({
+        allYears: true,
+        businessUnit: businessUnitToUse && businessUnitToUse !== 'all' ? businessUnitToUse : undefined,
+      });
+
       const res = await apiClient.get("/team-report", { params });
       
       // Convert all numeric fields to numbers and handle formatting

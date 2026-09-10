@@ -5,6 +5,7 @@ import * as am5xy from '@amcharts/amcharts5/xy';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
 import { compareBusinessUnits } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
+import { buildTeamReportQueryParams } from '../utils/teamReportApiParams';
 import './ClientWiseGrowthChart.css';
 
 export const CLIENT_GROWTH_PARAMETERS = [
@@ -94,7 +95,12 @@ export default function ClientWiseGrowthChart() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await apiClient.get('/team-report');
+        const res = await apiClient.get('/team-report', {
+          params: buildTeamReportQueryParams({
+            allYears: true,
+            businessUnit,
+          }),
+        });
         setRawData(Array.isArray(res.data) ? res.data : []);
       } catch (e) {
         console.error('Failed to fetch team-report', e);
@@ -104,7 +110,7 @@ export default function ClientWiseGrowthChart() {
       }
     };
     fetchData();
-  }, []);
+  }, [businessUnit]);
 
   const filteredByBU = useMemo(() => {
     if (!businessUnit || !rawData.length) return [];

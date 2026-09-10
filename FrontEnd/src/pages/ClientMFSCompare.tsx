@@ -23,6 +23,7 @@ import { formatValueForTable, formatKpiPeriodDisplay, formatFYFromStartYear, get
 import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isMultiBuHead, parseUserBusinessUnits, isBuHeadDesignation } from '../utils/businessUnitUtils';
 
 import apiClient from '../config/api';
+import { buildTeamReportQueryParams } from '../utils/teamReportApiParams';
 import { getFinancialsUser } from '../config/financialsAuth';
 
 import * as XLSX from 'xlsx';
@@ -2880,7 +2881,14 @@ const ClientMFSCompare: React.FC = () => {
 
       
       
-      const res = await apiClient.get(API_ENDPOINT);
+      const res = await apiClient.get(API_ENDPOINT, {
+        params: buildTeamReportQueryParams({
+          distinctField: 'business_unit',
+          allYears: true,
+          designation: user?.designation,
+          userBusinessUnit: user?.business_unit,
+        }),
+      });
 
 
       
@@ -2990,7 +2998,14 @@ const ClientMFSCompare: React.FC = () => {
 
       // console.log(`🔍 Fetching client names for business unit: ${businessUnit}`);
 
-      const res = await apiClient.get(API_ENDPOINT);
+      const res = await apiClient.get(API_ENDPOINT, {
+        params: buildTeamReportQueryParams({
+          allYears: true,
+          businessUnit,
+          designation: user?.designation,
+          userBusinessUnit: user?.business_unit,
+        }),
+      });
 
       
       
@@ -3096,7 +3111,14 @@ const ClientMFSCompare: React.FC = () => {
 
       // console.log(`🔍 Fetching BU heads for business unit: ${businessUnit}`);
 
-      const res = await apiClient.get(API_ENDPOINT);
+      const res = await apiClient.get(API_ENDPOINT, {
+        params: buildTeamReportQueryParams({
+          allYears: true,
+          businessUnit,
+          designation: user?.designation,
+          userBusinessUnit: user?.business_unit,
+        }),
+      });
 
       
       
@@ -3179,7 +3201,13 @@ const ClientMFSCompare: React.FC = () => {
         
         // Always fetch all data and filter on frontend for better control
 
-        const res = await apiClient.get(API_ENDPOINT);
+        const res = await apiClient.get(API_ENDPOINT, {
+          params: buildTeamReportQueryParams({
+            allYears: true,
+            designation: user?.designation,
+            userBusinessUnit: user?.business_unit,
+          }),
+        });
 
         
         

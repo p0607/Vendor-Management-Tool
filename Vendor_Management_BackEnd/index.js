@@ -17,6 +17,7 @@ const {
   signFinancialsToken,
   financialsApiAuthMiddleware,
 } = require('./middleware/financialsAuth');
+const { buildTeamReportListQuery } = require('./utils/teamReportQueryFilters');
 
 // Initialize Express app
 const app = express();
@@ -2173,65 +2174,8 @@ app.get('/api/team-report/column-formulas', (req, res) => {
 
 app.get('/api/team-report', async (req, res, next) => {
   try {
-    const { designation, business_unit } = req.query;
-    let query = 'SELECT * FROM team_report';
-    let params = [];
-
-    if (designation === 'BU HEAD' && business_unit) {
-      // Normalize business unit for case-insensitive matching
-      let normalizedBU = business_unit;
-      const buTrimmed = String(business_unit).trim();
-      const buLower = buTrimmed.toLowerCase();
-      
-      // Handle BPO|HTD variations (case-insensitive, with or without spaces)
-      // Remove spaces around pipe/slash/dash for comparison
-      const normalizedForComparison = buLower.replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
-      if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
-        normalizedBU = 'BPO|HTD';
-      }
-      // Handle other common variations
-      else if (buLower === 'captive') {
-        normalizedBU = 'Captive';
-      }
-      else if (buLower === 'canada') {
-        normalizedBU = 'Canada';
-      }
-      else if (buLower === 'japan') {
-        normalizedBU = 'Japan';
-      }
-      else if (buLower === 'singapore') {
-        normalizedBU = 'Singapore';
-      }
-      else if (buLower === 'si' || buLower === 'si tech' || buLower === 'si bpo') {
-        normalizedBU = 'SI';
-      }
-      else if (buLower === 'usa') {
-        normalizedBU = 'USA';
-      }
-      else if (buLower === 'ms' || buLower === 'managed services' || buLower === 'managed  services') {
-        normalizedBU = 'MS';
-      }
-      else if (buLower === 'egg' || buLower === 'engg' || buLower === 'engineering') {
-        normalizedBU = 'Egg';
-      }
-      else if (buLower === 'all' || buLower === 'finance') {
-        normalizedBU = 'Finance';
-      }
-      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation, including spaces)
-      // Normalize spaces around pipe before checking
-      const buNormalizedForCheck = buTrimmed.replace(/\s*\|\s*/g, '|');
-      if (buNormalizedForCheck.toUpperCase() === 'BPO|HTD' || buNormalizedForCheck === 'BPO|HTD') {
-        normalizedBU = 'BPO|HTD';
-      }
-      
-      // Use case-insensitive comparison in SQL, also normalize spaces around pipe
-      // Replace spaces around pipe for comparison (handles "BPO | HTD", "BPO|HTD", etc.)
-      query += " WHERE LOWER(REGEXP_REPLACE(TRIM(business_unit), '\\s*\\|\\s*', '|', 'g')) = LOWER(REGEXP_REPLACE(TRIM($1), '\\s*\\|\\s*', '|', 'g'))";
-      params.push(normalizedBU);
-    }
-
+    const { query, params } = buildTeamReportListQuery('team_report', req);
     const result = await executeQuery(query, params);
-    
     res.json(result.rows);
   } catch (err) {
     next(err);
@@ -2874,67 +2818,8 @@ app.post('/api/team-report/normalize-percentages', async (req, res, next) => {
 // Team Summary Report Routes (New simplified structure)
 app.get('/api/team-summary-report', async (req, res, next) => {
   try {
-    const { business_unit } = req.query;
-    let query = 'SELECT * FROM team_summary_report';
-    let params = [];
-
-    if (business_unit) {
-      // Normalize business unit for case-insensitive matching
-      let normalizedBU = business_unit;
-      const buTrimmed = String(business_unit).trim();
-      const buLower = buTrimmed.toLowerCase();
-      
-      // Handle BPO|HTD variations (case-insensitive, with or without spaces)
-      // Remove spaces around pipe/slash/dash for comparison
-      const normalizedForComparison = buLower.replace(/\s*\|\s*/g, '|').replace(/\s*\/\s*/g, '/').replace(/\s*-\s*/g, '-');
-      if (normalizedForComparison === 'bpo|htd' || normalizedForComparison === 'bpo/htd' || normalizedForComparison === 'bpo-htd') {
-        normalizedBU = 'BPO|HTD';
-      }
-      // Handle other common variations
-      else if (buLower === 'captive') {
-        normalizedBU = 'Captive';
-      }
-      else if (buLower === 'canada') {
-        normalizedBU = 'Canada';
-      }
-      else if (buLower === 'japan') {
-        normalizedBU = 'Japan';
-      }
-      else if (buLower === 'singapore') {
-        normalizedBU = 'Singapore';
-      }
-      else if (buLower === 'si' || buLower === 'si tech' || buLower === 'si bpo') {
-        normalizedBU = 'SI';
-      }
-      else if (buLower === 'usa') {
-        normalizedBU = 'USA';
-      }
-      else if (buLower === 'ms' || buLower === 'managed services' || buLower === 'managed  services') {
-        normalizedBU = 'MS';
-      }
-      else if (buLower === 'egg' || buLower === 'engg' || buLower === 'engineering') {
-        normalizedBU = 'Egg';
-      }
-      else if (buLower === 'all' || buLower === 'finance') {
-        normalizedBU = 'Finance';
-      }
-      // For BPO|HTD, ensure it's stored in uppercase format (handle any case variation, including spaces)
-      // Normalize spaces around pipe before checking
-      const buNormalizedForCheck = buTrimmed.replace(/\s*\|\s*/g, '|');
-      if (buNormalizedForCheck.toUpperCase() === 'BPO|HTD' || buNormalizedForCheck === 'BPO|HTD') {
-        normalizedBU = 'BPO|HTD';
-      }
-      
-      // Use case-insensitive comparison in SQL, also normalize spaces around pipe
-      // Replace spaces around pipe for comparison (handles "BPO | HTD", "BPO|HTD", etc.)
-      query += " WHERE LOWER(REGEXP_REPLACE(TRIM(business_unit), '\\s*\\|\\s*', '|', 'g')) = LOWER(REGEXP_REPLACE(TRIM($1), '\\s*\\|\\s*', '|', 'g'))";
-      params.push(normalizedBU);
-    }
-
-    query += ' ORDER BY year DESC, month, business_unit';
-
+    const { query, params } = buildTeamReportListQuery('team_summary_report', req);
     const result = await executeQuery(query, params);
-    
     res.json(result.rows);
   } catch (err) {
     next(err);

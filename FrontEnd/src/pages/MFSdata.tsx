@@ -7,6 +7,7 @@ import './MFSdata.css';
 import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isBuHeadDesignation, filterValidBusinessUnits } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
 import { getFinancialsUser } from '../config/financialsAuth';
+import { buildTeamReportQueryParams } from '../utils/teamReportApiParams';
 import logo from '../assets/logo_1.png';
 
 interface TeamReportItem {
@@ -156,10 +157,26 @@ const MFSdata: React.FC = () => {
   const moduleApiPaths = useMemo(() => getModuleApiPaths(dataModule), [dataModule]);
   const summaryIsDerived = dataModule !== 'mfs';
 
+  const teamReportQueryParams = useMemo(() => buildTeamReportQueryParams({
+    fyStartYear: periodFilter === 'year' && periodValue
+      ? parseInt(periodValue, 10)
+      : getCurrentFYStartYear(),
+    businessUnit: selectedBusinessUnit || undefined,
+    designation: user?.designation,
+    userBusinessUnit: user?.business_unit,
+  }), [periodFilter, periodValue, selectedBusinessUnit, user?.designation, user?.business_unit]);
+
+  const mfsDimensionsQueryParams = useMemo(() => buildTeamReportQueryParams({
+    dimensionsOnly: true,
+    allYears: true,
+    designation: user?.designation,
+    userBusinessUnit: user?.business_unit,
+  }), [user?.designation, user?.business_unit]);
+
   const refetchSummaryIfDerived = async () => {
     if (!summaryIsDerived) return;
     try {
-      const response = await apiClient.get(moduleApiPaths.summary);
+      const response = await apiClient.get(moduleApiPaths.summary, { params: teamReportQueryParams });
       if (Array.isArray(response.data)) setTeamReportData(response.data as TeamReportItem[]);
     } catch (err) {
       console.error('Failed to refresh derived summary:', err);
@@ -168,7 +185,7 @@ const MFSdata: React.FC = () => {
 
   const refreshMfsClientDimensions = async () => {
     try {
-      const response = await apiClient.get('/team-report');
+      const response = await apiClient.get('/team-report', { params: mfsDimensionsQueryParams });
       if (Array.isArray(response.data)) {
         setMfsClientDimensions(response.data as TeamReportItem[]);
       }
@@ -199,8 +216,8 @@ const MFSdata: React.FC = () => {
           }
         }
         const [summaryRes, clientRes] = await Promise.all([
-          apiClient.get(moduleApiPaths.summary),
-          apiClient.get(moduleApiPaths.client),
+          apiClient.get(moduleApiPaths.summary, { params: teamReportQueryParams }),
+          apiClient.get(moduleApiPaths.client, { params: teamReportQueryParams }),
         ]);
         if (cancelled) return;
         if (!Array.isArray(summaryRes.data)) {
@@ -223,7 +240,7 @@ const MFSdata: React.FC = () => {
     };
     loadModuleData();
     return () => { cancelled = true; };
-  }, [dataModule, moduleApiPaths.summary, moduleApiPaths.client]);
+  }, [dataModule, moduleApiPaths.summary, moduleApiPaths.client, teamReportQueryParams]);
 
   useEffect(() => {
     refreshMfsClientDimensions();
@@ -1612,7 +1629,7 @@ const MFSdata: React.FC = () => {
             )
           );
         }
-        const response = await apiClient.get(moduleApiPaths.client);
+        const response = await apiClient.get(moduleApiPaths.client, { params: teamReportQueryParams });
         if (Array.isArray(response.data)) {
           setClientMFSData(response.data as TeamReportItem[]);
           setError(null);
@@ -1654,7 +1671,7 @@ const MFSdata: React.FC = () => {
               ...ffPayload,
             });
           }
-          const response = await apiClient.get(moduleApiPaths.summary);
+          const response = await apiClient.get(moduleApiPaths.summary, { params: teamReportQueryParams });
           if (Array.isArray(response.data)) {
             setTeamReportData(response.data as TeamReportItem[]);
             setError(null);
@@ -1682,7 +1699,7 @@ const MFSdata: React.FC = () => {
               )
             );
           }
-          const response = await apiClient.get(moduleApiPaths.summary);
+          const response = await apiClient.get(moduleApiPaths.summary, { params: teamReportQueryParams });
           if (Array.isArray(response.data)) {
             setTeamReportData(response.data as TeamReportItem[]);
             setError(null);
@@ -1725,7 +1742,7 @@ const MFSdata: React.FC = () => {
       await Promise.all(
         toDelete.map((record: TeamReportItem) => apiClient.delete(`${moduleApiPaths.summary}/${record.id}`))
       );
-      const response = await apiClient.get(moduleApiPaths.summary);
+      const response = await apiClient.get(moduleApiPaths.summary, { params: teamReportQueryParams });
       if (Array.isArray(response.data)) {
         setTeamReportData(response.data as TeamReportItem[]);
         setSelectedSummaryMonthsToDelete([]);
@@ -1762,7 +1779,7 @@ const MFSdata: React.FC = () => {
       await Promise.all(
         toDelete.map((record: TeamReportItem) => apiClient.delete(`${moduleApiPaths.client}/${record.id}`))
       );
-      const response = await apiClient.get(moduleApiPaths.client);
+      const response = await apiClient.get(moduleApiPaths.client, { params: teamReportQueryParams });
       if (Array.isArray(response.data)) {
         setClientMFSData(response.data as TeamReportItem[]);
         setSelectedClientMonthsToDelete([]);
@@ -2182,7 +2199,7 @@ const MFSdata: React.FC = () => {
           if (dataModule === 'mfs') {
             await syncMfsModuleStructure('client');
             try {
-              const dimRes = await apiClient.get('/team-report');
+              const dimRes = await apiClient.get('/team-report', { params: mfsDimensionsQueryParams });
               if (Array.isArray(dimRes.data)) setMfsClientDimensions(dimRes.data as TeamReportItem[]);
             } catch (_) {}
           }

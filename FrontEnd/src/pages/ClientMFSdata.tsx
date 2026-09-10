@@ -4,6 +4,7 @@ import { Select } from 'antd';
 import './MFSdata.css';
 import { compareBusinessUnits, normalizeBusinessUnitName, mapClientMFSToMFSBusinessUnit, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isBuHeadDesignation } from '../utils/businessUnitUtils';
 import apiClient from '../config/api';
+import { buildTeamReportQueryParams, getCurrentFyStartYear } from '../utils/teamReportApiParams';
 import { getFinancialsUser } from '../config/financialsAuth';
 import logo from '../assets/logo_1.png';
 
@@ -100,7 +101,16 @@ const ClientMFSdata: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await apiClient.get('/team-report');
+        const response = await apiClient.get('/team-report', {
+          params: buildTeamReportQueryParams({
+            fyStartYear: periodFilter === 'year' && periodValue
+              ? parseInt(periodValue, 10)
+              : getCurrentFyStartYear(),
+            businessUnit: selectedBusinessUnit || undefined,
+            designation: user?.designation,
+            userBusinessUnit: user?.business_unit,
+          }),
+        });
         
         if (!Array.isArray(response.data)) {
           throw new Error("Data is not an array");
@@ -121,7 +131,7 @@ const ClientMFSdata: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [periodFilter, periodValue, selectedBusinessUnit, user?.designation, user?.business_unit]);
 
   // Check user authentication and set BU head status
   useEffect(() => {
@@ -988,7 +998,16 @@ const ClientMFSdata: React.FC = () => {
 
       await Promise.all(updatePromises);
 
-      const response = await apiClient.get('/team-report');
+      const response = await apiClient.get('/team-report', {
+        params: buildTeamReportQueryParams({
+          fyStartYear: periodFilter === 'year' && periodValue
+            ? parseInt(periodValue, 10)
+            : getCurrentFyStartYear(),
+          businessUnit: selectedBusinessUnit || undefined,
+          designation: user?.designation,
+          userBusinessUnit: user?.business_unit,
+        }),
+      });
       if (Array.isArray(response.data)) {
         setTeamReportData(response.data as TeamReportItem[]);
         setError(null);

@@ -56,6 +56,7 @@ const parseNumeric = (value) => {
   return parseFloat(strValue.replace(/,/g, '')) || 0;
 };
 
+const { buildTeamReportListQuery } = require('../utils/teamReportQueryFilters');
 const CLIENT_DIMENSION_COLS = ['client_name', 'project_name', 'business_unit', 'bu_head', 'month', 'year'];
 const CLIENT_OPTIONAL_TEXT_COLS = ['alchemy_name'];
 const CLIENT_METRIC_COLS = [
@@ -244,14 +245,7 @@ function registerMfsModuleRoutes(app, deps) {
 
     app.get(`${prefix}/team-summary-report`, async (req, res, next) => {
       try {
-        const { business_unit: businessUnit } = req.query;
-        let query = `SELECT * FROM ${summaryTable}`;
-        const params = [];
-        if (businessUnit) {
-          query += " WHERE LOWER(REGEXP_REPLACE(TRIM(business_unit), '\\s*\\|\\s*', '|', 'g')) = LOWER(REGEXP_REPLACE(TRIM($1), '\\s*\\|\\s*', '|', 'g'))";
-          params.push(businessUnit);
-        }
-        query += ' ORDER BY year DESC, month, business_unit';
+        const { query, params } = buildTeamReportListQuery(summaryTable, req);
         const result = await executeQuery(query, params);
         res.json(result.rows);
       } catch (err) {
@@ -261,13 +255,7 @@ function registerMfsModuleRoutes(app, deps) {
 
     app.get(`${prefix}/team-report`, async (req, res, next) => {
       try {
-        const { designation, business_unit: businessUnit } = req.query;
-        let query = `SELECT * FROM ${clientTable}`;
-        const params = [];
-        if (designation === 'BU HEAD' && businessUnit) {
-          query += " WHERE LOWER(REGEXP_REPLACE(TRIM(business_unit), '\\s*\\|\\s*', '|', 'g')) = LOWER(REGEXP_REPLACE(TRIM($1), '\\s*\\|\\s*', '|', 'g'))";
-          params.push(businessUnit);
-        }
+        const { query, params } = buildTeamReportListQuery(clientTable, req);
         const result = await executeQuery(query, params);
         res.json(result.rows);
       } catch (err) {

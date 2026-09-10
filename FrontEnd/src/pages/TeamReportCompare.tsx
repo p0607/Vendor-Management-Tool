@@ -24,6 +24,7 @@ import { formatValueForTable, formatKpiPeriodDisplay, formatFYFromStartYear, nor
 import { compareBusinessUnits, normalizeBusinessUnitName, itemMatchesUserBusinessUnits, getBuHeadDropdownUnits, isBuHeadDropdownEnabled, initializeBuHeadSelection, isMultiBuHead, parseUserBusinessUnits, isBuHeadDesignation } from '../utils/businessUnitUtils';
 
 import apiClient from '../config/api';
+import { buildTeamReportQueryParams } from '../utils/teamReportApiParams';
 import { getFinancialsUser } from '../config/financialsAuth';
 
 
@@ -2480,7 +2481,14 @@ const TeamReportCompare: React.FC = () => {
 
       setIsLoadingClientMFS(true);
       try {
-        const res = await apiClient.get("/team-report");
+        const res = await apiClient.get("/team-report", {
+          params: buildTeamReportQueryParams({
+            allYears: true,
+            businessUnit: selectedBU && selectedBU !== '__ALL_USER_BUs__' ? selectedBU : undefined,
+            designation: user?.designation,
+            userBusinessUnit: user?.business_unit,
+          }),
+        });
 
         if (res.data && Array.isArray(res.data)) {
           const filteredData = res.data.filter((item: any) => {
@@ -3210,7 +3218,9 @@ const TeamReportCompare: React.FC = () => {
     const fetchAllTeamSummaryData = async () => {
       setIsLoading(true);
       try {
-        const res = await apiClient.get("/team-summary-report");
+        const res = await apiClient.get("/team-summary-report", {
+          params: buildTeamReportQueryParams({ allYears: true }),
+        });
         const sourceData = Array.isArray(res.data) ? res.data.filter(hasValidMonth) : [];
 
         // Convert amounts to numbers one time on load (instead of on every filter click).
