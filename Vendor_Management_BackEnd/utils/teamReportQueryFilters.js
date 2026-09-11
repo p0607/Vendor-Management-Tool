@@ -139,9 +139,90 @@ function buildTeamReportListQuery(tableName, req) {
   };
 }
 
+const TEAM_REPORT_DIMENSION_COLS = ['client_name', 'project_name', 'business_unit', 'bu_head'];
+/** MFS team_report client metrics — no f_and_f (that belongs on FT/F&F module tables only). */
+const MFS_TEAM_REPORT_METRIC_COLS = [
+  'hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment',
+  'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage',
+  'rebate', 'passthrough', 'vendor_cost', 'discount',
+];
+const TEAM_REPORT_PERIOD_COLS = ['month', 'year'];
+const TEAM_REPORT_TEXT_COLS = new Set(TEAM_REPORT_DIMENSION_COLS);
+
+async function getTableColumns(client, tableName) {
+  const safeName = String(tableName).replace(/[^a-z0-9_]/gi, '');
+  const { rows } = await client.query(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1`,
+    [safeName]
+  );
+  return new Set(rows.map((row) => row.column_name));
+}
+
+function filterExistingCols(cols, targetCols) {
+  return cols.filter((col) => targetCols.has(col));
+}
+
+function pickTeamReportRecordValues(record, cols) {
+  return cols.map((col) => {
+    if (TEAM_REPORT_TEXT_COLS.has(col)) {
+      const value = record[col];
+      return value === '' || value === undefined ? null : value;
+    }
+    if (col === 'month' || col === 'year') {
+      return record[col];
+    }
+    return record[col] ?? 0;
+  });
+}
+
+function buildTeamReportInsertPlan(targetCols) {
+  const insertCols = [
+    ...filterExistingCols(TEAM_REPORT_DIMENSION_COLS, targetCols),
+    ...filterExistingCols(MFS_TEAM_REPORT_METRIC_COLS, targetCols),
+    ...filterExistingCols(TEAM_REPORT_PERIOD_COLS, targetCols),
+  ];
+  if (insertCols.length === 0) {
+    throw new Error('team_report table has no insertable columns.');
+  }
+  const insertPlaceholders = insertCols.map((_, index) => `$${index + 1}`).join(', ');
+  return {
+    insertCols,
+    insertQuery: `INSERT INTO team_report (${insertCols.join(', ')}) VALUES (${insertPlaceholders}) RETURNING *`,
+  };
+}
+
+function buildTeamReportBulkUpsertPlan(targetCols) {
+  const insertCols = [
+    ...filterExistingCols(TEAM_REPORT_DIMENSION_COLS, targetCols),
+    ...filterExistingCols(MFS_TEAM_REPORT_METRIC_COLS, targetCols),
+    ...filterExistingCols(TEAM_REPORT_PERIOD_COLS, targetCols),
+  ];
+  const updateCols = [
+    ...filterExistingCols(['bu_head'], targetCols),
+    ...filterExistingCols(MFS_TEAM_REPORT_METRIC_COLS, targetCols),
+  ];
+  if (insertCols.length === 0) {
+    throw new Error('team_report table has no insertable columns.');
+  }
+
+  const insertPlaceholders = insertCols.map((_, index) => `$${index + 1}`).join(', ');
+  const insertQuery = `INSERT INTO team_report (${insertCols.join(', ')}) VALUES (${insertPlaceholders})`;
+  const setClause = updateCols.map((col, index) => `${col} = $${index + 1}`).join(', ');
+  const updateQuery = updateCols.length > 0
+    ? `UPDATE team_report SET ${setClause} WHERE id = $${updateCols.length + 1}`
+    : null;
+
+  return { insertCols, updateCols, insertQuery, updateQuery };
+}
+
 module.exports = {
   buildTeamReportListQuery,
+  buildTeamReportBulkUpsertPlan,
+  buildTeamReportInsertPlan,
   getCurrentFyStartYear,
+  getTableColumns,
+  pickTeamReportRecordValues,
   FY_START_MONTHS,
   FY_END_MONTHS,
 };

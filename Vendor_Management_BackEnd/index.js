@@ -17,7 +17,13 @@ const {
   signFinancialsToken,
   financialsApiAuthMiddleware,
 } = require('./middleware/financialsAuth');
-const { buildTeamReportListQuery } = require('./utils/teamReportQueryFilters');
+const {
+  buildTeamReportListQuery,
+  buildTeamReportBulkUpsertPlan,
+  buildTeamReportInsertPlan,
+  getTableColumns,
+  pickTeamReportRecordValues,
+} = require('./utils/teamReportQueryFilters');
 
 // Initialize Express app
 const app = express();
@@ -2220,7 +2226,7 @@ app.post('/api/team-report', async (req, res, next) => {
       }
       
       // Convert numeric fields to numbers (handle parentheses, commas, percentages)
-      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f'];
+      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount'];
       const processedFields = {};
       for (const field of numericFields) {
         const value = req.body[field];
@@ -2355,38 +2361,24 @@ app.post('/api/team-report', async (req, res, next) => {
         });
       }
 
-      const result = await executeQuery(
-        `INSERT INTO team_report (
-          client_name, project_name, business_unit, bu_head, hc,
-          salary_cost, revenue, gpm, gpm_percentage, leave_encashment,
-          team_cost, opr_cost, funding_cost, np, np_percentage, 
-          rebate, passthrough, vendor_cost, discount, f_and_f, month, year
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
-        [
-          client_name === '' ? null : client_name,
-          project_name === '' ? null : project_name,
-          business_unit === '' ? null : business_unit,
-          bu_head === '' ? null : bu_head,
-          processedFields.hc,
-          processedFields.salary_cost,
-          processedFields.revenue,
-          processedFields.gpm,
-          processedFields.gpm_percentage,
-          processedFields.leave_encashment,
-          processedFields.team_cost,
-          processedFields.opr_cost,
-          processedFields.funding_cost,
-          processedFields.np,
-          processedFields.np_percentage,
-          processedFields.rebate,
-          processedFields.passthrough,
-          processedFields.vendor_cost ?? 0,
-          processedFields.discount ?? 0,
-          processedFields.f_and_f ?? 0,
-          normalizedMonth,
-          year
-        ]
-      );
+      const insertClient = await pool.connect();
+      let result;
+      try {
+        const targetCols = await getTableColumns(insertClient, 'team_report');
+        const { insertCols, insertQuery } = buildTeamReportInsertPlan(targetCols);
+        const insertValues = pickTeamReportRecordValues({
+          client_name,
+          project_name,
+          business_unit,
+          bu_head,
+          ...processedFields,
+          month: normalizedMonth,
+          year,
+        }, insertCols);
+        result = await insertClient.query(insertQuery, insertValues);
+      } finally {
+        insertClient.release();
+      }
       
     logger.info('Team report created', { recordId: result.rows[0].id });
     await triggerFtFnfStructureSync('client');
@@ -2472,7 +2464,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
       }
       
       // Convert numeric fields to numbers
-      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f'];
+      const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment', 'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount'];
       for (const field of numericFields) {
         if (record[field] !== null && record[field] !== undefined && record[field] !== '') {
           if (typeof record[field] === 'string') {
@@ -2590,13 +2582,9 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      
-      const insertQuery = `INSERT INTO team_report (
-        client_name, project_name, business_unit, bu_head, hc,
-        salary_cost, revenue, gpm, gpm_percentage, leave_encashment,
-        team_cost, opr_cost, funding_cost, np, np_percentage, 
-        rebate, passthrough, vendor_cost, discount, f_and_f, month, year
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`;
+
+      const targetCols = await getTableColumns(client, 'team_report');
+      const { insertCols, updateCols, insertQuery, updateQuery } = buildTeamReportBulkUpsertPlan(targetCols);
 
       const findExistingQuery = `SELECT id FROM team_report WHERE
         business_unit IS NOT DISTINCT FROM $1 AND
@@ -2604,13 +2592,6 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
         project_name IS NOT DISTINCT FROM $3 AND
         month = $4 AND year = $5
         LIMIT 1`;
-
-      const updateQuery = `UPDATE team_report SET
-        bu_head = $1, hc = $2, salary_cost = $3, revenue = $4, gpm = $5, gpm_percentage = $6,
-        leave_encashment = $7, team_cost = $8, opr_cost = $9, funding_cost = $10,
-        np = $11, np_percentage = $12, rebate = $13, passthrough = $14,
-        vendor_cost = $15, discount = $16, f_and_f = $17
-        WHERE id = $18`;
       
       let insertedCount = 0;
       let updatedCount = 0;
@@ -2630,29 +2611,9 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
             throw new Error(`Record ${i + 1}: Year is missing or invalid`);
           }
 
+          const businessUnit = record.business_unit === '' ? null : record.business_unit;
           const clientName = record.client_name === '' ? null : record.client_name;
           const projectName = record.project_name === '' ? null : record.project_name;
-          const businessUnit = record.business_unit === '' ? null : record.business_unit;
-          const buHead = record.bu_head === '' ? null : record.bu_head;
-          const rowValues = [
-            buHead,
-            record.hc || 0,
-            record.salary_cost || 0,
-            record.revenue || 0,
-            record.gpm || 0,
-            record.gpm_percentage || 0,
-            record.leave_encashment || 0,
-            record.team_cost || 0,
-            record.opr_cost || 0,
-            record.funding_cost || 0,
-            record.np || 0,
-            record.np_percentage || 0,
-            record.rebate || 0,
-            record.passthrough || 0,
-            record.vendor_cost ?? 0,
-            record.discount ?? 0,
-            record.f_and_f ?? 0,
-          ];
 
           const existing = await client.query(findExistingQuery, [
             businessUnit,
@@ -2663,17 +2624,15 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
           ]);
 
           if (existing.rows.length > 0) {
-            await client.query(updateQuery, [...rowValues, existing.rows[0].id]);
+            if (!updateQuery) {
+              throw new Error('No updatable columns found on team_report table.');
+            }
+            const updateValues = pickTeamReportRecordValues(record, updateCols);
+            await client.query(updateQuery, [...updateValues, existing.rows[0].id]);
             updatedCount++;
           } else {
-            await client.query(insertQuery, [
-              clientName,
-              projectName,
-              businessUnit,
-              ...rowValues,
-              record.month,
-              record.year,
-            ]);
+            const insertValues = pickTeamReportRecordValues(record, insertCols);
+            await client.query(insertQuery, insertValues);
             insertedCount++;
           }
         } catch (insertErr) {
@@ -2761,7 +2720,7 @@ app.post('/api/team-report/bulk', async (req, res, next) => {
 // Recompute GPM and NP for all team_report rows from formula by business unit (fixes incorrect stored values)
 app.post('/api/team-report/recompute-gpm-np', async (req, res, next) => {
   try {
-    const selectResult = await executeQuery('SELECT id, business_unit, revenue, salary_cost, rebate, passthrough, leave_encashment, vendor_cost, discount, team_cost, opr_cost, funding_cost FROM team_report');
+    const selectResult = await executeQuery('SELECT * FROM team_report');
     const rows = selectResult.rows || [];
     let updated = 0;
     for (const row of rows) {
