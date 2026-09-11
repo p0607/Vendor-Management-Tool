@@ -1972,6 +1972,30 @@ const MFSdata: React.FC = () => {
     return `${bu}|${client}|${project}|${month}|${year}`;
   };
 
+  const countBulkImportProcessed = (payload: any, batchLength: number): number => {
+    if (!payload) return 0;
+    if (typeof payload.updated === 'number') return payload.updated;
+    const inserted = Number(payload.insertedCount) || 0;
+    const updated = Number(payload.updatedCount) || 0;
+    if (inserted + updated > 0) return inserted + updated;
+    return payload.success !== false ? batchLength : 0;
+  };
+
+  const countBulkImportSkipped = (payload: any, batchLength: number): number => {
+    if (!payload) return batchLength;
+    if (typeof payload.skipped === 'number') return payload.skipped;
+    if (typeof payload.failedCount === 'number') return payload.failedCount;
+    return 0;
+  };
+
+  const extractBulkImportError = (payload: any): string => {
+    if (!payload) return '';
+    if (Array.isArray(payload.errors) && payload.errors.length > 0) {
+      return String(payload.errors[0]);
+    }
+    return String(payload.message || payload.error || '');
+  };
+
   const buildPrefilledClientTemplateRows = (): Record<string, string | number>[] => {
     const includeAlchemy = dataModule === 'ft';
     const metricCols: Record<string, string> = {
@@ -2127,8 +2151,24 @@ const MFSdata: React.FC = () => {
       let rowsToImport = mappedData;
       let preSkipped = 0;
       if (summaryIsDerived) {
+        let structureRows: TeamReportItem[] = clientMFSData;
+        try {
+          const structRes = await apiClient.get(moduleApiPaths.client, {
+            params: buildTeamReportQueryParams({
+              allYears: true,
+              dimensionsOnly: true,
+              designation: user?.designation,
+              userBusinessUnit: user?.business_unit,
+            }),
+          });
+          if (Array.isArray(structRes.data) && structRes.data.length > 0) {
+            structureRows = structRes.data as TeamReportItem[];
+          }
+        } catch (_) {
+          // Fall back to rows already loaded in the UI.
+        }
         const allowedKeys = new Set(
-          clientMFSData.map(row => buildClientImportKey(row))
+          structureRows.map(row => buildClientImportKey(row))
         );
         const matched: typeof mappedData = [];
         preSkipped = 0;
@@ -2143,7 +2183,7 @@ const MFSdata: React.FC = () => {
         if (rowsToImport.length === 0) {
           message.error(
             preSkipped > 0
-              ? `No rows matched the ${dataModule === 'ft' ? 'FT' : 'F&F'} client structure (${preSkipped} skipped). Download the template and fill values only — do not change client, project, BU, month, or year.`
+              ? `No rows matched the ${moduleApiPaths.label} client structure (${preSkipped} skipped). Download the template and fill values only — do not change client, project, BU, month, or year.`
               : 'No valid data found in the Excel file.'
           );
           return;
@@ -2158,19 +2198,23 @@ const MFSdata: React.FC = () => {
         let updatedTotal = 0;
         let skippedTotal = summaryIsDerived ? preSkipped : 0;
         let failedBatches = 0;
+        let lastImportError = '';
         message.loading(`Importing ${rowsToImport.length} records...`, 0);
         for (let i = 0; i < rowsToImport.length; i += batchSize) {
           const batch = rowsToImport.slice(i, i + batchSize);
           try {
             const res = await apiClient.post(`${moduleApiPaths.client}/bulk`, { data: batch }, { timeout: 60000 });
-            updatedTotal += res.data?.updated ?? batch.length;
-            skippedTotal += res.data?.skipped ?? 0;
+            updatedTotal += countBulkImportProcessed(res.data, batch.length);
+            skippedTotal += countBulkImportSkipped(res.data, 0);
+            const batchError = extractBulkImportError(res.data);
+            if (batchError) lastImportError = batchError;
           } catch (err: any) {
             failedBatches += 1;
-            skippedTotal += err.response?.data?.skipped ?? batch.length;
-            if (err.response?.data?.updated) {
-              updatedTotal += err.response.data.updated;
-            }
+            const errData = err.response?.data;
+            skippedTotal += countBulkImportSkipped(errData, batch.length);
+            updatedTotal += countBulkImportProcessed(errData, 0);
+            const batchError = extractBulkImportError(errData) || err.message;
+            if (batchError) lastImportError = batchError;
           }
           await new Promise(r => setTimeout(r, 100));
         }
@@ -2178,22 +2222,27 @@ const MFSdata: React.FC = () => {
         if (updatedTotal > 0 && skippedTotal === 0) {
           message.success(
             summaryIsDerived
-              ? `Updated ${updatedTotal} ${dataModule === 'ft' ? 'FT' : 'F&F'} client row(s). Summary table updated automatically.`
+              ? `Updated ${updatedTotal} ${moduleApiPaths.label} client row(s). Summary table updated automatically.`
               : `Successfully imported all ${updatedTotal} records!`,
             5
           );
         } else if (updatedTotal > 0 && skippedTotal > 0) {
           message.warning(
-            `Updated ${updatedTotal} row(s). ${skippedTotal} row(s) skipped — use the downloaded template and do not edit client/project names.`,
+            summaryIsDerived
+              ? `Updated ${updatedTotal} row(s). ${skippedTotal} row(s) skipped — use the ${moduleApiPaths.label} client template and do not edit client/project names.`
+              : `Imported ${updatedTotal} row(s). ${skippedTotal} row(s) failed or were skipped — check Business Unit, Client, Month, and Year.`,
             10
           );
         } else if (failedBatches > 0 || skippedTotal > 0) {
+          const detail = lastImportError ? ` ${lastImportError}` : '';
           message.error(
-            `Import failed — no rows matched. Download the ${dataModule === 'ft' ? 'FT' : 'F&F'} Client template, fill values only, and import again.`,
+            summaryIsDerived
+              ? `Import failed — no rows matched. Download the ${moduleApiPaths.label} Client template, fill values only, and import again.${detail}`
+              : `Import failed — no rows were saved. Check Business Unit, Client Name, Month, and Year in your Excel file.${detail}`,
             10
           );
         } else {
-          message.error('All batches failed to import.');
+          message.error(lastImportError || 'All batches failed to import.');
         }
         if (updatedTotal > 0) {
           if (dataModule === 'mfs') {
