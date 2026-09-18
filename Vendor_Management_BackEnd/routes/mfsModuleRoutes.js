@@ -143,7 +143,7 @@ function buildClientUpdateParts(targetCols, record = null) {
     return true;
   });
   const fields = [
-    'bu_head',
+    ...(record && Object.prototype.hasOwnProperty.call(record, 'bu_head') ? ['bu_head'] : []),
     ...optionalTextFields,
     ...metricFields,
   ];
@@ -500,12 +500,20 @@ function registerMfsModuleRoutes(app, deps) {
             } else {
               delete record.alchemy_name;
             }
-            if (computeGpmNpForTeamReport) {
+            // FT/F&F: keep Excel/client-supplied metrics; MFS-style formula overwrite is for main team_report only.
+            if (computeGpmNpForTeamReport && moduleKey !== 'ft' && moduleKey !== 'fnf') {
               const gpmNp = computeGpmNpForTeamReport(record);
               record.gpm = gpmNp.gpm;
               record.gpm_percentage = gpmNp.gpm_percentage;
               record.np = gpmNp.np !== null ? gpmNp.np : 0;
               record.np_percentage = gpmNp.np_percentage;
+            }
+            const metricKeysOnRecord = CLIENT_METRIC_COLS.filter((f) =>
+              Object.prototype.hasOwnProperty.call(record, f)
+            );
+            const hasAlchemyOnRecord = Object.prototype.hasOwnProperty.call(record, 'alchemy_name');
+            if (metricKeysOnRecord.length === 0 && !hasAlchemyOnRecord) {
+              continue;
             }
             const existing = await client.query(
               `SELECT id FROM ${clientTable} WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2

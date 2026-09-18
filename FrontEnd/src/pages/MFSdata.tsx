@@ -483,6 +483,71 @@ const MFSdata: React.FC = () => {
     return Number.isNaN(parsed) ? 0 : parsed;
   };
 
+  const excelCellHasValue = (row: Record<string, unknown>, ...keys: string[]): boolean => {
+    for (const key of keys) {
+      if (!Object.prototype.hasOwnProperty.call(row, key)) continue;
+      const value = row[key];
+      if (value === null || value === undefined) continue;
+      if (String(value).trim() !== '') return true;
+    }
+    return false;
+  };
+
+  const firstExcelCellValue = (row: Record<string, unknown>, ...keys: string[]): unknown => {
+    for (const key of keys) {
+      if (!Object.prototype.hasOwnProperty.call(row, key)) continue;
+      const value = row[key];
+      if (value === null || value === undefined) continue;
+      if (String(value).trim() !== '') return value;
+    }
+    return undefined;
+  };
+
+  const CLIENT_IMPORT_METRIC_COLUMNS: { field: string; headers: string[] }[] = [
+    { field: 'hc', headers: ['HC', 'hc'] },
+    { field: 'revenue', headers: ['Revenue', 'revenue'] },
+    { field: 'salary_cost', headers: ['Salary Cost', 'Salary_Cost', 'salary_cost'] },
+    { field: 'gpm', headers: ['GPM', 'gpm'] },
+    { field: 'gpm_percentage', headers: ['GPM -%', 'GPM %', 'GPM-%', 'gpm_percentage'] },
+    { field: 'np', headers: ['NP', 'np'] },
+    { field: 'np_percentage', headers: ['NP %', 'NP%', 'NP-%', 'NP -%', 'np_percentage'] },
+    { field: 'leave_encashment', headers: ['Leave Encsh', 'Leave Encashment', 'leave_encashment'] },
+    { field: 'team_cost', headers: ['Team Cost', 'Team_Cost', 'team_cost'] },
+    { field: 'opr_cost', headers: ['Opr Cost', 'Opr_Cost', 'opr_cost'] },
+    { field: 'funding_cost', headers: ['Funding Cost', 'Funding_Cost', 'funding_cost'] },
+    { field: 'rebate', headers: ['Rebate', 'rebate'] },
+    { field: 'passthrough', headers: ['Passthrough', 'Passthroug', 'passthrough'] },
+    { field: 'vendor_cost', headers: ['Vendor Cost', 'vendor_cost'] },
+    { field: 'discount', headers: ['Discount', 'discount'] },
+    { field: 'f_and_f', headers: ['F&F', 'F and F', 'F&F Amount', 'f_and_f'] },
+  ];
+
+  const buildClientImportMetricsFromRow = (
+    row: Record<string, unknown>,
+    sparseOnly: boolean
+  ): Record<string, number> => {
+    const metrics: Record<string, number> = {};
+    CLIENT_IMPORT_METRIC_COLUMNS.forEach(({ field, headers }) => {
+      if (sparseOnly) {
+        if (!excelCellHasValue(row, ...headers)) return;
+        metrics[field] = parseNumericValue(firstExcelCellValue(row, ...headers));
+        return;
+      }
+      const raw = firstExcelCellValue(row, ...headers);
+      metrics[field] = parseNumericValue(raw ?? '');
+    });
+    return metrics;
+  };
+
+  const clientImportRowHasUpdatableData = (record: Record<string, unknown>): boolean => {
+    const hasMetric = CLIENT_IMPORT_METRIC_COLUMNS.some(({ field }) =>
+      Object.prototype.hasOwnProperty.call(record, field)
+    );
+    const alchemy = record.alchemy_name;
+    const hasAlchemy = alchemy !== null && alchemy !== undefined && String(alchemy).trim() !== '';
+    return hasMetric || hasAlchemy;
+  };
+
   // Reset client/project selection when Business Unit changes (e.g. from top filters)
   useEffect(() => {
     setClientSelectedClient('');
@@ -2021,6 +2086,37 @@ const MFSdata: React.FC = () => {
     reader.readAsBinaryString(file);
   };
 
+  const normalizeImportProjectName = (project: string | null | undefined): string =>
+    String(project ?? '').trim();
+
+  const normalizeImportYear = (year: number | string | null | undefined): number | null => {
+    if (year === null || year === undefined || year === '') return null;
+    const n = Number(year);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  /** Match Excel row to an existing FT/F&F structure row (same rules as DB lookup). */
+  const clientImportRowMatchesStructure = (
+    importRow: {
+      business_unit?: string | null;
+      client_name?: string | null;
+      project_name?: string | null;
+      month?: string | null;
+      year?: number | null;
+    },
+    structureRow: TeamReportItem
+  ): boolean => {
+    if (!compareBusinessUnits(importRow.business_unit, structureRow.business_unit)) return false;
+    if (String(importRow.client_name || '').trim() !== String(structureRow.client_name || '').trim()) return false;
+    if (normalizeImportProjectName(importRow.project_name) !== normalizeImportProjectName(structureRow.project_name)) {
+      return false;
+    }
+    const importMonth = importRow.month ? normalizeToFullMonthName(String(importRow.month)) : '';
+    const structMonth = structureRow.month ? normalizeToFullMonthName(String(structureRow.month)) : '';
+    if (importMonth !== structMonth) return false;
+    return normalizeImportYear(importRow.year) === normalizeImportYear(structureRow.year);
+  };
+
   const buildClientImportKey = (row: {
     business_unit?: string | null;
     client_name?: string | null;
@@ -2030,10 +2126,31 @@ const MFSdata: React.FC = () => {
   }): string => {
     const bu = row.business_unit ? normalizeBusinessUnitName(String(row.business_unit)) || '' : '';
     const client = String(row.client_name || '').trim();
-    const project = String(row.project_name || '').trim();
+    const project = normalizeImportProjectName(row.project_name);
     const month = row.month ? normalizeToFullMonthName(String(row.month)) : '';
-    const year = row.year ?? '';
+    const year = normalizeImportYear(row.year) ?? '';
     return `${bu}|${client}|${project}|${month}|${year}`;
+  };
+
+  const sheetRowHasAnyHeader = (row: Record<string, unknown>, headers: string[]): boolean =>
+    headers.some(h => Object.prototype.hasOwnProperty.call(row, h));
+
+  const validateClientImportSheetHeaders = (rows: Record<string, unknown>[]): string | null => {
+    if (rows.length === 0) return 'The Excel sheet is empty.';
+    const first = rows[0];
+    const missing: string[] = [];
+    if (!sheetRowHasAnyHeader(first, ['Business Unit', 'Business_Unit', 'business_unit'])) {
+      missing.push('Business Unit');
+    }
+    if (!sheetRowHasAnyHeader(first, ['Client Name', 'Client_Name', 'client_name'])) {
+      missing.push('Client Name');
+    }
+    if (!sheetRowHasAnyHeader(first, ['Month', 'month'])) missing.push('Month');
+    if (!sheetRowHasAnyHeader(first, ['Year', 'year'])) missing.push('Year');
+    if (missing.length > 0) {
+      return `Missing required column(s): ${missing.join(', ')}. Use “Download client template” — do not rename headers.`;
+    }
+    return null;
   };
 
   const countBulkImportProcessed = (payload: any, batchLength: number): number => {
@@ -2139,7 +2256,14 @@ const MFSdata: React.FC = () => {
       const workbook = XLSX.read(bstr, { type: 'binary', cellFormula: true, cellDates: true, dateNF: 'mm/dd/yyyy' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: '', blankrows: false });
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: '', blankrows: false }) as Record<string, unknown>[];
+      if (summaryIsDerived) {
+        const headerError = validateClientImportSheetHeaders(jsonData);
+        if (headerError) {
+          message.error(headerError, 8);
+          return;
+        }
+      }
       const stringOrNull = (v: any): string | null => { const s = String(v || '').trim(); return s === '' ? null : s; };
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
       const monthAbbrMap: Record<string, string> = { 'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April', 'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August', 'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December' };
@@ -2183,35 +2307,30 @@ const MFSdata: React.FC = () => {
         }
         let yearValue = parseNumericValue(row['Year'] || row.year) || null;
         if (yearValue && yearValue < 100) yearValue = yearValue < 50 ? 2000 + yearValue : 1900 + yearValue;
+        const sparseMetrics = summaryIsDerived;
+        const metricFields = buildClientImportMetricsFromRow(row, sparseMetrics);
+        if (sparseMetrics && dataModule === 'fnf') {
+          delete metricFields.f_and_f;
+          if (excelCellHasValue(row, 'F&F', 'F and F', 'F&F Amount', 'f_and_f')) {
+            metricFields.f_and_f = parseNumericValue(firstExcelCellValue(row, 'F&F', 'F and F', 'F&F Amount', 'f_and_f'));
+          }
+        }
         return {
           business_unit: businessUnit, client_name: clientName,
           project_name: stringOrNull(row['Project Name'] || row['Project_Na'] || row.project_name),
-          bu_head: stringOrNull(row['BU Head'] || row['BU_Head'] || row.bu_head),
+          ...(excelCellHasValue(row, 'BU Head', 'BU_Head', 'bu_head')
+            ? { bu_head: stringOrNull(row['BU Head'] || row['BU_Head'] || row.bu_head) }
+            : {}),
           month: monthValue ? String(monthValue).trim() : null, year: yearValue,
-          ...(dataModule === 'ft' && (
-            row['Alchemy_Name'] !== undefined ||
-            row['Alchemy Name'] !== undefined ||
-            row.alchemy_name !== undefined
-          ) ? {
+          ...(dataModule === 'ft' && excelCellHasValue(row, 'Alchemy_Name', 'Alchemy Name', 'alchemy_name') ? {
             alchemy_name: stringOrNull(row['Alchemy_Name'] || row['Alchemy Name'] || row.alchemy_name),
           } : {}),
-          hc: parseNumericValue(row['HC'] || row.hc), revenue: parseNumericValue(row['Revenue'] || row.revenue),
-          salary_cost: parseNumericValue(row['Salary Cost'] || row['Salary_Cost'] || row.salary_cost),
-          gpm: parseNumericValue(row['GPM'] || row.gpm), gpm_percentage: parseNumericValue(row['GPM -%'] || row['GPM %'] || row.gpm_percentage),
-          np: parseNumericValue(row['NP'] || row.np), np_percentage: parseNumericValue(row['NP %'] || row['NP%'] || row.np_percentage),
-          leave_encashment: parseNumericValue(row['Leave Encsh'] || row['Leave Encashment'] || row.leave_encashment),
-          team_cost: parseNumericValue(row['Team Cost'] || row.team_cost), opr_cost: parseNumericValue(row['Opr Cost'] || row.opr_cost),
-          funding_cost: parseNumericValue(row['Funding Cost'] || row.funding_cost), rebate: parseNumericValue(row['Rebate'] || row.rebate),
-          passthrough: parseNumericValue(row['Passthrough'] || row.passthrough),
-          vendor_cost: parseNumericValue(row['Vendor Cost'] || row.vendor_cost),
-          discount: parseNumericValue(row['Discount'] || row.discount),
-          ...(dataModule === 'fnf' ? (() => {
-            const ffRaw = row['F&F'] ?? row['F and F'] ?? row['F&F Amount'] ?? row.f_and_f;
-            if (ffRaw === undefined || ffRaw === null || String(ffRaw).trim() === '') return {};
-            return { f_and_f: parseNumericValue(ffRaw) };
-          })() : {}),
+          ...metricFields,
         };
-      }).filter((r: any) => r.month && r.year != null && r.year !== 0).map((record: any) => {
+      }).filter((r: any) => r.month && r.year != null && r.year !== 0)
+        .filter((r: any) => !summaryIsDerived || clientImportRowHasUpdatableData(r))
+        .map((record: any) => {
+        if (summaryIsDerived) return record;
         const rev = Number(record.revenue) || 0, salary_cost = Number(record.salary_cost) || 0, rebate = Number(record.rebate) || 0, passthrough = Number(record.passthrough) || 0;
         const leave_encashment = Number(record.leave_encashment) || 0, team_cost = Number(record.team_cost) || 0, opr_cost = Number(record.opr_cost) || 0, funding_cost = Number(record.funding_cost) || 0, discount = Number(record.discount) || 0, vendor_cost = Number(record.vendor_cost) || 0;
         let gpm: number, np: number | null = null;
@@ -2229,7 +2348,7 @@ const MFSdata: React.FC = () => {
       let rowsToImport = mappedData;
       let preSkipped = 0;
       if (summaryIsDerived) {
-        let structureRows: TeamReportItem[] = clientMFSData;
+        let structureRows: TeamReportItem[] = [];
         try {
           const structRes = await apiClient.get(moduleApiPaths.client, {
             params: buildTeamReportQueryParams({
@@ -2239,19 +2358,41 @@ const MFSdata: React.FC = () => {
               userBusinessUnit: user?.business_unit,
             }),
           });
-          if (Array.isArray(structRes.data) && structRes.data.length > 0) {
+          if (Array.isArray(structRes.data)) {
             structureRows = structRes.data as TeamReportItem[];
           }
         } catch (_) {
-          // Fall back to rows already loaded in the UI.
+          structureRows = [];
         }
-        const allowedKeys = new Set(
-          structureRows.map(row => buildClientImportKey(row))
-        );
+        if (structureRows.length === 0) {
+          try {
+            await apiClient.post('/mfs-modules/sync-structure', { type: dataModule === 'fnf' ? 'fnf' : 'ft' });
+            const structRes = await apiClient.get(moduleApiPaths.client, {
+              params: buildTeamReportQueryParams({
+                allYears: true,
+                dimensionsOnly: true,
+                designation: user?.designation,
+                userBusinessUnit: user?.business_unit,
+              }),
+            });
+            if (Array.isArray(structRes.data)) {
+              structureRows = structRes.data as TeamReportItem[];
+            }
+          } catch (_) {
+            // handled below
+          }
+        }
+        if (structureRows.length === 0) {
+          message.error(
+            `${moduleApiPaths.label} client structure is empty. Import MFS client data first (or run structure sync), then download the ${moduleApiPaths.label} template again.`,
+            10
+          );
+          return;
+        }
         const matched: typeof mappedData = [];
         preSkipped = 0;
         mappedData.forEach(row => {
-          if (allowedKeys.has(buildClientImportKey(row))) {
+          if (structureRows.some(s => clientImportRowMatchesStructure(row, s))) {
             matched.push(row);
           } else {
             preSkipped += 1;
@@ -2259,9 +2400,13 @@ const MFSdata: React.FC = () => {
         });
         rowsToImport = matched;
         if (rowsToImport.length === 0) {
+          const sample = mappedData[0];
+          const sampleKey = sample
+            ? `${sample.business_unit || '?'} | ${sample.client_name || '?'} | ${sample.project_name || '(blank)'} | ${sample.month || '?'} ${sample.year ?? '?'}`
+            : '';
           message.error(
             preSkipped > 0
-              ? `No rows matched the ${moduleApiPaths.label} client structure (${preSkipped} skipped). Download the template and fill values only — do not change client, project, BU, month, or year.`
+              ? `No rows matched existing ${moduleApiPaths.label} clients (${preSkipped} skipped). Keys must match MFS exactly: BU, Client, Project, Month, Year. Your row: ${sampleKey}. Download the template, fill metric cells only, and leave dimension columns unchanged.`
               : 'No valid data found in the Excel file.'
           );
           return;
