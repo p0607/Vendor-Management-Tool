@@ -2095,26 +2095,72 @@ const MFSdata: React.FC = () => {
     return Number.isFinite(n) ? n : null;
   };
 
-  /** Match Excel row to an existing FT/F&F structure row (same rules as DB lookup). */
-  const clientImportRowMatchesStructure = (
+  const buildClientIdentityKey = (row: {
+    business_unit?: string | null;
+    client_name?: string | null;
+    project_name?: string | null;
+  }): string => {
+    const bu = row.business_unit ? normalizeBusinessUnitName(String(row.business_unit)) || '' : '';
+    const client = String(row.client_name || '').trim();
+    const project = normalizeImportProjectName(row.project_name);
+    return `${bu}|${client}|${project}`;
+  };
+
+  /** One row per BU + client + project (month/year ignored — user chooses period in Excel). */
+  const dedupeClientIdentities = (rows: TeamReportItem[]): TeamReportItem[] => {
+    const seen = new Set<string>();
+    const out: TeamReportItem[] = [];
+    rows.forEach(row => {
+      const key = buildClientIdentityKey(row);
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(row);
+    });
+    return out;
+  };
+
+  const clientImportSameClientIdentity = (
+    importRow: { business_unit?: string | null; client_name?: string | null; project_name?: string | null },
+    structureRow: TeamReportItem
+  ): boolean => {
+    if (!compareBusinessUnits(importRow.business_unit, structureRow.business_unit)) return false;
+    if (String(importRow.client_name || '').trim() !== String(structureRow.client_name || '').trim()) return false;
+    const importProject = normalizeImportProjectName(importRow.project_name);
+    if (!importProject) return true;
+    return importProject === normalizeImportProjectName(structureRow.project_name);
+  };
+
+  const mergeClientDimensionRows = (primary: TeamReportItem[], secondary: TeamReportItem[]): TeamReportItem[] =>
+    dedupeClientIdentities([...primary, ...secondary]);
+
+  /** FT/F&F: only BU + client (+ project if MS) must exist in MFS; month/year are free-form. */
+  const resolveImportRowForStructure = (
     importRow: {
       business_unit?: string | null;
       client_name?: string | null;
       project_name?: string | null;
       month?: string | null;
       year?: number | null;
+      [key: string]: unknown;
     },
-    structureRow: TeamReportItem
-  ): boolean => {
-    if (!compareBusinessUnits(importRow.business_unit, structureRow.business_unit)) return false;
-    if (String(importRow.client_name || '').trim() !== String(structureRow.client_name || '').trim()) return false;
-    if (normalizeImportProjectName(importRow.project_name) !== normalizeImportProjectName(structureRow.project_name)) {
-      return false;
+    knownClients: TeamReportItem[]
+  ): typeof importRow | null => {
+    const matches = knownClients.filter(s => clientImportSameClientIdentity(importRow, s));
+    if (matches.length === 0) return null;
+
+    const blankProject = normalizeImportProjectName(importRow.project_name) === '';
+    if (blankProject) {
+      const distinctProjects = new Set(
+        matches
+          .map(s => normalizeImportProjectName(s.project_name))
+          .filter(p => p !== '')
+      );
+      if (distinctProjects.size === 1) {
+        const only = matches.find(s => normalizeImportProjectName(s.project_name) !== '');
+        return { ...importRow, project_name: only?.project_name ?? null };
+      }
     }
-    const importMonth = importRow.month ? normalizeToFullMonthName(String(importRow.month)) : '';
-    const structMonth = structureRow.month ? normalizeToFullMonthName(String(structureRow.month)) : '';
-    if (importMonth !== structMonth) return false;
-    return normalizeImportYear(importRow.year) === normalizeImportYear(structureRow.year);
+    return importRow;
   };
 
   const buildClientImportKey = (row: {
@@ -2155,7 +2201,9 @@ const MFSdata: React.FC = () => {
 
   const countBulkImportProcessed = (payload: any, batchLength: number): number => {
     if (!payload) return 0;
-    if (typeof payload.updated === 'number') return payload.updated;
+    if (typeof payload.updated === 'number' || typeof payload.created === 'number') {
+      return (Number(payload.updated) || 0) + (Number(payload.created) || 0);
+    }
     const inserted = Number(payload.insertedCount) || 0;
     const updated = Number(payload.updatedCount) || 0;
     if (inserted + updated > 0) return inserted + updated;
@@ -2196,7 +2244,7 @@ const MFSdata: React.FC = () => {
     const rows: Record<string, string | number>[] = [];
     const dimensionSource = dataModule === 'mfs'
       ? mfsClientDimensions
-      : moduleClientDimensions;
+      : dedupeClientIdentities([...mfsClientDimensions, ...moduleClientDimensions]);
     const source = dimensionSource.length > 0 ? dimensionSource : clientMFSData;
     const alchemyByClientKey = new Map<string, string>();
     if (includeAlchemy) {
@@ -2207,19 +2255,26 @@ const MFSdata: React.FC = () => {
         if (!alchemyByClientKey.has(clientKey)) alchemyByClientKey.set(clientKey, alchemy);
       });
     }
+    const ftFnfClientOnlyTemplate = dataModule === 'ft' || dataModule === 'fnf';
     source.forEach(row => {
       if (selectedBusinessUnit && row.business_unit && !compareBusinessUnits(row.business_unit, selectedBusinessUnit)) return;
-      const key = `${row.business_unit}|${row.client_name}|${row.project_name}|${row.month}|${row.year}`;
-      if (seen.has(key)) return;
-      seen.add(key);
+      const identityKey = `${row.business_unit}|${row.client_name}|${row.project_name}`;
+      if (ftFnfClientOnlyTemplate) {
+        if (seen.has(identityKey)) return;
+        seen.add(identityKey);
+      } else {
+        const key = `${identityKey}|${row.month}|${row.year}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+      }
       const clientKey = `${row.business_unit || ''}|${row.client_name || ''}|${row.project_name || ''}`;
       rows.push({
         'Business Unit': row.business_unit || '',
         'Client Name': row.client_name || '',
         'Project Name': row.project_name || '',
         'BU Head': row.bu_head || '',
-        'Year': row.year ?? '',
-        'Month': row.month || '',
+        'Year': ftFnfClientOnlyTemplate ? '' : (row.year ?? ''),
+        'Month': ftFnfClientOnlyTemplate ? '' : (row.month || ''),
         ...(includeAlchemy ? {
           'Alchemy_Name': row.alchemy_name || alchemyByClientKey.get(clientKey) || '',
         } : {}),
@@ -2231,8 +2286,8 @@ const MFSdata: React.FC = () => {
       String(a['Business Unit']).localeCompare(String(b['Business Unit']))
       || String(a['Client Name']).localeCompare(String(b['Client Name']))
       || String(a['Project Name']).localeCompare(String(b['Project Name']))
-      || String(a['Year']).localeCompare(String(b['Year']))
-      || String(a['Month']).localeCompare(String(b['Month']))
+      || (ftFnfClientOnlyTemplate ? 0 : String(a['Year']).localeCompare(String(b['Year'])))
+      || (ftFnfClientOnlyTemplate ? 0 : String(a['Month']).localeCompare(String(b['Month'])))
     );
   };
 
@@ -2348,35 +2403,39 @@ const MFSdata: React.FC = () => {
       let rowsToImport = mappedData;
       let preSkipped = 0;
       if (summaryIsDerived) {
+        const structureQueryParams = buildTeamReportQueryParams({
+          allYears: true,
+          dimensionsOnly: true,
+          designation: user?.designation,
+          userBusinessUnit: user?.business_unit,
+        });
         let structureRows: TeamReportItem[] = [];
         try {
-          const structRes = await apiClient.get(moduleApiPaths.client, {
-            params: buildTeamReportQueryParams({
-              allYears: true,
-              dimensionsOnly: true,
-              designation: user?.designation,
-              userBusinessUnit: user?.business_unit,
-            }),
-          });
-          if (Array.isArray(structRes.data)) {
-            structureRows = structRes.data as TeamReportItem[];
+          const [moduleStructRes, mfsStructRes] = await Promise.all([
+            apiClient.get(moduleApiPaths.client, { params: structureQueryParams }),
+            apiClient.get('/team-report', { params: structureQueryParams }),
+          ]);
+          const moduleRows = Array.isArray(moduleStructRes.data) ? moduleStructRes.data as TeamReportItem[] : [];
+          const mfsRows = Array.isArray(mfsStructRes.data) ? mfsStructRes.data as TeamReportItem[] : [];
+          structureRows = dedupeClientIdentities(mfsRows.length > 0 ? mfsRows : moduleRows);
+          if (structureRows.length === 0) {
+            structureRows = mergeClientDimensionRows(moduleRows, mfsRows);
           }
         } catch (_) {
           structureRows = [];
         }
         if (structureRows.length === 0) {
           try {
-            await apiClient.post('/mfs-modules/sync-structure', { type: dataModule === 'fnf' ? 'fnf' : 'ft' });
-            const structRes = await apiClient.get(moduleApiPaths.client, {
-              params: buildTeamReportQueryParams({
-                allYears: true,
-                dimensionsOnly: true,
-                designation: user?.designation,
-                userBusinessUnit: user?.business_unit,
-              }),
-            });
-            if (Array.isArray(structRes.data)) {
-              structureRows = structRes.data as TeamReportItem[];
+            await apiClient.post('/mfs-modules/sync-structure', { type: 'client' });
+            const [moduleStructRes, mfsStructRes] = await Promise.all([
+              apiClient.get(moduleApiPaths.client, { params: structureQueryParams }),
+              apiClient.get('/team-report', { params: structureQueryParams }),
+            ]);
+            const moduleRows = Array.isArray(moduleStructRes.data) ? moduleStructRes.data as TeamReportItem[] : [];
+            const mfsRows = Array.isArray(mfsStructRes.data) ? mfsStructRes.data as TeamReportItem[] : [];
+            structureRows = dedupeClientIdentities(mfsRows.length > 0 ? mfsRows : moduleRows);
+            if (structureRows.length === 0) {
+              structureRows = mergeClientDimensionRows(moduleRows, mfsRows);
             }
           } catch (_) {
             // handled below
@@ -2392,8 +2451,9 @@ const MFSdata: React.FC = () => {
         const matched: typeof mappedData = [];
         preSkipped = 0;
         mappedData.forEach(row => {
-          if (structureRows.some(s => clientImportRowMatchesStructure(row, s))) {
-            matched.push(row);
+          const resolved = resolveImportRowForStructure(row, structureRows);
+          if (resolved) {
+            matched.push(resolved);
           } else {
             preSkipped += 1;
           }
@@ -2406,7 +2466,7 @@ const MFSdata: React.FC = () => {
             : '';
           message.error(
             preSkipped > 0
-              ? `No rows matched existing ${moduleApiPaths.label} clients (${preSkipped} skipped). Keys must match MFS exactly: BU, Client, Project, Month, Year. Your row: ${sampleKey}. Download the template, fill metric cells only, and leave dimension columns unchanged.`
+              ? `No rows matched MFS clients (${preSkipped} skipped). Business Unit and Client Name must exist in MFS (Project too for MS). Month and Year are yours to enter — they are not checked against MFS. Your row: ${sampleKey}.`
               : 'No valid data found in the Excel file.'
           );
           return;
@@ -2609,7 +2669,7 @@ const MFSdata: React.FC = () => {
             </button>
             {summaryIsDerived && (
               <span className="mfs-actions-hint">
-                Download client template first. Strict import: only existing MFS clients — fill values only.
+                FT / F&F client import: BU and Client must match MFS (Project for MS). Month and Year are independent — enter any period. Blank metric cells are not overwritten.
               </span>
             )}
           </div>

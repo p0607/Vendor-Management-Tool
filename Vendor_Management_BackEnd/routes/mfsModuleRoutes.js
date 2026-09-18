@@ -130,6 +130,217 @@ async function insertClientStructureFromMfs(client, targetTable) {
   return result.rowCount || 0;
 }
 
+async function findModuleClientRowId(client, clientTable, record) {
+  const { rows } = await client.query(
+    `SELECT id FROM ${clientTable}
+     WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
+       AND project_name IS NOT DISTINCT FROM $3 AND month = $4 AND year = $5
+     LIMIT 1`,
+    [
+      record.business_unit || null,
+      record.client_name || null,
+      record.project_name || null,
+      record.month,
+      record.year,
+    ]
+  );
+  return rows[0]?.id ?? null;
+}
+
+async function insertModuleClientShellRow(client, clientTable, targetCols, dims) {
+  const insertCols = [
+    ...CLIENT_DIMENSION_COLS.filter((c) => targetCols.has(c)),
+    ...CLIENT_METRIC_COLS.filter((c) => targetCols.has(c)),
+    ...CLIENT_OPTIONAL_TEXT_COLS.filter((c) => targetCols.has(c)),
+  ];
+  if (!insertCols.includes('month') || !insertCols.includes('year')) {
+    throw new Error(`Table "${clientTable}" is missing month/year columns.`);
+  }
+  const values = insertCols.map((col) => {
+    if (CLIENT_METRIC_COLS.includes(col)) return 0;
+    if (col === 'f_and_f') return null;
+    if (col in dims) {
+      const v = dims[col];
+      return v === undefined || v === '' ? null : v;
+    }
+    return null;
+  });
+  const placeholders = insertCols.map((_, i) => `$${i + 1}`).join(', ');
+  const { rows } = await client.query(
+    `INSERT INTO ${clientTable} (${insertCols.join(', ')}) VALUES (${placeholders}) RETURNING id`,
+    values
+  );
+  return rows[0]?.id ?? null;
+}
+
+async function resolveProjectNameFromMfs(client, record) {
+  if (record.project_name && String(record.project_name).trim() !== '') return;
+  const { rows } = await client.query(
+    `SELECT DISTINCT project_name FROM team_report
+     WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2`,
+    [record.business_unit || null, record.client_name || null]
+  );
+  const nonEmpty = rows
+    .map((r) => r.project_name)
+    .filter((p) => p !== null && p !== undefined && String(p).trim() !== '');
+  if (nonEmpty.length === 1) {
+    record.project_name = nonEmpty[0];
+    return;
+  }
+  if (rows.length === 1 && (rows[0].project_name === null || String(rows[0].project_name).trim() === '')) {
+    record.project_name = null;
+  }
+}
+
+async function mfsClientIdentityExists(client, record) {
+  await resolveProjectNameFromMfs(client, record);
+  const exact = await client.query(
+    `SELECT 1 FROM team_report
+     WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
+       AND project_name IS NOT DISTINCT FROM $3
+     LIMIT 1`,
+    [record.business_unit || null, record.client_name || null, record.project_name ?? null]
+  );
+  if (exact.rows.length > 0) return true;
+  return client.query(
+    `SELECT 1 FROM team_report
+     WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
+     LIMIT 1`,
+    [record.business_unit || null, record.client_name || null]
+  ).then((r) => r.rows.length > 0);
+}
+
+/** BU + client (+ project when known) from module or MFS — used to open a new month/year row. */
+async function fetchSiblingClientDimensions(client, clientTable, record) {
+  const bu = record.business_unit || null;
+  const clientName = record.client_name || null;
+  const project = record.project_name ?? null;
+  const projectBlank = project === null || String(project).trim() === '';
+
+  const pickExact = async (table) => {
+    const { rows } = await client.query(
+      `SELECT client_name, project_name, business_unit, bu_head
+       FROM ${table}
+       WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
+         AND project_name IS NOT DISTINCT FROM $3
+       ORDER BY year DESC, month DESC
+       LIMIT 1`,
+      [bu, clientName, project]
+    );
+    return rows[0] || null;
+  };
+
+  let row = await pickExact(clientTable);
+  if (row) return row;
+  row = await pickExact('team_report');
+  if (row) return row;
+  if (!projectBlank) return null;
+
+  const pickLoose = async (table) => {
+    const { rows } = await client.query(
+      `SELECT client_name, project_name, business_unit, bu_head
+       FROM ${table}
+       WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
+       ORDER BY year DESC, month DESC
+       LIMIT 1`,
+      [bu, clientName]
+    );
+    return rows[0] || null;
+  };
+
+  row = await pickLoose(clientTable);
+  if (row) return row;
+  return pickLoose('team_report');
+}
+
+/**
+ * FT/F&F import: client must exist in MFS (BU + client + project rules).
+ * Month/year come from the import payload only — new periods insert a shell row then update metrics.
+ */
+async function ensureModuleClientRowForImport(client, clientTable, targetCols, record) {
+  await resolveProjectNameFromMfs(client, record);
+  if (!(await mfsClientIdentityExists(client, record))) {
+    return null;
+  }
+
+  let id = await findModuleClientRowId(client, clientTable, record);
+  if (id) return id;
+
+  await insertClientStructureFromMfs(client, clientTable);
+  id = await findModuleClientRowId(client, clientTable, record);
+  if (id) return id;
+
+  const mfsExact = await client.query(
+    `SELECT client_name, project_name, business_unit, bu_head, month, year
+     FROM team_report
+     WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
+       AND project_name IS NOT DISTINCT FROM $3 AND month = $4 AND year = $5
+     LIMIT 1`,
+    [
+      record.business_unit || null,
+      record.client_name || null,
+      record.project_name || null,
+      record.month,
+      record.year,
+    ]
+  );
+  if (mfsExact.rows.length > 0) {
+    id = await insertModuleClientShellRow(client, clientTable, targetCols, {
+      ...mfsExact.rows[0],
+      month: record.month,
+      year: record.year,
+    });
+    if (id) return id;
+  }
+
+  const projectBlank = !record.project_name || String(record.project_name).trim() === '';
+  if (projectBlank) {
+    const mfsLoose = await client.query(
+      `SELECT client_name, project_name, business_unit, bu_head, month, year
+       FROM team_report
+       WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
+         AND month = $3 AND year = $4`,
+      [record.business_unit || null, record.client_name || null, record.month, record.year]
+    );
+    if (mfsLoose.rows.length === 1) {
+      record.project_name = mfsLoose.rows[0].project_name;
+      id = await findModuleClientRowId(client, clientTable, record);
+      if (id) return id;
+      id = await insertModuleClientShellRow(client, clientTable, targetCols, {
+        ...mfsLoose.rows[0],
+        month: record.month,
+        year: record.year,
+      });
+      if (id) return id;
+    }
+  }
+
+  const sibling = await fetchSiblingClientDimensions(client, clientTable, record);
+  if (!sibling) {
+    return null;
+  }
+  if (projectBlank && sibling.project_name) {
+    record.project_name = sibling.project_name;
+    id = await findModuleClientRowId(client, clientTable, record);
+    if (id) return id;
+  }
+  const alchemyCol = targetCols.has('alchemy_name')
+    ? await client.query(
+      `SELECT alchemy_name FROM ${clientTable}
+       WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
+         AND project_name IS NOT DISTINCT FROM $3 AND alchemy_name IS NOT NULL AND TRIM(alchemy_name) <> ''
+       LIMIT 1`,
+      [sibling.business_unit || null, sibling.client_name || null, sibling.project_name || null]
+    )
+    : { rows: [] };
+  return insertModuleClientShellRow(client, clientTable, targetCols, {
+    ...sibling,
+    month: record.month,
+    year: record.year,
+    alchemy_name: alchemyCol.rows[0]?.alchemy_name ?? null,
+  });
+}
+
 /** Build UPDATE for client bulk import using only columns present on the module table. */
 function buildClientUpdateParts(targetCols, record = null) {
   const optionalTextFields = CLIENT_OPTIONAL_TEXT_COLS.filter((f) => {
@@ -448,6 +659,7 @@ function registerMfsModuleRoutes(app, deps) {
       }
     });
 
+    // FT/F&F client bulk: MFS client identity required; month/year are not validated against MFS.
     app.post(`${prefix}/team-report/bulk`, async (req, res, next) => {
       try {
         const { data } = req.body;
@@ -459,6 +671,7 @@ function registerMfsModuleRoutes(app, deps) {
           await client.query('BEGIN');
           const targetCols = await getTableColumns(client, clientTable);
           let updated = 0;
+          let created = 0;
           let skipped = 0;
           const skippedSamples = [];
           const maxSkippedSamples = 10;
@@ -466,9 +679,15 @@ function registerMfsModuleRoutes(app, deps) {
           for (const raw of data) {
             const record = { ...raw };
             if (record.business_unit) record.business_unit = normalizeBusinessUnitName(record.business_unit);
+            if (!record.client_name || String(record.client_name).trim() === '') {
+              skipped += 1;
+              continue;
+            }
             if (!record.month || !record.year) throw new Error('Month and Year are required.');
             record.month = normalizeMonthName(record.month);
             if (record.year < 100) record.year = 2000 + record.year;
+            await resolveProjectNameFromMfs(client, record);
+            const hadRowBefore = await findModuleClientRowId(client, clientTable, record);
             const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment',
               'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f'];
             numericFields.forEach((f) => {
@@ -515,19 +734,16 @@ function registerMfsModuleRoutes(app, deps) {
             if (metricKeysOnRecord.length === 0 && !hasAlchemyOnRecord) {
               continue;
             }
-            const existing = await client.query(
-              `SELECT id FROM ${clientTable} WHERE business_unit IS NOT DISTINCT FROM $1 AND client_name IS NOT DISTINCT FROM $2
-               AND project_name IS NOT DISTINCT FROM $3 AND month = $4 AND year = $5 LIMIT 1`,
-              [record.business_unit || null, record.client_name || null, record.project_name || null, record.month, record.year]
-            );
-            if (existing.rows.length > 0) {
+            let rowId = await ensureModuleClientRowForImport(client, clientTable, targetCols, record);
+            if (rowId) {
               const { setClause, valueKeys, idParam } = buildClientUpdateParts(targetCols, record);
               const values = valueKeys.map((key) => getClientUpdateValue(record, key));
               await client.query(
                 `UPDATE ${clientTable} SET ${setClause} WHERE id = $${idParam}`,
-                [...values, existing.rows[0].id]
+                [...values, rowId]
               );
-              updated += 1;
+              if (hadRowBefore) updated += 1;
+              else created += 1;
             } else {
               skipped += 1;
               if (skippedSamples.length < maxSkippedSamples) {
@@ -545,12 +761,12 @@ function registerMfsModuleRoutes(app, deps) {
             await client.query('ROLLBACK');
             return res.status(400).json({
               success: false,
-              error: 'No rows matched existing FT/F&F structure. Download the client template — do not change client, project, BU, month, or year.',
+              error: 'No rows imported. Business Unit and Client Name must exist in MFS (Project for MS). Month and Year can be any value you enter.',
               updated: 0,
               skipped,
               skippedSamples,
               module: moduleKey,
-              strictImport: true,
+              clientIdentityFromMfs: true,
             });
           }
           await recomputeSummaryFromClient(
@@ -566,11 +782,13 @@ function registerMfsModuleRoutes(app, deps) {
           res.json({
             success: true,
             updated,
+            created,
             skipped,
             skippedSamples,
             module: moduleKey,
             summaryRecomputed: true,
-            strictImport: true,
+            /** No new clients — only MFS-known BU/client; month/year may be new. */
+            clientIdentityFromMfs: true,
             mfsFnfQuarterlySync,
           });
         } catch (err) {
