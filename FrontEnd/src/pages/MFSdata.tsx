@@ -469,11 +469,18 @@ const MFSdata: React.FC = () => {
 
   const parseNumericValue = (value: any): number => {
     if (value === null || value === undefined || value === '') return 0;
-    if (typeof value === 'number') return value;
-    const stringValue = String(value).trim();
-    if (stringValue === '' || stringValue === '-') return 0;
-    const parsed = parseFloat(stringValue.replace(/,/g, '').replace(/[()]/g, (m) => (m === '(' ? '-' : '')));
-    return isNaN(parsed) ? 0 : parsed;
+    if (typeof value === 'number') return Number.isNaN(value) ? 0 : value;
+    let stringValue = String(value).trim();
+    if (stringValue === '' || stringValue === '-' || stringValue === '########') return 0;
+    if (stringValue.startsWith('(') && stringValue.endsWith(')')) {
+      stringValue = `-${stringValue.slice(1, -1).trim()}`;
+    }
+    if (stringValue.endsWith('%')) {
+      stringValue = stringValue.slice(0, -1).trim();
+    }
+    stringValue = stringValue.replace(/,/g, '').replace(/\u2212/g, '-').replace(/\s+/g, '');
+    const parsed = parseFloat(stringValue);
+    return Number.isNaN(parsed) ? 0 : parsed;
   };
 
   // Reset client/project selection when Business Unit changes (e.g. from top filters)
@@ -1144,8 +1151,8 @@ const MFSdata: React.FC = () => {
       clientTableParameters.forEach(param => {
         const paramValue = item[param.key];
         if (paramValue === null || paramValue === undefined || paramValue === '') return;
-        const numValue = typeof paramValue === 'string' ? parseFloat(paramValue) : paramValue;
-        if (isNaN(numValue)) return;
+        const numValue = typeof paramValue === 'string' ? parseNumericValue(paramValue) : Number(paramValue);
+        if (Number.isNaN(numValue)) return;
         const cellKey = `${param.key}_${monthKey}`;
         rowTotals[cellKey] = (rowTotals[cellKey] || 0) + numValue;
       });

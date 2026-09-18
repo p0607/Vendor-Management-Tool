@@ -50,10 +50,22 @@ const normalizeMonthName = (month) => {
 
 const parseNumeric = (value) => {
   if (value === null || value === undefined || value === '') return 0;
-  if (typeof value === 'number') return value;
-  const strValue = String(value).trim();
-  if (strValue === '-' || strValue === '') return 0;
-  return parseFloat(strValue.replace(/,/g, '')) || 0;
+  if (typeof value === 'number') return Number.isNaN(value) ? 0 : value;
+  let strValue = String(value).trim();
+  if (strValue === '' || strValue === '-' || strValue === '########' ||
+      strValue.toUpperCase().includes('DIV') || strValue === '#DIV/0!' ||
+      strValue === 'NaN' || strValue.toUpperCase() === 'INFINITY' || strValue === '#VALUE!') {
+    return 0;
+  }
+  if (strValue.startsWith('(') && strValue.endsWith(')')) {
+    strValue = `-${strValue.slice(1, -1).trim()}`;
+  }
+  if (strValue.endsWith('%')) {
+    strValue = strValue.slice(0, -1).trim();
+  }
+  strValue = strValue.replace(/,/g, '').replace(/\u2212/g, '-').replace(/\s+/g, '');
+  const parsed = parseFloat(strValue);
+  return Number.isNaN(parsed) ? 0 : parsed;
 };
 
 const { buildTeamReportListQuery } = require('../utils/teamReportQueryFilters');
