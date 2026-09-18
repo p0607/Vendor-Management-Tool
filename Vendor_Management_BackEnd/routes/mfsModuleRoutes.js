@@ -71,6 +71,9 @@ function getClientUpdateValue(record, key) {
     if (value === undefined || value === null || String(value).trim() === '') return null;
     return String(value).trim();
   }
+  if (key === 'f_and_f' && (record[key] === null || record[key] === undefined)) {
+    return null;
+  }
   return record[key] ?? 0;
 }
 
@@ -122,10 +125,15 @@ function buildClientUpdateParts(targetCols, record = null) {
     if (record && !Object.prototype.hasOwnProperty.call(record, f)) return false;
     return true;
   });
+  const metricFields = CLIENT_METRIC_COLS.filter((f) => {
+    if (!targetCols.has(f)) return false;
+    if (record && !Object.prototype.hasOwnProperty.call(record, f)) return false;
+    return true;
+  });
   const fields = [
     'bu_head',
     ...optionalTextFields,
-    ...CLIENT_METRIC_COLS.filter((f) => targetCols.has(f)),
+    ...metricFields,
   ];
   if (fields.length === 0) {
     throw new Error('No updatable columns found on client module table.');
@@ -133,6 +141,119 @@ function buildClientUpdateParts(targetCols, record = null) {
   const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
   const valueKeys = fields;
   return { setClause, valueKeys, idParam: fields.length + 1 };
+}
+
+const FY_START_MONTHS_SQL = [
+  'April', 'May', 'June', 'July', 'August', 'September',
+  'October', 'November', 'December',
+];
+const FY_END_MONTHS_SQL = ['January', 'February', 'March'];
+
+/**
+ * Sum monthly F&F client f_and_f only (no other metrics) by BU and FY quarter into MFS summary
+ * f_and_f_q1..q4 on the April anchor row. Partial quarters OK (e.g. Q1 = April only until May/June arrive).
+ */
+async function syncFnfQuarterlyTotalsToMfsSummary(client, logger) {
+  const fnfCols = await getTableColumns(client, 'team_report_fnf');
+  const mfsSummaryCols = await getTableColumns(client, 'team_summary_report');
+  const quarterCols = ['f_and_f_q1', 'f_and_f_q2', 'f_and_f_q3', 'f_and_f_q4'];
+  if (!quarterCols.every((col) => mfsSummaryCols.has(col))) {
+    logger.warn('syncFnfQuarterlyTotalsToMfsSummary skipped: team_summary_report missing F&F Q columns');
+    return { businessUnitsUpdated: 0 };
+  }
+  if (!fnfCols.has('f_and_f')) {
+    logger.warn('syncFnfQuarterlyTotalsToMfsSummary skipped: team_report_fnf has no f_and_f column');
+    return { businessUnitsUpdated: 0 };
+  }
+
+  const startMonthsIn = FY_START_MONTHS_SQL.map((m) => `'${m}'`).join(', ');
+  const endMonthsIn = FY_END_MONTHS_SQL.map((m) => `'${m}'`).join(', ');
+
+  const quarterlyCte = `
+    WITH scoped AS (
+      SELECT
+        business_unit,
+        TRIM(month::text) AS month_name,
+        year::int AS cal_year,
+        f_and_f::numeric AS ff_val
+      FROM team_report_fnf
+      WHERE business_unit IS NOT NULL AND TRIM(business_unit) <> ''
+        AND month IS NOT NULL AND TRIM(month::text) <> ''
+        AND year IS NOT NULL
+        AND f_and_f IS NOT NULL
+    ),
+    tagged AS (
+      SELECT
+        business_unit,
+        CASE
+          WHEN month_name IN (${startMonthsIn}) THEN cal_year
+          ELSE cal_year - 1
+        END AS fy_start_year,
+        CASE
+          WHEN month_name IN ('April', 'May', 'June') THEN 1
+          WHEN month_name IN ('July', 'August', 'September') THEN 2
+          WHEN month_name IN ('October', 'November', 'December') THEN 3
+          WHEN month_name IN (${endMonthsIn}) THEN 4
+          ELSE NULL
+        END AS qtr,
+        ff_val
+      FROM scoped
+    ),
+    quarterly AS (
+      SELECT
+        business_unit,
+        fy_start_year,
+        SUM(ff_val) FILTER (WHERE qtr = 1) AS q1,
+        SUM(ff_val) FILTER (WHERE qtr = 2) AS q2,
+        SUM(ff_val) FILTER (WHERE qtr = 3) AS q3,
+        SUM(ff_val) FILTER (WHERE qtr = 4) AS q4
+      FROM tagged
+      WHERE qtr IS NOT NULL
+      GROUP BY business_unit, fy_start_year
+    )
+  `;
+
+  const updateSet = quarterCols.map((col, idx) => `${col} = q.q${idx + 1}`).join(', ');
+  const updateSql = mfsSummaryCols.has('updated_at')
+    ? `${quarterlyCte}
+       UPDATE team_summary_report s
+       SET ${updateSet}, updated_at = CURRENT_TIMESTAMP
+       FROM quarterly q
+       WHERE s.business_unit = q.business_unit
+         AND s.month = 'April'
+         AND s.year::int = q.fy_start_year`
+    : `${quarterlyCte}
+       UPDATE team_summary_report s
+       SET ${updateSet}
+       FROM quarterly q
+       WHERE s.business_unit = q.business_unit
+         AND s.month = 'April'
+         AND s.year::int = q.fy_start_year`;
+
+  const updateResult = await client.query(updateSql);
+  const insertCols = ['business_unit', 'month', 'year', 'hc', 'revenue', 'gpm', 'team_cost', 'net_margin', ...quarterCols];
+  const insertSelect = [
+    'q.business_unit',
+    "'April'",
+    'q.fy_start_year',
+    '0', '0', '0', '0', '0',
+    'q.q1', 'q.q2', 'q.q3', 'q.q4',
+  ];
+  const insertSql = `${quarterlyCte}
+    INSERT INTO team_summary_report (${insertCols.join(', ')})
+    SELECT ${insertSelect.join(', ')}
+    FROM quarterly q
+    WHERE NOT EXISTS (
+      SELECT 1 FROM team_summary_report s
+      WHERE s.business_unit = q.business_unit
+        AND s.month = 'April'
+        AND s.year::int = q.fy_start_year
+    )`;
+
+  const insertResult = await client.query(insertSql);
+  const businessUnitsUpdated = (updateResult.rowCount || 0) + (insertResult.rowCount || 0);
+  logger.info('F&F monthly totals synced to MFS summary quarters', { businessUnitsUpdated });
+  return { businessUnitsUpdated };
 }
 
 /** Roll up client rows into summary (HC, Revenue, GPM, Team Cost; NP → net_margin) per BU/month/year. */
@@ -339,7 +460,25 @@ function registerMfsModuleRoutes(app, deps) {
             const numericFields = ['hc', 'salary_cost', 'revenue', 'gpm', 'gpm_percentage', 'leave_encashment',
               'team_cost', 'opr_cost', 'funding_cost', 'np', 'np_percentage', 'rebate', 'passthrough', 'vendor_cost', 'discount', 'f_and_f'];
             numericFields.forEach((f) => {
-              if (targetCols.has(f)) record[f] = parseNumeric(record[f]);
+              if (!targetCols.has(f)) return;
+              if (f === 'f_and_f' && moduleKey === 'fnf') {
+                if (!Object.prototype.hasOwnProperty.call(raw, 'f_and_f')) {
+                  delete record.f_and_f;
+                  return;
+                }
+                const rawFf = raw.f_and_f;
+                if (rawFf === null || rawFf === undefined || String(rawFf).trim() === '') {
+                  record.f_and_f = null;
+                } else {
+                  record.f_and_f = parseNumeric(rawFf);
+                }
+                return;
+              }
+              if (Object.prototype.hasOwnProperty.call(raw, f)) {
+                record[f] = parseNumeric(record[f]);
+              } else {
+                delete record[f];
+              }
             });
             if (targetCols.has('alchemy_name') && Object.prototype.hasOwnProperty.call(raw, 'alchemy_name')) {
               const rawAlchemy = record.alchemy_name;
@@ -399,6 +538,10 @@ function registerMfsModuleRoutes(app, deps) {
             clientTable,
             summaryTable
           );
+          let mfsFnfQuarterlySync = null;
+          if (moduleKey === 'fnf' && updated > 0) {
+            mfsFnfQuarterlySync = await syncFnfQuarterlyTotalsToMfsSummary(client, logger);
+          }
           await client.query('COMMIT');
           res.json({
             success: true,
@@ -408,6 +551,7 @@ function registerMfsModuleRoutes(app, deps) {
             module: moduleKey,
             summaryRecomputed: true,
             strictImport: true,
+            mfsFnfQuarterlySync,
           });
         } catch (err) {
           await client.query('ROLLBACK');
@@ -455,6 +599,14 @@ function registerMfsModuleRoutes(app, deps) {
           clientTable,
           summaryTable
         );
+        if (clientTable === 'team_report_fnf') {
+          const syncClient = await pool.connect();
+          try {
+            await syncFnfQuarterlyTotalsToMfsSummary(syncClient, logger);
+          } finally {
+            syncClient.release();
+          }
+        }
         res.json(result.rows[0]);
       } catch (err) {
         next(err);
@@ -480,6 +632,14 @@ function registerMfsModuleRoutes(app, deps) {
           clientTable,
           summaryTable
         );
+        if (clientTable === 'team_report_fnf') {
+          const syncClient = await pool.connect();
+          try {
+            await syncFnfQuarterlyTotalsToMfsSummary(syncClient, logger);
+          } finally {
+            syncClient.release();
+          }
+        }
         res.status(200).json({ message: 'Record deleted successfully', id: Number(req.params.id), summaryRecomputed: true });
       } catch (err) {
         next(err);
@@ -510,4 +670,9 @@ function registerMfsModuleRoutes(app, deps) {
   });
 }
 
-module.exports = { registerMfsModuleRoutes, syncMfsStructureToFtFnf, MODULE_CONFIG };
+module.exports = {
+  registerMfsModuleRoutes,
+  syncMfsStructureToFtFnf,
+  syncFnfQuarterlyTotalsToMfsSummary,
+  MODULE_CONFIG,
+};

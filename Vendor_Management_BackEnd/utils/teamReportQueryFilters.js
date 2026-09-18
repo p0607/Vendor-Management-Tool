@@ -125,8 +125,11 @@ function buildTeamReportListQuery(tableName, req) {
         params,
       };
     }
+    const clientDimCols = safeTable === 'team_report_ft'
+      ? 'business_unit, client_name, project_name, bu_head, month, year, alchemy_name'
+      : 'business_unit, client_name, project_name, bu_head, month, year';
     return {
-      query: `SELECT DISTINCT business_unit, client_name, project_name, bu_head, month, year
+      query: `SELECT DISTINCT ${clientDimCols}
               FROM ${safeTable}${whereClause}
               ORDER BY business_unit, client_name, project_name, year, month`,
       params,

@@ -153,6 +153,7 @@ const MFSdata: React.FC = () => {
   );
   const [dataModule, setDataModule] = useState<DataModule>('mfs');
   const [mfsClientDimensions, setMfsClientDimensions] = useState<TeamReportItem[]>([]);
+  const [moduleClientDimensions, setModuleClientDimensions] = useState<TeamReportItem[]>([]);
 
   const moduleApiPaths = useMemo(() => getModuleApiPaths(dataModule), [dataModule]);
   const summaryIsDerived = dataModule !== 'mfs';
@@ -242,9 +243,26 @@ const MFSdata: React.FC = () => {
     return () => { cancelled = true; };
   }, [dataModule, moduleApiPaths.summary, moduleApiPaths.client, teamReportQueryParams]);
 
+  const refreshModuleClientDimensions = async (module: DataModule) => {
+    if (module === 'mfs') {
+      await refreshMfsClientDimensions();
+      return;
+    }
+    try {
+      const paths = getModuleApiPaths(module);
+      const response = await apiClient.get(paths.client, { params: mfsDimensionsQueryParams });
+      if (Array.isArray(response.data)) {
+        setModuleClientDimensions(response.data as TeamReportItem[]);
+      }
+    } catch (err) {
+      console.error('Failed to load module client dimensions:', err);
+      setModuleClientDimensions([]);
+    }
+  };
+
   useEffect(() => {
-    refreshMfsClientDimensions();
-  }, []);
+    refreshModuleClientDimensions(dataModule);
+  }, [dataModule, mfsDimensionsQueryParams]);
 
   useEffect(() => {
     saveHiddenKeys(MFS_HIDDEN_STORAGE.summaryMonths, hiddenSummaryMonths);
@@ -833,7 +851,7 @@ const MFSdata: React.FC = () => {
   }, [pivotData, months]);
 
   // Format value for display
-  const formatValue = (value: number, parameter: string): string => {
+  const formatValue = (value: number | null | undefined, parameter: string): string => {
     if (value === null || value === undefined || isNaN(value)) return 'N/A';
     
     // team_summary_report doesn't have percentage fields, but keep this for compatibility
@@ -885,39 +903,61 @@ const MFSdata: React.FC = () => {
     return getCurrentFYStartYear();
   }, [periodFilter, periodValue, months]);
 
+  const parseStoredFFQuarter = (value: unknown): number | null => {
+    if (value === null || value === undefined || value === '') return null;
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isNaN(n) ? null : n;
+  };
+
   const quarterlyFF = useMemo(() => {
-    const totals = { q1: 0, q2: 0, q3: 0, q4: 0, recordId: null as number | null };
+    const totals = {
+      q1: null as number | null,
+      q2: null as number | null,
+      q3: null as number | null,
+      q4: null as number | null,
+      recordId: null as number | null,
+    };
     const buForFF = effectiveBusinessUnitForEdit;
+
+    const addQuarter = (current: number | null, next: number | null): number | null => {
+      if (next === null) return current;
+      if (current === null) return next;
+      return current + next;
+    };
 
     teamReportDataForUser.forEach(item => {
       const my = getItemMonthYear(item);
       if (!my || my.monthName !== 'April' || my.year !== activeFYStartYear) return;
       if (buForFF && !compareBusinessUnits(item.business_unit, buForFF)) return;
 
-      const q1 = Number(item.f_and_f_q1) || 0;
-      const q2 = Number(item.f_and_f_q2) || 0;
-      const q3 = Number(item.f_and_f_q3) || 0;
-      const q4 = Number(item.f_and_f_q4) || 0;
+      const q1 = parseStoredFFQuarter(item.f_and_f_q1);
+      const q2 = parseStoredFFQuarter(item.f_and_f_q2);
+      const q3 = parseStoredFFQuarter(item.f_and_f_q3);
+      const q4 = parseStoredFFQuarter(item.f_and_f_q4);
 
       if (buForFF) {
         totals.q1 = q1;
         totals.q2 = q2;
         totals.q3 = q3;
         totals.q4 = q4;
-        totals.recordId = item.id;
+        totals.recordId = item.id ?? null;
       } else {
-        totals.q1 += q1;
-        totals.q2 += q2;
-        totals.q3 += q3;
-        totals.q4 += q4;
+        totals.q1 = addQuarter(totals.q1, q1);
+        totals.q2 = addQuarter(totals.q2, q2);
+        totals.q3 = addQuarter(totals.q3, q3);
+        totals.q4 = addQuarter(totals.q4, q4);
       }
     });
     return totals;
   }, [teamReportDataForUser, activeFYStartYear, effectiveBusinessUnitForEdit]);
 
-  const getStoredFFValue = (ffKey: 'q1' | 'q2' | 'q3' | 'q4' | 'fy'): number => {
+  const getStoredFFValue = (ffKey: 'q1' | 'q2' | 'q3' | 'q4' | 'fy'): number | null => {
     if (ffKey === 'fy') {
-      return quarterlyFF.q1 + quarterlyFF.q2 + quarterlyFF.q3 + quarterlyFF.q4;
+      const parts = [quarterlyFF.q1, quarterlyFF.q2, quarterlyFF.q3, quarterlyFF.q4].filter(
+        (v): v is number => v !== null
+      );
+      if (parts.length === 0) return null;
+      return parts.reduce((sum, v) => sum + v, 0);
     }
     return quarterlyFF[ffKey];
   };
@@ -1072,6 +1112,19 @@ const MFSdata: React.FC = () => {
     const rowTotalsMap = new Map<string, Record<string, number>>();
     const alchemyNameMap = new Map<string, string>();
 
+    if (dataModule === 'ft') {
+      clientMFSDataForUser.forEach(item => {
+        if (selectedBusinessUnit && !compareBusinessUnits(item.business_unit, selectedBusinessUnit)) return;
+        const client = String(item.client_name || '').trim();
+        const project = String(item.project_name || '').trim();
+        if (!client) return;
+        if (isClientMSSelected && !project) return;
+        const rowKey = isClientMSSelected ? `${client}\0${project}` : client;
+        const alchemy = String(item.alchemy_name || '').trim();
+        if (alchemy && !alchemyNameMap.has(rowKey)) alchemyNameMap.set(rowKey, alchemy);
+      });
+    }
+
     // Aggregate in one pass: (rowKey, monthKey, parameter) -> total
     filteredClientMFSData.forEach(item => {
       const client = String(item.client_name || '').trim();
@@ -1087,11 +1140,6 @@ const MFSdata: React.FC = () => {
 
       const rowKey = isClientMSSelected ? `${client}\0${project}` : client;
       const rowTotals = rowTotalsMap.get(rowKey) || {};
-
-      if (dataModule === 'ft') {
-        const alchemy = String(item.alchemy_name || '').trim();
-        if (alchemy && !alchemyNameMap.has(rowKey)) alchemyNameMap.set(rowKey, alchemy);
-      }
 
       clientTableParameters.forEach(param => {
         const paramValue = item[param.key];
@@ -1121,7 +1169,15 @@ const MFSdata: React.FC = () => {
 
       return row;
     });
-  }, [filteredClientMFSData, clientTableRowKeys, clientTableMonths, isClientMSSelected, dataModule]);
+  }, [
+    filteredClientMFSData,
+    clientMFSDataForUser,
+    clientTableRowKeys,
+    clientTableMonths,
+    isClientMSSelected,
+    dataModule,
+    selectedBusinessUnit,
+  ]);
 
   // Client table: which parameters to show (default all)
   const clientTableParametersFiltered = useMemo(() => {
@@ -1173,7 +1229,8 @@ const MFSdata: React.FC = () => {
           total += cellData.value;
         }
       } else if (includeFFQuarters && column.type === 'ff' && column.ffKey !== 'fy') {
-        total += getStoredFFValue(column.ffKey);
+        const ffPart = getStoredFFValue(column.ffKey);
+        if (ffPart !== null) total += ffPart;
       }
     });
     return total;
@@ -1996,13 +2053,16 @@ const MFSdata: React.FC = () => {
     return String(payload.message || payload.error || '');
   };
 
+  const buildClientTemplateMetricCols = (): Record<string, string | number> => ({
+    'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
+    'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '',
+    'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
+    ...(dataModule === 'fnf' ? { 'F&F': '' } : {}),
+  });
+
   const buildPrefilledClientTemplateRows = (): Record<string, string | number>[] => {
     const includeAlchemy = dataModule === 'ft';
-    const metricCols: Record<string, string> = {
-      'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
-      'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '',
-      'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
-    };
+    const metricCols = buildClientTemplateMetricCols();
     const emptyRow = (): Record<string, string | number> => ({
       'Business Unit': '', 'Client Name': '', 'Project Name': '', 'BU Head': '', 'Year': '', 'Month': '',
       ...(includeAlchemy ? { 'Alchemy_Name': '' } : {}),
@@ -2010,12 +2070,25 @@ const MFSdata: React.FC = () => {
     });
     const seen = new Set<string>();
     const rows: Record<string, string | number>[] = [];
-    const source = mfsClientDimensions.length > 0 ? mfsClientDimensions : clientMFSData;
+    const dimensionSource = dataModule === 'mfs'
+      ? mfsClientDimensions
+      : moduleClientDimensions;
+    const source = dimensionSource.length > 0 ? dimensionSource : clientMFSData;
+    const alchemyByClientKey = new Map<string, string>();
+    if (includeAlchemy) {
+      [...moduleClientDimensions, ...clientMFSData].forEach(row => {
+        const alchemy = String(row.alchemy_name || '').trim();
+        if (!alchemy) return;
+        const clientKey = `${row.business_unit || ''}|${row.client_name || ''}|${row.project_name || ''}`;
+        if (!alchemyByClientKey.has(clientKey)) alchemyByClientKey.set(clientKey, alchemy);
+      });
+    }
     source.forEach(row => {
       if (selectedBusinessUnit && row.business_unit && !compareBusinessUnits(row.business_unit, selectedBusinessUnit)) return;
       const key = `${row.business_unit}|${row.client_name}|${row.project_name}|${row.month}|${row.year}`;
       if (seen.has(key)) return;
       seen.add(key);
+      const clientKey = `${row.business_unit || ''}|${row.client_name || ''}|${row.project_name || ''}`;
       rows.push({
         'Business Unit': row.business_unit || '',
         'Client Name': row.client_name || '',
@@ -2023,7 +2096,9 @@ const MFSdata: React.FC = () => {
         'BU Head': row.bu_head || '',
         'Year': row.year ?? '',
         'Month': row.month || '',
-        ...(includeAlchemy ? { 'Alchemy_Name': row.alchemy_name || '' } : {}),
+        ...(includeAlchemy ? {
+          'Alchemy_Name': row.alchemy_name || alchemyByClientKey.get(clientKey) || '',
+        } : {}),
         ...metricCols,
       });
     });
@@ -2038,16 +2113,7 @@ const MFSdata: React.FC = () => {
   };
 
   const handleDownloadClientTemplate = () => {
-    const usePrefill = dataModule === 'ft' || dataModule === 'fnf';
-    const metricCols: Record<string, string> = {
-      'HC': '', 'Revenue': '', 'Salary Cost': '', 'GPM': '', 'GPM -%': '', 'NP': '', 'NP %': '',
-      'Leave Encsh': '', 'Team Cost': '', 'Opr Cost': '', 'Funding Cost': '',
-      'Rebate': '', 'Passthrough': '', 'Vendor Cost': '', 'Discount': '',
-    };
-    const templateData = usePrefill ? buildPrefilledClientTemplateRows() : [{
-      'Business Unit': '', 'Client Name': '', 'Project Name': '', 'BU Head': '', 'Year': '', 'Month': '',
-      ...metricCols,
-    }];
+    const templateData = buildPrefilledClientTemplateRows();
     const sheetLabel = dataModule === 'ft' ? 'FT_Client_Template' : dataModule === 'fnf' ? 'FNF_Client_Template' : 'MFS_Client_Template';
     const fileLabel = dataModule === 'ft' ? 'FT_Client_Template.xlsx' : dataModule === 'fnf' ? 'FNF_Client_Template.xlsx' : 'MFS_Client_Template.xlsx';
     const worksheet = XLSX.utils.json_to_sheet(templateData);
@@ -2132,6 +2198,11 @@ const MFSdata: React.FC = () => {
           passthrough: parseNumericValue(row['Passthrough'] || row.passthrough),
           vendor_cost: parseNumericValue(row['Vendor Cost'] || row.vendor_cost),
           discount: parseNumericValue(row['Discount'] || row.discount),
+          ...(dataModule === 'fnf' ? (() => {
+            const ffRaw = row['F&F'] ?? row['F and F'] ?? row['F&F Amount'] ?? row.f_and_f;
+            if (ffRaw === undefined || ffRaw === null || String(ffRaw).trim() === '') return {};
+            return { f_and_f: parseNumericValue(ffRaw) };
+          })() : {}),
         };
       }).filter((r: any) => r.month && r.year != null && r.year !== 0).map((record: any) => {
         const rev = Number(record.revenue) || 0, salary_cost = Number(record.salary_cost) || 0, rebate = Number(record.rebate) || 0, passthrough = Number(record.passthrough) || 0;
@@ -2222,9 +2293,11 @@ const MFSdata: React.FC = () => {
         if (updatedTotal > 0 && skippedTotal === 0) {
           message.success(
             summaryIsDerived
-              ? `Updated ${updatedTotal} ${moduleApiPaths.label} client row(s). Summary table updated automatically.`
+              ? dataModule === 'fnf'
+                ? `Updated ${updatedTotal} F&F client row(s). F&F summary updated; MFS Summary F&F Q1–Q4 columns were refreshed from monthly F&F totals.`
+                : `Updated ${updatedTotal} ${moduleApiPaths.label} client row(s). Summary table updated automatically.`
               : `Successfully imported all ${updatedTotal} records!`,
-            5
+            6
           );
         } else if (updatedTotal > 0 && skippedTotal > 0) {
           message.warning(
@@ -2818,7 +2891,7 @@ const MFSdata: React.FC = () => {
                                       onClick={() => handleEditClick(
                                         paramKey,
                                         '',
-                                        ffValue,
+                                        ffValue ?? 0,
                                         'summary',
                                         undefined,
                                         undefined,
@@ -3037,7 +3110,7 @@ const MFSdata: React.FC = () => {
                           <th className="parameter-header" rowSpan={deferredClientTableParametersFiltered.length > 1 ? 2 : 1}>Project</th>
                         )}
                         {dataModule === 'ft' && (
-                          <th className="parameter-header" rowSpan={deferredClientTableParametersFiltered.length > 1 ? 2 : 1}>Alchemy Name</th>
+                          <th className="parameter-header" rowSpan={deferredClientTableParametersFiltered.length > 1 ? 2 : 1} title="Alchemy routing / account holder">Account Holder</th>
                         )}
                       </tr>
                       {deferredClientTableParametersFiltered.length > 1 ? (
@@ -3084,7 +3157,7 @@ const MFSdata: React.FC = () => {
                                     <button
                                       onClick={() => handleEditClick('alchemy_name', '', row.alchemy_name || '', 'client', row.client, row.project)}
                                       className="edit-pen-button"
-                                      title="Edit Alchemy Name"
+                                      title="Edit Account Holder (Alchemy Name)"
                                     >
                                       ✏️
                                     </button>
